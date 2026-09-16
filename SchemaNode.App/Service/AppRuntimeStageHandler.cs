@@ -217,6 +217,18 @@ public class AppRuntimeStageHandler : IRuntimeStageHandler
         }
     }
 
+    /// <inheritdoc/>
+    public Task OnSchemaLoadingAsync(ISchemaContext context)
+    {
+        if (context is not SchemaContext schemaContext || context.Runtime is not AppSchemaRuntime runtime) return Task.CompletedTask; // not support
+        
+        // mark all node types not loaded, so they can combine custom schemas
+        schemaContext.SystemMode = false; // avoid system mode
+        runtime.RootAppType.ResetLoadState();
+        
+        return Task.CompletedTask;
+    }
+
     /// <summary>
     /// Active the workflows
     /// </summary>

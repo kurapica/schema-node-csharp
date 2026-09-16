@@ -1,11 +1,9 @@
 using System.Collections;
 using System.Numerics;
 using SchemaNode.Attribute;
-using SchemaNode.Node;
 using SchemaNode.Property.Common;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
-using SchemaNode.Property.Core;
 using SchemaNode.Property.Function;
 using SchemaNode.Runtime;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
@@ -22,6 +20,16 @@ namespace SchemaNode.Function;
 [Meta<SchemaType>(NS_SYSTEM_LOGIC)]
 public static class SystemLogic
 {
+    /// <summary>
+    /// Always true
+    /// </summary>
+    public static bool alwaystrue() => true;
+    
+    /// <summary>
+    /// Always false
+    /// </summary>
+    public static bool alwaysfalse() => false;
+    
     /// <summary>
     /// system.logic.and
     /// </summary>

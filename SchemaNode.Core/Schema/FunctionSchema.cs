@@ -50,7 +50,7 @@ public sealed class FunctionSchema: PropertyOwner
     /// <summary>
     /// The function arguments
     /// </summary>
-    public FuncArg[] Args { get; set; } = [];
+    public FuncArg[]? Args { get; set; } = [];
 
     /// <summary>
     /// The function expressions
@@ -78,14 +78,17 @@ public sealed class FunctionProperty : Property<FunctionSchema>
         }
 
         // Combine argument display
-        for (int i = 0; i < schema.Args.Length; i++)
+        if (schema.Args != null)
         {
-            var arg = schema.Args[i];
-            var otherArg = otherSchema.Args.ElementAtOrDefault(i);
-            if (otherArg is null || otherArg.Type != arg.Type) continue;
-            arg.CombineProperties(otherArg, runtime, SCHEMA_KIND_FUNC_ARG);
+            for (int i = 0; i < schema.Args.Length; i++)
+            {
+                var arg = schema.Args[i];
+                var otherArg = otherSchema.Args?.ElementAtOrDefault(i);
+                if (otherArg is null || otherArg.Type != arg.Type) continue;
+                arg.CombineProperties(otherArg, runtime, SCHEMA_KIND_FUNC_ARG);
+            }
         }
-        
+
         schema.CombineProperties(otherSchema, runtime, SCHEMA_KIND_FUNCTION);
         SetValue(schema);
         return true;

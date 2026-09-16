@@ -58,6 +58,14 @@ public sealed class AppWorkflowSchema: PropertyOwner
     /// The workflow nodes
     /// </summary>
     public AppWorkflowNodeSchema[] Nodes { get; set; } = [];
+
+    /// <summary>
+    /// Combine other workflow schema
+    /// </summary>
+    public bool Combine(AppWorkflowSchema? other, ISchemaRuntime? runtime = null)
+    {
+        return other is not null && other.Name.Equals(Name, StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 /// <summary>

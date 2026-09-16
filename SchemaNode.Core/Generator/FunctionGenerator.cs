@@ -27,8 +27,6 @@ namespace SchemaNode.Service;
 /// </summary>
 internal sealed class FunctionGenerator : INodeSchemaGenerator
 {
-    private static readonly NullabilityInfoContext _nullabilityContext = new();
-
     /// <summary>
     /// The system func infos
     /// </summary>
@@ -125,11 +123,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             };
             
             // Require
-            if (pt.Nullable || p.HasDefaultValue ||
-                _nullabilityContext.Create(p).ReadState == NullabilityState.Nullable ||
-                p.GetCustomAttributesData().FirstOrDefault(a =>
-                    a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute") != null ||
-                defaultProp != null || p.IsDefined(typeof(ParamArrayAttribute), false))
+            if (pt.Nullable || p.IsNullable() || defaultProp != null || p.IsDefined(typeof(ParamArrayAttribute), false))
             {
                 pt.Kind |= TypeDetail.ParameterTypeKind.Nullable;
             }

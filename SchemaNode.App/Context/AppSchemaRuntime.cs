@@ -17,7 +17,7 @@ public class AppSchemaRuntime : SchemaRuntime
 {
     #region System App schema
 
-    private readonly AppSchema _rootAppSchema = new();
+    private readonly AppSchema _rootAppSchema = new AppSchema{ Name = "" };
     private readonly ConcurrentDictionary<string, Type> _appFieldTypes = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<Type, (string App, string Field)> _typeAppFields = new();
     private readonly ConcurrentDictionary<string, AppType> _apps = new(StringComparer.OrdinalIgnoreCase);
@@ -157,10 +157,13 @@ public class AppSchemaRuntime : SchemaRuntime
     /// Gets the app & field of the given type
     /// </summary>
     public (AppType? App, AppFieldType? Field) GetSystemAppField(Type fieldType)
-        => _typeAppFields.TryGetValue(fieldType, out var info) && _apps.TryGetValue(info.App, out var app)
-            ? (app, app.GetField(info.Field))
-            : (null, null);
-    
+    {
+        if (_typeAppFields.TryGetValue(fieldType, out var info))
+            if (_apps.TryGetValue(info.App, out var app))
+                return (app, app.GetField(info.Field));
+        return (null, null);
+    }
+
     /// <summary>
     /// Gets the app & field of the given type
     /// </summary>

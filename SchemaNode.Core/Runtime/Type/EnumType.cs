@@ -139,7 +139,7 @@ public sealed class EnumType: ValueType
         if (access is not null || root.IsFullyLoaded == true) return access ?? [];
 
         // Load from the provider
-        if (Provider != null && context.GetRequiredService(Provider) is IEnumEntryProvider provider)
+        if (Provider is IEnumEntryProvider provider)
         {
             EntryAccess<string>[] accessList = await provider.GetEnumEntryAccessAsync(Name, value, !root.IsRoot ? root.Value : null);
             if (accessList.Length > 0)

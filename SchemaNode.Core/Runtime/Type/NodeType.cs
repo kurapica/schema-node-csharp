@@ -5,6 +5,7 @@ using SchemaNode.Schema;
 using SchemaNode.Enum;
 using SchemaNode.Property.Function;
 using SchemaNode.Property.Core;
+using SchemaNode.Schema.Provider;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
@@ -68,7 +69,7 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
     /// <summary>
     /// The scheme provider used to load the node
     /// </summary>
-    public Type? Provider => Schema?.Provider;
+    public INodeSchemaProvider? Provider => Schema?.Provider;
     
     /// <summary>
     /// The type is loaded
@@ -456,7 +457,7 @@ public abstract class ValueType : NodeType, IValueTypeAccess
             if (handler.Path.Equals(parts[0], StringComparison.OrdinalIgnoreCase))
             {
                 IValueTypeAccess? type = handler.GetAccessValueType(this);
-                return parts?.Length > 1 ? type?.GetAccessValueType(parts[1]) : type;
+                return parts.Length > 1 ? type?.GetAccessValueType(parts[1]) : type;
             }
         }
         return null;

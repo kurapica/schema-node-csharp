@@ -122,7 +122,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
         Return = retType;
         
         // Data
-        Args = func.Args.Select(a => (FunctionNodeArgument)a).ToArray();
+        Args = func.Args?.Select(a => (FunctionNodeArgument)a).ToArray() ?? [];
         Exps = func.Exps.Select(e => (FunctionNodeExpression)e).ToArray();
 
         Converter = func.GetProperty<Converter>()?.Value;
@@ -679,7 +679,8 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
             foreach (object? arg in args) 
                 cArgs.Add(arg.ToJsonNode());
 
-            result = Provider != null && context.GetRequiredService(Provider) is IFunctionSchemaProvider provider
+            // ReSharper disable once SuspiciousTypeConversion.Global
+            result = Provider is IFunctionSchemaProvider provider
                 ? await provider.CallFunctionAsync(Name, cArgs, rType, mode)
                 : null;
         }

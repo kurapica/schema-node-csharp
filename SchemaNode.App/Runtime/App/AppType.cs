@@ -145,6 +145,7 @@ public sealed class AppType : IValueTypeAccess
 
     internal void RemoveAppSchema(ReadOnlySpan<char> name)
     {
+        _subApps?.TryRemove(name.ToString(), out _);
         _schemas?.TryRemove(name.ToString(), out _);
     }
     
@@ -163,6 +164,16 @@ public sealed class AppType : IValueTypeAccess
     /// </summary>
     public bool HasSubApps => _schemas?.Count > 0;
     
+    /// <summary>
+    /// Rest loading stage for reload
+    /// </summary>
+    internal void ResetLoadState()
+    {
+        Loaded = false;
+        foreach (var app in _subApps?.Values ?? [])
+            app.ResetLoadState();
+    }
+
     #endregion
     
     #region Methods
@@ -285,7 +296,7 @@ public sealed class AppType : IValueTypeAccess
     /// </summary>
     public async Task<AppSchema> GetSchemaAsync(SchemaContext context)
     {
-        if (_schema == null) return new AppSchema();
+        if (_schema == null) return new AppSchema{ Name = "" };
         AppSchema schema = new AppSchema
         {
             Name = _schema.Name,
@@ -297,7 +308,7 @@ public sealed class AppType : IValueTypeAccess
         bool isSystem = GetProperty<SystemDefined>()?.Value == true;
         schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true));
         schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true));
-        schema.SetProperty<SchemaUpdate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true));
+        schema.SetProperty<SchemaUpdate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true)); // more property allowed
         schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true));
 
         if (_fields is { Count: > 0 })

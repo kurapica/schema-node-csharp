@@ -49,23 +49,6 @@ public class Auths : Property<PolicyItem[]>, ILoadableProperty, IErrorProvider
 public class EvaluatorType : ValidFuncType;
 
 /// <summary>
-/// The policy combine
-/// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.policy.combine")]
-public enum PolicyCombine
-{
-    /// <summary>
-    /// auth1 && auth2
-    /// </summary>
-    AndAlso = 1,
-    
-    /// <summary>
-    /// auth1 || auth2
-    /// </summary>
-    OrElse = 2,
-}
-
-/// <summary>
 /// The policy scope
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.policy.scope")]
@@ -133,11 +116,6 @@ public sealed class PolicyItem
     /// </summary>
     [Meta<SchemaType>(typeof(EvaluatorType))]
     public required string Evaluator { get; set; }
-
-    /// <summary>
-    /// The policy combine method
-    /// </summary>
-    public required PolicyCombine Combine { get; set; }
 
     /// <summary>
     /// The function type of the evaluator
@@ -284,9 +262,7 @@ public static class PolicyExtensions
                         }
                     }
                 
-                    if (authorized && item.Combine == PolicyCombine.OrElse)
-                        break;
-                    if (!authorized && item.Combine == PolicyCombine.AndAlso)
+                    if (authorized)
                         break;
                 }
                 catch(Exception ex)

@@ -1,4 +1,5 @@
-﻿using SchemaNode.Attribute;
+﻿using System.Collections.Immutable;
+using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Property.App;
@@ -27,8 +28,7 @@ public static class SystemReflectApp
         [Meta<SchemaType>(typeof(AppType))] string container = "",
         [Meta<SchemaType>(typeof(Identifier))] string name = "",
         string? path = null,
-        [Meta<EntryRoot>(true)]
-        string? root = null)
+        [Meta<EntryRoot>(true)] string? root = null)
     {
         if (!string.IsNullOrWhiteSpace(root) && !string.IsNullOrWhiteSpace(path) && !path.Equals(root, StringComparison.OrdinalIgnoreCase) && !path.StartsWith($"{root}.", StringComparison.OrdinalIgnoreCase))
             return []; // not access-able
@@ -95,7 +95,7 @@ public static class SystemReflectApp
     /// Gets the access value type
     /// </summary>
     public static async Task<string?> getaccessvaluetype(SchemaContext context,
-        [Meta<SchemaType>(typeof(AppType))] string container = "",
+        [Meta<SchemaType>(typeof(AppType))] string? container = "",
         [Meta<SchemaType>(typeof(Identifier))] string name = "",
         string path = "")
     {
@@ -160,7 +160,7 @@ public static class SystemReflectApp
     /// <summary>
     /// Gets the application field entries
     /// </summary>
-    public static async Task<EntryAccess<string>[]> getappfields(SchemaContext context,
+    public static async Task<List<EntryAccess<string>[]>> getappfields(SchemaContext context,
         [Meta<SchemaType>(typeof(AppType))] string app)
     {
         var appType = await context.GetAppTypeAsync(app);
@@ -181,7 +181,30 @@ public static class SystemReflectApp
         };
         var list = new EntryAccess<string>[1];
         list[0] = access;
-        return list;
+        return [list];
+    }
+
+    /// <summary>
+    /// Gets the primary types of the given application field
+    /// </summary>
+    public static async Task<Entry<string>[]> getappfieldprimaries(SchemaContext context,
+        [Meta<SchemaType>(typeof(AppType))] string app,
+        [Meta<SchemaType>(typeof(Identifier))] string field)
+    {
+        var appType = !string.IsNullOrWhiteSpace(app) ? await context.GetAppTypeAsync(app) : null;
+        var fieldType = appType?.GetField(field);
+        if (fieldType == null) return [];
+        var valueType = fieldType.ValueType;
+        if (valueType is not ArrayType { Primary.Count: > 0 } arr) return [];
+        ImmutableList<string> primaries = arr.Primary!;
+        return (arr.Element as StructType)?.GetFields()
+            .Where(f => primaries.Contains(f.Name, StringComparer.OrdinalIgnoreCase) && f.Type != null)
+            .Select(f =>
+            {
+                var entry = new Entry<string> { Value = f.Type!.Name };
+                entry.SetProperty<Display, LocaleString>(f.GetProperty<Display>()?.Value ?? f.Name);
+                return entry;
+            }).ToArray() ?? [];
     }
     
     /// <summary>

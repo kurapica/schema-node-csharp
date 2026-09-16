@@ -12,7 +12,9 @@ using String = SchemaNode.Scalar.String;
 using SchemaNode.Function;
 using SchemaNode.Property;
 using SchemaNode.Property.String;
+using SchemaNode.Relation;
 using SchemaNode.Runtime;
+using SchemaNode.Schema.Provider;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -35,14 +37,15 @@ public sealed class AppSchema: PropertyOwner, IErrorProvider
     /// </summary>
     [Meta<PrimaryIndex>(0)]
     [Meta<SchemaType>(typeof(AppType))]
+    [Relation<ReadOnly, Call>(nameof(Container), $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Name)}")]
     public string? Container { get; set; }
-    
+
     /// <summary>
     /// The application name
     /// </summary>
     [Meta<PrimaryIndex>(1)]
     [Meta<SchemaType>(typeof(Identifier))]
-    public string Name { get; set; } = default!;
+    public required string Name { get; set; }
 
     /// <summary>
     /// The full name of the app
@@ -97,7 +100,7 @@ public sealed class AppSchema: PropertyOwner, IErrorProvider
     /// The app schema provider
     /// </summary>
     [SchemaIgnore]
-    public Type? Provider { get; internal set; }
+    public IAppEntryProvider? Provider { get; internal set; }
 
     /// <summary>
     /// The load state
@@ -110,6 +113,51 @@ public sealed class AppSchema: PropertyOwner, IErrorProvider
     /// </summary>
     [SchemaIgnore]
     public string? Error { get; set; }
+
+    #endregion
+
+    #region Method
+
+    /// <summary>
+    /// Combine the app schema
+    /// </summary>
+    public bool Combine(AppSchema? other, ISchemaRuntime? runtime = null)
+    {
+        if (other is null || !other.Name.Equals(Name, StringComparison.OrdinalIgnoreCase)) return false;
+        CombineProperties(other, runtime, SCHEMA_KIND_APP);
+        
+        // combine
+        if (other.Apps is { Length: > 0 })
+        {
+            if (Apps == null || Apps.Length == 0)
+            {
+                Apps = other.Apps.ToArray();
+            }
+            else
+            {
+                Apps = Apps.Concat(other.Apps.Where(a => !Apps.Any(e => e.Combine(a))).ToArray()).ToArray();
+            }
+        }
+
+        // Combine fields
+        if (other.Fields is { Length: > 0 })
+        {
+            Fields = Fields == null || Fields.Length == 0
+                ? other.Fields 
+                : Fields.Concat(other.Fields.Where(f => !Fields.Any((e => e.Combine(f))))
+                    .ToArray()).ToArray();
+        }
+
+        // Combine workflow
+        if (other.Workflows is { Length: > 0 })
+        {
+            Workflows = Workflows == null || Workflows.Length == 0
+                ? other.Workflows
+                : Workflows.Concat(other.Workflows.Where(w => !Workflows.Any(e => e.Combine(w)))
+                    .ToArray()).ToArray();
+        }
+        return true;
+    }
 
     #endregion
 }

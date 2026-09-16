@@ -18,6 +18,7 @@ namespace SchemaNode.Utility;
 internal static class Extension
 {
     #region Utility
+    private static readonly NullabilityInfoContext _nullabilityContext = new();
 
     private static readonly JsonSerializerOptions DefaultJsonOptions = new()
     {
@@ -98,6 +99,7 @@ internal static class Extension
 
     internal static bool TryConvertTo<T>(this object? value, out T? result)
     {
+        if (value is IValueAccess n) return n.TryGetValue(out result);
         if (value == null || !typeof(T).TryConvert(value, out object? r))
         {
             result = default(T?);
@@ -361,6 +363,35 @@ internal static class Extension
     #endregion
 
     #region Type
+
+    internal static bool HasNullableAttribute(this ICustomAttributeProvider p)
+    {
+        System.Runtime.CompilerServices.NullableAttribute[] props = 
+            p.GetCustomAttributes(typeof(System.Runtime.CompilerServices.NullableAttribute), false)
+                .Cast<System.Runtime.CompilerServices.NullableAttribute>().ToArray();
+        return props.Any(a => a.NullableFlags is { Length: > 0 } && a.NullableFlags.Any(v => (v & 2) > 0));
+    }
+
+    internal static bool IsNullable(this PropertyInfo p)
+    {
+        return p.PropertyType.GetTypeDetail().Nullable ||
+               _nullabilityContext.Create(p).ReadState == NullabilityState.Nullable ||
+               p.HasNullableAttribute();
+    }
+
+    internal static bool IsNullable(this FieldInfo p)
+    {
+        return p.FieldType.GetTypeDetail().Nullable ||
+               _nullabilityContext.Create(p).ReadState == NullabilityState.Nullable ||
+               p.HasNullableAttribute();
+    }
+
+    internal static bool IsNullable(this ParameterInfo p)
+    {
+        return p.ParameterType.GetTypeDetail().Nullable || p.HasDefaultValue ||
+               _nullabilityContext.Create(p).ReadState == NullabilityState.Nullable ||
+               p.HasNullableAttribute();
+    }
 
     extension(Type type)
     {

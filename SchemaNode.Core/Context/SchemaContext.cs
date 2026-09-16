@@ -278,7 +278,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                 {
                     NodeSchema[] loadSchemas = await provider.GetSchemaAsync([schemaName]);
                     if (loadSchemas.Length == 0) continue;
-                    NodeSchema loadSchema = SetSchemaState(loadSchemas[0], SchemaLoadState.Service, provider.GetType())!;
+                    NodeSchema loadSchema = SetSchemaState(loadSchemas[0], SchemaLoadState.Service, provider)!;
 
                     // check && combine
                     if (schema == null)
@@ -328,7 +328,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             return schema;
         }
 
-        NodeSchema? SetSchemaState(NodeSchema? schema, SchemaLoadState loadState, Type? provider = null)
+        NodeSchema? SetSchemaState(NodeSchema? schema, SchemaLoadState loadState, INodeSchemaProvider? provider = null)
         {
             schema?.Provider = provider;
             schema?.LoadState = loadState;

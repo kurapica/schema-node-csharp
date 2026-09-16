@@ -1,3 +1,4 @@
+using System.Runtime.Remoting;
 using SchemaNode.Attribute;
 using static SchemaNode.Utility.AppConstant;
 using SchemaKind = SchemaNode.Property.Record.SchemaKind;
@@ -64,6 +65,21 @@ public sealed class AppFieldSchema: PropertyOwner, IErrorProvider
     [SchemaIgnore]
     public string? Error { get; set; }
 
+    #endregion
+    
+    #region Method
+
+    /// <summary>
+    /// Combine the field schema
+    /// </summary>
+    public bool Combine(AppFieldSchema? other, ISchemaRuntime? runtime = null)
+    {
+        if (other is null || !other.Name.Equals(Name, StringComparison.OrdinalIgnoreCase)) return false;
+        if (other.Type.Equals(Type, StringComparison.OrdinalIgnoreCase))
+            CombineProperties(other, runtime, SCHEMA_KIND_APP_FIELD);
+        return true;
+    }
+    
     #endregion
 }
 

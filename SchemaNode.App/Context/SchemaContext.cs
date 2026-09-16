@@ -7,8 +7,6 @@ using SchemaNode.Schema.Provider;
 using SchemaNode.Utility;
 using RuntimeAppType = SchemaNode.Runtime.AppType;
 using static SchemaNode.Utility.Constant;
-using static SchemaNode.Utility.AppConstant;
-using AppType = SchemaNode.Schema.AppType;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
 using NodeType = SchemaNode.Runtime.NodeType;
 
@@ -75,10 +73,9 @@ public static class AppSchemaContextExtension
             {
                 // get loaded app schema from app container if not in reload mode
                 AppSchema? schema = reload ? null : root?.GetAppSchema(name);
-                if (schema != null) return schema;
 
                 string schemaName = $"{root?.Name}.{name}".Trim('.');
-                schema = SetSchemaState(runtime.GetSystemAppSchema(schemaName), SchemaLoadState.System);
+                schema ??= SetSchemaState(runtime.GetSystemAppSchema(schemaName), SchemaLoadState.System);
                 if (context.SystemMode) return schema;
 
                 // 3rd app schema provider
@@ -86,10 +83,9 @@ public static class AppSchemaContextExtension
                 {
                     try
                     {
-                        AppSchema? loadAppSchema = await provider.GetAppSchemaAsync(schemaName);
-                        if (loadAppSchema == null) continue;
-                        AppSchema loadSchema =
-                            SetSchemaState(loadAppSchema, SchemaLoadState.Service, provider.GetType())!;
+                        AppSchema? loadSchema = await provider.GetAppSchemaAsync(schemaName);
+                        if (loadSchema == null) continue;
+                        loadSchema = SetSchemaState(loadSchema, SchemaLoadState.Service, provider)!;
 
                         // check && combine
                         if (schema == null)
@@ -102,35 +98,8 @@ public static class AppSchemaContextExtension
                         schema.Provider ??= loadSchema.Provider;
 
                         // CombineProperties
-                        schema.CombineProperties(loadSchema, runtime, SCHEMA_KIND_APP);
-
-                        if (schema.Apps == null || schema.Apps.Length == 0)
-                        {
-                            schema.Apps = loadSchema.Apps;
-                            continue;
-                        }
-
-                        if (loadSchema.Apps == null || schema.Apps.Length == 0) continue;
-
-                        // combine
-                        List<AppSchema>? otherSchemas = null;
-                        foreach (var otherSchema in loadSchema.Apps)
-                        {
-                            int index = Array.FindIndex(schema.Apps,
-                                s => s.Name.Equals(otherSchema.Name, StringComparison.OrdinalIgnoreCase));
-                            if (index >= 0)
-                            {
-                                schema.Apps[index].CombineProperties(otherSchema, runtime, SCHEMA_KIND_APP);
-                            }
-                            else
-                            {
-                                otherSchemas ??= [];
-                                otherSchemas.Add(otherSchema);
-                            }
-                        }
-
-                        if (otherSchemas != null)
-                            schema.Apps = schema.Apps.Concat(otherSchemas).ToArray();
+                        loadSchema.Combine(schema, runtime); // don't change the system schema part
+                        schema = loadSchema;
                     }
                     catch (Exception e)
                     {
@@ -142,7 +111,7 @@ public static class AppSchemaContextExtension
                 return schema;
             }
 
-            AppSchema? SetSchemaState(AppSchema? schema, SchemaLoadState loadState, Type? provider = null)
+            AppSchema? SetSchemaState(AppSchema? schema, SchemaLoadState loadState, IAppEntryProvider? provider = null)
             {
                 schema?.Provider = provider;
                 schema?.LoadState = loadState;
@@ -172,7 +141,7 @@ public static class AppSchemaContextExtension
         /// <summary>
         /// Gets all node schemas related by the node schema
         /// </summary>
-        public async Task<NodeSchema> GetNodeSchemasAsync(NodeType nodeType,
+        public async Task<NodeSchema> GetNodeSchemasAsync(NodeType nodeType,    
             NodeSchema? root = null,
             HashSet<string>? types = null,
             bool fullNs = false,

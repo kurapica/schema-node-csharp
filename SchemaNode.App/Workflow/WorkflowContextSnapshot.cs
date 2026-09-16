@@ -20,6 +20,7 @@ namespace SchemaNode.Workflow;
 /// The workflow context snapshot.
 /// </summary>
 [Meta<App>($"{NS_SYSTEM_SCHEMA}")]
+[Meta<EnableStorage>(true)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_WORKFLOW}.snapshot")]
 public class WorkflowContextSnapshot
 {
