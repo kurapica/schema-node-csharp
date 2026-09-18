@@ -330,7 +330,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
 
         NodeSchema? SetSchemaState(NodeSchema? schema, SchemaLoadState loadState, INodeSchemaProvider? provider = null)
         {
-            schema?.Provider = provider;
+            schema?.Provider = provider?.GetType();
             schema?.LoadState = loadState;
             if (schema?.Kind != SCHEMA_KIND_NAMESPACE || schema.Schemas == null || schema.Schemas.Length == 0) return schema;
             foreach (NodeSchema s in schema.Schemas)

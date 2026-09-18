@@ -73,6 +73,11 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
     /// The relations between the fields
     /// </summary>
     private List<RelationType>? _relations;
+
+    /// <summary>
+    /// The system value type
+    /// </summary>
+    private IValueTypeAccess? _systemObjectType;
     
     #endregion
     
@@ -109,6 +114,9 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
             Error = ErrorCodes.NO_DEFINITION;
             return;
         }
+
+        // for relation
+        _systemObjectType = await context.GetNodeTypeAsync<ValueType>(NS_SYSTEM_OBJECT);
 
         // Return type
         ValueType? retType = !string.IsNullOrWhiteSpace(func.Return)
@@ -250,14 +258,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
     /// <inheritdoc/>
     public IValueTypeAccess? GetAccessValueType(string path)
     {
-        if (string.IsNullOrWhiteSpace(path)) return null;
-        string[] paths = path.Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
-
-        var type = paths[0].Equals(FUNC_RETURN)
-            ? Return
-            : Args.FirstOrDefault(a => paths[0].Equals(a.Name, StringComparison.OrdinalIgnoreCase))?.ValueType;
-
-        return paths.Length == 1 ? type : type?.GetAccessValueType(paths[1]);
+        return _systemObjectType; // only used to pass the relation checks
     }
 
     /// <inheritdoc/>
@@ -273,7 +274,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
             var entry = new Entry<string>
             {
                 Value = a.Name,
-                HasChildren = a.ValueType?.HasAccessEntries ?? false
+                HasChildren = false
             };
             var display = a.GetProperty<Display>();
             if (display != null) entry.SetProperty(display);
@@ -680,8 +681,8 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                 cArgs.Add(arg.ToJsonNode());
 
             // ReSharper disable once SuspiciousTypeConversion.Global
-            result = Provider is IFunctionSchemaProvider provider
-                ? await provider.CallFunctionAsync(Name, cArgs, rType, mode)
+            result = Provider != null && Provider.IsAssignableTo(typeof(IFunctionSchemaProvider))
+                ? await (context.GetRequiredService(Provider) as IFunctionSchemaProvider)!.CallFunctionAsync(Name, cArgs, rType, mode)
                 : null;
         }
         else

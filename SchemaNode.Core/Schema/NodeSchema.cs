@@ -105,7 +105,7 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
     /// </summary>
     [SchemaIgnore]
     [JsonIgnore]
-    internal INodeSchemaProvider? Provider { get; set; }
+    internal Type? Provider { get; set; }
     
     /// <summary>
     /// The schema load state

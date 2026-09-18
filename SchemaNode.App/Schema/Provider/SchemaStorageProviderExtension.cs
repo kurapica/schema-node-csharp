@@ -117,7 +117,7 @@ public static class SchemaStorageProviderExtension
         if (!await provider.DeleteSchemaAsync(name)) return false;
 
         // runtime remove
-        node.Namespace?.RemoveNodeSchema(name);
+        node.Namespace?.RemoveNodeSchema(name.GetSchemaName());
 
         // event
         context.RaiseEvent<SchemaDeleteEvent, string>(name);

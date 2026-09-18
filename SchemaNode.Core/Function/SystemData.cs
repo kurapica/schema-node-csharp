@@ -5,6 +5,7 @@ using SchemaNode.Property.Core;
 using SchemaNode.Property.String;
 using SchemaNode.Relation;
 using SchemaNode.Runtime;
+using SchemaNode.Schema;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
 using static SchemaNode.Utility.Constant;
 
@@ -22,7 +23,7 @@ public static class SystemData
     /// <summary>
     /// Gets the context item
     /// </summary>
-    [Relation<AccessEntryConsumer, Assign>(nameof(access), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.isassignableto)}", NODE_SELF, false, $"@{FUNC_RETURN}")]
+    [Relation<AccessEntryConsumer, Assign>($"{nameof(access)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.isassignableto)}", NODE_SELF, false, $"@{FUNC_RETURN}")]
     public static T? getcontext<T>(
         SchemaContext context,
         

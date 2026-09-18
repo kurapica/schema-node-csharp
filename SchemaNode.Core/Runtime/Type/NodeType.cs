@@ -57,6 +57,11 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
         : string.Empty;
 
     /// <summary>
+    /// The name without template arguments
+    /// </summary>
+    public string BaseName => Schema?.FullName ?? string.Empty;
+
+    /// <summary>
     /// The node schema type
     /// </summary>
     public string Kind => Schema?.Kind ?? SCHEMA_KIND_NODE;
@@ -69,7 +74,7 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
     /// <summary>
     /// The scheme provider used to load the node
     /// </summary>
-    public INodeSchemaProvider? Provider => Schema?.Provider;
+    public Type? Provider => Schema?.Provider;
     
     /// <summary>
     /// The type is loaded

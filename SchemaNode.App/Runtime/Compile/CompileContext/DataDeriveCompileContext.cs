@@ -144,7 +144,7 @@ public class DataDeriveCompileContext(SchemaContext context, FunctionType functi
             
             // Check the third field function call
             case FuncCallExp funcCallExp:
-                switch (funcCallExp.Function.Name)
+                switch (funcCallExp.Function.BaseName)
                 {
                     case $"{NS_SYSTEM_DATA}.{nameof(SystemAppData.getfield)}":
                     {

@@ -132,8 +132,8 @@ public static class AppSchemaContextExtension
             if (!canRead) return null;
             bool isSystem = type.GetProperty<SystemDefined>()?.Value == true;
             schema.SetProperty<SchemaRead, bool>(canRead);
-            schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(type, PolicyScope.SchemaCreate, true));
-            schema.SetProperty<SchemaUpdate, bool>(!isSystem && await context.AuthorizeAsync(type, PolicyScope.SchemaUpdate, true));
+            schema.SetProperty<SchemaCreate, bool>(await context.AuthorizeAsync(type, PolicyScope.SchemaCreate, true));
+            schema.SetProperty<SchemaUpdate, bool>((!isSystem || type.Kind == SCHEMA_KIND_NAMESPACE) && await context.AuthorizeAsync(type, PolicyScope.SchemaUpdate, true));
             schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(type, PolicyScope.SchemaDelete, true));
             return schema;
         }

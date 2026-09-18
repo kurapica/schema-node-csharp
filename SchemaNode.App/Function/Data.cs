@@ -10,6 +10,7 @@ using SchemaNode.Property.Function;
 using SchemaNode.Property.String;
 using SchemaNode.Relation;
 using SchemaNode.Scalar;
+using SchemaNode.Schema;
 using SchemaNode.Utility;
 using AppType = SchemaNode.Runtime.AppType;
 using ArrayType = SchemaNode.Runtime.ArrayType;
@@ -36,17 +37,14 @@ public static class SystemAppData
     /// <summary>
     /// Gets the app data with full primary keys
     /// </summary>
-    [Relation<EntrySource, Assign>(nameof(field), $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfields)}", $"@{nameof(app)}")]
-    [Relation<AccessValueTypeProvider, Assign>(nameof(field), $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getaccessvaluetype)}", "", $"@{nameof(app)}", $"@{nameof(field)}")]
-    [Relation<AccessEntryConsumer, Assign>(nameof(field), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.isassignableto)}", NODE_SELF, true, $"@{FUNC_RETURN}")]
-    [Relation<ParamsList, Call>(nameof(args), $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldprimaries)}", $"@{nameof(app)}", $"@{nameof(field)}")]
+    [Relation<EntrySource, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfields)}", $"@{nameof(app)}.{nameof(CallArg.Value)}")]
+    [Relation<AccessValueTypeProvider, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getaccessvaluetype)}", "", $"@{nameof(app)}.{nameof(CallArg.Value)}", NODE_SELF)]
+    [Relation<AccessEntryConsumer, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.isassignableto)}", NODE_SELF, true, $"@{FUNC_RETURN}")]
+    [Relation<ParamsList, Call>($"{nameof(args)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldprimaries)}", $"@{nameof(app)}.{nameof(CallArg.Value)}", $"@{nameof(field)}.{nameof(CallArg.Value)}")]
     public static async Task<T?> get<T>(
         SchemaContext context,
-        
         [Meta<SchemaType>(typeof(Schema.AppType))] string app,
-        
         [Meta<SchemaType>(typeof(Identifier))] string field,
-        
         params object?[] args)
     {
         // Fix argument error

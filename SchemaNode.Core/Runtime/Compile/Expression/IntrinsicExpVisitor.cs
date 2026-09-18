@@ -93,7 +93,7 @@ public class IntrinsicExpVisitor : IExpVisitor
         if (callExp.Function.MethodInfo.GetCustomAttribute<ConstantAttribute>() is { } constAttr)
             return new ConstantExp(callExp.ValueType.From(constAttr.Value));
         
-        switch (callExp.Function.Name)
+        switch (callExp.Function.BaseName)
         {
             // Assign expression
             case $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}":
@@ -136,7 +136,7 @@ public class IntrinsicExpVisitor : IExpVisitor
                     string.IsNullOrEmpty(fieldName))
                     throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
 
-                if (callExp.Args.Length == 3)
+                if (callExp.Args.Length == 3 && callExp.Args[2] is not NullExp)
                 {
                     if (callExp.Args[2] is not ConstantExp defaultValueExp || 
                         defaultValueExp.Value.IsEmpty || 

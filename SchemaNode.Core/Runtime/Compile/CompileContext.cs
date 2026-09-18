@@ -919,6 +919,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             if (info == null || type == null) throw new InvalidOperationException($"The function call {funcCallExp.Function.Name} can't be compiled");
             if (info.Array && type.IsSZArray) return type.GetElementType();
             if ((info.List || info.Enumerable) && type.GetGenericArguments() is { Length: > 0} args) return args[0];
+            if (p.Nullable) type = type.GetNullableType();
             return type;
         }).ToArray();
         
@@ -1105,13 +1106,13 @@ public class CompileContext(SchemaContext context, FunctionType function)
         if ((callFuncInfo.Sign & FunctionFlags.Async) > 0)
         {
             // Gets the task result
-            MethodCallExpression callExp = Expression.Call(null, callMethod, callArgs);
+            MethodCallExpression callExp = FillCall(callMethod, callArgs);
             callExp = Expression.Call(callExp, callExp.Type.GetMethod(nameof(Task.GetAwaiter), Type.EmptyTypes)!);
             result = Expression.Call(callExp, callExp.Type.GetMethod(nameof(TaskAwaiter.GetResult), Type.EmptyTypes)!);
         }
         else if ((callFuncInfo.Sign & FunctionFlags.Immutable) > 0)
         {
-            result = Expression.Call(null, callMethod, callArgs);
+            result = FillCall(callMethod, callArgs);
         }
         else
         {
@@ -1123,6 +1124,27 @@ public class CompileContext(SchemaContext context, FunctionType function)
             result = ConvertExp(returnType, result);
         }
         return result;
+    }
+
+    // Fill not provided expressions
+    static MethodCallExpression FillCall(MethodInfo callMethod, Expression[] callArgs)
+    {
+        ParameterInfo[] parameterInfos = callMethod.GetParameters();
+        if (parameterInfos.Length > callArgs.Length)
+        {
+            for (int i = callArgs.Length; i < parameterInfos.Length; i++)
+            {
+                if (parameterInfos[i].HasDefaultValue)
+                {
+                    callArgs = callArgs.Concat([Expression.Constant(parameterInfos[i].DefaultValue, parameterInfos[i].ParameterType)]).ToArray();
+                }
+                else
+                {
+                    callArgs = callArgs.Concat([Expression.Constant(null, parameterInfos[i].ParameterType)]).ToArray();
+                }
+            }
+        }
+        return Expression.Call(null, callMethod, callArgs);
     }
 
     // Gen dynamic method call

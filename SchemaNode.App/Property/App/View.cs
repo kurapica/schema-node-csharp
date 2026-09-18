@@ -48,8 +48,8 @@ public sealed class FieldView
     /// <summary>
     /// The source field
     /// </summary>
-    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappforeignfields)}", $"@{nameof(App)}", $"@{nameof(Owner)}")]
     [Meta<SchemaType>(typeof(Identifier))]
+    [Relation<EntrySource, Assign>(nameof(Field), $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappforeignfields)}", $"@{nameof(App)}", $"@{nameof(Owner)}")]
     public string Field { get; set; } = string.Empty;
     
     /// <summary>
@@ -64,9 +64,9 @@ public sealed class FieldView
     /// The target map field
     /// </summary>
     [Meta<SchemaType>(typeof(Identifier))]
-    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.gettypeentries)}", $"@{nameof(FieldType)}")]
     [Meta<CascadeDepth>(1)]
-    [Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.isschemakindaccess)}", $"@{nameof(FieldType)}", NODE_SELF, false, SCHEMA_KIND_STRING)]
+    [Relation<EntrySource, Assign>(nameof(Map), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.gettypeentries)}", $"@{nameof(FieldType)}")]
+    [Relation<Valid, Assign>(nameof(Map), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.isschemakindaccess)}", $"@{nameof(FieldType)}", NODE_SELF, false, SCHEMA_KIND_STRING)]
     public string Map { get; set; } = string.Empty;
 
     [SchemaIgnore]

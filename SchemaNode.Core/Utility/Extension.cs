@@ -478,7 +478,7 @@ internal static class Extension
         /// <summary>
         /// Gets the nullable type
         /// </summary>
-        internal Type GetNullableType() => type.IsSubclassOfGenericType(typeof(Nullable<>)) ? type : typeof(Nullable<>).MakeGenericType(type);
+        internal Type GetNullableType() => type.IsSubclassOfGenericType(typeof(Nullable<>)) || !type.IsValueType ? type : typeof(Nullable<>).MakeGenericType(type);
 
         /// <summary>
         /// The type is simple array type

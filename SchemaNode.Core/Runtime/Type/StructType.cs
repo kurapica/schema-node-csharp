@@ -38,7 +38,7 @@ public sealed class StructType: ValueType, IRelationProvider
     #region Implementations
 
     /// <inheritdoc />
-    public override Type GetCsharpType() => base.GetCsharpType() ?? typeof(StructNode);
+    public override Type GetCsharpType(bool nullable = false) => base.GetCsharpType() ?? typeof(StructNode);
 
     /// <inheritdoc />
     public override async Task LoadAsync(SchemaContext context)
@@ -219,7 +219,7 @@ public sealed class StructType: ValueType, IRelationProvider
         
         var value = node.GetAccessValue(paths[0]);
         if (value == null) return null;
-        if (!value.IsEmpty || fieldType.DisplayOnly != true) return paths.Length > 1 ? value.GetAccessValue(paths[1]) : null;
+        if (!value.IsEmpty || fieldType.DisplayOnly != true) return paths.Length > 1 ? value.GetAccessValue(paths[1]) : value;
         
         // check relations
         RelationType? r = _relations?.FirstOrDefault(rel => rel.Target.Equals(fieldName, StringComparison.OrdinalIgnoreCase) && rel.ForProperty<Default>() );

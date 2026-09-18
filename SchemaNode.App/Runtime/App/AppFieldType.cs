@@ -240,7 +240,9 @@ public sealed class AppFieldType
         StructType? structType = ((ValueType as ArrayType)?.Element ?? ValueType) as StructType;
         
         // primary property info
-        if (ValueType is ArrayType arr && arr.Primary is { Count: > 0} && structType != null && structType.GetCsharpType() is { } ctype)
+        if (ValueType is ArrayType arr && arr.Primary is { Count: > 0} && structType != null 
+            && structType.GetProperty<SystemDefined>()?.Value == true 
+            && structType.GetCsharpType() is { } ctype)
         {
             _primarys = [];
             foreach (string primary in arr.Primary)
@@ -426,12 +428,12 @@ public sealed class AppFieldType
         bool isSystem = Application.GetProperty<SystemDefined>()?.Value == true;
         schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true));
         schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true));
-        schema.SetProperty<SchemaUpdate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true));
+        schema.SetProperty<SchemaUpdate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true));
         schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true));
-        schema.SetProperty<DataCreate, bool>(await context.AuthorizeAsync(this, PolicyScope.DataCreate, true));
-        schema.SetProperty<DataRead, bool>(await context.AuthorizeAsync(this, PolicyScope.DataRead, true));
-        schema.SetProperty<DataUpdate, bool>(await context.AuthorizeAsync(this, PolicyScope.DataUpdate, true));
-        schema.SetProperty<DataDelete, bool>(await context.AuthorizeAsync(this, PolicyScope.DataDelete, true));
+        schema.SetProperty<DataCreate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.DataCreate, true));
+        schema.SetProperty<DataRead, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.DataRead, true));
+        schema.SetProperty<DataUpdate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.DataUpdate, true));
+        schema.SetProperty<DataDelete, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.DataDelete, true));
         
         // The block columns
         // column access check

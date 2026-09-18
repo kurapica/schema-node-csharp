@@ -65,10 +65,13 @@ public static class SystemCollection
     /// <summary>
     /// Gets the field value from the object
     /// </summary>
+    [Relation<EntrySource, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.getaccessentries)}", $"@{nameof(obj)}.{nameof(CallArg.SourceType)}", NODE_SELF)]
     public static async Task<T?> getfield<T>(SchemaContext context,
         IValueAccess obj,
+
         string field, 
-        T? @default)
+        
+        T? @default = default(T?))
     {
         IValueAccess? result = await GetFieldNode(context, obj, field);
         return result is { IsEmpty: false } ? result.GetValue<T>() : (@default ?? default);

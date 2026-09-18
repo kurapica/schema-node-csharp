@@ -118,7 +118,7 @@ public class CollectionExpVisitor : IExpVisitor
             CollectionRootExp? sourceExp = funcExp.Args.FirstOrDefault(a => a is CollectionRootExp) as CollectionRootExp;
             if (sourceExp == null) return null;
             
-            switch (funcExp.Function.Name)
+            switch (funcExp.Function.BaseName)
             {
                 // getFields(source)
                 case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfields)}":
@@ -213,7 +213,7 @@ public class CollectionExpVisitor : IExpVisitor
             }
             
             case ApplyMode.Map:
-                switch (funcExp.Function.Name)
+                switch (funcExp.Function.BaseName)
                 {
                     // getField(source, field), cover the case to FieldsDataSourceExpression
                     case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}":

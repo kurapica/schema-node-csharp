@@ -36,8 +36,8 @@ public sealed class FunctionKind;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.schema")]
 [Meta<Attach>(SCHEMA_KIND_FUNCTION)]
-[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getaccessentries)}", $"@{nameof(Args)}", $"@{nameof(Exps)}", NODE_SELF)]
-[Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getaccessvaluetype)}", $"@{nameof(Args)}", $"@{nameof(Exps)}", NODE_SELF)]
+[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getaccessentries)}", $"@{nameof(Args)}", $"@{nameof(Exps)}.{ARRAY_PREVIOUS}", NODE_SELF)]
+[Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getaccessvaluetype)}", $"@{nameof(Args)}", $"@{nameof(Exps)}.{ARRAY_PREVIOUS}", NODE_SELF)]
 [Meta<KindProvider>(SCHEMA_KIND_FUNC_ARG)]
 public sealed class FunctionSchema: PropertyOwner
 {
@@ -232,9 +232,17 @@ public class CallArg: IEquatable<CallArg>
     /// <summary>
     /// The argument data source, like field access path
     /// </summary>
-    //[Meta<AccessEntryConsumer>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isassignableto)}", NODE_SELF, $"@{nameof(Type)}")]
     [Relation<InVisible, Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Value)}")]
     public string? Source { get; set; }
+    
+    /// <summary>
+    /// The source type
+    /// </summary>
+    [Meta<SchemaType>(typeof(ValueType))]
+    [Meta<DisplayOnly>(true)]
+    [Meta<InVisible>(true)]
+    [Meta<AccessValueTypeResolver>(nameof(Source))]
+    public string? SourceType { get; set; }
     
     /// <summary>j
     /// The const value, no complex struct value
