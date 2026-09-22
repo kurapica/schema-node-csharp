@@ -80,7 +80,7 @@ public static class BatchQueryExtension
                 await context.GetNodeSchemasAsync(node, root, cancellationToken:cancellationToken);
 
             // query fields
-            IEnumerable<AppFieldType> fields = node.GetFields().Where(f => f.EnableDynamicTable);
+            IEnumerable<AppFieldType> fields = node.GetFields().Where(f => f.EnableDynamicTable || f.IsForeignView);
             fields = query.Fields is { Length: > 0 }
                 ? fields.Where(f => query.Fields.Any(qf => qf.Equals(f.Name, StringComparison.OrdinalIgnoreCase)))
                 : fields;

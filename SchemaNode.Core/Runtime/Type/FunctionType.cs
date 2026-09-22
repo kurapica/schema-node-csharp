@@ -116,7 +116,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
         }
 
         // for relation
-        _systemObjectType = await context.GetNodeTypeAsync<ValueType>(NS_SYSTEM_OBJECT);
+        _systemObjectType = context.System.Object;
 
         // Return type
         ValueType? retType = !string.IsNullOrWhiteSpace(func.Return)

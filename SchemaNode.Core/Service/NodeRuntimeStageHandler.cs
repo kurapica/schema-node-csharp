@@ -243,7 +243,8 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         access.Int = (await schemaContext.GetNodeTypeAsync<Runtime.IntType>(NS_SYSTEM_INT))!;
         access.Date = (await schemaContext.GetNodeTypeAsync<Runtime.DateType>(NS_SYSTEM_DATE))!;
         access.Context = (await schemaContext.GetNodeTypeAsync<Runtime.StructType>(NS_SYSTEM_CONTEXT))!;
-        
+        access.Object = (await schemaContext.GetNodeTypeAsync<Runtime.ObjectType>(NS_SYSTEM_OBJECT))!;
+
         // Loading all access path handlers
         if (accessPathHandlers.Count > 0)
         {

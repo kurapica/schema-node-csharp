@@ -2,6 +2,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Property;
+using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;

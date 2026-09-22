@@ -400,7 +400,7 @@ public class DynamicTableSchema
         }
 
         // Add the foreign key field if not added for query
-        if (isView)
+        if (isView && appFieldType.View?.AppType?.ScopeType != AppScopeType.SystemLevel)
         {
             AppFieldType sourceField = appFieldType.View?.AppType?.GetField(appFieldType.View?.Field ?? "") ?? throw new Exception($"Invalid view source field: {appFieldType.View?.App}.{appFieldType.View?.Field}");
             var foreign = sourceField.Foreigns?.FirstOrDefault(f => f.App.Equals(appFieldType.App, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception($"Invalid view source field: {appFieldType.View?.App}.{appFieldType.View?.Field}");
@@ -580,6 +580,8 @@ public class DynamicTableSchema
         {
             if (isview && isTarget)
             {
+                if (AppField.View?.AppType?.ScopeType == AppScopeType.SystemLevel) continue; // no target
+
                 // change the view target to the foreign field
                 var sourceField = AppField.View?.AppType?.GetField(AppField.View?.Field ?? "") ?? throw new Exception($"Invalid view source field: {AppField.View?.App}.{AppField.View?.Field}");
                 var foreign = sourceField.Foreigns?.FirstOrDefault(f => f.App.Equals(AppField.App, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception($"Invalid view source field: {AppField.View?.App}.{AppField.View?.Field}");

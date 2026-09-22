@@ -73,6 +73,14 @@ public class RelationSchema : PropertyOwner
 //[Relation<EntrySource, Relation.Call>($"{nameof(Relations)}.{nameof(RelationSchema.Target)}", NS_SYSTEM_SCHEMA_REFLECT_GET_ACCESS_ENTRIES, NODE_SELF, $"@{nameof(Relations)}.{nameof(RelationSchema.Target)}")]
 public class Relations : Property<RelationSchema[]>
 {
+    public override void SetValue<TValue>(TValue value)
+    {
+        if (value is IEnumerable<RelationSchema> schemas)
+            base.SetValue(AnyProcess.CombineAnyRelations(schemas));
+        else
+            base.SetValue(value);
+    }
+
     /// <inheritdoc/>
     public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)
     {

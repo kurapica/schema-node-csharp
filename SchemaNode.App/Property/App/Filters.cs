@@ -29,6 +29,7 @@ namespace SchemaNode.Property.App;
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(Filters)}")]
+[Relation<Visible, Call>(nameof(Filters), NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, $"@{nameof(Type)}", true, SCHEMA_KIND_STRUCT)]
 public class Filters : Property<FieldFilter[]>, ILoadableProperty, IErrorProvider
 {
     public string? Error { get; set; }

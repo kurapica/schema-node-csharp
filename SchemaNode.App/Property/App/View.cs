@@ -11,6 +11,7 @@ using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using SchemaNode.Scalar;
+using SchemaNode.Enum;
 
 namespace SchemaNode.Property.App;
 
@@ -21,7 +22,7 @@ namespace SchemaNode.Property.App;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(View)}")]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<Static>(true)]
-[Relation<InVisible, Call>(nameof(View), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(EnableStorage)}")]
+[Relation<InVisible, Call>(nameof(View), NS_SYSTEM_LOGIC_EQ, $"@{nameof(EnableStorage)}", true)]
 [Relation<Default, Call>($"{nameof(View)}.{nameof(FieldView.Owner)}", $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(App)}")]
 public class View : Property<FieldView>;
 
@@ -51,7 +52,7 @@ public sealed class FieldView
     [Meta<SchemaType>(typeof(Identifier))]
     [Relation<EntrySource, Assign>(nameof(Field), $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappforeignfields)}", $"@{nameof(App)}", $"@{nameof(Owner)}")]
     public string Field { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// The field value type
     /// </summary>
@@ -67,7 +68,8 @@ public sealed class FieldView
     [Meta<CascadeDepth>(1)]
     [Relation<EntrySource, Assign>(nameof(Map), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.gettypeentries)}", $"@{nameof(FieldType)}")]
     [Relation<Valid, Assign>(nameof(Map), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.isschemakindaccess)}", $"@{nameof(FieldType)}", NODE_SELF, false, SCHEMA_KIND_STRING)]
-    public string Map { get; set; } = string.Empty;
+    [Relation<InVisible, Call>(nameof(Map), $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.isscopepolicy)}", $"@{nameof(App)}", AppScopeType.SystemLevel)]
+    public string? Map { get; set; } = string.Empty;
 
     [SchemaIgnore]
     [JsonIgnore]

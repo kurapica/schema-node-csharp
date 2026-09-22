@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using SchemaNode.Attribute;
+using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
@@ -290,10 +291,15 @@ public class SchemaRuntime : ISchemaRuntime
     /// </summary>
     public string? GetSystemArraySchema(string elementType, bool noGeneric = false) => 
         _arrayCache.GetValueOrDefault(elementType) ?? (!noGeneric ? $"{NS_SYSTEM_LIST}<{elementType.ToLowerInvariant()}>"  : null);
-    
+
     #endregion
 
     #region Node Types
+
+    /// <summary>
+    /// The lock loading check
+    /// </summary>
+    internal ConcurrentDictionary<string, ISchemaContext> LockLoading = [];
     
     /// <summary>
     /// The root namespace

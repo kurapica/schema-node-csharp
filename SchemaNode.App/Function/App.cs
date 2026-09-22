@@ -218,10 +218,10 @@ public static class SystemReflectApp
         if (appType == null) return [];
         var access = new EntryAccess<string>
         {
-            Children = appType.GetFields().Where((f => 
+            Children = (appType.ScopeType == AppScopeType.SystemLevel ? appType.GetFields() :  appType.GetFields().Where((f => 
                     f.Foreigns is { Length: > 0} && 
-                    f.Foreigns.Any((fr => fr.App.Equals(foreignApp))))
-                ).Select(s =>
+                    f.Foreigns.Any((fr => fr.App.Equals(foreignApp, StringComparison.OrdinalIgnoreCase))))
+                )).Select(s =>
             {
                 var entry = new Entry<string>
                 {

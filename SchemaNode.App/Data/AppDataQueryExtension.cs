@@ -16,7 +16,7 @@ public static class AppDataQueryExtension
         bool forUpdate = false, bool genDisplayOnly = false)
     {
         // Front end only
-        if (!field.EnableDynamicTable) return (null, 0);
+        if (!(field.EnableDynamicTable || field.IsForeignView)) return (null, 0);
 
         var dataProvider = context.GetService<IAppDataProvider>();
         if (dataProvider == null) throw new InvalidOperationException("The data provider is not configured");

@@ -138,8 +138,22 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
     /// </summary>
     internal virtual async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, IReadOnlyList<NodeType>? genericParams = null)
     {
+        string name = Name.ToLower();
+        SchemaRuntime? runtime = Runtime as SchemaRuntime;
+
+        // simple lock to avoid conflict access
+        if (runtime != null)
+        {
+            if (runtime.LockLoading.TryGetValue(name, out ISchemaContext? ctx) && ctx == context) return;
+            if (!runtime.LockLoading.TryAdd(name, context))
+            {
+                while (!Loaded) await Task.Delay(10);
+                return;
+            }
+        }
+
         Runtime = context.Runtime;
-        
+
         // reset
         UnloadType();
         Error = null;
@@ -161,9 +175,9 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
         _props = props.Count > 0 ? props.ToArray() : null;
         Generics = GetProperty<Generics>()?.Value;
 
-        Loaded = true;
         await LoadAsync(context);
-        
+        Loaded = true;
+
         (_refTypes, string? error) = await schema.LoadPropertiesAsync(context, props, this as ValueType);
         Error ??= error;
         
@@ -176,6 +190,9 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
             if (referenceType is not GenericType)
                 referenceType.AddUsedBy(this);
         }
+
+        // simple lock to avoid conflict access
+        runtime?.LockLoading.TryRemove(name, out _);
     }
 
     private void UnloadType()

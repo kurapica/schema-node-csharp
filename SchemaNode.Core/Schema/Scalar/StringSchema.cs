@@ -24,7 +24,7 @@ namespace SchemaNode.Schema;
 [Meta<ValueSchemaKind>(SCHEMA_KIND_STRING, SCHEMA_KIND_ORDER_STRING)]
 [Meta<NodeType>(typeof(Runtime.StringType))]
 [Meta<SchemaUsage>(typeof(StringUsage))]
-[Meta<Append>(typeof(EntrySource), typeof(AsSuggest), typeof(Default), typeof(BlackList), typeof(WhiteList), typeof(Root), typeof(LeafOnly), typeof(Unit), typeof(Error), typeof(Valid))]
+[Meta<Append>(typeof(EntrySource), typeof(AsSuggest), typeof(Default), typeof(BlackList), typeof(WhiteList), typeof(Root), typeof(LeafOnly), typeof(Unit), typeof(Error), typeof(Valid), typeof(CascadeDepth))]
 [Meta<StringValue>]
 public sealed class StringKind;
 

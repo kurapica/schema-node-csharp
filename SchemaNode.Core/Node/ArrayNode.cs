@@ -219,6 +219,9 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
     public override bool IsValid => _elements.All(element => element.IsValid);
 
     /// <inheritdoc/>
+    public override JsonNode? Violated => !IsValid ? new JsonArray(_elements.Where(e => !e.IsValid).Select(e => e.Violated).ToArray()) : null;
+
+    /// <inheritdoc/>
     public override IValueAccess Clone()
     {
         ArrayNode node = new ArrayNode(ElementType);

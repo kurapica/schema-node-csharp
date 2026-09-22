@@ -1,8 +1,9 @@
-﻿using SchemaNode.Utility;
-using System.Text.Json.Nodes;
-using SchemaNode.Context;
-using StructType = SchemaNode.Runtime.StructType;
+﻿using SchemaNode.Context;
 using SchemaNode.Runtime;
+using SchemaNode.Utility;
+using System.Text.Json.Nodes;
+using System.Xml.Linq;
+using StructType = SchemaNode.Runtime.StructType;
 
 namespace SchemaNode.Node;
 
@@ -130,6 +131,19 @@ public class StructNode : DataNode
 
     /// <inheritdoc/>
     public override bool IsValid => _fields.All(f => f.IsValid);
+
+    /// <inheritdoc/>
+    public override JsonNode? Violated
+    {
+        get
+        {
+            if (IsValid) return null;
+            JsonObject result = [];
+            foreach (var f in _fields.Where(f => !f.IsValid))
+                result[(f.PropertyProvider as StructFieldType)!.Name] = f.Violated;
+            return result;
+        }
+    }
 
     /// <inheritdoc/>
     public sealed override bool TrySetValue<T>(T? value) where T : default

@@ -219,7 +219,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             // reload means don't load it if not existed
             if (result == null && reload || result?.Loaded == true && !(spans.IsEnd && reload))
                 return result;
-            
+                        
             // loading
             string nextVal = next.IsEmpty ? "" : next.ToString();
             NodeSchema? schema = await LoadNodeSchemaAsync(parent != result ? parent : null, nextVal);
@@ -569,4 +569,9 @@ public class SystemAccess
     /// The context type
     /// </summary>
     public Runtime.StructType Context { get; internal set; } = null!;
+
+    /// <summary>
+    /// The object type
+    /// </summary>
+    public Runtime.ObjectType Object { get; internal set; } = null!;
 }

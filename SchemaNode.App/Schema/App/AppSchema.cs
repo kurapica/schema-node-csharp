@@ -15,6 +15,7 @@ using SchemaNode.Property.String;
 using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using SchemaNode.Schema.Provider;
+using SchemaNode.Property.Struct;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -30,6 +31,7 @@ public sealed class AppKind;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.schema")]
 [Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getaccessentries)}", $"@{nameof(Container)}", $"@{nameof(Name)}", NODE_SELF)]
 [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getaccessvaluetype)}",  $"@{nameof(Container)}", $"@{nameof(Name)}", NODE_SELF)]
+[Meta<Attach>(SCHEMA_KIND_APP)]
 public sealed class AppSchema: PropertyOwner, IErrorProvider
 {
     /// <summary>

@@ -21,7 +21,6 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
     /// <summary>
     /// The function to be used
     /// </summary>
-    [Meta<SchemaType>(typeof(FuncType))]
     public string Func { get; private set; } = null!;
 
     /// <summary>

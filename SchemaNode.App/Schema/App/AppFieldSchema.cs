@@ -1,7 +1,4 @@
-using System.Runtime.Remoting;
 using SchemaNode.Attribute;
-using static SchemaNode.Utility.AppConstant;
-using SchemaKind = SchemaNode.Property.Record.SchemaKind;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Property;
 using SchemaNode.Scalar;
@@ -10,6 +7,9 @@ using SchemaNode.Property;
 using SchemaNode.Property.Struct;
 using SchemaNode.Runtime;
 using SchemaValueType = SchemaNode.Schema.ValueType;
+using SchemaKind = SchemaNode.Property.Record.SchemaKind;
+using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.AppConstant;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -22,6 +22,9 @@ namespace SchemaNode.Schema;
 [Meta<SchemaKind>(SCHEMA_KIND_APP_FIELD, SCHEMA_KIND_ORDER_APP_FIELD)]
 [Meta<Append>(typeof(Display), typeof(Description), typeof(Disable))]
 [Meta<Attach>(SCHEMA_KIND_APP_FIELD)]
+[Meta<TypeProvider>(nameof(Type))]
+[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.getelementaccessentries)}", $"@{nameof(Type)}", NODE_SELF)]
+[Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.getelementaccessvaluetype)}", $"@{nameof(Type)}", NODE_SELF)]
 public sealed class AppFieldSchema: PropertyOwner, IErrorProvider
 {
     #region Base

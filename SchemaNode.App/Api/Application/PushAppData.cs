@@ -160,7 +160,7 @@ public static class PushDataExtenstion
                     if (result is not { IsValid: true })
                     {
                         if (hasData) await context.RollbackTransactionAsync();
-                        return (false, result?.ToJsonNode());
+                        return (false, result?.Violated);
                     }
                     await context.SaveFieldDataAsync(appField, result, canAdd: canAdd);
                 }
@@ -171,7 +171,7 @@ public static class PushDataExtenstion
                     if (result is not { IsValid: true })
                     {
                         if (hasData) await context.RollbackTransactionAsync();
-                        return (false, result?.ToJsonNode());
+                        return (false, result?.Violated);
                     }
                     await context.DeleteFieldListDataAsync(appField, result);
                 }

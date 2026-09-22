@@ -2,6 +2,7 @@
 using SchemaNode.Property;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
+using System.Text.Json.Nodes;
 
 // ReSharper disable InconsistentNaming
 // ReSharper disable VirtualMemberCallInConstructor
@@ -90,6 +91,11 @@ public abstract class DataNode : IValueAccess
     /// Whether the node is valid, which means no violated constraints
     /// </summary>
     public virtual bool IsValid => _violated is not { Count: > 0 };
+
+    /// <summary>
+    /// Gets the violated
+    /// </summary>
+    public virtual JsonNode? Violated => _violated is {  Count: > 0 } ? new JsonArray(_violated.Select(v => JsonValue.Create(v.Name)).ToArray()) : null;
 
     #endregion
 

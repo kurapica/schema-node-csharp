@@ -138,7 +138,7 @@ public static class Type
     {
         var valueType = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<IValueTypeAccess>(name) : null;
         if (valueType == null) return "";
-        return valueType.GetAccessValueType(access)?.Name ?? "";
+        return string.IsNullOrWhiteSpace(access) ? valueType.Name : (valueType.GetAccessValueType(access)?.Name ?? "");
     }
 
     public static async Task<bool> isschemakind(SchemaContext context,

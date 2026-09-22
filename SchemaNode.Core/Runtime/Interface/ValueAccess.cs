@@ -1,6 +1,7 @@
 ﻿using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Struct;
+using System.Text.Json.Nodes;
 
 namespace SchemaNode.Runtime;
 
@@ -146,6 +147,11 @@ public interface IValueAccess
     /// The value is valid
     /// </summary>
     bool IsValid { get; } 
+
+    /// <summary>
+    /// The violated data
+    /// </summary>
+    JsonNode? Violated { get; }
 }
 
 /// <summary>

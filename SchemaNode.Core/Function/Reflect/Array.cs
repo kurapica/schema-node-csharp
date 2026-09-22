@@ -3,13 +3,15 @@ using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Enum;
 using SchemaNode.Property.Record;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
-using ValueType = SchemaNode.Schema.ValueType;
+using System.Xml.Linq;
 using static SchemaNode.Utility.Constant;
+using ValueType = SchemaNode.Schema.ValueType;
 // ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Function.Reflect;
@@ -147,5 +149,29 @@ public static class Array
         if (path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase) || path.Equals(ARRAY_PREVIOUS, StringComparison.OrdinalIgnoreCase)) return $"{NS_SYSTEM_LIST}<{elementType.Name}>";
         string[] paths = path.Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
         return paths[0].Equals(ARRAY_ELEMENT, StringComparison.OrdinalIgnoreCase) ? paths.Length > 1 ? elementType.GetAccessValueType(paths[1])?.Name : elementType.Name : null;
+    }
+
+
+    /// <summary>
+    /// Gets the sub entries of the element type
+    /// </summary>
+    public static async Task<List<EntryAccess<string>>> getelementaccessentries(SchemaContext context,
+        [Meta<SchemaType>(typeof(ValueType))] string name,
+        string? path = null,
+        [Meta<EntryRoot>(true)] string? root = null)
+    {
+        var type = await context.GetNodeTypeAsync<Runtime.ValueType>(name);
+        type = (type as Runtime.ArrayType)?.Element ?? type;
+        return type is null ? [] : await Type.getaccessentries(context, type.Name, path, root);
+    }
+
+    /// <summary>
+    /// Gets the access value type
+    /// </summary>
+    public static async Task<string?> getelementaccessvaluetype(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string name, string path = "")
+    {
+        var type = await context.GetNodeTypeAsync<Runtime.ValueType>(name);
+        type = (type as Runtime.ArrayType)?.Element ?? type;
+        return type is null ? null : await Type.getaccessvaluetype(context, type.Name, path);
     }
 }

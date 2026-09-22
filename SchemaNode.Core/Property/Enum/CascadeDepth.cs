@@ -25,6 +25,6 @@ public class CascadeDepth : Property<long>, IConstraintProperty
         if (enumType?.Cascade == null || enumType.Cascade.Length <= effectiveValue) return null;
 
         EntryAccess<string>[] access = await enumType.GetEnumEntryAccessAsync(context, node.GetValue<string>());
-        return access.Length <= effectiveValue;
+        return access.Length - 1 <= effectiveValue;
     }
 }

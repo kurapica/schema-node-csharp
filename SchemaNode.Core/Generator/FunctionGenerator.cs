@@ -7,6 +7,7 @@ using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Function;
+using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
