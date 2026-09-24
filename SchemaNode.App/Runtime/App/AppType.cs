@@ -9,6 +9,7 @@ using SchemaNode.Property.App;
 using SchemaNode.Struct;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Runtime.Interface;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -17,7 +18,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory application schema representation
 /// </summary>
-public sealed class AppType : IValueTypeAccess
+public sealed class AppType : IValueTypeAccess, INodeTypeReLoadHandler
 {
     #region Fields
     
@@ -260,6 +261,21 @@ public sealed class AppType : IValueTypeAccess
     {
         foreach (NodeType t in GetReferenceTypes())
             t.RemoveUsedBy(this);
+    }
+
+    /// <summary>
+    /// Clear field type cache items
+    /// </summary>
+    public void OnNodeTypeLoaded(NodeType[] types)
+    {
+        if (_fields != null)
+        {
+            foreach(AppFieldType f in _fields)
+            {
+                if (types.Any(t => t == f.ValueType))
+                    f.ResetItems();
+            }
+        }
     }
 
     /// <inheritdoc/>

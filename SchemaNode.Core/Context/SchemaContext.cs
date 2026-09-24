@@ -470,6 +470,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// </summary>
     internal IValueAccess? GetContextItem(string contextItem)
     {
+        if (string.IsNullOrWhiteSpace(contextItem)) return null;
         string[] split = contextItem.Split('.', 2);
         if (split.Length == 0) return null;
         (string SchemaType, Type ProviderType, Type ItemType)? info = GetRequiredService<SchemaContextItemProvider>().GetProviderType(split[0]);

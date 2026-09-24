@@ -152,6 +152,7 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_STRUCT_FIELD = $"{NS_SYSTEM_SCHEMA_STRUCT}.field";
     public const string NS_SYSTEM_SCHEMA_ARRAY = $"{NS_SYSTEM_SCHEMA}.array";
     public const string NS_SYSTEM_SCHEMA_FUNC = $"{NS_SYSTEM_SCHEMA}.func";
+    public const string NS_SYSTEM_SCHEMA_FUNC_CALL = $"{NS_SYSTEM_SCHEMA_FUNC}.funccall";
     public const string NS_SYSTEM_SCHEMA_RELATION = $"{NS_SYSTEM_SCHEMA}.relation";
     public const string NS_SYSTEM_SCHEMA_PROP = $"{NS_SYSTEM_SCHEMA}.prop";
     public const string NS_SYSTEM_SCHEMA_PROP_CORE = $"{NS_SYSTEM_SCHEMA_PROP}.core";

@@ -104,7 +104,6 @@ public static class Enum
     /// <summary>
     /// Gets the enum entry access list
     /// </summary>
-    [Meta<ServerOnly>(true)]
     [Meta<NoCache>(true)]
     public static async Task<EntryAccess<string>[]> getenumaccess(SchemaContext context, [Meta<SchemaType>(typeof(Schema.EnumType))] string @enum, string? value, string? root)
     {

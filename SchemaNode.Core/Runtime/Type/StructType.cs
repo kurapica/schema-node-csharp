@@ -1,14 +1,15 @@
-using System.Reflection;
-using System.Security.Principal;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Property;
-using SchemaNode.Schema;
-using SchemaNode.Utility;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Struct;
+using SchemaNode.Runtime.Interface;
+using SchemaNode.Schema;
 using SchemaNode.Struct;
+using SchemaNode.Utility;
+using System.Reflection;
+using System.Xml.Linq;
 using static SchemaNode.Utility.Constant;
 using Type = System.Type;
 
@@ -19,7 +20,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory struct schema representation
 /// </summary>
-public sealed class StructType: ValueType, IRelationProvider
+public sealed class StructType: ValueType, IRelationProvider, INodeTypeReLoadHandler
 {
     #region Fields
     
@@ -32,10 +33,17 @@ public sealed class StructType: ValueType, IRelationProvider
     /// The relations between the fields
     /// </summary>
     private List<RelationType>? _relations;
-    
+
     #endregion
-        
+
     #region Implementations
+
+    /// <inheritdoc />
+    public void OnNodeTypeLoaded(NodeType[] types)
+    {
+        if (types.Any(t => _fields.Any(f => f.Type == t)))
+            this.NotifyReload(types);
+    }
 
     /// <inheritdoc />
     public override Type GetCsharpType(bool nullable = false) => base.GetCsharpType() ?? typeof(StructNode);

@@ -11,7 +11,7 @@ namespace SchemaNode.Property.Core;
 /// </summary>
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_CORE}.entrysource")]
-[Relation<Valid, Relation.Assign>($"{nameof(EntrySource)}.{nameof(FuncCall.Func)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"{NS_SYSTEM_LIST}<{NS_SYSTEM_ENTRY_ACCESS}>", true)]
+[Meta<PropertyValueType>($"{NS_SYSTEM_SCHEMA_FUNC_CALL}<{NS_SYSTEM_SCHEMA_FUNC}.entrysource>")]
 public class EntrySource : FuncCallProperty;
 
 /// <summary>

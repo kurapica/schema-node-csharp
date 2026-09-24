@@ -426,7 +426,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                     foreach (var join in schema.Joins)
                     {
                         AppFieldType joinField = schema.AppField.Application.GetField(join.Field)!;
-                        StringBuilder joinWhere = new(JoinWhere(schema, prefixes[MainTable], prefixes[join.Field]));
+                        StringBuilder joinWhere = new(JoinWhere(schema, joinField, prefixes[MainTable], prefixes[join.Field]));
                         foreach (var (key, appSchemaDataFilter) in join.Matches)
                         {
                             switch (appSchemaDataFilter)
@@ -548,7 +548,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                 foreach (var join in schema.Joins)
                 {
                     AppFieldType joinField = schema.AppField.Application.GetField(join.Field)!;
-                    StringBuilder joinWhere = new(JoinWhere(schema, prefixes[MainTable], prefixes[join.Field]));
+                    StringBuilder joinWhere = new(JoinWhere(schema, joinField, prefixes[MainTable], prefixes[join.Field]));
                     foreach (var (key, appSchemaDataFilter) in join.Matches)
                     {
                         switch (appSchemaDataFilter)
@@ -1718,16 +1718,40 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
         return result;
     }
 
-    string JoinWhere(DynamicTableSchema schema, string main, string sub)
+    string JoinWhere(DynamicTableSchema schema, AppFieldType field, string main, string sub)
     {
-        StringBuilder sb = new(" ");
-        if (!string.IsNullOrEmpty(main) && !main.EndsWith(".")) main += ".";
-        if (!string.IsNullOrEmpty(sub) && !sub.EndsWith(".")) sub += ".";
+        // The view
+        if (field.IsForeignView == true)
+        {
+            if (field.View!.AppType!.ScopeType == AppScopeType.SystemLevel) return "";
 
-        foreach (string item in schema.GetScopeKeys(_context))
-            sb.Append($"{sub}{sqlProvider.QuoteField(item)} = {main}{sqlProvider.QuoteField(item)} AND ");
+            StringBuilder sb = new(" ");
+            if (!string.IsNullOrEmpty(main) && !main.EndsWith(".")) main += ".";
+            if (!string.IsNullOrEmpty(sub) && !sub.EndsWith(".")) sub += ".";
 
-        return sb.ToString();
+            // prepare the scope items for the view
+            foreach ((string item, var value) in field.GetDynamicTableSchema(_context).GetScopeItems(_context))
+            {
+                if (value == null || value.IsEmpty)
+                    throw new InvalidOperationException($"The scope field {item} is required for querying dynamic table data.");
+                sb.Append($"{sub}{sqlProvider.QuoteField(item)} = {sqlProvider.Literal(value)} AND ");
+            }
+
+            return sb.ToString(); ;
+        }
+        // In the same app
+        else
+        {
+            StringBuilder sb = new(" ");
+            if (!string.IsNullOrEmpty(main) && !main.EndsWith(".")) main += ".";
+            if (!string.IsNullOrEmpty(sub) && !sub.EndsWith(".")) sub += ".";
+
+            // Prepare the scope items
+            foreach (string item in schema.GetScopeKeys(_context))
+                sb.Append($"{sub}{sqlProvider.QuoteField(item)} = {main}{sqlProvider.QuoteField(item)} AND ");
+
+            return sb.ToString();
+        }
     }
 
     /// <summary>

@@ -13,6 +13,7 @@ using SchemaNode.Property.Core;
 using SchemaNode.Relation;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
+using SchemaNode.Runtime.Interface;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable MemberCanBePrivate.Global
@@ -532,7 +533,15 @@ public sealed class AppFieldType
     /// Gets item
     /// </summary>
     public T? GetItem<T>() => _items?.TryGetValue(typeof(T), out object? obj) == true ? (T)obj : default(T?);
-    
+
+    /// <summary>
+    /// Resets the items
+    /// </summary>
+    public void ResetItems()
+    {
+        _items?.Clear();
+    }
+
     #endregion
 
     #region Dynamic table

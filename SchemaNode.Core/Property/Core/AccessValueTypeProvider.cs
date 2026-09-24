@@ -15,5 +15,5 @@ namespace SchemaNode.Property.Core;
 [Meta<Static>(true)]
 [Meta<ReadOnly>(true)]
 [Meta<InVisible>(true)]
-[Relation<Valid, Relation.Assign>($"{nameof(AccessValueTypeProvider)}.{nameof(FuncCall.Func)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"{NS_SYSTEM_SCHEMA_NODE}.valuetype")]
+[Meta<PropertyValueType>($"{NS_SYSTEM_SCHEMA_FUNC_CALL}<{NS_SYSTEM_SCHEMA_FUNC}.valuetype>")]
 public class AccessValueTypeProvider: FuncCallProperty;

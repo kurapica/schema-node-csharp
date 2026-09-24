@@ -9,6 +9,7 @@ using SchemaNode.Schema.Provider;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using SchemaNode.Runtime.Interface;
 
 namespace SchemaNode.Runtime;
 
@@ -193,6 +194,9 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
 
         // simple lock to avoid conflict access
         runtime?.LockLoading.TryRemove(name, out _);
+
+        // notify reload
+        NotifyReload([]);
     }
 
     private void UnloadType()
@@ -304,6 +308,43 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
         : _usedByOther?.TryGetValue(typeof(T), out ConcurrentDictionary<object, bool>? dict) == true
             ? dict.Keys.OfType<T>()
             : [];
+
+    // @TODO: need full mechanism
+    public void NotifyReload(NodeType[] others)
+    {
+        if (others.Any(o => o == this)) return;
+        others = others.Append(this).ToArray();
+        if (_usedBy != null)
+        {
+            foreach(var handler in _usedBy.Keys.Cast<INodeTypeReLoadHandler>())
+            {
+                try
+                {
+                    handler.OnNodeTypeLoaded(others);
+                }
+                catch
+                {
+                    // path
+                }
+            }
+        }
+
+        if (_usedByOther is null) return;
+        foreach(var dict in _usedByOther.Values)
+        {
+            foreach(var handler in dict.Keys.Cast<INodeTypeReLoadHandler>())
+            {
+                try
+                {
+                    handler.OnNodeTypeLoaded(others);
+                }
+                catch
+                {
+                    // pass
+                }
+            }
+        }
+    }
 
     #endregion
 
@@ -503,6 +544,7 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// </summary>
     public virtual bool IsAssignableTo(IValueTypeAccess other)
         => this == other || Name.Equals(other.Name) || 
+           other is GenericType ||
            Kind.Equals(SCHEMA_KIND_OBJECT)  || 
            other.Kind.Equals(SCHEMA_KIND_OBJECT) ||
            _isAssignableTo != null && 

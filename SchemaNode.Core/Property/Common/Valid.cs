@@ -16,7 +16,7 @@ namespace SchemaNode.Property.Common;
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_COMMON}.valid")]
 [Meta<Stackable>(true)]
-[Relation<Valid, Relation.Assign>($"{nameof(Valid)}.{nameof(FuncCall.Func)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, NS_SYSTEM_BOOL)]
+[Meta<PropertyValueType>($"{NS_SYSTEM_SCHEMA_FUNC_CALL}<{NS_SYSTEM_SCHEMA_FUNC}.valid>")]
 public class Valid : FuncCallProperty, IConstraintProperty
 {
     public async Task<bool?> ValidateAsync(SchemaContext context, IValueAccess node)

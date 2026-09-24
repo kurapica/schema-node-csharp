@@ -116,6 +116,14 @@ public class ValidFuncType: FuncType;
 [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"{NS_SYSTEM_SCHEMA_NODE}.valuetype")]
 public class TypeFuncType : FuncType;
 
+
+/// <summary>
+/// Represents the function return entry access list
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.entrysource")]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"{NS_SYSTEM_LIST}<{NS_SYSTEM_ENTRY_ACCESS}>")]
+public class EntrySourceFuncType : FuncType;
+
 /// <summary>
 /// The function argument kind
 /// </summary>
@@ -173,8 +181,8 @@ public sealed class FuncExp {
 /// <summary>
 /// The function call 
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.{nameof(FuncCall)}")]
-[Relation<Valid, Assign>(nameof(Func), NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, $"@{nameof(Func)}", $"@{nameof(FuncReturn)}")]
+[Meta<SchemaType>(NS_SYSTEM_SCHEMA_FUNC_CALL)]
+[Meta<Generics>($"T|{NS_SYSTEM_SCHEMA_FUNC}.type")]
 public class FuncCall
 {
     /// <summary>
@@ -204,8 +212,9 @@ public class FuncCall
     /// <summary>
     /// The call function
     /// </summary>
-    [Meta<SchemaType>(typeof(FuncType))]
-    [Relation<Visible, Call>(nameof(Args), $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Mode)}")]
+    [Meta<SchemaType>("T")]
+    [Relation<Visible, Call>(nameof(Func), $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Mode)}")]
+    [Relation<Valid, Assign>(nameof(Func), NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, $"@{nameof(Func)}", $"@{nameof(FuncReturn)}")]
     public string Func { get; set; } = string.Empty;
 
     /// <summary>

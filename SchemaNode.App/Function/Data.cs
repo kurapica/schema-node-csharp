@@ -37,9 +37,11 @@ public static class SystemAppData
     /// <summary>
     /// Gets the app data with full primary keys
     /// </summary>
+    [Meta<ServerOnly>(true)]
+    [Meta<SourceTrack>(true)]
     [Relation<EntrySource, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfields)}", $"@{nameof(app)}.{nameof(CallArg.Value)}")]
-    [Relation<AccessValueTypeProvider, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getaccessvaluetype)}", "", $"@{nameof(app)}.{nameof(CallArg.Value)}", NODE_SELF)]
-    [Relation<AccessEntryConsumer, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.isassignableto)}", NODE_SELF, true, $"@{FUNC_RETURN}")]
+    [Relation<AccessValueTypeProvider, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldtype)}", $"@{nameof(app)}.{nameof(CallArg.Value)}", NODE_SELF, true)]
+    [Relation<AccessEntryConsumer, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.isassignableto)}", NODE_SELF, false, $"@{FUNC_RETURN}")]
     [Relation<ParamsList, Call>($"{nameof(args)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldprimaries)}", $"@{nameof(app)}.{nameof(CallArg.Value)}", $"@{nameof(field)}.{nameof(CallArg.Value)}")]
     public static async Task<T?> get<T>(
         SchemaContext context,
@@ -53,7 +55,7 @@ public static class SystemAppData
         // get the app field type
         AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app) : null;
         AppFieldType? fieldType = appType?.GetField(field);
-        if (fieldType is not { EnableDynamicTable: true }) return default;
+        if (fieldType is null || !(fieldType.EnableDynamicTable || fieldType.IsForeignView)) return default;
 
         ArrayType? arrType = fieldType.ValueType as ArrayType;
         var keys = arrType?.Primary ?? [];
@@ -130,14 +132,21 @@ public static class SystemAppData
         }
         return result is { IsEmpty: false } ? result.GetValue<T>() : default;
     }
-    
+
     #endregion
 
     #region Get Application Data For field
-        
+
     /// <summary>
     /// Gets the application data for field if single value
     /// </summary>
+    [Meta<ServerOnly>(true)]
+    [Meta<SourceTrack>(true)]
+    [Relation<EntrySource, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfields)}", $"@{nameof(app)}.{nameof(CallArg.Value)}")]
+    [Relation<EntrySource, Assign>($"{nameof(dataField)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldentries)}", $"@{nameof(app)}.{nameof(CallArg.Value)}", $"@{nameof(field)}.{nameof(CallArg.Value)}", true, NODE_SELF)]
+    [Relation<AccessValueTypeProvider, Assign>($"{nameof(dataField)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldtype)}", $"@{nameof(app)}.{nameof(CallArg.Value)}", $"@{nameof(field)}.{nameof(CallArg.Value)}", true, NODE_SELF)]
+    [Relation<AccessEntryConsumer, Assign>($"{nameof(dataField)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.isassignableto)}", NODE_SELF, false, $"@{FUNC_RETURN}")]
+    [Relation<ParamsList, Call>($"{nameof(args)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldprimaries)}", $"@{nameof(app)}.{nameof(CallArg.Value)}", $"@{nameof(field)}.{nameof(CallArg.Value)}")]
     public static async Task<T?> getfield<T>(
         SchemaContext context,
         [Meta<SchemaType>(typeof(Schema.AppType))] string app,
@@ -149,7 +158,7 @@ public static class SystemAppData
         var f = (result as StructNode)?.GetAccessValue(dataField);
         return f != null ? f.GetValue<T>() : default(T?);
     }
-    
+
     #endregion
 
     #region Data Source
@@ -157,6 +166,8 @@ public static class SystemAppData
     /// <summary>
     /// Generate a data source for the app field, waiting for query, the codes won't be execution unless use it in wrong way
     /// </summary>
+    [Meta<ServerOnly>(true)]
+    [Meta<SourceTrack>(true)]
     public static async Task<ArrayNode> getdatasource(
         SchemaContext context,
         [Meta<SchemaType>(typeof(Schema.AppType))] string app,
@@ -173,12 +184,14 @@ public static class SystemAppData
     }
 
     #endregion
-    
+
     #region Write App Data
 
     /// <summary>
     /// Incr the app field data
     /// </summary>
+    [Meta<ServerOnly>(true)]
+    [Meta<SourceTrack>(true)]
     [Meta<SideEffect>(true)]
     [Meta<WorkflowOnly>(true)]
     public static async Task<JsonNode?> incr<T>(
@@ -322,6 +335,8 @@ public static class SystemAppData
     /// <param name="raiseEvent">Whether raise event</param>
     /// <param name="overrides">Override existed columns</param>
     /// <returns></returns>
+    [Meta<ServerOnly>(true)]
+    [Meta<SourceTrack>(true)]
     [Meta<SideEffect>(true)]
     [Meta<WorkflowOnly>(true)]
     public static async Task<bool> save<T>(
@@ -367,6 +382,8 @@ public static class SystemAppData
     /// <param name="data"></param>
     /// <param name="raiseEvent"></param>
     /// <returns></returns>
+    [Meta<ServerOnly>(true)]
+    [Meta<SourceTrack>(true)]
     [Meta<SideEffect>(true)]
     [Meta<WorkflowOnly>(true)]
     public static async Task<bool> delete<T>(

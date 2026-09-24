@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Property;
+using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -23,9 +24,10 @@ public sealed class Generics : Property<GenericParameter[]>
         {
             base.SetValue(arr.Select(v => v is GenericParameter gp ? gp : new GenericParameter(v.ToString()!)).ToArray());
         }
-        else if (value is string)
+        else if (value is string str)
         {
-            base.SetValue(new[] { new GenericParameter(value.ToString()!) });
+            string[] splits = str.Split('|', 2);
+            base.SetValue(new[] { new GenericParameter(splits[0], splits.Length > 1 ? splits[1].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToImmutableArray<string>() : null) });
         }
     }
 }

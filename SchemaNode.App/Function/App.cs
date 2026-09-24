@@ -5,6 +5,7 @@ using SchemaNode.Enum;
 using SchemaNode.Property.App;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Function;
 using SchemaNode.Runtime;
 using SchemaNode.Scalar;
 using SchemaNode.Struct;
@@ -87,7 +88,7 @@ public static class SystemReflectApp
 
         // cut
         if (!string.IsNullOrWhiteSpace(root))
-            result = result.SkipWhile(r => (r.Entry?.Value.Length ?? 0) < root.Length).ToList();
+            result = result.SkipWhile(r => (r.Entry?.Value.Length ?? 0) >= root.Length).ToList();
         return result;
     }
 
@@ -249,17 +250,48 @@ public static class SystemReflectApp
     }
 
     /// <summary>
+    /// Gets the sub entries of the application
+    /// </summary>
+    [Meta<ServerOnly>(true)]
+    public static async Task<List<EntryAccess<string>>> getappfieldentries(SchemaContext context,
+        [Meta<SchemaType>(typeof(AppType))] string app,
+        [Meta<SchemaType>(typeof(Identifier))] string field,
+        bool elementType = false,
+        string? path = null,
+        [Meta<EntryRoot>(true)] string? root = null)
+    {
+        if (!string.IsNullOrWhiteSpace(root) && !string.IsNullOrWhiteSpace(path) && !path.Equals(root, StringComparison.OrdinalIgnoreCase) && !path.StartsWith($"{root}.", StringComparison.OrdinalIgnoreCase))
+            return []; // not access-able
+        path ??= root;
+
+        var appType = !string.IsNullOrWhiteSpace(app) ? await context.GetAppTypeAsync(app) : null;
+        if (appType == null) return [];
+
+        var appField = appType.GetField(field);
+        if (appField == null) return [];
+
+        var type = appField.ValueType;
+        if (elementType && type is ArrayType arr) type = arr.Element;
+        if (type == null) return [];
+
+        return await Reflect.Type.getaccessentries(context, type.Name, path, root);
+    }
+
+
+    /// <summary>
     /// Gets the app field type
     /// </summary>
     public static async Task<string?> getappfieldtype(SchemaContext context,
         [Meta<SchemaType>(typeof(AppType))] string app,
         [Meta<SchemaType>(typeof(Identifier))] string field,
-        bool elementType = false)
+        bool elementType = false,
+        string? path = null)
     {
         var appType = !string.IsNullOrWhiteSpace(app) ? await context.GetAppTypeAsync(app) : null;
         var fieldType = appType?.GetField(field);
         if (fieldType == null) return null;
-        return elementType && fieldType.ValueType is ArrayType arr ? arr.Element?.Name : fieldType.ValueType?.Name;
+        var valueType = elementType && fieldType.ValueType is ArrayType arr ? arr.Element : fieldType.ValueType;
+        return string.IsNullOrWhiteSpace(path) ? valueType?.Name : valueType?.GetAccessValueType(path)?.Name;
     }
 
     /// <summary>

@@ -116,7 +116,7 @@ public class DynamicTableSchema
                         string? dataField = call.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();
                         if (string.IsNullOrWhiteSpace(dataField) || dataField.Equals(appFieldType.Name, StringComparison.OrdinalIgnoreCase)) continue; // no data field
                         var dataFieldType = structType.GetField(dataField);
-                        if (dataFieldType == null) continue; // data field not exist
+                        if (dataFieldType == null || appField.IsForeignView == true && dataFieldType.DisplayOnly == true) continue; // data field not exist or none-query field in foreign view
 
                         // Check joins
                         if (joins == null || joins.All(j => !j.Field.Equals(field, StringComparison.OrdinalIgnoreCase)))
@@ -125,7 +125,7 @@ public class DynamicTableSchema
                             Dictionary<string, AppSchemaDataFilter> keyMap = new();
 
                             // build primary key
-                            for (int i = 3; i < call.Args.Length - 1; i++)
+                            for (int i = 3; i < call.Args.Length; i++)
                             {
                                 keyMap[primary[i - 3]] = !string.IsNullOrEmpty(call.Args[i].Source)
                                     ? new AppSchemaDataFilterField(call.Args[i].Source!)
@@ -265,7 +265,7 @@ public class DynamicTableSchema
                             string? dataField = call.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();
                             if (string.IsNullOrWhiteSpace(dataField) || dataField.Equals(appFieldType.Name, StringComparison.OrdinalIgnoreCase)) continue; // no data field
                             var dataFieldType = structType.GetField(dataField);
-                            if (dataFieldType == null) continue; // data field not exist
+                            if (dataFieldType == null || appField.IsForeignView == true && dataFieldType.DisplayOnly == true) continue; // data field not exist
 
                             // Check joins
                             if (joins == null || joins.All(j => !j.Field.Equals(field, StringComparison.OrdinalIgnoreCase)))
@@ -274,7 +274,7 @@ public class DynamicTableSchema
                                 Dictionary<string, AppSchemaDataFilter> keyMap = new();
 
                                 // build primary key
-                                for (int i = 3; i < call.Args.Length - 1; i++)
+                                for (int i = 3; i < call.Args.Length; i++)
                                 {
                                     keyMap[primary[i - 3]] = !string.IsNullOrEmpty(call.Args[i].Source)
                                         ? new AppSchemaDataFilterField(call.Args[i].Source!)
@@ -733,7 +733,7 @@ public class DynamicTableSchema
     
     #region Utility
 
-    internal static bool IsReferenceFunc(string func) => $"{NS_SYSTEM_DATA}.app.{nameof(SystemAppData.getfield)}".Equals(func, StringComparison.OrdinalIgnoreCase);
+    internal static bool IsReferenceFunc(string func) => $"{NS_SYSTEM_DATA}.app.{nameof(SystemAppData.getfield)}".Equals(func.Split('<', 2).First(), StringComparison.OrdinalIgnoreCase);
 
     // Generate the display only fields
     private static async Task GenerateDisplayOnlyFields(SchemaContext context, StructType type, IValueAccess? node, bool joinHandled = false)

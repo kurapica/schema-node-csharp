@@ -1,7 +1,6 @@
 using SchemaNode.Attribute;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
-using SchemaNode.Schema;
 using SchemaNode.Property.Property;
 using static SchemaNode.Utility.Constant;
 
@@ -16,5 +15,5 @@ namespace SchemaNode.Property.String;
 [Meta<Static>(true)]
 [Meta<ReadOnly>(true)]
 [Meta<InVisible>(true)]
-[Relation<Valid, Relation.Assign>($"{nameof(AccessEntryConsumer)}.{nameof(FuncCall.Func)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, NS_SYSTEM_BOOL)]
+[Meta<PropertyValueType>($"{NS_SYSTEM_SCHEMA_FUNC_CALL}<{NS_SYSTEM_SCHEMA_FUNC}.valid>")]
 public class AccessEntryConsumer: FuncCallProperty;

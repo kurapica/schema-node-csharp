@@ -3,11 +3,11 @@ using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Immutable;
-using System.Transactions;
 using SchemaNode.Property.Array;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using Type = System.Type;
+using SchemaNode.Runtime.Interface;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -16,7 +16,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory array schema representation
 /// </summary>
-public sealed class ArrayType: ValueType, IRelationProvider
+public sealed class ArrayType: ValueType, IRelationProvider, INodeTypeReLoadHandler
 {
     #region Fields
 
@@ -83,6 +83,13 @@ public sealed class ArrayType: ValueType, IRelationProvider
                 _relations.Add(relationType);
             }
         }
+    }
+
+    /// <inheritdoc />
+    public void OnNodeTypeLoaded(NodeType[] types)
+    {
+        if (types.Any(t => t == Element))
+            this.NotifyReload(types);
     }
 
     /// <inheritdoc />
