@@ -141,7 +141,94 @@ public static class SystemCollection
         node.AddRange(obj.Take(count));
         return node;
     }
-    
+
+    #region Compare
+
+    /// <summary>
+    /// Check if the field value equals to the given value
+    /// </summary>
+    public static async Task<bool> fieldeq<T>(SchemaContext context,
+        IValueAccess obj,
+        string field,
+        T value) where T: IComparable
+    {
+        IValueAccess? result = await GetFieldNode(context, obj, field);
+        if (result ==  null || result.IsEmpty) return false;
+        return value.CompareTo(result.GetValue<T>()) == 0;
+    }
+
+    /// <summary>
+    /// system.logic.neq
+    /// </summary>
+    [Meta<Logic>(LogicType.NotEqual)]
+    public static async Task<bool> fieldneq<T>(SchemaContext context,
+        IValueAccess obj,
+        string field,
+        T value) where T : IComparable
+    {
+        IValueAccess? result = await GetFieldNode(context, obj, field);
+        if (result == null || result.IsEmpty) return false;
+        return value.CompareTo(result.GetValue<T>()) != 0;
+    }
+
+    /// <summary>
+    /// system.logic.ge
+    /// </summary>
+    [Meta<Logic>(LogicType.GreaterEqual)]
+    public static async Task<bool> fieldge<T>(SchemaContext context,
+        IValueAccess obj,
+        string field,
+        T value) where T : IComparable
+    {
+        IValueAccess? result = await GetFieldNode(context, obj, field);
+        if (result == null || result.IsEmpty) return false;
+        return value.CompareTo(result.GetValue<T>()) >= 0;
+    }
+
+    /// <summary>
+    /// system.logic.gt
+    /// </summary>
+    [Meta<Logic>(LogicType.GreaterThan)]
+    public static async Task<bool> fieldgt<T>(SchemaContext context,
+        IValueAccess obj,
+        string field,
+        T value) where T : IComparable
+    {
+        IValueAccess? result = await GetFieldNode(context, obj, field);
+        if (result == null || result.IsEmpty) return false;
+        return value.CompareTo(result.GetValue<T>()) > 0;
+    }
+
+    /// <summary>
+    /// system.logic.le
+    /// </summary>
+    [Meta<Logic>(LogicType.LessEqual)]
+    public static async Task<bool> fieldle<T>(SchemaContext context,
+        IValueAccess obj,
+        string field,
+        T value) where T : IComparable
+    {
+        IValueAccess? result = await GetFieldNode(context, obj, field);
+        if (result == null || result.IsEmpty) return false;
+        return value.CompareTo(result.GetValue<T>()) <= 0;
+    }
+
+    /// <summary>
+    /// system.logic.lt
+    /// </summary>
+    [Meta<Logic>(LogicType.LessThan)]
+    public static async Task<bool> fieldlt<T>(SchemaContext context,
+        IValueAccess obj,
+        string field,
+        T value) where T : IComparable
+    {
+        IValueAccess? result = await GetFieldNode(context, obj, field);
+        if (result == null || result.IsEmpty) return false;
+        return value.CompareTo(result.GetValue<T>()) < 0;
+    }
+
+    #endregion
+
     /// <summary>
     /// Gets the field node from object
     /// </summary>

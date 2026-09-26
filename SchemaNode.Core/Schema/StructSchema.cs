@@ -116,7 +116,7 @@ public class StructType: ValueType;
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_STRUCT_FIELD, SCHEMA_KIND_ORDER_STRUCT_FIELD)]
 [Meta<Append>(typeof(Disable), typeof(Display), typeof(Description), typeof(Visible), typeof(InVisible), 
-    typeof(Immutable), typeof(ReadOnly), typeof(Require), typeof(OverrideType))]
+    typeof(Immutable), typeof(ReadOnly), typeof(Require), typeof(OverrideType), typeof(Init))]
 public sealed class StructFieldKind;
 
 /// <summary>
@@ -124,6 +124,7 @@ public sealed class StructFieldKind;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.field")]
 [Meta<TypeProvider>(nameof(Type))]
+// [Meta<Attach>(SCHEMA_KIND_STRUCT_FIELD)] Don't enable it in server part
 public sealed class StructFieldSchema : PropertyOwner, IErrorProvider
 {
     /// <summary>

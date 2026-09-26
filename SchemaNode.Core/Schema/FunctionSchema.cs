@@ -249,7 +249,7 @@ public class CallArg: IEquatable<CallArg>
     /// </summary>
     [Meta<SchemaType>(typeof(ValueType))]
     [Meta<DisplayOnly>(true)]
-    [Meta<InVisible>(true)]
+    //[Meta<InVisible>(true)]
     [Meta<AccessValueTypeResolver>(nameof(Source))]
     public string? SourceType { get; set; }
     

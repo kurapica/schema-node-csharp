@@ -5,7 +5,6 @@ using SchemaNode.Schema;
 using SchemaNode.Enum;
 using SchemaNode.Property.Function;
 using SchemaNode.Property.Core;
-using SchemaNode.Schema.Provider;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
@@ -316,7 +315,7 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
         others = others.Append(this).ToArray();
         if (_usedBy != null)
         {
-            foreach(var handler in _usedBy.Keys.Cast<INodeTypeReLoadHandler>())
+            foreach(var handler in _usedBy.Keys.OfType<INodeTypeReLoadHandler>())
             {
                 try
                 {
@@ -332,7 +331,7 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
         if (_usedByOther is null) return;
         foreach(var dict in _usedByOther.Values)
         {
-            foreach(var handler in dict.Keys.Cast<INodeTypeReLoadHandler>())
+            foreach(var handler in dict.Keys.OfType<INodeTypeReLoadHandler>())
             {
                 try
                 {

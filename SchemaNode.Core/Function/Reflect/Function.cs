@@ -76,7 +76,7 @@ public static class Function
                 if (string.IsNullOrWhiteSpace(arg.Name) || string.IsNullOrWhiteSpace(arg.Type)) continue;
                 var fieldType = await context.GetNodeTypeAsync<IValueTypeAccess>(arg.Type);
                 if (fieldType == null) continue;
-                var entry = new Entry<string> { Value = arg.Name, HasChildren = !fieldType.HasAccessEntries };
+                var entry = new Entry<string> { Value = arg.Name, HasChildren = fieldType is not Runtime.ArrayType && !fieldType.HasAccessEntries };
                 entry.SetProperty<Display, LocaleString>(arg.GetProperty<Display>()?.Value ?? arg.Name);
                 first.Add(entry);
                 if (curr == null && !string.IsNullOrWhiteSpace(path) &&
@@ -97,7 +97,7 @@ public static class Function
                 if (string.IsNullOrWhiteSpace(exp.Name) || string.IsNullOrWhiteSpace(exp.Return)) continue;
                 Runtime.ValueType? fieldType = await context.GetNodeTypeAsync<Runtime.ValueType>(exp.Return);
                 if (fieldType == null) continue;
-                var entry = new Entry<string> { Value = exp.Name, HasChildren = fieldType.HasAccessEntries };
+                var entry = new Entry<string> { Value = exp.Name, HasChildren = fieldType is not Runtime.ArrayType && fieldType.HasAccessEntries };
                 entry.SetProperty<Display, LocaleString>(exp.Name);
                 first.Add(entry);
 
@@ -117,7 +117,7 @@ public static class Function
         while (valueType != null)
         {
             var accessEntry = new EntryAccess<string>();
-            Entry<string>[] accesses = valueType.GetAccessEntries().ToArray();
+            Entry<string>[] accesses = valueType is not Runtime.ArrayType ? valueType.GetAccessEntries().ToArray() : [];
             if (curr != null)
             {
                 accessEntry.Entry = new Entry<string> { Value = curr.Value, HasChildren = accesses.Length > 0 };
@@ -131,11 +131,13 @@ public static class Function
             foreach (var a in accesses)
             {
                 string n = a.Value;
+                var nvtype = valueType.GetAccessValueType(n);
                 if (curr != null) a.Value = $"{curr.Value}.{n}";
+                if (nvtype is Runtime.ArrayType) a.HasChildren = false;
                 if (!string.IsNullOrWhiteSpace(path) && (path.Equals(a.Value, StringComparison.OrdinalIgnoreCase) || 
                                                          path.StartsWith($"{a.Value}.", StringComparison.OrdinalIgnoreCase)))
                 {
-                    next = valueType.GetAccessValueType(n);
+                    next = nvtype;
                     nextCurr = a;
                 }
             }

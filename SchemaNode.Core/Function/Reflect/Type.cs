@@ -142,8 +142,8 @@ public static class Type
     }
 
     public static async Task<bool> isschemakind(SchemaContext context,
-        [Meta<SchemaType>(typeof(AnyType))] string name,
-        bool matchArrayElement,
+        [Meta<SchemaType>(typeof(AnyType))] string? name,
+        bool? matchArrayElement,
         [Meta<SchemaType>(typeof(SchemaKind))] params string[] kinds)
     {
         var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);
@@ -151,7 +151,7 @@ public static class Type
         foreach (var kind in kinds)
         {
             if (nodeType.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase) ||
-                matchArrayElement && nodeType is ArrayType arr && arr.Element?.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase) == true) 
+                matchArrayElement == true && nodeType is ArrayType arr && arr.Element?.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase) == true) 
                 return true;
         }
         return false;

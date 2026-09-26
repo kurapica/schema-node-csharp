@@ -3,13 +3,11 @@ using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
-using SchemaNode.Property.Enum;
 using SchemaNode.Property.Record;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
-using System.Xml.Linq;
 using static SchemaNode.Utility.Constant;
 using ValueType = SchemaNode.Schema.ValueType;
 // ReSharper disable InconsistentNaming
@@ -173,5 +171,21 @@ public static class Array
         var type = await context.GetNodeTypeAsync<Runtime.ValueType>(name);
         type = (type as Runtime.ArrayType)?.Element ?? type;
         return type is null ? null : await Type.getaccessvaluetype(context, type.Name, path);
+    }
+
+    /// <summary>
+    /// Checks if the type is assignable to other value type
+    /// </summary>
+    public static async Task<bool> isassignabletoelement(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type,[Meta<SchemaType>(typeof(ValueType))] params string[] targets)
+    {
+        var typeNode = string.IsNullOrWhiteSpace(type) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(type);
+        if (typeNode == null) return false;
+        foreach (var target in targets)
+        {
+            var targetNode = string.IsNullOrWhiteSpace(target) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(target);
+            targetNode = targetNode is Runtime.ArrayType arr ? arr.Element : targetNode;
+            if (targetNode != null && typeNode.IsAssignableTo(targetNode)) return true;
+        }
+        return false;
     }
 }
