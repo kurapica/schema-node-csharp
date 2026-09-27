@@ -2,7 +2,6 @@ using System.Text.Json.Nodes;
 using MySqlConnector;
 using SchemaNode.Data.Sql;
 using SchemaNode.Enum;
-using SchemaNode.Node;
 using SchemaNode.Runtime;
 
 namespace SchemaNode.MySql;
@@ -41,6 +40,7 @@ public class MySqlProvider : ISqlProvider
             bool b => b ? "1" : "0",
             int or long or float or double or decimal => value.ToString()!,
             DateTime dt => $"'{dt:yyyy-MM-dd HH:mm:ss}'",
+            DateTimeOffset dto => $"'{dto:yyyy-MM-dd HH:mm:ss}'",
             string s => $"'{MySqlHelper.EscapeString(s)}'",
             Guid g => $"'{g}'",
             _ => $"'{MySqlHelper.EscapeString(value.ToString()!)}'"

@@ -183,7 +183,7 @@ public class IntrinsicExpVisitor : IExpVisitor
                     
                     // if empty
                     BreakExpType.IfEmpty => Expression.Block([resultVar], Expression.Assign(resultVar, value),
-                        Expression.IfThen(Expression.Call(typeof(SystemLogic).GetMethod(nameof(SystemLogic.isempty))!, cond),
+                        Expression.IfThen(Expression.Call(typeof(SystemLogic).GetMethod(nameof(SystemLogic.isempty))!, Expression.Convert(cond, typeof(object))),
                             Expression.Return(context.GetReturnLabel()!, resultVar)), resultVar),
                     _ => throw new ArgumentOutOfRangeException()
                 };

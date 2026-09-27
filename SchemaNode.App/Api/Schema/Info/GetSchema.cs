@@ -47,9 +47,9 @@ public class GetSchemaApi : SchemaApi<GetSchemaRequest, GetSchemaResponse>
             if (node == null) return;
             if (await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead, true) == false) return;
 
-            await SchemaContext.GetNodeSchemasAsync(node, root, types, request.Full ?? false, true, cancellationToken);
+            await SchemaContext.GetNodeSchemasAsync(node, root, types, request.IncludeRefs ?? false, true, cancellationToken);
 
-            if (node is NamespaceType ns && first && request.Full != true)
+            if (node is NamespaceType ns && first)
                 foreach (var pair in ns.GetNodeSchemas())
                 {
                     var nodeType = await SchemaContext.GetNodeTypeAsync(pair.FullName);
@@ -73,9 +73,9 @@ public class GetSchemaRequest : SchemaApiRequest
     public string[] Names { get; set; } = [];
 
     /// <summary>
-    /// Full namespace
+    /// Include references
     /// </summary>
-    public bool? Full { get; set; }
+    public bool? IncludeRefs { get; set; }
 }
 
 /// <summary>

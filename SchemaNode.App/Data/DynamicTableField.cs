@@ -128,7 +128,7 @@ public class DynamicTableField
                 DynamicTableFieldType.UBigInt => reader.GetInt64(col),
                 DynamicTableFieldType.Float => reader.GetFloat(col),
                 DynamicTableFieldType.Double => reader.GetDouble(col),
-                DynamicTableFieldType.DateTime => reader.GetDateTime(col),
+                DynamicTableFieldType.DateTime => new DateTimeOffset(reader.GetDateTime(col), TimeSpan.Zero),
                 _ => reader.GetString(col)
             });
         }

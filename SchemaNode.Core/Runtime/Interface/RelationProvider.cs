@@ -24,17 +24,6 @@ public static class RelationProviderExtension
             List<IValueAccess> currNodes = [node];
             while (spans.NextPath())
             {
-                if (spans.IsEnd)
-                {
-                    foreach (var currNode in currNodes)
-                    {
-                        if (await process.ProcessAsync(context, node, currNode) is not IConstraintProperty prop) continue;
-                        bool? result = await prop.ValidateAsync(context, currNode);
-                        if (result.HasValue) currNode.RecordConstraint(prop, result.Value);
-                    }
-                    break;
-                }
-
                 // Gather effect nodes
                 string path = spans.Current.ToString();
                 List<IValueAccess> nextLevels = [];
@@ -55,6 +44,18 @@ public static class RelationProviderExtension
                     }
                 }
                 currNodes = nextLevels;
+
+                if (spans.IsEnd)
+                {
+                    foreach (var currNode in currNodes)
+                    {
+                        if (await process.ProcessAsync(context, node, currNode) is not IConstraintProperty prop) continue;
+                        bool? result = await prop.ValidateAsync(context, currNode);
+                        if (result.HasValue) currNode.RecordConstraint(prop, result.Value);
+                    }
+                    break;
+                }
+
             }
         }
     }

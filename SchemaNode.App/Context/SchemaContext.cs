@@ -144,7 +144,7 @@ public static class AppSchemaContextExtension
         public async Task<NodeSchema> GetNodeSchemasAsync(NodeType nodeType,    
             NodeSchema? root = null,
             HashSet<string>? types = null,
-            bool fullNs = false,
+            bool fullRefs = false,
             bool includeUsedBy = false,
             CancellationToken? cancellationToken = null)
         {
@@ -198,22 +198,14 @@ public static class AppSchemaContextExtension
                 parent.Schemas = parent.Schemas.Append(schema).ToArray();
             }
 
-            if (nodeType is NamespaceType ns && fullNs)
+            // add references
+            if (fullRefs == true)
             {
-                foreach (NodeSchema s in ns.GetNodeSchemas())
+                foreach (NodeType n in nodeType.GetReferenceTypes())
                 {
                     cancellationToken?.ThrowIfCancellationRequested();
-                    NodeType? sns = await context.GetNodeTypeAsync(s.Name);
-                    if (sns != null)
-                        await context.GetNodeSchemasAsync(sns, root, types, fullNs, includeUsedBy, cancellationToken);
+                    await context.GetNodeSchemasAsync(n, root, types, fullRefs, includeUsedBy, cancellationToken);
                 }
-            }
-
-            // add references
-            foreach (NodeType n in nodeType.GetReferenceTypes())
-            {
-                cancellationToken?.ThrowIfCancellationRequested();
-                await context.GetNodeSchemasAsync(n, root, types, fullNs, includeUsedBy, cancellationToken);
             }
 
             return root;

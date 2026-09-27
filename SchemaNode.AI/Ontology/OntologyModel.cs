@@ -65,7 +65,7 @@ public class OntologyAppClass
     /// <summary>Turtle-safe local name (dots → underscores), e.g. <c>"gevent_finance"</c>.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Full absolute IRI of this class.</summary>
+    /// <summary>IncludeRefs absolute IRI of this class.</summary>
     public required string Iri { get; init; }
 
     /// <summary>Multi-language labels from <c>AppType.Display</c>.</summary>
@@ -133,13 +133,13 @@ public class OntologyEntityClass
     /// <summary>Turtle-safe local name, e.g. <c>"gevent_finance_refund_Refund"</c>.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Full absolute IRI of this class.</summary>
+    /// <summary>IncludeRefs absolute IRI of this class.</summary>
     public required string Iri { get; init; }
 
     /// <summary>Multi-language labels from <c>AnySchemaType.Display</c>.</summary>
     public OntologyLabel[] Labels { get; init; } = [];
 
-    /// <summary>Full IRI of the base struct class, if the struct inherits from another (rdfs:subClassOf).</summary>
+    /// <summary>IncludeRefs IRI of the base struct class, if the struct inherits from another (rdfs:subClassOf).</summary>
     public string? BaseClassIri { get; init; }
 
     /// <summary>All column definitions of this entity.</summary>
@@ -216,7 +216,7 @@ public class OntologyEnumClass
     /// <summary>Turtle-safe local name.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Full absolute IRI of this class.</summary>
+    /// <summary>IncludeRefs absolute IRI of this class.</summary>
     public required string Iri { get; init; }
 
     /// <summary>Multi-language labels.</summary>
@@ -305,7 +305,7 @@ public class OntologyContextEntityClass
     /// <summary>Turtle-safe local name (e.g. <c>"TargetEntity"</c>, <c>"Org"</c>).</summary>
     public required string Name { get; init; }
 
-    /// <summary>Full absolute IRI of this class.</summary>
+    /// <summary>IncludeRefs absolute IRI of this class.</summary>
     public required string Iri { get; init; }
 
     /// <summary>Optional human-readable comment describing the entity's role.</summary>
@@ -321,7 +321,7 @@ public class OntologyScalarClass
     /// <summary>Turtle-safe local name.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Full absolute IRI.</summary>
+    /// <summary>IncludeRefs absolute IRI.</summary>
     public required string Iri { get; init; }
 
     /// <summary>Multi-language labels.</summary>
@@ -373,7 +373,7 @@ public class OntologyFunctionClass
     /// <summary>Turtle-safe local name.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Full absolute IRI (under the <c>prop:</c> prefix).</summary>
+    /// <summary>IncludeRefs absolute IRI (under the <c>prop:</c> prefix).</summary>
     public required string Iri { get; init; }
 
     /// <summary>Multi-language labels.</summary>
