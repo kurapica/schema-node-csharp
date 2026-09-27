@@ -4,13 +4,13 @@ using SchemaNode.Property.Core;
 namespace SchemaNode.Example.Components;
 
 /// <summary>
-/// The user info
+/// 访问用户信息
 /// </summary>
 [Meta<SchemaType>("example.user")]
 public class UserInfo
 {
     /// <summary>
-    /// User ID
+    /// 用户ID
     /// </summary>
     public string? Id { get; set; }
 }

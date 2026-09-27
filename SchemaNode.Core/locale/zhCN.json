@@ -196,6 +196,7 @@
   "system.rangeyear.end": "结束时间",
   "system.rangeyear.start": "起始年份",
   "system.schema": "定义",
+  "system.schema.access": "访问信息",
   "system.schema.array": "数组",
   "system.schema.array.elementtype": "元素数据类型",
   "system.schema.array.index": "数组索引类型",

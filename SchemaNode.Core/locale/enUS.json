@@ -196,6 +196,7 @@
   "system.rangeyear.end": "End",
   "system.rangeyear.start": "Start Year",
   "system.schema": "Schema",
+  "system.schema.access": "Access Information",
   "system.schema.array": "Array",
   "system.schema.array.elementtype": "Element Type",
   "system.schema.array.index": "Data Index",
