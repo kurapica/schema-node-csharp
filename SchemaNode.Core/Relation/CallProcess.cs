@@ -2,6 +2,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
+using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
@@ -73,12 +74,22 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
     public async Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner, IValueAccess? target = null)
     {
         if (FuncType == null) return null;
-        return await FuncType.CallAsync<object?>(context, Args.Select<CallArg, object?>(a =>
+        object?[] args = new object?[Args.Length];
+        for (int i = 0; i < Args.Length; i++)
         {
-            if (string.IsNullOrWhiteSpace(a.Source)) return a.Value;
-            var value = owner.GetAccessValue(a.Source, target);
-            return value;
-        }).ToArray(), mode: Mode);
+            var a = Args[i];
+            if (string.IsNullOrWhiteSpace(a.Source))
+            {
+                args[i] = a.Value;
+            }
+            else
+            {
+                args[i] = owner.GetAccessValue(a.Source, target ?? owner);
+                if (args[i] is DataNode node)
+                    await node.LoadDefaultAsync(context);
+            }
+        }
+        return await FuncType.CallAsync<object?>(context, args, mode: Mode);
     }
 
     /// <inheritdoc/>

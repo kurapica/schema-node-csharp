@@ -5,29 +5,14 @@ using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using SchemaNode.Property.Function;
+using SchemaNode.Attribute;
 
 // ReSharper disable NotAccessedPositionalProperty.Global
 
 namespace SchemaNode.Runtime;
 
 #region Logic Exp
-
-/// <summary>
-/// The logic exp type
-/// </summary>
-[AttributeUsage( AttributeTargets.Method)]
-public class LogicAttribute(LogicType type, bool includeMethod = false): System.Attribute
-{
-    /// <summary>
-    /// The logic exp type
-    /// </summary>
-    public LogicType Type { get; } = type;
-    
-    /// <summary>
-    /// Include the method info
-    /// </summary>
-    public bool IncludeMethod { get; } = includeMethod;
-}
 
 /// <summary>
 /// The logic expression
@@ -90,13 +75,13 @@ public class LogicExpVisitor : IExpVisitor
                 exp.ValueType);
         }
         
-        if (method.GetCustomAttribute<LogicAttribute>() is not { } logicAttr)
+        if (method.GetMetaProperty<Logic>() is not { } logicAttr)
             return null;
 
         LogicExp? logicExp = callExp.Function.Args.Length switch
         {
-            1 => new UnaryLogicExp(logicAttr.Type, callExp.Args[0], exp.ValueType, logicAttr.IncludeMethod ? callExp.Function : null),
-            2 => new BinaryLogicExp(logicAttr.Type, callExp.Args[0], callExp.Args[1], exp.ValueType, logicAttr.IncludeMethod ? callExp.Function : null),
+            1 => new UnaryLogicExp(logicAttr.Value, callExp.Args[0], exp.ValueType, callExp.Function),
+            2 => new BinaryLogicExp(logicAttr.Value, callExp.Args[0], callExp.Args[1], exp.ValueType, callExp.Function),
             _ => null
         };
 

@@ -1,7 +1,9 @@
 ﻿using System.Linq.Expressions;
 using System.Reflection;
+using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Function;
+using SchemaNode.Property.Function;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 
@@ -18,16 +20,6 @@ public enum BreakExpType
     IfNot,
     IfNull,
     IfEmpty,
-}
-
-/// <summary>
-/// The attribute to mark a method as constant expression
-/// </summary>
-/// <param name="value"></param>
-[AttributeUsage(AttributeTargets.Method, Inherited = false)]
-public class ConstantAttribute(object value): System.Attribute
-{
-    public object Value { get; } = value;
 }
 
 /// <summary>
@@ -90,7 +82,7 @@ public class IntrinsicExpVisitor : IExpVisitor
         if (exp is not FuncCallExp { ApplyMode: ApplyMode.Call, Function:{ MethodInfo: { }} } callExp) return null;
         
         // Constant expression
-        if (callExp.Function.MethodInfo.GetCustomAttribute<ConstantAttribute>() is { } constAttr)
+        if (callExp.Function.MethodInfo.GetMetaProperty<Property.Function.Constant>() is { } constAttr)
             return new ConstantExp(callExp.ValueType.From(constAttr.Value));
         
         switch (callExp.Function.BaseName)

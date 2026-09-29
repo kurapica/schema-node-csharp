@@ -74,7 +74,8 @@ public class QueryFilterCompileContext : CompileContext
                     } fExp)
                 {
                     var field = _queryType!.GetField(fExp.FieldName);
-                    if (field == null) throw new FunctionVisitException(AppErrorCodes.FUNC_IS_NOT_POLICY_FILTER);
+                    if (field == null) 
+                        throw new FunctionVisitException(AppErrorCodes.FUNC_IS_NOT_POLICY_FILTER);
 
                     // Check field source
                     if (field.DisplayOnly == true)
@@ -82,7 +83,8 @@ public class QueryFilterCompileContext : CompileContext
                         var relation = _queryType.GetRelations(fExp.FieldName)
                             .FirstOrDefault(r => r.Process is CallProcess && r.ForProperty<Default>());
                         var call = (relation?.Process as CallProcess)!;
-                        if (call.FuncType == null) throw new FunctionVisitException(AppErrorCodes.FUNC_IS_NOT_POLICY_FILTER);
+                        if (call.FuncType == null) 
+                            throw new FunctionVisitException(AppErrorCodes.FUNC_IS_NOT_POLICY_FILTER);
 
                         if (DynamicTableSchema.IsReferenceFunc(call.Func))
                         {

@@ -553,6 +553,7 @@
   "system.str.map.tolocale": "本地化字符串",
   "system.str.map.tolocalestr": "本地化主键",
   "system.str.map.toentryaccess": "转换为可访问条目",
+  "system.str.state": "状态",
   "system.str.state.isempty": "判断字符串是否为空",
   "system.str.state.length": "字符串长度",
   "system.str.util": "工具",

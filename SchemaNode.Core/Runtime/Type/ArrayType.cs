@@ -148,7 +148,7 @@ public sealed class ArrayType: ValueType, IRelationProvider, INodeTypeReLoadHand
     public override IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new ArrayNode(this, parent, propertyProvider);
 
     /// <inheritdoc />
-    public IEnumerable<RelationType> GetRelations() => _relations ?? [];
+    public override IEnumerable<RelationType> GetRelations() => _relations ?? [];
 
     /// <summary>
     /// Gets the csharp type with nullable modifier

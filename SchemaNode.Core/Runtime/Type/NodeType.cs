@@ -440,6 +440,11 @@ public abstract class ValueType : NodeType, IValueTypeAccess
 
     #region Methods
 
+    public virtual IEnumerable<RelationType> GetRelations() 
+    {
+        yield break; 
+    }
+
     /// <summary>
     /// Gets the csharp type with nullable modifier
     /// </summary>

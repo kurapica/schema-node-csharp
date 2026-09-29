@@ -192,7 +192,7 @@ public sealed class StructType: ValueType, IRelationProvider, INodeTypeReLoadHan
     /// <summary>
     /// Gets relations
     /// </summary>
-    public IEnumerable<RelationType> GetRelations() => _relations?.AsEnumerable() ?? [];
+    public override IEnumerable<RelationType> GetRelations() => _relations?.AsEnumerable() ?? [];
 
     #endregion
 

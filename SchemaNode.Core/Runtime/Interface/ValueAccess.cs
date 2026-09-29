@@ -63,6 +63,11 @@ public interface IValueTypeAccess : IPropertyProvider
     /// Validate value and return the access wrap
     /// </summary>
     Task<IValueAccess?> ValidateValueAsync(ISchemaContext context, object? value);
+
+    /// <summary>
+    /// Gets the relations types
+    /// </summary>
+    IEnumerable<RelationType> GetRelations();
 }
 
 /// <summary>

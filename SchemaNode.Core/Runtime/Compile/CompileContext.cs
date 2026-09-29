@@ -579,12 +579,6 @@ public class CompileContext(SchemaContext context, FunctionType function)
                         argExp?.ValueType is ArrayType { Element: not null } || 
                         argExp is FieldAccessExp { Owner: CollectionItemExp }))
                 {
-                    if (argDef.Variadic == true)
-                    {
-                        exp.Status = ErrorCodes.FUNC_EXP_WRONG_ARGS;
-                        throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
-                    }
-
                     // If has CollectionItemExp exp, the colSource must exist
                     if (colSource == null)
                     {

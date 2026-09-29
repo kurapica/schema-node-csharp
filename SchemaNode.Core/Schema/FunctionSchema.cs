@@ -39,6 +39,8 @@ public sealed class FunctionKind;
 [Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getaccessentries)}", $"@{nameof(Args)}", $"@{nameof(Exps)}.{ARRAY_PREVIOUS}", NODE_SELF)]
 [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getaccessvaluetype)}", $"@{nameof(Args)}", $"@{nameof(Exps)}.{ARRAY_PREVIOUS}", NODE_SELF)]
 [Meta<KindProvider>(SCHEMA_KIND_FUNC_ARG)]
+[Relation<EntrySource, Assign>($"{nameof(Exps)}.{ARRAY_ELEMENT}.{nameof(FuncExp.Name)}", $"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getreturnfields)}", $"@{nameof(Return)}", $"@{nameof(Args)}", $"@{nameof(Exps)}.{ARRAY_PREVIOUS}")]
+[Relation<Default, Call>($"{nameof(Exps)}.{ARRAY_ELEMENT}.{nameof(FuncExp.Return)}", $"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getreturnfieldtype)}", $"@{nameof(Return)}", $"@{nameof(Exps)}.{ARRAY_ELEMENT}.{nameof(FuncExp.Name)}")]
 public sealed class FunctionSchema: PropertyOwner
 {
     /// <summary>

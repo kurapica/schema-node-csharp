@@ -92,188 +92,183 @@ public static class BatchQueryExtension
                 fields = fields.Where(f => f.PushSource != null);
 
             // result
-            Dictionary<string, JsonNode> fieldResults = [];
-            Dictionary<string, AppDataFieldInfo> fieldInfos = [];
+            Dictionary<string, AppDataFieldResult> fieldResults = [];
             HashSet<string> enumsKeys = [];
 
-            if (!(query.SchemaOnly ?? false))
+            foreach (AppFieldType field in fields)
             {
-                foreach (AppFieldType field in fields)
+                var fieldResult = new AppDataFieldResult();
+                fieldResults[field.Name] = fieldResult;
+
+                // authorize check
+                fieldResult.DataRead = await context.AuthorizeAsync(field, PolicyScope.DataRead, true);
+                fieldResult.DataCreate = await context.AuthorizeAsync(field, PolicyScope.DataCreate, true);
+                fieldResult.DataUpdate = await context.AuthorizeAsync(field, PolicyScope.DataUpdate, true);
+                fieldResult.DataDelete = await context.AuthorizeAsync(field, PolicyScope.DataDelete, true);
+
+                if (query.SchemaOnly == true || fieldResult.DataRead != true) continue; // no data query
+
+                // prepare field query
+                int total = 0;
+                AppDataFieldQuery? q = query.Querys != null && query.Querys.TryGetValue(field.Name, out var queryQuery) ? queryQuery : null;
+                    
+                // limit incr field take count
+                int take = q?.Take ?? query.Take ?? 0;
+                if (field.Pageable == true)
                 {
-                    IValueAccess? result = null;
-                    int total = 0;
+                    take = take <= 0 
+                        ? SchemaNodeConfig.Current.IncrFieldDefaultTakeCount 
+                        : Math.Min(take, SchemaNodeConfig.Current.IncrFieldMaxTakeCount);
+                }
+                else
+                {
+                    take = 0;
+                }
 
-                    // prepare field query
-                    AppDataFieldQuery? q = query.Querys != null && query.Querys.TryGetValue(field.Name, out var queryQuery) ? queryQuery : null;
-                    
-                    // limit incr field take count
-                    int take = q?.Take ?? query.Take ?? 0;
-                    if (field.Pageable == true)
-                    {
-                        take = take <= 0 
-                            ? SchemaNodeConfig.Current.IncrFieldDefaultTakeCount 
-                            : Math.Min(take, SchemaNodeConfig.Current.IncrFieldMaxTakeCount);
-                    }
-                    else
-                    {
-                        take = 0;
-                    }
+                // filter func
+                AppSchemaDataFilter? filter = null;
+                IValueAccess? result = null;
 
-                    // authorize field
-                    bool allowRead = await context.AuthorizeAsync(field, PolicyScope.DataRead, true);
-
-                    // filter func
-                    AppSchemaDataFilter? filter = null;
-                    
-                    if (allowRead)
+                // row access check
+                if (field is { ValueType: ArrayType { Element: StructType structType } } && field.GetProperty<RowAuths>() is { Value.Length: > 0 } rowAuths)
+                {
+                    bool isValidFilter = true;
+                    foreach (RowPolicy policy in rowAuths.Value)
                     {
-                        // row access check
-                        if (field is { ValueType: ArrayType { Element: StructType structType } } && field.GetProperty<RowAuths>() is { Value.Length: > 0 } rowAuths)
+                        try
                         {
-                            bool authorized = true;
-                            foreach (RowPolicy policy in rowAuths.Value)
+                            // Authorize evaluator
+                            bool authorized = await context.AuthorizeAsync(policy.Evaluator, true);
+                            if (!authorized) continue;
+                            if (policy.FilterFunc == null) break;
+
+                            // check type
+                            if (policy.FilterFunc.Args.Length != 1
+                                || policy.FilterFunc.Args[0].ValueType == null
+                                || !policy.FilterFunc.Args[0].ValueType!.IsAssignableTo(structType))
                             {
-                                try
-                                {
-                                    // Authorize evaluator
-                                    authorized = await context.AuthorizeAsync(policy.Evaluator, true);
-                                    if (!authorized) continue;
-                                    if (policy.FilterFunc == null) break;
-
-                                    // check type
-                                    if (policy.FilterFunc.Args.Length != 1
-                                        || policy.FilterFunc.Args[0].ValueType == null
-                                        || !policy.FilterFunc.Args[0].ValueType!.IsAssignableTo(structType))
-                                    {
-                                        authorized = false;
-                                        continue;
-                                    }
-
-                                    // Call filter func with policy filter compile context
-                                    AppSchemaDataFilter? f = await policy.FilterFunc.CallAsync<AppSchemaDataFilter, QueryFilterCompileContext>(context, []);
-                                    if (f == null)
-                                    {
-                                        authorized = false;
-                                        continue;
-                                    }
-
-                                    filter = filter == null ? f : filter.AndAlso(f);
-                                    break;
-                                }
-                                catch (Exception e)
-                                {
-                                    context.LogError(e, $"BatchQueryAppDataAsync row access check error for func ${policy.Evaluator}");
-                                    authorized = false;
-                                }
+                                isValidFilter = false;
+                                break;
                             }
-                            allowRead = authorized;
+
+                            // Call filter func with policy filter compile context
+                            AppSchemaDataFilter? f = await policy.FilterFunc.CallAsync<AppSchemaDataFilter, QueryFilterCompileContext>(context, []);
+                            if (f == null) {
+                                isValidFilter = false;
+                                break;
+                            }
+
+                            filter = filter == null ? f : filter.AndAlso(f);
+                            break;
                         }
-
-                        if (allowRead)
+                        catch (Exception e)
                         {
-                            // CombineProperties filters
-                            if (q?.Filter != null)
-                            {
-                                var qFilter = await q.Filter.ToAppSchemaDataFilterAsync(context, ((field.ValueType as ArrayType)!.Element as StructType)!, field.Filters);
-                                filter = filter != null && qFilter != null ? filter.AndAlso(qFilter) : (filter ?? qFilter);
-                            }
-                            
-                            // Validate and transform filter
-                            bool isValidFilter = filter == null;
-                            if (filter != null)
-                            {
-                                isValidFilter = filter.Transform(out AppSchemaDataFilter? final);
-                                filter = final;
-
-                                // Avoid invalid filter types like false means no data
-                                if (isValidFilter && filter is AppSchemaDataFilterValue or AppSchemaDataFilterField)
-                                    isValidFilter = false;
-                            }
-                            
-                            if (isValidFilter)
-                                (result, total) = await context.GetAppFieldDataAsync( field,AppSchemaDataResult.List,
-                                    filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy, genDisplayOnly:true);
+                            context.LogError(e, $"BatchQueryAppDataAsync row access check error for func ${policy.Evaluator}");
                         }
                     }
-                    
-                    // mark loaded
-                    fieldInfos[field.Name] = new AppDataFieldInfo
-                    {
-                        Filter = filter?.ToFilter() ?? q?.Filter,
-                        OrderBy = q?.OrderBy,
-                        Skip = q?.Skip ?? 0,
-                        Take = take,
-                        Descend = q?.Descend ?? query.Descend ?? false,
-                        Total = total,
-                    };
 
-                    // cover result
-                    if (result != null)
+                    // CombineProperties filters
+                    if (q?.Filter != null)
                     {
-                        fieldResults[field.Name] =  result.ToJsonNode()!;
+                        var qFilter = await q.Filter.ToAppSchemaDataFilterAsync(context, ((field.ValueType as ArrayType)!.Element as StructType)!, field.Filters);
+                        filter = filter != null && qFilter != null ? filter.AndAlso(qFilter) : (filter ?? qFilter);
+                    }
+                            
+                    // Validate and transform filter
+                    if (isValidFilter && filter != null)
+                    {
+                        isValidFilter = filter.Transform(out AppSchemaDataFilter? final);
+                        filter = final;
+
+                        // Avoid invalid filter types like false means no data
+                        if (isValidFilter && filter is AppSchemaDataFilterValue or AppSchemaDataFilterField)
+                            isValidFilter = false;
+                    }
+                            
+                    if (isValidFilter)
+                        (result, total) = await context.GetAppFieldDataAsync( field,AppSchemaDataResult.List,
+                            filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy, genDisplayOnly:true);
+                }
+                else
+                {
+                    (result, total) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List,
+                        filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy, genDisplayOnly: true);
+                }
+
+                // mark loaded
+                fieldResult.Queried = true;
+                fieldResult.Filter = filter?.ToFilter() ?? q?.Filter;
+                fieldResult.OrderBy = q?.OrderBy;
+                fieldResult.Skip = q?.Skip ?? 0;
+                fieldResult.Take = take;
+                fieldResult.Descend = q?.Descend ?? query.Descend ?? false;
+                fieldResult.Total = total;
+
+                // cover result
+                if (result != null)
+                {
+                    fieldResults[field.Name].Result =  result.ToJsonNode()!;
                         
-                        // column access check
-                        var @struct = result switch
+                    // column access check
+                    var @struct = result switch
+                    {
+                        ArrayNode arr => arr.ElementType as StructType,
+                        StructNode st => st.Type as StructType,
+                        _ => null
+                    };
+                    if (@struct != null)
+                    {
+                        List<string>? ignoreFields = null;
+                        foreach (StructFieldType f in @struct.GetFields())
                         {
-                            ArrayNode arr => arr.ElementType as StructType,
-                            StructNode st => st.Type as StructType,
-                            _ => null
-                        };
-                        if (@struct != null)
-                        {
-                            List<string>? ignoreFields = null;
-                            foreach (StructFieldType f in @struct.GetFields())
+                            // Authorize with order
+                            bool authorized = true;
+                            foreach(string evaluator in field.GetColPolicies(f.Name))
                             {
-                                // Authorize with order
-                                bool authorized = true;
-                                foreach(string evaluator in field.GetColPolicies(f.Name))
-                                {
-                                    authorized = await context.AuthorizeAsync(evaluator, true);
-                                    if (authorized) break;
-                                }
-                                if (authorized) continue;
-
-                                ignoreFields ??= [];
-                                ignoreFields.Add(f.Name);
+                                authorized = await context.AuthorizeAsync(evaluator, true);
+                                if (authorized) break;
                             }
+                            if (authorized) continue;
 
-                            // remove ignore fields
-                            if (ignoreFields != null)
+                            ignoreFields ??= [];
+                            ignoreFields.Add(f.Name);
+                        }
+
+                        // remove ignore fields
+                        if (ignoreFields != null)
+                        {
+                            if (fieldResults[field.Name].Result is JsonArray jsonArray)
                             {
-                                if (fieldResults[field.Name] is JsonArray jsonArray)
+                                foreach(var obj in jsonArray)
                                 {
-                                    foreach(var obj in jsonArray)
-                                    {
-                                        if (obj is not JsonObject jsonObj) continue;
-                                        foreach (string ig in ignoreFields)
-                                        {
-                                            jsonObj.Remove(ig);
-                                        }
-                                    }
-                                }
-                                else if (fieldResults[field.Name] is JsonObject jsonObject)
-                                {
+                                    if (obj is not JsonObject jsonObj) continue;
                                     foreach (string ig in ignoreFields)
                                     {
-                                        jsonObject.Remove(ig);
+                                        jsonObj.Remove(ig);
                                     }
                                 }
                             }
+                            else if (fieldResults[field.Name].Result is JsonObject jsonObject)
+                            {
+                                foreach (string ig in ignoreFields)
+                                {
+                                    jsonObject.Remove(ig);
+                                }
+                            }
                         }
-                        
-                        // scan enum access
-                        if (!(query.NoSchema ?? false))
-                            await ScanEnumAccess(context, root, field.ValueType!, enumsKeys, result);
                     }
+                        
+                    // scan enum access
+                    if (!(query.NoSchema ?? false))
+                        await ScanEnumAccess(context, root, field.ValueType!, enumsKeys, result);
                 }
             }
-
+            
             // result
             AppDataResult appResult = new AppDataResult { 
                 App = query.App,
                 Target = query.Target,
                 Results = fieldResults,
-                Infos = fieldInfos,
                 Schema = !(query.NoSchema ?? false) ? await node.GetSchemaAsync(context): null
             };
             
@@ -533,23 +528,43 @@ public class AppDataResult
     /// The application schema
     /// </summary>
     public AppSchema? Schema { get; set; }
-    
-    /// <summary>
-    /// The app field data
-    /// </summary>
-    public Dictionary<string, JsonNode>? Results { get; set; }
-    
+        
     /// <summary>
     /// The query infos
     /// </summary>
-    public Dictionary<string, AppDataFieldInfo>? Infos { get; set; }
+    public Dictionary<string, AppDataFieldResult>? Results { get; set; }
 }
 
 /// <summary>
 /// The query field result info
 /// </summary>
-public class AppDataFieldInfo
+public class AppDataFieldResult
 {
+    /// <summary>
+    /// The app data create auth, based on target
+    /// </summary>
+    public bool? DataCreate { get; set; }
+
+    /// <summary>
+    /// The app data create auth
+    /// </summary>
+    public bool? DataRead { get; set; }
+
+    /// <summary>
+    /// The app data udpate auth
+    /// </summary>
+    public bool? DataUpdate { get; set; }
+
+    /// <summary>
+    /// The app data delete auth
+    /// </summary>
+    public bool? DataDelete { get; set; }
+
+    /// <summary>
+    /// Whether the data is queried(schema only)
+    /// </summary>
+    public bool? Queried { get; set; }
+
     /// <summary>
     /// The filter, only primary key supported
     /// </summary>
@@ -579,6 +594,11 @@ public class AppDataFieldInfo
     /// The total count
     /// </summary>
     public int? Total { get; set; }
+
+    /// <summary>
+    /// The result data
+    /// </summary>
+    public JsonNode? Result { get; set; }
 }
 
 /// <summary>

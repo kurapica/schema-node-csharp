@@ -88,8 +88,8 @@ public class Derive
     /// The calculate function, convert the input data to the type data
     /// </summary>
     [Meta<SchemaType>(typeof(FuncType))]
-    [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS, NODE_SELF, $"@{nameof(SourceType)}")]
-    [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"@{nameof(FieldType)}", true)]
+    [Relation<Valid, Assign>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS, NODE_SELF, $"@{nameof(SourceType)}")]
+    [Relation<Valid, Assign>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"@{nameof(FieldType)}", true)]
     [Meta<Require>(true)]
     public string Calc { get; set; } = string.Empty;
     

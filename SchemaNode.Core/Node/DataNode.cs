@@ -3,6 +3,9 @@ using SchemaNode.Property;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using System.Text.Json.Nodes;
+using SchemaNode.Context;
+using SchemaNode.Property.Struct;
+using SchemaNode.Property.Common;
 
 // ReSharper disable InconsistentNaming
 // ReSharper disable VirtualMemberCallInConstructor
@@ -15,6 +18,47 @@ namespace SchemaNode.Node;
 /// </summary>
 public abstract class DataNode : IValueAccess
 {
+    #region Relation
+
+    /// <summary>
+    /// Gets the relation that effect this node for the given property
+    /// </summary>
+    public (RelationType Relation, IValueAccess Owner)? GetRelation<T>() where T: IProperty
+    {
+        IValueAccess? curr = this.Parent;
+        RelationType? last = null;
+        IValueAccess? owner = null;
+        while (curr != null)
+        {
+            foreach(RelationType r in curr!.Type.GetRelations())
+            {
+                if (r.Property?.GetCsharpType() != typeof(T)) continue;
+                if (curr.GetAccessValue(r.Target, this) != this) continue;
+                last = r;
+                owner = curr;
+                break;
+            }
+            curr = curr.Parent;
+        }
+        return last != null ? (last, owner) : null;
+    }
+
+    /// <summary>
+    /// Loading default value for node
+    /// </summary>
+    public async Task LoadDefaultAsync(SchemaContext context)
+    {
+        // For now only load default value for displayonly field
+        if (!this.IsEmpty || this.PropertyProvider?.GetProperty<DisplayOnly>()?.Value != true) return;
+        var r = this.GetRelation<Default>();
+        if (r is null) return;
+        var d = await r.Value.Relation.ProcessAsync(context, r.Value.Owner, this);
+        if (d is null || !d.HasValue) return;
+        this.TrySetValue(d.GetValue<object>());
+    }
+
+    #endregion
+
     #region Properties
 
     /// <summary>

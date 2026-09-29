@@ -1,6 +1,8 @@
 ﻿using System.Linq.Expressions;
 using System.Reflection;
+using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using SchemaNode.Property.Function;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 
@@ -9,17 +11,6 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Runtime;
 
 #region Arithmetic Exp Types
-
-/// <summary>
-/// The Arithmetic exp type
-/// </summary>
-public class ArithmeticAttribute(ArithmeticType type) : System.Attribute
-{
-    /// <summary>
-    ///  The arithmetic type
-    /// </summary>
-    public ArithmeticType Type { get; } = type;
-}   
 
 /// <summary>
 /// The arithmetic expression
@@ -46,13 +37,13 @@ public class ArithmeticExpVisitor : IExpVisitor
     {
         if (exp is not FuncCallExp { ApplyMode: ApplyMode.Call } callExp ||
             callExp.Function.MethodInfo == null ||
-            callExp.Function.MethodInfo.GetCustomAttribute<ArithmeticAttribute>() is not {} attr) 
+            callExp.Function.MethodInfo.GetMetaProperty<Arithmetic>() is not {} attr) 
             return Task.FromResult<SchemaExp?>(null);
         
         return Task.FromResult<SchemaExp?>(
-            attr.Type == ArithmeticType.Transform
+            attr.Value == ArithmeticType.Transform
                 ? new TransformArithmeticExp(callExp.Function.MethodInfo, callExp.Args, callExp.ValueType)
-                : new ArithmeticExp(attr.Type, callExp.Args, callExp.ValueType));
+                : new ArithmeticExp(attr.Value, callExp.Args, callExp.ValueType));
     }
 
     // <inheritdoc/>

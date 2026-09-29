@@ -476,6 +476,13 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
     /// </summary>
     private async Task<object?> CallSystemFuncAsync(SchemaContext context, object?[] args, string? rType = null)
     {
+        // Cache
+        bool enableCache = this.GetProperty<ServerOnly>()?.Value == true && this.GetProperty<NoCache>()?.Value != true && args.All(a => a is null || Type.GetTypeCode(a.GetType()) != TypeCode.Object);
+        var cache = enableCache ? context.GetOrAddContextItem<Dictionary<string, object>>() : null;
+        string? key = enableCache ? string.Join('|', args.Select(a => a is null ? "<NULL>" : a.ToString())) : null;
+        if (cache != null && cache.TryGetValue(key!, out object? v))
+            return v is DBNull ? null : v;
+
         // Argument validation
         SchemaFuncInfo funcInfo = await GetSchemaFuncInfoAsync(context) ?? throw new Exception($"Function {Name} can't be complied");
         
@@ -538,8 +545,19 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                 // check null or empty
                 if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
                 {
-                    if (arg.Nullable) continue;
-                    throw new Exception($"The {i + 1} argument must be provided");
+                    if (arg.Nullable)
+                    {
+                        if (Args[i].Default != null)
+                        {
+                            argObj = Args[i].Default;
+                            argNode = null;
+                            argJson = null;
+                        }
+                        else
+                            continue;
+                    }
+                    else
+                        throw new Exception($"The {i + 1} argument must be provided");
                 }
 
                 // Parse argument
@@ -660,9 +678,14 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
         }
 
         // Call the method
-        return (funcInfo.Sign & FunctionFlags.Async) > 0
+        object? res = (funcInfo.Sign & FunctionFlags.Async) > 0
             ? GetCallAsyncFunc(callMethod.ReturnType.GetGenericArguments()[0]).Invoke(null, [callMethod, callArgs])
             : callMethod.Invoke(null, callArgs);
+
+        // Cache
+        if (cache != null)
+            cache[key!] = res is null ? DBNull.Value : res;
+        return res;
     }
     
     /// <summary>
@@ -708,8 +731,20 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                 // check null or empty
                 if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
                 {
-                    if (!arg.Require) continue;
-                    throw new Exception($"The {i + 1} argument must be provided");
+                    if (!arg.Require)
+                    {
+                        var a = Args.ElementAtOrDefault(i) ?? Args.Last();
+                        if (a.Default != null)
+                        {
+                            argObj = a.Default;
+                            argJson = null;
+                            argNode = null;
+                        }
+                        else
+                            continue;
+                    }
+                    else
+                        throw new Exception($"The {i + 1} argument must be provided");
                 }
 
                 // Parse argument
