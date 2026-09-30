@@ -155,8 +155,10 @@ public sealed class ArrayType: ValueType, IRelationProvider, INodeTypeReLoadHand
     /// </summary>
     public override Type? GetCsharpType(bool nullable = false)
     {
-        Type type = base.GetCsharpType(false) ?? typeof(List<>);
         Type? eleType = Element?.GetCsharpType(false) ?? typeof(object);
+        if (eleType.IsAssignableTo(typeof(IValueAccess))) return typeof(ArrayNode);
+
+        Type type = base.GetCsharpType(false) ?? typeof(List<>);
         return type.IsGenericTypeDefinition ? type.MakeGenericType(eleType) : type;
     }
  

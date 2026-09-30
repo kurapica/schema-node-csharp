@@ -40,7 +40,7 @@ public abstract class DataNode : IValueAccess
             }
             curr = curr.Parent;
         }
-        return last != null ? (last, owner) : null;
+        return last != null ? (last, owner!) : null;
     }
 
     /// <summary>
@@ -55,6 +55,14 @@ public abstract class DataNode : IValueAccess
         var d = await r.Value.Relation.ProcessAsync(context, r.Value.Owner, this);
         if (d is null || !d.HasValue) return;
         this.TrySetValue(d.GetValue<object>());
+    }
+
+    /// <summary>
+    /// Clear displayOnly node to avoid un-valid data
+    /// </summary>
+    public virtual void ClearDisplayOnlyNode() {
+        if (this.PropertyProvider?.GetProperty<DisplayOnly>()?.Value == true)
+            this.ClearValue();
     }
 
     #endregion

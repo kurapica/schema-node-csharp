@@ -52,15 +52,6 @@ public class StructNode : DataNode
     #region Methods
 
     /// <summary>
-    /// Gets or calc the field value
-    /// </summary>
-    /// <param name="context"></param>
-    /// <param name="fieldName"></param>
-    /// <returns></returns>
-    public Task<IValueAccess?> GetFieldValueAsync(SchemaContext context, string fieldName)
-        => (Type as StructType)!.GetFieldValueAsync(context, this, fieldName);
-
-    /// <summary>
     /// Gets the struct field type by name
     /// </summary>
     public StructFieldType? GetFieldType(string fieldName) => (Type as StructType)?.GetField(fieldName);
@@ -73,6 +64,14 @@ public class StructNode : DataNode
         int i = 0;
         foreach (var field in (Type as StructType)!.GetFields())
             yield return (field, _fields[i++]);
+    }
+
+    /// <inheritdoc/>
+    public override void ClearDisplayOnlyNode()
+    {
+        base.ClearDisplayOnlyNode();
+        foreach (var f in _fields.OfType<DataNode>())
+            f.ClearDisplayOnlyNode();
     }
     
     /// <summary>

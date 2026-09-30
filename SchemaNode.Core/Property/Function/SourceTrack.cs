@@ -10,8 +10,6 @@ namespace SchemaNode.Property.Function;
 /// Marks a function that need track the call source node
 /// </summary>
 [Meta<Static>(true)]
-[Meta<ReadOnly>(true)]
-[Meta<InVisible>(true)]
 [Meta<ForSchema>(SCHEMA_KIND_FUNCTION)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_FUNC}.{nameof(SourceTrack)}")]

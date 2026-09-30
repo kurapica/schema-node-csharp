@@ -54,19 +54,8 @@ public class ArithmeticExpVisitor : IExpVisitor
         // Prepare argument expressions
         List<Expression> argExps = [];
         foreach (SchemaExp arg in arithmeticExp.Args)
-        {
-            if (arg is ParamsExp pExp)
-            {
-                foreach (SchemaExp p in pExp.Exps)
-                {
-                    argExps.Add(await context.CompileSchemaExpAsync(p));
-                }
-            }
-            else
-            {
-                argExps.Add(await context.CompileSchemaExpAsync(arg));
-            }
-        }
+            argExps.Add(await context.CompileSchemaExpAsync(arg));
+
         if (argExps.Count == 0) throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
         
         // Compile based on arithmetic type

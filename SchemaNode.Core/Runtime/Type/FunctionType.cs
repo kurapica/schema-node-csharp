@@ -729,7 +729,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                 IValueAccess? argNode = argObj as IValueAccess;
 
                 // check null or empty
-                if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
+                if (argObj == null || (argJson != null && argJson.IsEmpty()) || argNode is { IsEmpty: true } && argNode.Type.Kind != SCHEMA_KIND_ARRAY)
                 {
                     if (!arg.Require)
                     {

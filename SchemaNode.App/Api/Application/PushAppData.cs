@@ -87,13 +87,12 @@ public static class PushDataExtenstion
                 FunctionType? rowChecker = null;
                 if (appField is {  ValueType: ArrayType {  Element: StructType structType } } && appField.GetProperty<RowAuths>() is { Value: { Length: > 0}} rowAuths)
                 {
-                    bool authorized = true;
                     foreach (RowPolicy policy in rowAuths.Value)
                     {
                         try
                         {
                             // Authorize evaluator
-                            authorized = await context.AuthorizeAsync(policy.Evaluator, true);
+                            bool authorized = await context.AuthorizeAsync(policy.Evaluator, true);
                             if (!authorized) continue;
                             if (policy.FilterFunc == null) break;
 
@@ -102,8 +101,7 @@ public static class PushDataExtenstion
                                 || policy.FilterFunc.Args[0].ValueType == null
                                 || !policy.FilterFunc.Args[0].ValueType!.IsAssignableTo(structType))
                             {
-                                authorized = false;
-                                continue;
+                                throw new UnauthorizedAccessException();
                             }
 
                             // visite the function exp tree for where clause
@@ -121,22 +119,14 @@ public static class PushDataExtenstion
                     {
                         // check data row access permission
                         if (push.Data is JsonArray arr)
-                        {
                             foreach (JsonNode? item in arr)
                                 await ValidateRow(context, rowChecker, item);
-                        }
                         else
                             await ValidateRow(context, rowChecker, push.Data);
 
                         if (push.Deletes is { Count: > 0 })
-                        {
                             foreach (JsonNode? item in push.Deletes)
                                 await ValidateRow(context, rowChecker, item);
-                        }
-                    }
-                    else if(!authorized)
-                    {
-                        throw new UnauthorizedAccessException();
                     }
                 }
 
@@ -167,7 +157,7 @@ public static class PushDataExtenstion
 
                 if (push.Deletes is { Count: > 0 })
                 {
-                    var result = await appField.ValidateDataAsync(context, push.Deletes);
+                    var result = await appField.ValidateDataAsync(context, push.Deletes, true);
                     if (result is not { IsValid: true })
                     {
                         if (hasData) await context.RollbackTransactionAsync();

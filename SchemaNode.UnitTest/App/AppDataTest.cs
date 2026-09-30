@@ -15,6 +15,7 @@ using SchemaNode.Property.String;
 using SchemaNode.Property.Struct;
 using SchemaNode.Schema;
 using DataCombine = SchemaNode.Property.App.DataCombine;
+using static SchemaNode.Utility.AppConstant;
 // ReSharper disable InconsistentNaming
 
 namespace SchemaNode.UnitTest.App;
@@ -78,7 +79,7 @@ public class AppDataTest : Base.AppTestBase
         /// The place name
         /// </summary>
         [Meta<DisplayOnly>(true)]
-        [Relation<Default, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_DATA}.app.{nameof(SystemAppData.getfield)}", APP_NAME, nameof(Place), nameof(Place.Name), $"@{nameof(PlaceId)}")]
+        [Relation<Default, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_DATA_APP}.{nameof(SystemAppData.getfield)}", APP_NAME, nameof(Place), nameof(Place.Name), $"@{nameof(PlaceId)}")]
         public string? PlaceName { get; set; }
 
         /// <summary>
@@ -90,7 +91,7 @@ public class AppDataTest : Base.AppTestBase
         /// The total attendance of the meeting
         /// </summary>
         [Meta<DisplayOnly>(true)]
-        [Relation<Default, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_DATA}.app.{nameof(SystemAppData.getfield)}", APP_NAME, nameof(MeetingCount), nameof(MeetingCount.Count), $"@{nameof(Id)}")]
+        [Relation<Default, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_DATA_APP}.{nameof(SystemAppData.getfield)}", APP_NAME, nameof(MeetingCount), nameof(MeetingCount.Count), $"@{nameof(Id)}")]
         public long? Count { get; set; }
     }
 

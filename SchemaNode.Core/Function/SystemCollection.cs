@@ -4,14 +4,13 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
-using SchemaNode.Property.Common;
-using static SchemaNode.Utility.Constant;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Function;
 using SchemaNode.Relation;
-using StructType = SchemaNode.Runtime.StructType;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using static SchemaNode.Utility.Constant;
+using StructType = SchemaNode.Runtime.StructType;
 
 // ReSharper disable InconsistentNaming
 
@@ -233,5 +232,10 @@ public static class SystemCollection
     /// Gets the field node from object
     /// </summary>
     static async Task<IValueAccess?> GetFieldNode(SchemaContext context, IValueAccess? obj, string path)
-        => obj is not StructNode s ? obj?.GetAccessValue(path) : await s.GetFieldValueAsync(context, path);
+    {
+        var node = obj?.GetAccessValue(path);
+        if (node is not DataNode n) return node;
+        await n.LoadDefaultAsync(context);
+        return node;
+    }
 }

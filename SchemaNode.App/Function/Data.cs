@@ -29,7 +29,7 @@ namespace SchemaNode.Function;
 /// <summary>
 /// The system.data api for application-level data operations
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_DATA}.app")]
+[Meta<SchemaType>(NS_SYSTEM_DATA_APP)]
 public static class SystemAppData
 {
     #region Get single Application Data

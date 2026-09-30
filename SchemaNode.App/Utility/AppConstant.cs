@@ -23,6 +23,7 @@ public static class AppConstant
     public const int SCHEMA_KIND_ORDER_APP_WORKFLOW = 32;
     public const int SCHEMA_KIND_ORDER_APP_WORKFLOW_NODE = 33;
 
+    public const string NS_SYSTEM_DATA_APP = $"{NS_SYSTEM_DATA}.app";
     public const string NS_SYSTEM_EVENT = "system.event";
     public const string NS_SYSTEM_WORKFLOW = "system.workflow";
     public const string NS_SYSTEM_WORKFLOW_CRON = $"{NS_SYSTEM_WORKFLOW}.cron";

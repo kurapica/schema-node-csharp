@@ -46,13 +46,6 @@ public record VariableExp(string Name, SchemaExp Value) : SchemaExp(Value.ValueT
 public record ArgumentExp(string Name, int Index, bool Require, IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
 /// <summary>
-/// The params expression type
-/// </summary>
-/// <param name="Exps"></param>
-/// <param name="ValueType"></param>
-public record ParamsExp(SchemaExp[] Exps, IValueTypeAccess ValueType) : SchemaExp(ValueType);
-
-/// <summary>
 /// The struct field expression
 /// </summary>
 /// <param name="Name">The struct field name</param>

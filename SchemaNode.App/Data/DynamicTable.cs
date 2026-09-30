@@ -733,7 +733,7 @@ public class DynamicTableSchema
     
     #region Utility
 
-    internal static bool IsReferenceFunc(string func) => $"{NS_SYSTEM_DATA}.app.{nameof(SystemAppData.getfield)}".Equals(func.Split('<', 2).First(), StringComparison.OrdinalIgnoreCase);
+    internal static bool IsReferenceFunc(string func) => $"{NS_SYSTEM_DATA_APP}.{nameof(SystemAppData.getfield)}".Equals(func.Split('<', 2).First(), StringComparison.OrdinalIgnoreCase);
 
     // Generate the display only fields
     private static async Task GenerateDisplayOnlyFields(SchemaContext context, StructType type, IValueAccess? node, bool joinHandled = false)

@@ -437,6 +437,7 @@
   "system.schema.prop.func.nocache": "不缓存",
   "system.schema.prop.func.serveronly": "仅服务器端",
   "system.schema.prop.func.variadic": "可变参数",
+  "system.schema.prop.func.sourcetrack": "来源跟踪",
   "system.schema.prop.relation": "关系",
   "system.schema.prop.relation.assign": "赋值关系",
   "system.schema.prop.relation.call": "调用关系",

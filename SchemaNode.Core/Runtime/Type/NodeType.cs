@@ -9,6 +9,7 @@ using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using SchemaNode.Runtime.Interface;
+using SchemaNode.Node;
 
 namespace SchemaNode.Runtime;
 
@@ -473,7 +474,10 @@ public abstract class ValueType : NodeType, IValueTypeAccess
             if (value != null && !result.TrySetValue(value))
                 return null;
         }
-    
+
+        // remove un-valid data
+        if (result is DataNode n) n.ClearDisplayOnlyNode();
+
         // constraints
         foreach (IConstraintProperty constraint in Constraints.Where(c => c.HasValue))
         {

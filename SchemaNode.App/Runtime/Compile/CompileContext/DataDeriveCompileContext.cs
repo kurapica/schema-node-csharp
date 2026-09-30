@@ -2,7 +2,7 @@ using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
 using SchemaNode.Utility;
-using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.AppConstant;
 // ReSharper disable NotAccessedPositionalProperty.Global
 
 namespace SchemaNode.Runtime;
@@ -146,7 +146,7 @@ public class DataDeriveCompileContext(SchemaContext context, FunctionType functi
             case FuncCallExp funcCallExp:
                 switch (funcCallExp.Function.BaseName)
                 {
-                    case $"{NS_SYSTEM_DATA}.{nameof(SystemAppData.getfield)}":
+                    case $"{NS_SYSTEM_DATA_APP}.{nameof(SystemAppData.getfield)}":
                     {
                         if (funcCallExp.ApplyMode == ApplyMode.Call &&
                             funcCallExp.Args[0] is ConstantExp { Value.IsEmpty: false } appExp &&
@@ -168,7 +168,7 @@ public class DataDeriveCompileContext(SchemaContext context, FunctionType functi
                             {
                                 List<DataPushPrimaryMap> primaryMap = [];
 
-                                if (arrayType.Primary.Count != funcCallExp.Args.Length - 4)
+                                if (arrayType.Primary.Count != funcCallExp.Args.Length - 3)
                                     throw new FunctionVisitException(AppErrorCodes.FUNC_IS_NOT_PUSH_FUNC);
 
                                 // Key must be field access from argument, constant that generated before, otherwise we can't figure out the 
@@ -218,7 +218,7 @@ public class DataDeriveCompileContext(SchemaContext context, FunctionType functi
                         // Other app could be system parameters, leave it to the user
                         break;
                     }
-                    case $"{NS_SYSTEM_DATA}.{nameof(SystemAppData.get)}":
+                    case $"{NS_SYSTEM_DATA_APP}.{nameof(SystemAppData.get)}":
                     {
                         if (funcCallExp.ApplyMode == ApplyMode.Call &&
                             funcCallExp.Args[0] is ConstantExp { Value.IsEmpty: false }  appExp &&
@@ -238,7 +238,7 @@ public class DataDeriveCompileContext(SchemaContext context, FunctionType functi
                             {
                                 List<DataPushPrimaryMap> primaryMap = [];
 
-                                if (arrayType.Primary.Count != funcCallExp.Args.Length - 3)
+                                if (arrayType.Primary.Count != funcCallExp.Args.Length - 2)
                                     throw new FunctionVisitException(AppErrorCodes.FUNC_IS_NOT_PUSH_FUNC);
 
                                 // Key must be field access from argument, constant that generated before, otherwise we can't figure out the 
@@ -327,13 +327,12 @@ public class DataDeriveCompileContext(SchemaContext context, FunctionType functi
             ArgumentExp argExp => argExp.Index > 0, // Only allow first argument
             VariableExp varExp => FromThirdField(varExp.Value, isCond),
             DefaultExp defExp => FromThirdField(defExp.Inner, isCond),
-            ParamsExp paramsExp => paramsExp.Exps.Any(e => FromThirdField(e, isCond)),
             CollectionOperator collectionExp => FromThirdField(collectionExp.Root),
             CollectionRootExp iterExp => FromThirdField(iterExp.Collection),
             FuncCallExp funcCallExp => funcCallExp.Function.Name switch
             {
-                $"{NS_SYSTEM_DATA}.{nameof(SystemAppData.getfield)}"
-                    or $"{NS_SYSTEM_DATA}.{nameof(SystemAppData.get)}" => false, // allow parameters
+                $"{NS_SYSTEM_DATA_APP}.{nameof(SystemAppData.getfield)}"
+                    or $"{NS_SYSTEM_DATA_APP}.{nameof(SystemAppData.get)}" => false, // allow parameters
                 _ => funcCallExp.Args.Any(e => FromThirdField(e, isCond))
             },
             UnaryLogicExp unaryLogicExp => FromThirdField(unaryLogicExp.Inner, isCond),

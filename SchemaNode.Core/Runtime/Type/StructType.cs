@@ -215,30 +215,7 @@ public sealed class StructType: ValueType, IRelationProvider, INodeTypeReLoadHan
         }
         return null;
     }
-
-    /// <summary>
-    /// Gets or calc the field value
-    /// </summary>
-    public async Task<IValueAccess?> GetFieldValueAsync(SchemaContext context, StructNode node, string fieldName)
-    {
-        string[] paths = fieldName.Split('.', 2);
-        StructFieldType? fieldType = GetField(paths[0]);
-        if (fieldType == null) return null;
         
-        var value = node.GetAccessValue(paths[0]);
-        if (value == null) return null;
-        if (!value.IsEmpty || fieldType.DisplayOnly != true) return paths.Length > 1 ? value.GetAccessValue(paths[1]) : value;
-        
-        // check relations
-        RelationType? r = _relations?.FirstOrDefault(rel => rel.Target.Equals(fieldName, StringComparison.OrdinalIgnoreCase) && rel.ForProperty<Default>() );
-        if (r == null) return value;
-        
-        // process relations
-        IProperty? def = await r.ProcessAsync(context, node, value);
-        value.TrySetValue(def?.GetValue<object>());
-        return paths.Length > 1 ? value.GetAccessValue(paths[1]) : null;
-    }
-    
     /// <summary>
     /// Gets the field index, -1 if not found
     /// </summary>

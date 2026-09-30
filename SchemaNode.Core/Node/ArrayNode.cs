@@ -94,6 +94,14 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
     public override bool IsEmpty => Count == 0;
 
     /// <inheritdoc/>
+    public override void ClearDisplayOnlyNode()
+    {
+        base.ClearDisplayOnlyNode();
+        foreach (var item in _elements.OfType<DataNode>())
+            item.ClearDisplayOnlyNode();
+    }
+
+    /// <inheritdoc/>
     public sealed override bool TrySetValue<T>(T? value) where T : default
     {
         if (value is ArrayNode arrayNode)
@@ -219,7 +227,7 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
     public override bool IsValid => _elements.All(element => element.IsValid);
 
     /// <inheritdoc/>
-    public override JsonNode? Violated => !IsValid ? new JsonArray(_elements.Where(e => !e.IsValid).Select(e => e.Violated).ToArray()) : null;
+    public override JsonNode? Violated => !IsValid ? new JsonArray(_elements.Select(e => e.Violated ?? JsonValue.Create(true)).ToArray()) : null;
 
     /// <inheritdoc/>
     public override IValueAccess Clone()

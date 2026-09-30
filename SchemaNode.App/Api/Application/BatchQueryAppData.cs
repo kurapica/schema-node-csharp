@@ -102,9 +102,9 @@ public static class BatchQueryExtension
 
                 // authorize check
                 fieldResult.DataRead = await context.AuthorizeAsync(field, PolicyScope.DataRead, true);
-                fieldResult.DataCreate = await context.AuthorizeAsync(field, PolicyScope.DataCreate, true);
-                fieldResult.DataUpdate = await context.AuthorizeAsync(field, PolicyScope.DataUpdate, true);
-                fieldResult.DataDelete = await context.AuthorizeAsync(field, PolicyScope.DataDelete, true);
+                fieldResult.DataCreate = !field.ReadOnly && await context.AuthorizeAsync(field, PolicyScope.DataCreate, true);
+                fieldResult.DataUpdate = !field.ReadOnly && await context.AuthorizeAsync(field, PolicyScope.DataUpdate, true);
+                fieldResult.DataDelete = !field.ReadOnly && await context.AuthorizeAsync(field, PolicyScope.DataDelete, true);
 
                 if (query.SchemaOnly == true || fieldResult.DataRead != true) continue; // no data query
 

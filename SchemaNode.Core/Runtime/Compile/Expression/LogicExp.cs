@@ -129,6 +129,9 @@ public class LogicExpVisitor : IExpVisitor
             case BinaryLogicExp binExp:
                 Expression left = await context.CompileSchemaExpAsync(binExp.Left);
                 Expression right = await context.CompileSchemaExpAsync(binExp.Right);
+                Type exType = left.Type.GetNotNullType();
+                left = context.ConvertExp(exType, left);
+                right = context.ConvertExp(exType, right);
 
                 return binExp.Type switch
                 {
