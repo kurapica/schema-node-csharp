@@ -145,7 +145,7 @@ public static class Type
     public static async Task<bool> isnodekind(SchemaContext context,
         [Meta<SchemaType>(typeof(AnyType))] string? name,
         bool? matchArrayElement,
-        [Meta<SchemaType>(typeof(NodeKind))] params string[] kinds)
+        [Meta<SchemaType>(typeof(SchemaNode.Enum.NodeKind))] params string[] kinds)
     {
         var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);
         if (nodeType == null) return false;
@@ -165,7 +165,7 @@ public static class Type
         [Meta<SchemaType>(typeof(AnyType))] string name,
         string access,
         bool matchArrayElement,
-        [Meta<SchemaType>(typeof(NodeKind))] params string[] kinds)
+        [Meta<SchemaType>(typeof(SchemaNode.Enum.NodeKind))] params string[] kinds)
     {
         IValueTypeAccess? nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(name);
         nodeType = nodeType?.GetAccessValueType(access);

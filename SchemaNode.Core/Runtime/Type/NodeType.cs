@@ -153,17 +153,6 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
         Runtime = context.Runtime;
         SchemaRuntime runtime = (Runtime as SchemaRuntime)!;
 
-        // simple lock to avoid conflict access
-        if (runtime != null)
-        {
-            if (runtime.LockLoading.TryGetValue(name, out ISchemaContext? ctx) && ctx == context) return;
-            if (!runtime.LockLoading.TryAdd(name, context))
-            {
-                while (!Loaded) await Task.Delay(10);
-                return;
-            }
-        }
-
         // reset
         UnloadType();
         Error = null;
@@ -195,9 +184,6 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
             if (referenceType is not GenericType)
                 referenceType.AddUsedBy(this);
         }
-
-        // simple lock to avoid conflict access
-        runtime?.LockLoading.TryRemove(name, out _);
 
         // notify reload
         NotifyReload([]);
@@ -429,7 +415,7 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// </summary>
     public override void RemoveUsedBy<T>(T usedBy)
     {
-        if (usedBy is FunctionType func 
+        if (usedBy is FunctionType func && func.Return is not null
             && _isAssignableTo != null
             && _isAssignableTo.TryGetValue(func.Return, out var f) && f == func)
         {
