@@ -8,7 +8,7 @@ namespace SchemaNode.Property.Core;
 /// <summary>
 /// The schema kind provider
 /// </summary>
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_CORE}.{nameof(KindProvider)}")]
 [Meta<Static>(true)]
 [Meta<ReadOnly>(true)]

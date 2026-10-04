@@ -39,8 +39,8 @@ public class AssignProcess : IRelationProcess
 /// <summary>
 /// Declare relation call field for the relation
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_RELATION)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_RELATION)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_RELATION}.assign")]
 [Meta<Property.Record.RelationKind>("assign", 0)]
 [Meta<RelationProcess>(typeof(AssignProcess))]

@@ -10,8 +10,8 @@ namespace SchemaNode.Property.Enum;
 /// <summary>
 /// Restrict the enum value to be a descendant of the specified root value.
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ENUM_USAGE)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_ENUM, SCHEMA_KIND_NODE_ENUM_USAGE)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ENUM}.{nameof(Root)}")]
 public class Root: Property<string>, IConstraintProperty
 {

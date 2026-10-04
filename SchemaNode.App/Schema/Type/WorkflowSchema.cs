@@ -8,7 +8,7 @@ using SchemaNode.Property.Struct;
 using SchemaNode.Property.Property;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
-using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
+using NodeKind = SchemaNode.Property.Record.NodeKind;
 using NodeType = SchemaNode.Property.Core.NodeType;
 using SchemaKind = SchemaNode.Property.Record.SchemaKind;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
@@ -19,12 +19,12 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The workflow schema
 /// </summary>
-[Meta<SchemaKind>(SCHEMA_KIND_WORKFLOW, SCHEMA_KIND_ORDER_WORKFLOW)]
-[Meta<NodeSchemaKind>(SCHEMA_KIND_WORKFLOW, SCHEMA_KIND_ORDER_WORKFLOW)]
+[Meta<SchemaKind>(SCHEMA_KIND_NODE_WORKFLOW, SCHEMA_KIND_ORDER_WORKFLOW)]
+[Meta<NodeKind>(NODE_KIND_WORKFLOW, SCHEMA_KIND_ORDER_WORKFLOW)]
 [Meta<NodeType>(typeof(RuntimeWorkflowType))]
 [Meta<SchemaGenerator>(typeof(WorkflowGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_WORKFLOW}.schema")]
-[Meta<Attach>(SCHEMA_KIND_WORKFLOW)]
+[Meta<Attach>(SCHEMA_KIND_NODE_WORKFLOW)]
 [Meta<Append>(typeof(Generics))]
 public sealed class WorkflowSchema: PropertyOwner
 {
@@ -62,15 +62,15 @@ public sealed class WorkflowSchema: PropertyOwner
 /// Declare event property for node schema
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_CORE}.workflow")]
 [Meta<ReadOnly>(true)] // only system workflow schema allowed
-[Relation<Visible, Relation.Call>("workflow", NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_WORKFLOW)]
+[Relation<Visible, Relation.Call>("workflow", NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", NODE_KIND_WORKFLOW)]
 public sealed class WorkflowProperty: Property<WorkflowSchema>;
 
 /// <summary>
 /// Represents the event type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_WORKFLOW}.type")]
-[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, false, SCHEMA_KIND_WORKFLOW)]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, NODE_SELF, false, NODE_KIND_WORKFLOW)]
 public class WorkflowType: AnyType;

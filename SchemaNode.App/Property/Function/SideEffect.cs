@@ -9,8 +9,8 @@ namespace SchemaNode.Property.Function;
 /// <summary>
 /// Declare the function has side effect
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_FUNCTION)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_FUNCTION)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_FUNC}.{nameof(SideEffect)}")]
 [Meta<Static>(true)]
 [Meta<ReadOnly>(true)]

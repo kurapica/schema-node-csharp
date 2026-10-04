@@ -17,9 +17,9 @@ using StructType = SchemaNode.Runtime.StructType;
 namespace SchemaNode.Property.App;
 
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(ColAuths)}")]
-[Relation<Visible, Call>(nameof(ColAuths), NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, $"@{nameof(AppFieldSchema.Type)}", true, SCHEMA_KIND_STRUCT)]
+[Relation<Visible, Call>(nameof(ColAuths), NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, $"@{nameof(AppFieldSchema.Type)}", true, NODE_KIND_STRUCT)]
 [Relation<EntrySource, Assign>($"{nameof(ColAuths)}.{ARRAY_ELEMENT}.{nameof(ColPolicy.Name)}", NS_SYSTEM_SCHEMA_REFLECT_GET_ACCESS_ENTRIES, $"@{nameof(AppFieldSchema.Type)}")]
 public class ColAuths : Property<ColPolicy[]>, ILoadableProperty, IErrorProvider
 {

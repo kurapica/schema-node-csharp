@@ -264,7 +264,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
         {
             // get loaded schema from namespace if not in reload mode
             NodeSchema? schema = reload ? null : @namespace?.GetNodeSchema(name);
-            if (schema != null && schema.Kind != SCHEMA_KIND_NAMESPACE) return schema;
+            if (schema != null && schema.Kind != NODE_KIND_NAMESPACE) return schema;
             
             // system schema
             string schemaName = $"{@namespace?.Name}.{name}".Trim('.');
@@ -290,9 +290,9 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     schema.Provider ??= loadSchema.Provider;
                     
                     // CombineProperties extensions
-                    schema.CombineProperties(loadSchema, schemaRuntime, schema.Kind);
+                    schema.CombineProperties(loadSchema, schemaRuntime, schemaRuntime.GetSchemaKindByNodeKind(schema.Kind));
 
-                    if (!loadSchema.Kind.Equals(SCHEMA_KIND_NAMESPACE, StringComparison.OrdinalIgnoreCase) ||
+                    if (!loadSchema.Kind.Equals(NODE_KIND_NAMESPACE, StringComparison.OrdinalIgnoreCase) ||
                         loadSchema.Schemas == null || loadSchema.Schemas.Length == 0) continue;
                     
                     if (schema.Schemas == null || schema.Schemas.Length == 0)
@@ -309,7 +309,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         if (index >= 0)
                         {
                             if (schema.Schemas[index].Kind.Equals(otherSchema.Kind, StringComparison.OrdinalIgnoreCase))
-                                schema.Schemas[index].CombineProperties(otherSchema, schemaRuntime, otherSchema.Kind);
+                                schema.Schemas[index].CombineProperties(otherSchema, schemaRuntime, schemaRuntime.GetSchemaKindByNodeKind(otherSchema.Kind));
                         }
                         else
                         {
@@ -332,7 +332,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
         {
             schema?.Provider = provider?.GetType();
             schema?.LoadState = loadState;
-            if (schema?.Kind != SCHEMA_KIND_NAMESPACE || schema.Schemas == null || schema.Schemas.Length == 0) return schema;
+            if (schema?.Kind != NODE_KIND_NAMESPACE || schema.Schemas == null || schema.Schemas.Length == 0) return schema;
             foreach (NodeSchema s in schema.Schemas)
                 SetSchemaState(s, loadState, provider);
             return schema;

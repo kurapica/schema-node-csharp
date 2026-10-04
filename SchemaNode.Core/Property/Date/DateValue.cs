@@ -10,8 +10,8 @@ namespace SchemaNode.Property.Date;
 /// The date value constraint
 /// </summary>
 [Meta<Alias>("date")]
-[Meta<ForSchema>(SCHEMA_KIND_DATE)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_DATE)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_DATE}.valid")]
 [Meta<Default>(true)]
 [Meta<InVisible>(true)] // root only

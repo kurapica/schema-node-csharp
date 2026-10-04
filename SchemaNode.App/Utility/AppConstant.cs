@@ -9,12 +9,14 @@ namespace SchemaNode.Utility;
 public static class AppConstant
 {
     public const string SCHEMA_KIND_APP = "app";
-    public const string SCHEMA_KIND_APP_FIELD = "appfield";
-    public const string SCHEMA_KIND_APP_WORKFLOW = "appworkflow";
-    public const string SCHEMA_KIND_APP_WORKFLOW_NODE = "appworkflownode";
+    public const string SCHEMA_KIND_APP_FIELD = "app.field";
+    public const string SCHEMA_KIND_APP_WORKFLOW = "app.workflow";
+    public const string SCHEMA_KIND_APP_WORKFLOW_NODE = "app.workflow.node";
     
-    public const string SCHEMA_KIND_EVENT = "event";
-    public const string SCHEMA_KIND_WORKFLOW = "workflow";
+    public const string SCHEMA_KIND_NODE_EVENT = "node.event";
+    public const string SCHEMA_KIND_NODE_WORKFLOW = "node.workflow";
+    public const string NODE_KIND_EVENT = "event";
+    public const string NODE_KIND_WORKFLOW = "workflow";
 
     public const int SCHEMA_KIND_ORDER_EVENT = 20;
     public const int SCHEMA_KIND_ORDER_WORKFLOW = 21;
@@ -35,8 +37,8 @@ public static class AppConstant
     public const string NS_SYSTEM_SCHEMA_APP = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_APP}";
     public const string NS_SYSTEM_SCHEMA_APP_FIELD = $"{NS_SYSTEM_SCHEMA_APP}.field";
     public const string NS_SYSTEM_SCHEMA_APP_WORKFLOW = $"{NS_SYSTEM_SCHEMA_APP}.workflow";
-    public const string NS_SYSTEM_SCHEMA_EVENT = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_EVENT}";
-    public const string NS_SYSTEM_SCHEMA_WORKFLOW = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_WORKFLOW}";
+    public const string NS_SYSTEM_SCHEMA_EVENT = $"{NS_SYSTEM_SCHEMA}.event";
+    public const string NS_SYSTEM_SCHEMA_WORKFLOW = $"{NS_SYSTEM_SCHEMA}.workflow";
     public const string NS_SYSTEM_SCHEMA_REFLECT_APP = $"{NS_SYSTEM_SCHEMA_REFLECT}.app";
     public const string NS_SYSTEM_SCHEMA_REFLECT_WORKFLOW = $"{NS_SYSTEM_SCHEMA_REFLECT}.workflow";
 

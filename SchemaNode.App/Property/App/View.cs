@@ -20,7 +20,7 @@ namespace SchemaNode.Property.App;
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(View)}")]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<Static>(true)]
 [Relation<InVisible, Call>(nameof(View), NS_SYSTEM_LOGIC_EQ, $"@{nameof(EnableStorage)}", true)]
 [Relation<Default, Call>($"{nameof(View)}.{nameof(FieldView.Owner)}", $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(App)}")]
@@ -67,7 +67,7 @@ public sealed class FieldView
     [Meta<SchemaType>(typeof(Identifier))]
     [Meta<CascadeDepth>(1)]
     [Relation<EntrySource, Assign>(nameof(Map), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.gettypeentries)}", $"@{nameof(FieldType)}")]
-    [Relation<Valid, Assign>(nameof(Map), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.isschemakindaccess)}", $"@{nameof(FieldType)}", NODE_SELF, false, SCHEMA_KIND_STRING)]
+    [Relation<Valid, Assign>(nameof(Map), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.isnodekindaccess)}", $"@{nameof(FieldType)}", NODE_SELF, false, NODE_KIND_STRING)]
     [Relation<InVisible, Call>(nameof(Map), $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.isscopepolicy)}", $"@{nameof(App)}", AppScopeType.SystemLevel)]
     public string? Map { get; set; } = string.Empty;
 

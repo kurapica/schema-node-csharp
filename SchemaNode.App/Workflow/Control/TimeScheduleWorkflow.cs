@@ -12,7 +12,7 @@ namespace SchemaNode.Workflow;
 /// The time schedule workflow node
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW_CONTROL}.scheduler")]
-[Meta<OfSchema>(SCHEMA_KIND_WORKFLOW)]
+[Meta<OfNodeKind>(NODE_KIND_WORKFLOW)]
 [Meta<Forkable>(true)]
 public class TimeScheduleWorkflow: BaseWorkflow,
     IWorkflowSession<JobKey>

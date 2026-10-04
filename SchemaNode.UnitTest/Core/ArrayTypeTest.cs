@@ -13,7 +13,7 @@ public class ArrayTypeTest : Base.CoreTestBase
     {
         var arrayType = await Context.GetNodeTypeAsync<ArrayType>(NS_SYSTEM_ARRAY);
         Assert.IsNotNull(arrayType);
-        Assert.AreEqual(SCHEMA_KIND_ARRAY, arrayType.Kind);
+        Assert.AreEqual(NODE_KIND_ARRAY, arrayType.Kind);
     }
 
     [TestMethod]
@@ -23,7 +23,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         Assert.IsNotNull(objType);
         var arrayType = await Context.GetArrayNodeTypeAsync(objType);
         Assert.IsNotNull(arrayType);
-        Assert.AreEqual(SCHEMA_KIND_ARRAY, arrayType.Kind);
+        Assert.AreEqual(NODE_KIND_ARRAY, arrayType.Kind);
     }
 
     [TestMethod]
@@ -33,7 +33,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         Assert.IsNotNull(arrayType);
         var node = arrayType.Create() as ArrayNode;
         Assert.IsNotNull(node);
-        Assert.AreEqual(SCHEMA_KIND_ARRAY, node.Type.Kind);
+        Assert.AreEqual(NODE_KIND_ARRAY, node.Type.Kind);
     }
 
     [TestMethod]

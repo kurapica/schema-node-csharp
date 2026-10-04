@@ -28,7 +28,7 @@ public class NodeSerializationTest : Base.CoreTestBase
 
         var node = contextType.Create();
         Assert.IsNotNull(node);
-        Assert.AreEqual(SCHEMA_KIND_STRUCT, node.Type.Kind);
+        Assert.AreEqual(NODE_KIND_STRUCT, node.Type.Kind);
         Assert.IsTrue(node.IsEmpty);
     }
 

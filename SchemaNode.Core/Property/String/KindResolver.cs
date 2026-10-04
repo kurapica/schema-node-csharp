@@ -9,8 +9,8 @@ namespace SchemaNode.Property.String;
 /// <summary>
 /// The schema kind resolver, used to get the schema kind by KindProvider as the default value of the owner
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_STRING)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_STRING)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_STRING}.{nameof(KindResolver)}")]
 [Meta<Static>(true)]
 [Meta<ReadOnly>(true)]

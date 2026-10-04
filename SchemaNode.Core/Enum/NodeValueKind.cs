@@ -8,5 +8,5 @@ namespace SchemaNode.Enum;
 /// Represents the value schema kinds (schema kinds that hold actual data values)
 /// </summary>
 [Meta<SchemaType>(NS_SYSTEM_SCHEMA_NODE_VALUE_KIND)]
-[Meta<Record>(typeof(Property.Record.ValueSchemaKind))]
-public enum ValueSchemaKind;
+[Meta<Record>(typeof(Property.Record.NodeValueKind))]
+public enum NodeValueKind;

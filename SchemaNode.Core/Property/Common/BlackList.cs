@@ -8,7 +8,7 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Common;
 
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_COMMON}.{nameof(BlackList)}")]
 [Relation<OverrideType, Call>(nameof(BlackList), $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(SchemaNode.Function.Reflect.Array.getarraytype)}", TYPE_PROVIDER)]
 public class BlackList : Property<object[]>, IConstraintProperty

@@ -8,7 +8,7 @@ namespace SchemaNode.Property.Common;
 /// <summary>
 /// The default value
 /// </summary>
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_COMMON}.{nameof(Default)}")]
 [Relation<OverrideType, Call>(nameof(Default), $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(SchemaNode.Function.Reflect.Array.getarrayelement)}", TYPE_PROVIDER)]
 public class Default: Property<object>;

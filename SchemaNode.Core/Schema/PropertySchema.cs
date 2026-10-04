@@ -9,7 +9,7 @@ using SchemaNode.Property.Struct;
 using SchemaNode.Runtime;
 using SchemaNode.Service;
 using static SchemaNode.Utility.Constant;
-using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
+using NodeKind = SchemaNode.Property.Record.NodeKind;
 using NodeType = SchemaNode.Property.Core.NodeType;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
 
@@ -20,12 +20,12 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The property schema
 /// </summary>
-[Meta<SchemaKind>(SCHEMA_KIND_PROPERTY, SCHEMA_KIND_ORDER_PROP)]
-[Meta<NodeSchemaKind>(SCHEMA_KIND_PROPERTY, SCHEMA_KIND_ORDER_PROP)]
+[Meta<SchemaKind>(SCHEMA_KIND_NODE_PROPERTY, SCHEMA_KIND_ORDER_PROP)]
+[Meta<NodeKind>(NODE_KIND_PROPERTY, SCHEMA_KIND_ORDER_PROP)]
 [Meta<SchemaGenerator>(typeof(PropertyGenerator))]
 [Meta<NodeType>(typeof(Runtime.PropertyType))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP}.schema")]
-[Meta<Attach>(SCHEMA_KIND_PROPERTY)]
+[Meta<Attach>(SCHEMA_KIND_NODE_PROPERTY)]
 [Meta<Append>(typeof(Relations))]
 public class PropertySchema: PropertyOwner
 {
@@ -51,12 +51,12 @@ public class PropertySchema: PropertyOwner
 /// <summary>
 /// Declare the "property" property for node schema
 /// </summary>
-[Meta<Alias>(SCHEMA_KIND_PROPERTY)]
+[Meta<Alias>(NODE_KIND_PROPERTY)]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_PROPERTY}.{SCHEMA_KIND_PROPERTY}")]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_PROPERTY}.{NODE_KIND_PROPERTY}")]
 [Meta<ReadOnly>(true)]
-[Relation<Visible, Relation.Call>(SCHEMA_KIND_PROPERTY, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_PROPERTY)]
+[Relation<Visible, Relation.Call>(NODE_KIND_PROPERTY, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", NODE_KIND_PROPERTY)]
 public sealed class PropertyProperty : Property<PropertySchema>
 {
     public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)
@@ -67,7 +67,7 @@ public sealed class PropertyProperty : Property<PropertySchema>
             SetValue(propertySchema);
             return true;
         }
-        value.CombineProperties(propertySchema, runtime, SCHEMA_KIND_PROPERTY);
+        value.CombineProperties(propertySchema, runtime, SCHEMA_KIND_NODE_PROPERTY);
         value.ForSchemas = value.ForSchemas.Union(propertySchema.ForSchemas).Distinct().ToArray();
         return true;
     }
@@ -77,5 +77,5 @@ public sealed class PropertyProperty : Property<PropertySchema>
 /// Represents the property type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP}.type")]
-[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, false, SCHEMA_KIND_PROPERTY)]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, NODE_SELF, false, NODE_KIND_PROPERTY)]
 public class PropertyType: AnyType;

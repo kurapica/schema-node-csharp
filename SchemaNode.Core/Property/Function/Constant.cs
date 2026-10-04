@@ -9,5 +9,5 @@ namespace SchemaNode.Property.Function;
 /// Declares a function as a compile-time constant with the given value (used by expression compilers)
 /// </summary>
 [Meta<Default>(true)]
-[Meta<ForSchema>(SCHEMA_KIND_FUNCTION)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_FUNCTION)]
 public sealed class Constant : Property<object>;

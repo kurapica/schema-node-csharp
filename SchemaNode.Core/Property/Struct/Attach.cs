@@ -10,8 +10,8 @@ namespace SchemaNode.Property.Struct;
 /// <summary>
 /// Attach the properties of the given schema kind
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_STRUCT)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_STRUCT)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<ReadOnly>(true)]
 [Meta<Static>(true)]
 [Meta<InVisible>(true)]

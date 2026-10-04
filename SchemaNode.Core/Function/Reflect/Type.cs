@@ -9,7 +9,7 @@ using SchemaNode.Schema;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using ArrayType = SchemaNode.Runtime.ArrayType;
-using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
+using NodeKind = SchemaNode.Property.Record.NodeKind;
 using ValueType = SchemaNode.Schema.ValueType;
 // ReSharper disable InconsistentNaming
 
@@ -25,7 +25,8 @@ public static class Type
     {
         var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);
         if (arrayElement && nodeType is ArrayType arr) nodeType = arr.Element;
-        return nodeType != null ? (context.Runtime as SchemaRuntime)?.GetUsageSchema(nodeType.Kind) : null;
+        SchemaRuntime? runtime = context.Runtime as SchemaRuntime;
+        return runtime != null && nodeType != null ? runtime.GetUsageSchema(runtime.GetSchemaKindByNodeKind(nodeType.Kind)) : null;
     }
     
     /// <summary>
@@ -42,7 +43,7 @@ public static class Type
         if (ns == null) return [];
 
         List<EntryAccess<string>> result = [];
-        IOrderProperty[] types = typeof(NodeSchemaKind).GetRecordedValues().ToArray();
+        IOrderProperty[] types = typeof(NodeKind).GetRecordedValues().ToArray();
         while (ns != null)
         {
             var access = new EntryAccess<string>();
@@ -51,7 +52,7 @@ public static class Type
                 access.Entry = new Entry<string>()
                 {
                     Value = ns.Name,
-                    HasChildren =  ns.Kind == SCHEMA_KIND_NAMESPACE
+                    HasChildren =  ns.Kind == NODE_KIND_NAMESPACE
                 };
                 access.Entry.SetProperty<Display, LocaleString>(ns.GetProperty<Display>()?.Value ?? ns.Name);
             }
@@ -62,7 +63,7 @@ public static class Type
                     var entry = new Entry<string>
                     {
                         Value = s.FullName,
-                        HasChildren = s.Kind == SCHEMA_KIND_NAMESPACE
+                        HasChildren = s.Kind == NODE_KIND_NAMESPACE
                     };
                     var display = s.GetProperty<Display>();
                     if (display != null) entry.SetProperty(display);
@@ -141,10 +142,10 @@ public static class Type
         return string.IsNullOrWhiteSpace(access) ? valueType.Name : (valueType.GetAccessValueType(access)?.Name ?? "");
     }
 
-    public static async Task<bool> isschemakind(SchemaContext context,
+    public static async Task<bool> isnodekind(SchemaContext context,
         [Meta<SchemaType>(typeof(AnyType))] string? name,
         bool? matchArrayElement,
-        [Meta<SchemaType>(typeof(SchemaKind))] params string[] kinds)
+        [Meta<SchemaType>(typeof(NodeKind))] params string[] kinds)
     {
         var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);
         if (nodeType == null) return false;
@@ -160,11 +161,11 @@ public static class Type
     /// <summary>
     /// Checks if value type of the give access from the type match the given schema kinds
     /// </summary>
-    public static async Task<bool> isschemakindaccess(SchemaContext context,
+    public static async Task<bool> isnodekindaccess(SchemaContext context,
         [Meta<SchemaType>(typeof(AnyType))] string name,
         string access,
         bool matchArrayElement,
-        [Meta<SchemaType>(typeof(SchemaKind))] params string[] kinds)
+        [Meta<SchemaType>(typeof(NodeKind))] params string[] kinds)
     {
         IValueTypeAccess? nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(name);
         nodeType = nodeType?.GetAccessValueType(access);
@@ -184,7 +185,7 @@ public static class Type
     public static async Task<string?> getschemakind(SchemaContext context, [Meta<SchemaType>(typeof(AnyType))] string name)
     {
         var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);
-        return nodeType?.Kind;
+        return nodeType?.Kind != null ? (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(nodeType.Kind) : null;
     }
 
     /// <summary>
@@ -197,7 +198,7 @@ public static class Type
     {
         var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);
         return nodeType != null && 
-            typeof(ValueSchemaKind).GetRecordedValues().Any(v => v.GetValue<string>()!.Equals(nodeType.Kind, StringComparison.OrdinalIgnoreCase));
+            typeof(NodeValueKind).GetRecordedValues().Any(v => v.GetValue<string>()!.Equals(nodeType.Kind, StringComparison.OrdinalIgnoreCase));
     }
     
     /// <summary>

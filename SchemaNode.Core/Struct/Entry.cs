@@ -14,9 +14,9 @@ namespace SchemaNode.Struct;
 /// <summary>
 /// The dict entry
 /// </summary>
-[Meta<SchemaKind>(SCHEMA_KIND_ENTRY, SCHEMA_KIND_ORDER_ENTRY)]
+[Meta<SchemaKind>(SCHEMA_KIND_NODE_ENTRY, SCHEMA_KIND_ORDER_ENTRY)]
 [Meta<SchemaType>(NS_SYSTEM_ENTRY)]
-[Meta<Attach>(SCHEMA_KIND_ENTRY)]
+[Meta<Attach>(SCHEMA_KIND_NODE_ENTRY)]
 [Meta<Append>(typeof(Disable), typeof(Display))]
 public class Entry<T>: PropertyOwner where T: notnull
 {

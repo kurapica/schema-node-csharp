@@ -9,9 +9,9 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Enum;
 
-[Meta<Alias>(SCHEMA_KIND_ENUM)]
-[Meta<ForSchema>(SCHEMA_KIND_ENUM)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<Alias>(NODE_KIND_ENUM)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_ENUM)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ENUM}.valid")]
 [Meta<Default>(true)]
 [Meta<InVisible>(true)] // root only

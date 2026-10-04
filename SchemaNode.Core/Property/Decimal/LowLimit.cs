@@ -8,8 +8,8 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Property.Decimal;
 
 [Meta<Alias>("lowlimit")]
-[Meta<ForSchema>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_DECIMAL_DEFINE, SCHEMA_KIND_DECIMAL_USAGE)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_DECIMAL, SCHEMA_KIND_NODE_DECIMAL_DEFINE, SCHEMA_KIND_NODE_DECIMAL_USAGE)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_DECIMAL}.lowlimit")]
 public class LowLimitNumber : Property<decimal>, IConstraintProperty
 {

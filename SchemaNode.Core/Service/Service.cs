@@ -166,7 +166,7 @@ public static partial class SchemaNodeExtensions
         {
             foreach (Type type in assembly.GetTypes())
             {
-                // Gather [Meta<SchemaKind>] attribute
+                // Gather [Meta<AttachKind>] attribute
                 foreach (SchemaKind asSchemaKind in type.GetMetaProperties<SchemaKind>())
                 {
                     if (!schemaKinds.TryAdd(asSchemaKind.Value!, (type, asSchemaKind)))
@@ -341,7 +341,7 @@ public static partial class SchemaNodeExtensions
     [LoggerMessage(LogLevel.Information, "Processing runtime stage: {stage}")]
     static partial void LogProcessingRuntimeStageStage(this ILogger logger, string stage);
 
-    [LoggerMessage(LogLevel.Debug, "[SchemaKind] Registered kind '{kind}' -> schema={schemaType}")]
+    [LoggerMessage(LogLevel.Debug, "[AttachKind] Registered kind '{kind}' -> schema={schemaType}")]
     static partial void LogSchemaKindRegistered(this ILogger logger, string kind, string schemaType);
     
     #endregion

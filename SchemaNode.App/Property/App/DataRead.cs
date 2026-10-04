@@ -11,7 +11,7 @@ namespace SchemaNode.Property.App;
 /// Allow data read
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(DataRead)}")]
 [Meta<Static>(true)]
 [Meta<InVisible>(true)]

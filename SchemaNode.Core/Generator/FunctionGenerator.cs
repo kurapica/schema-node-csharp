@@ -45,7 +45,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
         if (!type.IsAbstract || !type.IsSealed || type.GetMetaProperty<SchemaType>() is not {} schemaType) yield break;
         
         // Save the namespace
-        NodeSchema nsSchema = NodeSchema.Create(runtime, SCHEMA_KIND_NAMESPACE,  schemaType.Value ?? $"{@namespace}.{name}".Trim('.'), type);
+        NodeSchema nsSchema = NodeSchema.Create(runtime, NODE_KIND_NAMESPACE,  schemaType.Value ?? $"{@namespace}.{name}".Trim('.'), type);
         yield return nsSchema;
 
         foreach (MethodInfo method in type
@@ -68,7 +68,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
     private static NodeSchema BuildFunctionSchema(SchemaRuntime runtime, MethodInfo method, string @namespace, string name, Func<Type, string, Type[]?, string?>? typeResolver = null)
     {
         // node schema
-        NodeSchema schema = NodeSchema.Create(runtime, SCHEMA_KIND_FUNCTION, @namespace, name, null, method.GetSummaryFromXmlDoc());
+        NodeSchema schema = NodeSchema.Create(runtime, NODE_KIND_FUNCTION, @namespace, name, null, method.GetSummaryFromXmlDoc());
         if (typeResolver == null) return schema;
         
         // function info
@@ -95,7 +95,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             Args = new FuncArg[parameters.Length],
             Exps = [],
         };
-        foreach (IProperty prop in method.GetMetaPropertiesForSchema<IProperty>(runtime, SCHEMA_KIND_FUNCTION))
+        foreach (IProperty prop in method.GetMetaPropertiesForSchema<IProperty>(runtime, SCHEMA_KIND_NODE_FUNCTION))
             funcSchema.SetProperty(prop);
 
         // Generics
@@ -141,7 +141,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
                 arg.SetProperty<Default, object>(defaultProp.Value);
                     
             // Extension Properties
-            foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(runtime, SCHEMA_KIND_FUNC_ARG))
+            foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(runtime, SCHEMA_KIND_NODE_FUNC_ARG))
                 arg.SetProperty(property);
             
             funcSchema.Args[i] = arg;
@@ -167,15 +167,15 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
                 if (fieldTypeSchema == null)
                     throw new Exception($"Failed to resolve type for argument {arg.Name} of function {schema.FullName}");
 
-                if (pt.AnyArray && !fieldTypeSchema.Kind.Equals(SCHEMA_KIND_ARRAY))
+                if (pt.AnyArray && !fieldTypeSchema.Kind.Equals(NODE_KIND_ARRAY))
                     arg.Type = runtime.GetSystemArraySchema(arg.Type) ??
                                  throw new Exception($"Failed to resolve array schema for argument {arg.Name} of function {schema.FullName}");
 
                 // Extension Properties
-                foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(runtime, fieldTypeSchema.Kind))
+                foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(runtime, runtime.GetSchemaKindByNodeKind(fieldTypeSchema.Kind)))
                     arg.SetProperty(property);
 
-                if (fieldTypeSchema.Kind.Equals(SCHEMA_KIND_ARRAY))
+                if (fieldTypeSchema.Kind.Equals(NODE_KIND_ARRAY))
                 {
                     ArraySchema arraySchema = fieldTypeSchema.GetProperty<ArrayProperty>()?.Value
                                               ?? throw new Exception($"Failed to get array schema for argument {arg.Name} of function {schema.FullName}");
@@ -188,7 +188,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
 
                     NodeSchema? element = runtime.GetSystemSchema(eleName);
                     if (element != null)
-                        foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(runtime, element.Kind))
+                        foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(runtime, runtime.GetSchemaKindByNodeKind(element.Kind)))
                             arg.SetProperty(property);
                 }
             }

@@ -66,8 +66,8 @@ public static class Array
     {
         var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);
         return nodeType != null && 
-               !nodeType.Kind.Equals(SCHEMA_KIND_ARRAY, StringComparison.OrdinalIgnoreCase) &&
-               typeof(ValueSchemaKind).GetRecordedValues().Any(v => v.GetValue<string>()!.Equals(nodeType.Kind, StringComparison.OrdinalIgnoreCase));
+               !nodeType.Kind.Equals(NODE_KIND_ARRAY, StringComparison.OrdinalIgnoreCase) &&
+               typeof(NodeValueKind).GetRecordedValues().Any(v => v.GetValue<string>()!.Equals(nodeType.Kind, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

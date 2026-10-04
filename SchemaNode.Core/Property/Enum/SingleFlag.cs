@@ -10,8 +10,8 @@ namespace SchemaNode.Property.Enum;
 /// <summary>
 /// Don't allow flags enum value combination.
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ENUM_USAGE)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_ENUM, SCHEMA_KIND_NODE_ENUM_USAGE)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ENUM}.{nameof(SingleFlag)}")]
 public class SingleFlag : Property<bool>, IConstraintProperty
 {

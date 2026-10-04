@@ -75,8 +75,8 @@ public class AnyProcess : IRelationProcess, INodeReferences, IErrorProvider
 /// <summary>
 /// Declare relation call field for the relation
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_RELATION)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_RELATION)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_RELATION}.any")]
 [Meta<Property.Record.RelationKind>("any", 1)]
 [Meta<RelationProcess>(typeof(AnyProcess))]

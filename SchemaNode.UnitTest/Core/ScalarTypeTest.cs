@@ -22,9 +22,9 @@ public class ScalarTypeTest : Base.CoreTestBase
         Assert.IsNotNull(dateType);
         Assert.IsNotNull(numType);
 
-        Assert.AreEqual(SCHEMA_KIND_BOOL,   boolType.Kind);
-        Assert.AreEqual(SCHEMA_KIND_INT,    intType.Kind);
-        Assert.AreEqual(SCHEMA_KIND_STRING, strType.Kind);
+        Assert.AreEqual(NODE_KIND_BOOL,   boolType.Kind);
+        Assert.AreEqual(NODE_KIND_INT,    intType.Kind);
+        Assert.AreEqual(NODE_KIND_STRING, strType.Kind);
     }
 
     [TestMethod]

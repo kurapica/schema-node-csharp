@@ -7,8 +7,8 @@ namespace SchemaNode.Property.Property;
 /// <summary>
 /// The property is static, can't be changed by relations
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_PROPERTY}.{nameof(Static)}")]
 [Meta<Static>(true)]
 public class Static : Property<bool>;

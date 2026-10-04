@@ -11,8 +11,8 @@ namespace SchemaNode.Property.Array;
 /// <summary>
 /// The max size constraint property for array data nodes.
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_ARRAY, SCHEMA_KIND_ARRAY_USAGE)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_ARRAY, SCHEMA_KIND_NODE_ARRAY_USAGE)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ARRAY}.{nameof(MaxSize)}")]
 [Meta<LowLimitInt>(0L)]
 public class MaxSize : Property<long>, IConstraintProperty

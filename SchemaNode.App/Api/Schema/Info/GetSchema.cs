@@ -25,7 +25,7 @@ public class GetSchemaApi : SchemaApi<GetSchemaRequest, GetSchemaResponse>
         NodeSchema root = new NodeSchema
         {
             Name = "",
-            Kind = SCHEMA_KIND_NAMESPACE,
+            Kind = NODE_KIND_NAMESPACE,
             Schemas = []
         };
         HashSet<string> types = [];

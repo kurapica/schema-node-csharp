@@ -57,11 +57,11 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
     public string FullName => $"{Namespace}.{Name}".Trim('.');
     
     /// <summary>
-    /// The schema kind
+    /// The node kind
     /// </summary>
-    [Meta<SchemaType>(typeof(NodeSchemaKind))]
+    [Meta<SchemaType>(typeof(NodeKind))]
     public string Kind { get; set; } = null!;
-   
+          
     /// <summary>
     /// The sub schemas (for namespace schemas)
     /// </summary>
@@ -129,7 +129,7 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
         };
         nodeSchema.CombineProperties(this, runtime, SCHEMA_KIND_NODE);
 
-        if (withNamespaces && Kind.Equals(SCHEMA_KIND_NAMESPACE, StringComparison.OrdinalIgnoreCase) && Schemas != null)
+        if (withNamespaces && Kind.Equals(NODE_KIND_NAMESPACE, StringComparison.OrdinalIgnoreCase) && Schemas != null)
             nodeSchema.Schemas = Schemas.Select(x => x.Clone(runtime)).ToArray();
         return nodeSchema;
     }

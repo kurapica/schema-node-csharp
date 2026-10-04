@@ -8,5 +8,5 @@ namespace SchemaNode.Property.Function;
 /// <summary>
 /// Declares the arithmetic operation type of a function (used by expression compilers)
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_FUNCTION)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_FUNCTION)]
 public sealed class Arithmetic : Property<ArithmeticType>;

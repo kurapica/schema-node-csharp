@@ -15,7 +15,7 @@ namespace SchemaNode.Workflow;
 /// </summary>
 [Meta<WorkflowKind>(WORKFLOW_KIND_INTERACTION)]
 [Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW}.{nameof(Interaction)}")]
-[Meta<OfSchema>(SCHEMA_KIND_WORKFLOW)]
+[Meta<OfNodeKind>(NODE_KIND_WORKFLOW)]
 [Meta<Forkable>(true)]
 public class Interaction: BaseWorkflow, IWorkflowPayload<Object>
 {

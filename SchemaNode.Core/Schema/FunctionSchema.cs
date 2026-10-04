@@ -13,7 +13,7 @@ using SchemaNode.Function;
 using SchemaNode.Property.String;
 using SchemaNode.Property.Struct;
 using static SchemaNode.Utility.Constant;
-using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
+using NodeKind = SchemaNode.Property.Record.NodeKind;
 using NodeType = SchemaNode.Property.Core.NodeType;
 using Object = SchemaNode.Scalar.Object;
 using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
@@ -24,8 +24,8 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The function schema kind
 /// </summary>
-[Meta<SchemaKind>(SCHEMA_KIND_FUNCTION, SCHEMA_KIND_ORDER_FUNC)]
-[Meta<NodeSchemaKind>(SCHEMA_KIND_FUNCTION, SCHEMA_KIND_ORDER_FUNC)]
+[Meta<SchemaKind>(SCHEMA_KIND_NODE_FUNCTION, SCHEMA_KIND_ORDER_FUNC)]
+[Meta<NodeKind>(NODE_KIND_FUNCTION, SCHEMA_KIND_ORDER_FUNC)]
 [Meta<NodeType>(typeof(FunctionType))]
 [Meta<SchemaGenerator>(typeof(FunctionGenerator))]
 [Meta<Append>(typeof(Generics), typeof(Relations))]
@@ -35,10 +35,10 @@ public sealed class FunctionKind;
 /// The function schema
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.schema")]
-[Meta<Attach>(SCHEMA_KIND_FUNCTION)]
+[Meta<Attach>(SCHEMA_KIND_NODE_FUNCTION)]
 [Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getaccessentries)}", $"@{nameof(Args)}", $"@{nameof(Exps)}.{ARRAY_PREVIOUS}", NODE_SELF)]
 [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getaccessvaluetype)}", $"@{nameof(Args)}", $"@{nameof(Exps)}.{ARRAY_PREVIOUS}", NODE_SELF)]
-[Meta<KindProvider>(SCHEMA_KIND_FUNC_ARG)]
+[Meta<KindProvider>(SCHEMA_KIND_NODE_FUNC_ARG)]
 [Relation<EntrySource, Assign>($"{nameof(Exps)}.{ARRAY_ELEMENT}.{nameof(FuncExp.Name)}", $"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getreturnfields)}", $"@{nameof(Return)}", $"@{nameof(Args)}", $"@{nameof(Exps)}.{ARRAY_PREVIOUS}")]
 [Relation<Default, Call>($"{nameof(Exps)}.{ARRAY_ELEMENT}.{nameof(FuncExp.Return)}", $"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getreturnfieldtype)}", $"@{nameof(Return)}", $"@{nameof(Exps)}.{ARRAY_ELEMENT}.{nameof(FuncExp.Name)}")]
 public sealed class FunctionSchema: PropertyOwner
@@ -63,11 +63,11 @@ public sealed class FunctionSchema: PropertyOwner
 /// <summary>
 /// Declare function property for node schema
 /// </summary>
-[Meta<Alias>(SCHEMA_KIND_FUNCTION)]
+[Meta<Alias>(NODE_KIND_FUNCTION)]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_FUNC}.{SCHEMA_KIND_FUNCTION}")]
-[Relation<Visible, Call>(SCHEMA_KIND_FUNCTION, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_FUNCTION)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_FUNC}.{NODE_KIND_FUNCTION}")]
+[Relation<Visible, Call>(NODE_KIND_FUNCTION, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", NODE_KIND_FUNCTION)]
 public sealed class FunctionProperty : Property<FunctionSchema>
 {
     public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)
@@ -87,11 +87,11 @@ public sealed class FunctionProperty : Property<FunctionSchema>
                 var arg = schema.Args[i];
                 var otherArg = otherSchema.Args?.ElementAtOrDefault(i);
                 if (otherArg is null || otherArg.Type != arg.Type) continue;
-                arg.CombineProperties(otherArg, runtime, SCHEMA_KIND_FUNC_ARG);
+                arg.CombineProperties(otherArg, runtime, SCHEMA_KIND_NODE_FUNC_ARG);
             }
         }
 
-        schema.CombineProperties(otherSchema, runtime, SCHEMA_KIND_FUNCTION);
+        schema.CombineProperties(otherSchema, runtime, SCHEMA_KIND_NODE_FUNCTION);
         SetValue(schema);
         return true;
     }
@@ -101,7 +101,7 @@ public sealed class FunctionProperty : Property<FunctionSchema>
 /// Represents the function type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.type")]
-[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, false, SCHEMA_KIND_FUNCTION)]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, NODE_SELF, false, NODE_KIND_FUNCTION)]
 public class FuncType: AnyType;
 
 /// <summary>
@@ -129,7 +129,7 @@ public class EntrySourceFuncType : FuncType;
 /// <summary>
 /// The function argument kind
 /// </summary>
-[Meta<SchemaKind>(SCHEMA_KIND_FUNC_ARG, SCHEMA_KIND_ORDER_FUNC_ARG)]
+[Meta<SchemaKind>(SCHEMA_KIND_NODE_FUNC_ARG, SCHEMA_KIND_ORDER_FUNC_ARG)]
 [Meta<Append>(typeof(Display), typeof(Require))]
 public sealed class FuncArgKind;
 
@@ -261,7 +261,7 @@ public class CallArg: IEquatable<CallArg>
     [Meta<SchemaType>(typeof(Object))]
     [Relation<OverrideType, Call>(NODE_SELF, $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $@"{nameof(Type)}")]
     [Relation<InVisible, Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Source)}")]
-    [Relation<Visible, Call>(NODE_SELF, NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, "@type", true, SCHEMA_KIND_INT, SCHEMA_KIND_STRING, SCHEMA_KIND_DATE, SCHEMA_KIND_BOOL, SCHEMA_KIND_ENUM)]
+    [Relation<Visible, Call>(NODE_SELF, NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, "@type", true, NODE_KIND_INT, NODE_KIND_STRING, NODE_KIND_DATE, NODE_KIND_BOOL, NODE_KIND_ENUM)]
     public JsonNode? Value { get; set; }
     
     /// <summary>

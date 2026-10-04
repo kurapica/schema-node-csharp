@@ -133,7 +133,7 @@ public static class AppSchemaContextExtension
             bool isSystem = type.GetProperty<SystemDefined>()?.Value == true;
             schema.SetProperty<SchemaRead, bool>(canRead);
             schema.SetProperty<SchemaCreate, bool>(await context.AuthorizeAsync(type, PolicyScope.SchemaCreate, true));
-            schema.SetProperty<SchemaUpdate, bool>((!isSystem || type.Kind == SCHEMA_KIND_NAMESPACE) && await context.AuthorizeAsync(type, PolicyScope.SchemaUpdate, true));
+            schema.SetProperty<SchemaUpdate, bool>((!isSystem || type.Kind == NODE_KIND_NAMESPACE) && await context.AuthorizeAsync(type, PolicyScope.SchemaUpdate, true));
             schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(type, PolicyScope.SchemaDelete, true));
             return schema;
         }
@@ -152,7 +152,7 @@ public static class AppSchemaContextExtension
             root ??= new NodeSchema
             {
                 Name = "",
-                Kind = SCHEMA_KIND_NAMESPACE,
+                Kind = NODE_KIND_NAMESPACE,
                 Schemas = []
             };
             if (!types.Add(nodeType.Name) || nodeType is GenericType) return root;
@@ -222,7 +222,7 @@ public static class AppSchemaContextExtension
             root ??= new NodeSchema
             {
                 Name = "",
-                Kind = SCHEMA_KIND_NAMESPACE,
+                Kind = NODE_KIND_NAMESPACE,
                 Schemas = []
             };
 

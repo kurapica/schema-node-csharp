@@ -12,8 +12,8 @@ using SchemaNode.Service;
 using SchemaNode.Struct;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
-using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
-using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
+using NodeKind = SchemaNode.Property.Record.NodeKind;
+using NodeValueKind = SchemaNode.Property.Record.NodeValueKind;
 using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 using NodeType = SchemaNode.Property.Core.NodeType;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
@@ -26,9 +26,9 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The enum kind
 /// </summary>
-[Meta<SchemaKind>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ORDER_ENUM)]
-[Meta<NodeSchemaKind>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ORDER_ENUM)]
-[Meta<ValueSchemaKind>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ORDER_ENUM)]
+[Meta<SchemaKind>(SCHEMA_KIND_NODE_ENUM, SCHEMA_KIND_ORDER_ENUM)]
+[Meta<NodeKind>(NODE_KIND_ENUM, SCHEMA_KIND_ORDER_ENUM)]
+[Meta<NodeValueKind>(NODE_KIND_ENUM, SCHEMA_KIND_ORDER_ENUM)]
 [Meta<NodeType>(typeof(RuntimeEnumType))]
 [Meta<SchemaUsage>(typeof(EnumUsage))]
 [Meta<SchemaGenerator>(typeof(EnumGenerator))]
@@ -39,9 +39,9 @@ public sealed class EnumKind;
 /// <summary>
 /// The enum schema
 /// </summary>
-[Meta<SchemaKind>(SCHEMA_KIND_ENUM_DEFINE, SCHEMA_KIND_ORDER_ENUM)]
+[Meta<SchemaKind>(SCHEMA_KIND_NODE_ENUM_DEFINE, SCHEMA_KIND_ORDER_ENUM)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.schema")]
-[Meta<Attach>(SCHEMA_KIND_ENUM_DEFINE)]
+[Meta<Attach>(SCHEMA_KIND_NODE_ENUM_DEFINE)]
 public sealed class EnumSchema : PropertyOwner
 {
     /// <summary>
@@ -67,10 +67,10 @@ public sealed class EnumSchema : PropertyOwner
 /// <summary>
 /// The enum use setting
 /// </summary>
-[Meta<SchemaKind>(SCHEMA_KIND_ENUM_USAGE, SCHEMA_KIND_ORDER_ENUM)]
+[Meta<SchemaKind>(SCHEMA_KIND_NODE_ENUM_USAGE, SCHEMA_KIND_ORDER_ENUM)]
 [Meta<Append>(typeof(Default), typeof(BlackList), typeof(WhiteList))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.usage")]
-[Meta<Attach>(SCHEMA_KIND_ENUM_USAGE)]
+[Meta<Attach>(SCHEMA_KIND_NODE_ENUM_USAGE)]
 [Relation<WhiteList, Call>(nameof(Default), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(WhiteList)}")]
 [Relation<BlackList, Call>(nameof(Default), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(BlackList)}")]
 [Relation<Root, Call>(nameof(Default), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(Root)}")]
@@ -94,11 +94,11 @@ public sealed class EnumUsage;
 /// <summary>
 /// Declare enum property for node schema
 /// </summary>
-[Meta<Alias>(SCHEMA_KIND_ENUM)]
+[Meta<Alias>(NODE_KIND_ENUM)]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ENUM}.{SCHEMA_KIND_ENUM}")]
-[Relation<Visible, Call>(SCHEMA_KIND_ENUM, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_ENUM)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ENUM}.{NODE_KIND_ENUM}")]
+[Relation<Visible, Call>(NODE_KIND_ENUM, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", NODE_KIND_ENUM)]
 public sealed class EnumProperty : Property<EnumSchema>
 {
     public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)
@@ -125,10 +125,10 @@ public sealed class EnumProperty : Property<EnumSchema>
         {
             var otherValue = otherSchema.Values?.FirstOrDefault(o => o.Value.Equals(value.Value, StringComparison.OrdinalIgnoreCase));
             if (otherValue is null) break;
-            value.CombineProperties(otherValue, runtime, SCHEMA_KIND_ENTRY);
+            value.CombineProperties(otherValue, runtime, SCHEMA_KIND_NODE_ENTRY);
         }
 
-        schema.CombineProperties(otherSchema, runtime, SCHEMA_KIND_ENUM);
+        schema.CombineProperties(otherSchema, runtime, SCHEMA_KIND_NODE_ENUM);
         SetValue(schema);
         return true;
     }
@@ -138,5 +138,5 @@ public sealed class EnumProperty : Property<EnumSchema>
 /// Represents the enum type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.type")]
-[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, false, SCHEMA_KIND_ENUM)]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, NODE_SELF, false, NODE_KIND_ENUM)]
 public class EnumType: ValueType;

@@ -10,8 +10,8 @@ namespace SchemaNode.Property.Struct;
 /// <summary>
 /// The override type
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_STRUCT_FIELD)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<Visible>(false)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_STRUCT}.{nameof(OverrideFields)}")]
 [Meta<PropertyValueType>(typeof(Schema.ValueType))]

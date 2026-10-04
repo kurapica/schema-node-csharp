@@ -18,7 +18,7 @@ public class CustomStructTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "address",
-            Kind = SCHEMA_KIND_STRUCT,
+            Kind = NODE_KIND_STRUCT,
         };
         StructSchema addressSchema = new StructSchema
         {
@@ -75,7 +75,7 @@ public class CustomStructTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "event_info",
-            Kind = SCHEMA_KIND_STRUCT,
+            Kind = NODE_KIND_STRUCT,
         };
         StructSchema eventSchema = new StructSchema
         {
@@ -115,7 +115,7 @@ public class CustomStructTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "profile",
-            Kind = SCHEMA_KIND_STRUCT,
+            Kind = NODE_KIND_STRUCT,
         };
         StructSchema profileSchema = new StructSchema
         {
@@ -155,7 +155,7 @@ public class CustomStructTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "todelete_struct",
-            Kind = SCHEMA_KIND_STRUCT,
+            Kind = NODE_KIND_STRUCT,
         };
         StructSchema deleteSchema = new StructSchema
         {

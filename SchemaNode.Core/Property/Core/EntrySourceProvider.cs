@@ -9,7 +9,7 @@ namespace SchemaNode.Property.Core;
 /// <summary>
 /// The entry source holder of entry source property
 /// </summary>
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_CORE}.{nameof(EntrySourceProvider)}")]
 [Meta<Static>(true)]
 [Meta<ReadOnly>(true)]

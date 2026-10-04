@@ -9,7 +9,7 @@ namespace SchemaNode.Property.Core;
 /// <summary>
 /// The entry source to provider cascade entry list
 /// </summary>
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_CORE}.entrysource")]
 [Meta<PropertyValueType>($"{NS_SYSTEM_SCHEMA_FUNC_CALL}<{NS_SYSTEM_SCHEMA_FUNC}.entrysource>")]
 public class EntrySource : FuncCallProperty;
@@ -17,8 +17,8 @@ public class EntrySource : FuncCallProperty;
 /// <summary>
 /// The entry root argument
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_FUNC_ARG)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_FUNC_ARG)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_CORE}.entryroot")]
 [Meta<Static>(true)]
 [Meta<ReadOnly>(true)]

@@ -9,7 +9,7 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Core;
 
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<ReadOnly>(true)] // Can't be set in the designer, can only be generated from core types
 [Meta<Static>(true)]
 [Meta<InVisible>(true)]

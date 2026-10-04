@@ -18,7 +18,7 @@ namespace SchemaNode.Property.App;
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(Foreigns)}")]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<Static>(true)]
 [Relation<InVisible, Relation.Call>(nameof(Foreigns), $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.not)}", $"@{nameof(EnableStorage)}")]
 [Relation<BlackList, Relation.Call>($"{nameof(Foreigns)}.{nameof(Foreign.App)}", $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.newarray)}", $"@{nameof(AppFieldSchema.App)}")]
@@ -41,7 +41,7 @@ public sealed class Foreign
     /// The field refer to the other app target
     /// </summary>
     [Meta<SchemaType>(typeof(Identifier))]
-    [Meta<AccessEntryConsumer>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, false, SCHEMA_KIND_STRING)]
+    [Meta<AccessEntryConsumer>(NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, NODE_SELF, false, NODE_KIND_STRING)]
     [Meta<CascadeDepth>(1)]
     public string Field { get; set; } = string.Empty;
     

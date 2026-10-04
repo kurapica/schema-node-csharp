@@ -11,7 +11,7 @@ namespace SchemaNode.Property.App;
 /// Allow create
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_NODE, SCHEMA_KIND_APP, SCHEMA_KIND_APP_FIELD, SCHEMA_KIND_APP_WORKFLOW)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(SchemaCreate)}")]
 [Meta<Static>(true)]
 [Meta<InVisible>(true)]

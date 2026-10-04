@@ -18,7 +18,7 @@ using SchemaType = SchemaNode.Property.Core.SchemaType;
 namespace SchemaNode.Workflow;
 
 [Meta<WorkflowKind>(WORKFLOW_KIND_CALL)]
-[Meta<OfSchema>(SCHEMA_KIND_WORKFLOW)]
+[Meta<OfNodeKind>(NODE_KIND_WORKFLOW)]
 [Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW}.call")]
 public class Call: BaseWorkflow, 
     IWorkflowPayload<Object> // all value type can be used as object type
@@ -69,7 +69,7 @@ public class Call: BaseWorkflow,
 }
 
 [Meta<ForSchema>(SCHEMA_KIND_APP_WORKFLOW_NODE)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP}.workflow.call")]
 [Meta<PropertyValueType>($"{NS_SYSTEM_SCHEMA_FUNC_CALL}<{NS_SYSTEM_SCHEMA_FUNC}.type>")]
 [Relation<Visible, Relation.Call>(nameof(Call), $"{NS_SYSTEM_SCHEMA_REFLECT}.workflow.{nameof(SystemReflectWorkflow.iskind)}", $"@{nameof(AppWorkflowNodeSchema.Type)}", WORKFLOW_KIND_CALL)]

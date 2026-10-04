@@ -10,8 +10,8 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Property.Array;
 
 [Meta<Alias>("array")]
-[Meta<ForSchema>(SCHEMA_KIND_ARRAY)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_ARRAY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ARRAY}.valid")]
 [Meta<Default>(true)]
 [Meta<InVisible>(true)] // root only

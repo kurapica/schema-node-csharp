@@ -27,9 +27,9 @@ namespace SchemaNode.Property.App;
 /// The app field filters
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(Filters)}")]
-[Relation<Visible, Call>(nameof(Filters), NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, $"@{nameof(Type)}", true, SCHEMA_KIND_STRUCT)]
+[Relation<Visible, Call>(nameof(Filters), NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, $"@{nameof(Type)}", true, NODE_KIND_STRUCT)]
 public class Filters : Property<FieldFilter[]>, ILoadableProperty, IErrorProvider
 {
     public string? Error { get; set; }
@@ -87,7 +87,7 @@ public sealed class FieldFilter
     [Meta<SchemaType>(typeof(Identifier))]
     [Meta<PrimaryIndex>(0)]
     [Meta<CascadeDepth>(1)]
-    [Meta<AccessEntryConsumer>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, false, SCHEMA_KIND_ENUM, SCHEMA_KIND_STRING, SCHEMA_KIND_INT, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_DATE, SCHEMA_KIND_BOOL)]
+    [Meta<AccessEntryConsumer>(NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, NODE_SELF, false, NODE_KIND_ENUM, NODE_KIND_STRING, NODE_KIND_INT, NODE_KIND_DECIMAL, NODE_KIND_DATE, NODE_KIND_BOOL)]
     [Relation<InVisible, Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"{nameof(Mode)}", FieldFilterMode.Filter)]
     public string Filter { get; set; } = string.Empty;
 

@@ -12,7 +12,7 @@ namespace SchemaNode.Property.Function;
 [Meta<Static>(true)]
 [Meta<ReadOnly>(true)]
 [Meta<InVisible>(true)]
-[Meta<ForSchema>(SCHEMA_KIND_FUNCTION)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_FUNCTION)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_FUNC}.{nameof(NoCache)}")]
 public sealed class NoCache : Property<bool>;

@@ -20,7 +20,7 @@ using Object = SchemaNode.Scalar.Object;
 namespace SchemaNode.Workflow;
 
 [Meta<WorkflowKind>(WORKFLOW_KIND_EVENT)]
-[Meta<OfSchema>(SCHEMA_KIND_WORKFLOW)]
+[Meta<OfNodeKind>(NODE_KIND_WORKFLOW)]
 [Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW}.waitevent")]
 [Meta<Forkable>(true)]
 public class WaitEvent : BaseWorkflow, 
@@ -119,7 +119,7 @@ public class WaitEvent : BaseWorkflow,
 }
 
 [Meta<ForSchema>(SCHEMA_KIND_APP_WORKFLOW_NODE)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP}.workflow.event")]
 [Relation<Visible, Relation.Call>("event", $"{NS_SYSTEM_SCHEMA_REFLECT}.workflow.{nameof(SystemReflectWorkflow.iskind)}", $"@{nameof(AppWorkflowNodeSchema.Type)}", WORKFLOW_KIND_EVENT)]
 public class EventProperty : Property<EventDeclare>;

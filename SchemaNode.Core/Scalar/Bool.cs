@@ -9,5 +9,5 @@ namespace SchemaNode.Scalar;
 /// Represents the bool scalar value type
 /// </summary>
 [Meta<SchemaType>(NS_SYSTEM_BOOL)]
-[Meta<OfSchema>(SCHEMA_KIND_BOOL)]
+[Meta<OfNodeKind>(NODE_KIND_BOOL)]
 public class Bool: IScalarType<bool>;

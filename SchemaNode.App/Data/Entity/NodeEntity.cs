@@ -33,7 +33,7 @@ internal class NodeEntity
     /// <summary>
     /// The schema kind
     /// </summary>
-    [Meta<SchemaType>(typeof(NodeSchemaKind))]
+    [Meta<SchemaType>(typeof(NodeKind))]
     public string Kind { get; set; } = null!;
 
     /// <summary>

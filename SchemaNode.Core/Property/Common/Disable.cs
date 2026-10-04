@@ -7,6 +7,6 @@ namespace SchemaNode.Property.Common;
 /// <summary>
 /// THe disable property
 /// </summary>
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_COMMON}.{nameof(Disable)}")]
 public class Disable: Property<bool>;

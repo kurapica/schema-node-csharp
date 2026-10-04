@@ -12,8 +12,8 @@ namespace SchemaNode.Property.Enum;
 /// <summary>
 /// Limit the enum's cascade level
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ENUM_USAGE)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_ENUM, SCHEMA_KIND_NODE_ENUM_USAGE)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ENUM}.{nameof(CascadeDepth)}")]
 public class CascadeDepth : Property<long>, IConstraintProperty
 {

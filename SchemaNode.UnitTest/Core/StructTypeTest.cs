@@ -12,7 +12,7 @@ public class StructTypeTest : Base.CoreTestBase
     {
         var contextType = await Context.GetNodeTypeAsync<StructType>(NS_SYSTEM_CONTEXT);
         Assert.IsNotNull(contextType);
-        Assert.AreEqual(SCHEMA_KIND_STRUCT, contextType.Kind);
+        Assert.AreEqual(NODE_KIND_STRUCT, contextType.Kind);
     }
 
     [TestMethod]
@@ -31,7 +31,7 @@ public class StructTypeTest : Base.CoreTestBase
     {
         var personType = await Context.GetNodeTypeAsync<StructType>("test.generator.person");
         Assert.IsNotNull(personType);
-        Assert.AreEqual(SCHEMA_KIND_STRUCT, personType.Kind);
+        Assert.AreEqual(NODE_KIND_STRUCT, personType.Kind);
     }
 
     [TestMethod]

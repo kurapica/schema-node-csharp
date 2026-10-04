@@ -16,7 +16,7 @@ public class CustomEnumTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "status",
-            Kind = SCHEMA_KIND_ENUM,
+            Kind = NODE_KIND_ENUM,
         };
         EnumSchema enumSchema = new EnumSchema
         {
@@ -47,7 +47,7 @@ public class CustomEnumTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "region",
-            Kind = SCHEMA_KIND_ENUM,
+            Kind = NODE_KIND_ENUM,
         };
         EnumSchema enumSchema = new EnumSchema
         {
@@ -86,7 +86,7 @@ public class CustomEnumTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "priority",
-            Kind = SCHEMA_KIND_ENUM,
+            Kind = NODE_KIND_ENUM,
         };
         EnumSchema enumSchema = new EnumSchema
         {
@@ -117,7 +117,7 @@ public class CustomEnumTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "continent",
-            Kind = SCHEMA_KIND_ENUM,
+            Kind = NODE_KIND_ENUM,
         };
         EnumSchema enumSchema = new EnumSchema
         {
@@ -155,7 +155,7 @@ public class CustomEnumTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "todelete_enum",
-            Kind = SCHEMA_KIND_ENUM,
+            Kind = NODE_KIND_ENUM,
         };
         EnumSchema enumSchema = new EnumSchema
         {

@@ -20,7 +20,7 @@ public class EnumTypeTest : Base.CoreTestBase
     {
         var colorType = await Context.GetNodeTypeAsync<EnumType>("test.enum.color");
         Assert.IsNotNull(colorType);
-        Assert.AreEqual(SCHEMA_KIND_ENUM, colorType.Kind);
+        Assert.AreEqual(NODE_KIND_ENUM, colorType.Kind);
     }
 
     [TestMethod]

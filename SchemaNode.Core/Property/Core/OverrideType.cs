@@ -8,8 +8,8 @@ namespace SchemaNode.Property.Core;
 /// <summary>
 /// The override type
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<Visible>(false)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_CORE}.{nameof(OverrideType)}")]
 [Meta<PropertyValueType>(typeof(Schema.ValueType))]

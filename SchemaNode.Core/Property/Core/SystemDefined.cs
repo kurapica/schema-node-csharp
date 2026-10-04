@@ -7,7 +7,7 @@ namespace SchemaNode.Property.Core;
 
 [Meta<Alias>("system")]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<Static>(true)]
 [Meta<ReadOnly>(true)]
 [Meta<InVisible>(true)]

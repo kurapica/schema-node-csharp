@@ -68,6 +68,11 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
     public string Kind => Schema?.Kind ?? SCHEMA_KIND_NODE;
 
     /// <summary>
+    /// The schema kind
+    /// </summary>
+    public string SchemaKind => (Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(Kind) ?? Kind;
+
+    /// <summary>
     /// The schema node error code
     /// </summary>
     public string? Error { get; set; }
@@ -139,8 +144,14 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
     /// </summary>
     internal virtual async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, IReadOnlyList<NodeType>? genericParams = null)
     {
+        // load basic info
+        Namespace = !string.IsNullOrWhiteSpace(schema.Namespace) ? await context.GetNodeTypeAsync<NamespaceType>(schema.Namespace) : null;
+        Schema = schema;
+        GenericParams = genericParams is { Count: > 0 } ? genericParams : null;
+
         string name = Name.ToLower();
-        SchemaRuntime? runtime = Runtime as SchemaRuntime;
+        Runtime = context.Runtime;
+        SchemaRuntime runtime = (Runtime as SchemaRuntime)!;
 
         // simple lock to avoid conflict access
         if (runtime != null)
@@ -153,24 +164,17 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
             }
         }
 
-        Runtime = context.Runtime;
-
         // reset
         UnloadType();
         Error = null;
         
-        // load basic info
-        Namespace = !string.IsNullOrWhiteSpace(schema.Namespace) ? await context.GetNodeTypeAsync<NamespaceType>(schema.Namespace) : null;
-        Schema = schema;
-        GenericParams = genericParams is { Count: > 0 } ? genericParams : null;
-
         // load properties
         List<IProperty> props = schema.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_NODE)).ToList();
         int max = props.Count;
         for(int i = 0; i < max; i++)
         {
-            if (props[i].GetValue<PropertyOwner>(true) is not { } s || !schema.Kind.Equals(s.SchemaKind?.Split('.', 2, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault(), StringComparison.OrdinalIgnoreCase)) continue;
-            props.AddRange(s.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(schema.Kind)));
+            if (props[i].GetValue<PropertyOwner>(true) is not { } s || !schema.Kind.Equals(s.AttachKind?.Split('.', 3, StringSplitOptions.RemoveEmptyEntries).ElementAt(1), StringComparison.OrdinalIgnoreCase)) continue;
+            props.AddRange(s.GetProperties(runtime!.GetSchemaKindPropertyTypes(runtime!.GetSchemaKindByNodeKind(schema.Kind))));
         }
 
         _props = props.Count > 0 ? props.ToArray() : null;
@@ -553,8 +557,8 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     public virtual bool IsAssignableTo(IValueTypeAccess other)
         => this == other || Name.Equals(other.Name) || 
            other is GenericType ||
-           Kind.Equals(SCHEMA_KIND_OBJECT)  || 
-           other.Kind.Equals(SCHEMA_KIND_OBJECT) ||
+           Kind.Equals(NODE_KIND_OBJECT)  || 
+           other.Kind.Equals(NODE_KIND_OBJECT) ||
            _isAssignableTo != null && 
            (_isAssignableTo.ContainsKey(other) || 
             _isAssignableTo.Keys.Any(k => k.IsAssignableTo(other)));

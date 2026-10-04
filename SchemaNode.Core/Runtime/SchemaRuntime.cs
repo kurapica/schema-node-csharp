@@ -21,7 +21,7 @@ public class SchemaRuntime : ISchemaRuntime
 {
     #region Implementation of ISchemaRuntime
 
-    private (string kind, Type schemaType, Type[]? propertyTypes, IProperty[]? properties)[] _schemaKinds = [];
+    private (string kind, string? nodeKind, Type schemaType, Type[]? propertyTypes, IProperty[]? properties)[] _schemaKinds = [];
     private readonly object _schemaKindsLock = new();
 
     /// <summary>
@@ -33,7 +33,7 @@ public class SchemaRuntime : ISchemaRuntime
     public void RegisterSchemaKind(string kind, Type schemaType, Type[]? propertyTypes = null, IProperty[]? properties = null)
     {
         lock (_schemaKindsLock)
-            _schemaKinds = _schemaKinds.Append((kind, schemaType, propertyTypes, properties)).ToArray();
+            _schemaKinds = _schemaKinds.Append((kind, schemaType.GetMetaProperty<Property.Record.NodeKind>()?.Value, schemaType, propertyTypes, properties)).ToArray();
     }
 
     /// <inheritdoc/>
@@ -90,6 +90,16 @@ public class SchemaRuntime : ISchemaRuntime
     /// Gets the node type for the schema kind
     /// </summary>
     public Type? GetNodeType(string kind) => _nodeTypes.GetValueOrDefault(kind);
+    
+    /// <summary>
+    /// Gets the node kind for the schema kind, if any.
+    /// </summary>
+    public string? GetNodeKind(string kind) => _schemaKinds.FirstOrDefault(k => k.kind.Equals(kind, StringComparison.OrdinalIgnoreCase)).nodeKind;
+
+    /// <summary>
+    /// Gets the schema kind for the node kind, if any.
+    /// </summary>
+    public string GetSchemaKindByNodeKind(string nodeKind) =>_schemaKinds.FirstOrDefault(k => k.nodeKind?.Equals(nodeKind, StringComparison.OrdinalIgnoreCase) ?? false).kind ?? nodeKind;
 
     #endregion
 
@@ -100,7 +110,7 @@ public class SchemaRuntime : ISchemaRuntime
     private readonly NodeSchema _rootSchema = new()
     {
         Name = "",
-        Kind = SCHEMA_KIND_NAMESPACE,
+        Kind = NODE_KIND_NAMESPACE,
         Schemas = [],
     };
 
@@ -143,7 +153,7 @@ public class SchemaRuntime : ISchemaRuntime
     internal void SaveSystemSchema(NodeSchema schema)
     {
         // special for array
-        if (schema.Kind == SCHEMA_KIND_ARRAY && schema.GetProperty<ArrayProperty>()?.Value is {} arraySchema)
+        if (schema.Kind == NODE_KIND_ARRAY && schema.GetProperty<ArrayProperty>()?.Value is {} arraySchema)
             _arrayCache[arraySchema.Element] = schema.FullName;
 
         // mark the schema as system-defined
@@ -175,7 +185,7 @@ public class SchemaRuntime : ISchemaRuntime
                     {
                         Name = part,
                         Namespace = ns,
-                        Kind = SCHEMA_KIND_NAMESPACE,
+                        Kind = NODE_KIND_NAMESPACE,
                         Schemas = [],
                     };
                     node.SetProperty<SystemDefined, bool>(true);
@@ -196,7 +206,7 @@ public class SchemaRuntime : ISchemaRuntime
                 throw new InvalidOperationException($"System schema name conflict: {schema.FullName} with kind {schema.Kind} conflicts with existing kind {node.Kind}");
             }
             // override the extension properties
-            else if (node.Kind != SCHEMA_KIND_NAMESPACE)
+            else if (node.Kind != NODE_KIND_NAMESPACE)
             {
                 node.CombineProperties(schema, this, SCHEMA_KIND_NODE);
             }

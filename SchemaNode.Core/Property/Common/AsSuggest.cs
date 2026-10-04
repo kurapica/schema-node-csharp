@@ -7,6 +7,6 @@ namespace SchemaNode.Property.Common;
 /// <summary>
 /// The entry list or white list only used as suggestion
 /// </summary>
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_COMMON}.{nameof(AsSuggest)}")]
 public class AsSuggest: Property<bool>;

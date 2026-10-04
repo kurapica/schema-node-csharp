@@ -10,8 +10,8 @@ namespace SchemaNode.Property.Bool;
 /// The bool value constraint
 /// </summary>
 [Meta<Alias>("bool")]
-[Meta<ForSchema>(SCHEMA_KIND_BOOL)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_BOOL)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_BOOL}.valid")]
 [Meta<Default>(true)]
 [Meta<InVisible>(true)] // root only

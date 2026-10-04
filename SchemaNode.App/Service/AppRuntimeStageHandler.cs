@@ -157,14 +157,14 @@ public class AppRuntimeStageHandler : IRuntimeStageHandler
                         field.SetProperty(property);
 
                     // schema type property
-                    foreach (IProperty property in type.GetMetaPropertiesForSchema<IProperty>(runtime, typeSchema.Kind))
+                    foreach (IProperty property in type.GetMetaPropertiesForSchema<IProperty>(runtime, runtime.GetSchemaKindByNodeKind(typeSchema.Kind)))
                         field.SetProperty(property);
 
                     // data derive
                     if (type.GetMetaProperty<DataDerive>() is { HasValue: true } derive)
                     {
                         // Data combine rules
-                        if (typeSchema.Kind == SCHEMA_KIND_STRUCT)
+                        if (typeSchema.Kind == NODE_KIND_STRUCT)
                         {
                             var deriveProp = derive.GetValue<Derive>()!;
                             var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);

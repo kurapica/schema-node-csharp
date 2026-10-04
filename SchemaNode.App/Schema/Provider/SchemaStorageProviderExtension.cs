@@ -7,6 +7,7 @@ using SchemaNode.Property.App;
 using SchemaNode.Runtime;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
+using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Schema.Provider;
@@ -44,7 +45,7 @@ public static class SchemaStorageProviderExtension
         
         // enum check
         Queue<(string, Entry<string>[])>? enumValues = null;
-        if (schema.Kind == SCHEMA_KIND_ENUM)
+        if (schema.Kind == NODE_KIND_ENUM)
         {
             EnumSchema? enumSchema = schema.GetProperty<EnumProperty>()?.Value;
             if (enumSchema != null)
@@ -53,13 +54,18 @@ public static class SchemaStorageProviderExtension
                 {
                     foreach (Entry<string> child in children)
                     {
-                        if (cascade > 1 && child.Children is { Length: > 0})
+                        Entry<string>[] childs = (child.Children is {  Length: > 0 } 
+                            ? child.Children 
+                            : (child.Extensions != null && child.Extensions.TryGetValue("children", out JsonNode? a) && a is JsonArray arr ? arr.ToValue<Entry<string>[]>() : [])) ?? [];
+
+                        if (cascade > 1 && childs is { Length: > 0 })
                         {
                             enumValues ??= [];
-                            enumValues.Enqueue((child.Value, child.Children));
-                            ScanChildren(child.Children, cascade - 1);
+                            enumValues.Enqueue((child.Value, childs));
+                            ScanChildren(childs, cascade - 1);
                         }
                         child.Children = null;
+                        child.Extensions?.Remove("children");
                     }
                 }
                 ScanChildren(enumSchema.Values, enumSchema.Cascade?.Length ?? 1);
@@ -85,7 +91,7 @@ public static class SchemaStorageProviderExtension
         await context.GetNodeTypeAsync(schema.FullName, reload: true); // force reload
         
         // check sub schemas
-        if (schema is { Kind: SCHEMA_KIND_NAMESPACE, Schemas.Length: > 0 })
+        if (schema is { Kind: NODE_KIND_NAMESPACE, Schemas.Length: > 0 })
             foreach (var subSchema in schema.Schemas)
                 await context.SaveSchemaAsync(subSchema);
         

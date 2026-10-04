@@ -18,9 +18,9 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The relation schemas
 /// </summary>
-[Meta<SchemaKind>(SCHEMA_KIND_RELATION, SCHEMA_KIND_ORDER_RELATION)]
+[Meta<SchemaKind>(SCHEMA_KIND_NODE_RELATION, SCHEMA_KIND_ORDER_RELATION)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_RELATION}.schema")]
-[Meta<Attach>(SCHEMA_KIND_RELATION)]
+[Meta<Attach>(SCHEMA_KIND_NODE_RELATION)]
 public class RelationSchema : PropertyOwner
 {
     /// <summary>
@@ -67,7 +67,7 @@ public class RelationSchema : PropertyOwner
 /// <summary>
 /// The relation property for data schemas
 /// </summary>
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_CORE}.relations")]
 //[Relation<EntrySource, Relation.Call>($"{nameof(Relations)}.{nameof(RelationSchema.Target)}", NS_SYSTEM_SCHEMA_REFLECT_GET_ACCESS_ENTRIES, NODE_SELF, $"@{nameof(Relations)}.{nameof(RelationSchema.Target)}")]
 public class Relations : Property<RelationSchema[]>
@@ -95,13 +95,6 @@ public class Relations : Property<RelationSchema[]>
         return true;
     }
 }
-
-/// <summary>
-/// Represents the relation type
-/// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_RELATION}.type")]
-[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, false, SCHEMA_KIND_RELATION)]
-public class RelationType: AnyType;
 
 /// <summary>
 /// The handler to process the relation, Check <see cref="RelationType"/> for details

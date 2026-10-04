@@ -8,8 +8,8 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Property.Date;
 
 [Meta<Alias>("uplimit")]
-[Meta<ForSchema>(SCHEMA_KIND_DATE, SCHEMA_KIND_DATE_DEFINE, SCHEMA_KIND_DATE_USAGE)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_DATE, SCHEMA_KIND_NODE_DATE_DEFINE, SCHEMA_KIND_NODE_DATE_USAGE)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_DATE}.uplimit")]
 public class UpLimitDate : Property<DateTimeOffset>, IConstraintProperty
 {

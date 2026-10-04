@@ -33,7 +33,7 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
                     schema = new NodeSchema
                     {
                         Name = name,
-                        Kind = SCHEMA_KIND_NAMESPACE,
+                        Kind = NODE_KIND_NAMESPACE,
                     };
                 }
                 else
@@ -49,7 +49,7 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
                         {
                             Namespace = namespaceName,
                             Name = schemaName,
-                            Kind = SCHEMA_KIND_NAMESPACE,
+                            Kind = NODE_KIND_NAMESPACE,
                         };
                         checkSubNs = true;
                     }
@@ -57,7 +57,7 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
 
                 switch (schema.Kind)
                 {
-                    case SCHEMA_KIND_NAMESPACE: 
+                    case NODE_KIND_NAMESPACE: 
                     {
                         // sub namespace
                         string ns = string.IsNullOrEmpty(schema.Name) ? ROOT : schema.FullName;
@@ -66,7 +66,7 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
                         schema.Schemas = value;
                         foreach (NodeSchema sub in value)
                         {
-                            if (sub.Kind == SCHEMA_KIND_ENUM)
+                            if (sub.Kind == NODE_KIND_ENUM)
                             {
                                 EnumSchema? @enum = sub.GetProperty<EnumProperty>()?.Value;
                                 if (@enum is { Cascade.Length: > 0 })
@@ -81,7 +81,7 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
                         }
                         break;
                     }
-                    case SCHEMA_KIND_ENUM:
+                    case NODE_KIND_ENUM:
                     {
                         EnumSchema? @enum = schema.GetProperty<EnumProperty>()?.Value;
                         if (@enum is { Cascade.Length: > 0 })
@@ -145,7 +145,7 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
 
             switch (nodeSchema.Kind)
             {
-                case SCHEMA_KIND_ENUM:
+                case NODE_KIND_ENUM:
                     if (delNode is Runtime.EnumType { Cascade.Length: > 0 })
                         await context.DeleteEntitiesAsync<EnumValueEntity>(Target, e => e.Enum == nodeSchema.FullName);
                     break;

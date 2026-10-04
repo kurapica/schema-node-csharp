@@ -17,9 +17,9 @@ namespace SchemaNode.Property.App;
 /// The row auths
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(RowAuths)}")]
-[Relation<Visible, Relation.Call>(nameof(RowAuths), NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, $"@{nameof(Type)}", true, SCHEMA_KIND_STRUCT)]
+[Relation<Visible, Relation.Call>(nameof(RowAuths), NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, $"@{nameof(Type)}", true, NODE_KIND_STRUCT)]
 [Relation<Default, Relation.Call>($"{nameof(RowAuths)}.{ARRAY_ELEMENT}.{nameof(RowPolicy.FieldType)}", $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(SchemaNode.Function.Reflect.Array.getarrayelement)}", $"@{nameof(AppFieldType.Type)}")]
 public class RowAuths : Property<RowPolicy[]>, ILoadableProperty, IErrorProvider
 {

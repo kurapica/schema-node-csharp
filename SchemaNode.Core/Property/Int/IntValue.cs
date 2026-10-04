@@ -10,8 +10,8 @@ namespace SchemaNode.Property.Int;
 /// The int value constraint
 /// </summary>
 [Meta<Alias>("int")]
-[Meta<ForSchema>(SCHEMA_KIND_INT)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_INT)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_INT}.valid")]
 [Meta<Default>(true)]
 [Meta<InVisible>(true)] // root only

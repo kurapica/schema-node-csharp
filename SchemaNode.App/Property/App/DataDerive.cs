@@ -24,7 +24,7 @@ namespace SchemaNode.Property.App;
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(DataDerive)}")]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<Static>(true)]
 [Relation<InVisible, Call>(nameof(DataDerive), $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.not)}", $"@{nameof(EnableStorage)})")]
 [Relation<EntrySource, Assign>($"{nameof(DataDerive)}.{nameof(Derive.Source)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfields)}", $"@{nameof(AppFieldSchema.App)}")]
@@ -96,14 +96,14 @@ public class Derive
     /// <summary>
     /// The combine rule for scalar/enum type
     /// </summary>
-    [Relation<Visible, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND}", $"@{nameof(FieldType)}", true, SCHEMA_KIND_ENUM, SCHEMA_KIND_BOOL, SCHEMA_KIND_STRING, SCHEMA_KIND_INT, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_DATE)]
+    [Relation<Visible, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND}", $"@{nameof(FieldType)}", true, NODE_KIND_ENUM, NODE_KIND_BOOL, NODE_KIND_STRING, NODE_KIND_INT, NODE_KIND_DECIMAL, NODE_KIND_DATE)]
     [Relation<WhiteList, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getcombinetype)}", $"@{nameof(FieldType)}")]
     public DataCombineType? Combine { get; set; }
     
     /// <summary>
     /// The combine rule for struct or struct-array type
     /// </summary>
-    [Relation<Visible, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND}", $"@{nameof(FieldType)}", true, SCHEMA_KIND_STRUCT)]
+    [Relation<Visible, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND}", $"@{nameof(FieldType)}", true, NODE_KIND_STRUCT)]
     [Relation<EntrySource, Assign>($"{nameof(Combines)}.{ARRAY_ELEMENT}.{nameof(FieldCombine.Field)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getcombinefields)}", $"@{nameof(FieldType)}")]
     [Relation<BlackList, Call>($"{nameof(Combines)}.{ARRAY_ELEMENT}.{nameof(FieldCombine.Field)}", $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfields)}", $"@{nameof(Combines)}.{ARRAY_PREVIOUS}", $"{nameof(FieldCombine.Field)}")]
     [Relation<Default, Call>($"{nameof(Combines)}.{ARRAY_ELEMENT}.{nameof(FieldCombine.FieldType)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.getaccessvaluetype)}", $"@{nameof(FieldType)}", $"@{nameof(Combines)}.{ARRAY_ELEMENT}.{nameof(FieldCombine.Field)}")]

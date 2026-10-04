@@ -12,8 +12,8 @@ namespace SchemaNode.Property.App;
 /// The app field is using increase update mode, no full data push allowed, always using page query
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(Pageable)}")]
 [Relation<InVisible, Relation.Call>(nameof(Pageable), $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.not)}", $"@{nameof(EnableStorage)}")]
-[Relation<Visible, Relation.Call>(nameof(Pageable), NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, $"@{nameof(Type)}", false, SCHEMA_KIND_ARRAY)]
+[Relation<Visible, Relation.Call>(nameof(Pageable), NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, $"@{nameof(Type)}", false, NODE_KIND_ARRAY)]
 public class Pageable : Property<bool>;

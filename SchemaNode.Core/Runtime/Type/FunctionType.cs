@@ -151,9 +151,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                 return;
             }
 
-            arg.ValueType = !string.IsNullOrWhiteSpace(arg.Type) 
-                ? await context.GetNodeTypeAsync<ValueType>(arg.Type, Generics)
-                : null;
+            arg.ValueType = !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetNodeTypeAsync<ValueType>(arg.Type, Generics) : null;
 
             if (arg.ValueType == null || arg.ValueType is GenericType && !IsSystemCall)
             {
@@ -242,13 +240,13 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
     /// Gets the property with the given type
     /// </summary>
     public override T? GetProperty<T>() where T : class 
-        => base.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(Kind);
+        => base.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(SchemaKind);
 
     /// <summary>
     /// Gets the properties with the given type
     /// </summary>
     public override IEnumerable<T> GetProperties<T>()
-        => this.JoinProperties(base.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(Kind));
+        => this.JoinProperties(base.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(SchemaKind));
 
     /// <summary>
     /// Gets relations
@@ -729,7 +727,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                 IValueAccess? argNode = argObj as IValueAccess;
 
                 // check null or empty
-                if (argObj == null || (argJson != null && argJson.IsEmpty()) || argNode is { IsEmpty: true } && argNode.Type.Kind != SCHEMA_KIND_ARRAY)
+                if (argObj == null || (argJson != null && argJson.IsEmpty()) || argNode is { IsEmpty: true } && argNode.Type.Kind != NODE_KIND_ARRAY)
                 {
                     if (!arg.Require)
                     {

@@ -123,9 +123,9 @@ public sealed class AppWorkflowNodeSchema: PropertyOwner, IErrorProvider
     /// The fork key paths in the payload
     /// </summary>
     [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.getaccessentries)}", $"@{nameof(Payload)}")]
-    [Meta<AccessEntryConsumer>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, false, SCHEMA_KIND_ENUM, SCHEMA_KIND_STRING, SCHEMA_KIND_INT, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_DATE, SCHEMA_KIND_BOOL)]
+    [Meta<AccessEntryConsumer>(NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, NODE_SELF, false, NODE_KIND_ENUM, NODE_KIND_STRING, NODE_KIND_INT, NODE_KIND_DECIMAL, NODE_KIND_DATE, NODE_KIND_BOOL)]
     [Relation<Visible, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_WORKFLOW}.{nameof(SystemReflectWorkflow.isforkable)}", $"@{nameof(Type)}")]
-    [Relation<InVisible, Call>(NODE_SELF, NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, $"@{nameof(Payload)}", false, SCHEMA_KIND_ARRAY)]
+    [Relation<InVisible, Call>(NODE_SELF, NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, $"@{nameof(Payload)}", false, NODE_KIND_ARRAY)]
     public string[]? ForkKey { get; set; }
     
     /// <summary>

@@ -10,8 +10,8 @@ namespace SchemaNode.Property.Decimal;
 /// The decimal value constraint
 /// </summary>
 [Meta<Alias>("decimal")]
-[Meta<ForSchema>(SCHEMA_KIND_DECIMAL)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_DECIMAL)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_DECIMAL}.valid")]
 [Meta<Default>(true)]
 [Meta<InVisible>(true)] // root only

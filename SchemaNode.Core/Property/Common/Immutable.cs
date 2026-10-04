@@ -8,8 +8,8 @@ namespace SchemaNode.Property.Common;
 /// <summary>
 /// The data is immutable, means it can't be changed after it has original value
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_COMMON}.{nameof(Immutable)}")]
 [Meta<Static>(true)]
 public class Immutable : Property<bool>;

@@ -10,8 +10,8 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Property.Struct;
 
 [Meta<Alias>("struct")]
-[Meta<ForSchema>(SCHEMA_KIND_STRUCT)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_STRUCT)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_STRUCT}.valid")]
 [Meta<Default>(true)]
 [Meta<InVisible>(true)] // root only

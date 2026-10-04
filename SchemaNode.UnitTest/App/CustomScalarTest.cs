@@ -18,7 +18,7 @@ public class CustomScalarTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "age",
-            Kind = SCHEMA_KIND_INT,
+            Kind = NODE_KIND_INT,
         };
         IntSchema ageSchema = new IntSchema
         {
@@ -48,7 +48,7 @@ public class CustomScalarTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "positive_int",
-            Kind = SCHEMA_KIND_INT,
+            Kind = NODE_KIND_INT,
         };
         IntSchema intSchema = new IntSchema
         {
@@ -80,7 +80,7 @@ public class CustomScalarTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "short_name",
-            Kind = SCHEMA_KIND_STRING,
+            Kind = NODE_KIND_STRING,
         };
         StringSchema strSchema = new StringSchema
         {
@@ -111,7 +111,7 @@ public class CustomScalarTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "todelete_scalar",
-            Kind = SCHEMA_KIND_INT,
+            Kind = NODE_KIND_INT,
         };
         IntSchema intSchema = new IntSchema { Base = NS_SYSTEM_INT };
         schema.SetProperty<IntProperty, IntSchema>(intSchema);

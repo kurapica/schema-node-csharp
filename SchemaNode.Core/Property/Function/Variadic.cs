@@ -11,7 +11,7 @@ namespace SchemaNode.Property.Function;
 /// </summary>
 [Meta<Static>(true)]
 [Meta<ReadOnly>(true)]
-[Meta<ForSchema>(SCHEMA_KIND_FUNC_ARG)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_FUNC_ARG)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_FUNC}.{nameof(Variadic)}")]
 public class Variadic : Property<bool>;

@@ -15,9 +15,9 @@ using RuntimeStructType = SchemaNode.Runtime.StructType;
 
 namespace SchemaNode.Schema;
 
-[Meta<SchemaKind>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]
-[Meta<NodeSchemaKind>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]
-[Meta<ValueSchemaKind>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]
+[Meta<SchemaKind>(SCHEMA_KIND_NODE_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]
+[Meta<NodeKind>(NODE_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]
+[Meta<NodeValueKind>(NODE_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]
 [Meta<NodeType>(typeof(RuntimeStructType))]
 [Meta<SchemaGenerator>(typeof(StructGenerator))]
 [Meta<SchemaUsage>(typeof(StructUsage))]
@@ -28,13 +28,13 @@ public sealed class StructKind;
 /// <summary>
 /// The struct schema
 /// </summary>
-[Meta<SchemaKind>(SCHEMA_KIND_STRUCT_DEFINE, SCHEMA_KIND_ORDER_STRUCT)]
+[Meta<SchemaKind>(SCHEMA_KIND_NODE_STRUCT_DEFINE, SCHEMA_KIND_ORDER_STRUCT)]
 [Meta<Append>(typeof(Generics), typeof(Relations), typeof(Valid))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.schema")]
-[Meta<Attach>(SCHEMA_KIND_STRUCT_DEFINE)]
+[Meta<Attach>(SCHEMA_KIND_NODE_STRUCT_DEFINE)]
 [Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_STRUCT}.{nameof(Function.Reflect.Struct.getaccessentries)}", $"@{nameof(Fields)}", NODE_SELF)]
 [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_STRUCT}.{nameof(Function.Reflect.Struct.getaccessvaluetype)}", $"@{nameof(Fields)}", NODE_SELF)]
-[Meta<KindProvider>(SCHEMA_KIND_STRUCT_FIELD)]
+[Meta<KindProvider>(SCHEMA_KIND_NODE_STRUCT_FIELD)]
 public sealed class StructSchema : PropertyOwner
 {
     /// <summary>
@@ -46,9 +46,9 @@ public sealed class StructSchema : PropertyOwner
 /// <summary>
 /// The struct usage
 /// </summary>
-[Meta<SchemaKind>(SCHEMA_KIND_STRUCT_USAGE, SCHEMA_KIND_ORDER_STRUCT)]
+[Meta<SchemaKind>(SCHEMA_KIND_NODE_STRUCT_USAGE, SCHEMA_KIND_ORDER_STRUCT)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.usage")]
-[Meta<Attach>(SCHEMA_KIND_STRUCT_USAGE)]
+[Meta<Attach>(SCHEMA_KIND_NODE_STRUCT_USAGE)]
 [Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getaccessentries)}", TYPE_PROVIDER, NODE_SELF)]
 [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getaccessvaluetype)}", TYPE_PROVIDER, NODE_SELF)]
 public sealed class StructUsage;
@@ -56,11 +56,11 @@ public sealed class StructUsage;
 /// <summary>
 /// Declare struct property for node schema
 /// </summary>
-[Meta<Alias>(SCHEMA_KIND_STRUCT)]
+[Meta<Alias>(NODE_KIND_STRUCT)]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_STRUCT}.{SCHEMA_KIND_STRUCT}")]
-[Relation<Visible, Relation.Call>(SCHEMA_KIND_STRUCT, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_STRUCT)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_STRUCT}.{NODE_KIND_STRUCT}")]
+[Relation<Visible, Relation.Call>(NODE_KIND_STRUCT, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", NODE_KIND_STRUCT)]
 public sealed class StructProperty : Property<StructSchema>
 {
     /// <inheritdoc/>
@@ -72,7 +72,7 @@ public sealed class StructProperty : Property<StructSchema>
             SetValue(otherStruct);
             return true;
         }
-        selfStruct.CombineProperties(otherStruct, runtime, SCHEMA_KIND_STRUCT);
+        selfStruct.CombineProperties(otherStruct, runtime, SCHEMA_KIND_NODE_STRUCT);
 
         // Combine struct fields
         List<StructFieldSchema> combineFields = [];
@@ -91,7 +91,7 @@ public sealed class StructProperty : Property<StructSchema>
                     if (otherStruct.Fields.All(f => !f.Name.Equals(existField.Name, StringComparison.OrdinalIgnoreCase)) && matched.Add(existField.Name))
                         combineFields.Add(existField);
                 }
-                combineFields.Add((selfStruct.Fields[index].CombineProperties(otherField, runtime, SCHEMA_KIND_STRUCT_FIELD) as StructFieldSchema)!);
+                combineFields.Add((selfStruct.Fields[index].CombineProperties(otherField, runtime, SCHEMA_KIND_NODE_STRUCT_FIELD) as StructFieldSchema)!);
             }
             else
                 combineFields.Add(otherField);
@@ -108,13 +108,13 @@ public sealed class StructProperty : Property<StructSchema>
 /// Represents the struct type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.type")]
-[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, false, SCHEMA_KIND_STRUCT)]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, NODE_SELF, false, NODE_KIND_STRUCT)]
 public class StructType: ValueType;
 
 /// <summary>
 /// The struct field kind
 /// </summary>
-[Meta<SchemaKind>(SCHEMA_KIND_STRUCT_FIELD, SCHEMA_KIND_ORDER_STRUCT_FIELD)]
+[Meta<SchemaKind>(SCHEMA_KIND_NODE_STRUCT_FIELD, SCHEMA_KIND_ORDER_STRUCT_FIELD)]
 [Meta<Append>(typeof(Disable), typeof(Display), typeof(Description), typeof(Visible), typeof(InVisible), 
     typeof(Immutable), typeof(ReadOnly), typeof(Require), typeof(OverrideType), typeof(Init))]
 public sealed class StructFieldKind;
@@ -124,7 +124,7 @@ public sealed class StructFieldKind;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.field")]
 [Meta<TypeProvider>(nameof(Type))]
-// [Meta<Attach>(SCHEMA_KIND_STRUCT_FIELD)] Don't enable it in server part
+// [Meta<Attach>(SCHEMA_KIND_NODE_STRUCT_FIELD)] Don't enable it in server part
 public sealed class StructFieldSchema : PropertyOwner, IErrorProvider
 {
     /// <summary>

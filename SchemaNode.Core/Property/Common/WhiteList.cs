@@ -10,8 +10,8 @@ using SchemaNode.Runtime;
 
 namespace SchemaNode.Property.Common;
 
-[Meta<ForSchema>(SCHEMA_KIND_ENUM, SCHEMA_KIND_STRING, SCHEMA_KIND_INT)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_ENUM, SCHEMA_KIND_NODE_STRING, SCHEMA_KIND_NODE_INT)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_COMMON}.{nameof(WhiteList)}")]
 [Relation<OverrideType, Call>(nameof(WhiteList), $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(SchemaNode.Function.Reflect.Array.getarraytype)}", TYPE_PROVIDER)]
 [Relation<BlackList, Call>(nameof(WhiteList), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(BlackList)}")]

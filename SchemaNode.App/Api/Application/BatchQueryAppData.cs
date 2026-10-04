@@ -56,7 +56,7 @@ public static class BatchQueryExtension
         NodeSchema root = new NodeSchema
         {
             Name = "",
-            Kind = SCHEMA_KIND_NAMESPACE,
+            Kind = NODE_KIND_NAMESPACE,
             Schemas = []
         };
         RootEnumValueSchema.Value = new Entry<string>();
@@ -346,7 +346,7 @@ public static class BatchQueryExtension
                                 parent = sub;
                             }
 
-                            if (parent.Kind == SCHEMA_KIND_ENUM)
+                            if (parent.Kind == NODE_KIND_ENUM)
                             {
                                 RootEnumValueSchema.Value!.Children = parent.GetProperty<EnumProperty>()!.GetValue<EnumSchema>()!.Values;
                                 RootEnumValueSchema.Value!.SaveAccessList(access);

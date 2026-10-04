@@ -9,8 +9,8 @@ namespace SchemaNode.Property.String;
 /// <summary>
 /// The access value type resolver
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_STRING)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_STRING)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_STRING}.{nameof(AccessValueTypeResolver)}")]
 [Meta<Static>(true)]
 [Meta<ReadOnly>(true)]
