@@ -70,10 +70,10 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
     /// <summary>
     /// Load the relation type
     /// </summary>
-    public async Task LoadAsync(SchemaContext context)
+    public async Task LoadAsync(SchemaContext context, params string?[] kinds)
     {
         Property = !string.IsNullOrWhiteSpace(relation.Property) 
-            ? await context.GetNodeTypeAsync<PropertyType>(relation.Property)
+            ? await context.GetPropertyType(relation.Property, kinds)
             : null;
         if (Property?.GetCsharpType() == null)
         {
@@ -92,7 +92,7 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
                 Error = ErrorCodes.RELATION_PROPERTY_NOT_VALID;
                 break;
             }
-            await Process.LoadAsync(context, relation, Owner);
+            await Process.LoadAsync(context, relation, Owner, kinds);
             if (Process is IErrorProvider error && !string.IsNullOrWhiteSpace(error.Error))
                 Error = error.Error;
         }
@@ -104,10 +104,10 @@ public static class RelationTypeExtensions
     /// <summary>
     /// Load the relation schema as relation runtime type
     /// </summary>
-    public static async Task<RelationType> LoadAsync(this RelationSchema relation, SchemaContext context, IValueTypeAccess owner)
+    public static async Task<RelationType> LoadAsync(this RelationSchema relation, SchemaContext context, IValueTypeAccess owner, params string?[] kinds)
     {
         RelationType type = new(relation, owner);
-        await type.LoadAsync(context);
+        await type.LoadAsync(context, kinds);
         return type;
     }
 }

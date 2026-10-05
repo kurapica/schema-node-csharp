@@ -4,12 +4,13 @@ using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
-using static SchemaNode.Utility.AppConstant;
 using SchemaNode.Property.App;
 using SchemaNode.Struct;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime.Interface;
+using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.AppConstant;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -214,14 +215,15 @@ public sealed class AppType : IValueTypeAccess, INodeTypeReLoadHandler
                 if (currentType == null) continue;
                 
                 // Gets the property type
-                PropertyType? prop = await context.GetNodeTypeAsync<PropertyType>(relation.Property);
+                var kind = (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(currentType.Kind);
+                PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_STRUCT_FIELD);
                 if (prop == null) continue;
                 
                 // Only work for constraint properties
                 Type? propType = prop.GetCsharpType();
                 if (propType == null) continue;
                 
-                var relationType = await relation.LoadAsync(context, this);
+                var relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_STRUCT_FIELD);
                 Error ??= relationType.Error;
 
                 _relations ??= [];

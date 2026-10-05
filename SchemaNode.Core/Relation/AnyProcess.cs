@@ -55,7 +55,7 @@ public class AnyProcess : IRelationProcess, INodeReferences, IErrorProvider
 
 
     /// <inheritdoc/>
-    public async Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner)
+    public async Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner, params string?[] kinds)
     {
     }
 

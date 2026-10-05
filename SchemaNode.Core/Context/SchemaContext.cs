@@ -9,7 +9,6 @@ using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Xml.Linq;
 using static SchemaNode.Utility.Constant;
 using ArrayType = SchemaNode.Runtime.ArrayType;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
@@ -53,7 +52,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <summary>
     /// The context item
     /// </summary>
-    readonly ConcurrentDictionary<Type, object> _contextItems = [];     
+    readonly ConcurrentDictionary<Type, object> _contextItems = [];
     
     /// <summary>
     /// The system access
@@ -163,7 +162,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         LogError("Invalid generic type format for {schemaName}", fullName);
                         return null;
                     }
-                    string key = next.ToString();
+                    string key = next.Contains(' ') ? next.ToString().Where(c => !char.IsWhiteSpace(c)).ToArray().AsSpan().ToString() : next.ToString();
 
                     // Check cache, allow duplicate if next contains different spaces (e.g. List<T> vs List< T >), keep it simple
                     if (node.GetGenericType(key) is { } genType) return genType;
@@ -203,12 +202,12 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         LogError("Generic type count mismatch for {schemaName}, expected {expected} but got {actual}", fullName, node.Generics?.Count ?? 0, genParams.Count);
                         return null;
                     }
-                    key = $"<{string.Join(", ", genParams.Select(g => g.Name))}>";
+                    key = $"<{string.Join(",", genParams.Select(g => g.Name))}>";
                     fullName = $"{node.Name}{key}";
 
                     // Check if the generic type is already loaded
                     genType = node.GetGenericType(key);
-                    if (genType != null && schemaRuntime.LockLoading.TryGetValue(fullName, out var ctx) && ctx == this)
+                    if (genType != null && (genType.Loaded || schemaRuntime.LockLoading.TryGetValue(fullName, out var ctx) && ctx == this))
                         return genType;
 
                     // lock and load
@@ -233,8 +232,8 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                             LogError("Generic type {schemaName} load failed", fullName);
                             return null;
                         }
-                        node.SetGenericType(key, genType);
 
+                        node.SetGenericType(key, genType);
                         await genType.LoadTypeAsync(this, node.GetNodeSchema(schemaRuntime)!, genParams.ToArray());
                         return genType;
                     }
@@ -476,6 +475,33 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             {
                 LogError(e, "Failed to convert value to expected type {expectedType}", expectedType.Name);
                 return null;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Gets the property type by property name and schema kinds
+    /// </summary>
+    public async Task<Runtime.PropertyType?> GetPropertyType(string property, params string?[] kinds)
+    {
+        if (string.IsNullOrWhiteSpace(property)) return null;
+        // for compatibility, if property contains dot, try to get the property type directly
+        if (property.Contains('.'))
+        {
+            var ptype = await GetNodeTypeAsync<Runtime.PropertyType>(property);
+            if (ptype != null) return ptype;
+        }
+        foreach (var kind in kinds)
+        {
+            if (string.IsNullOrWhiteSpace(kind)) continue;
+            foreach (var propType in Runtime.GetSchemaKindPropertyTypes(kind))
+            {
+                if (propType.GetSchemaType() is not { } schemaType || string.IsNullOrWhiteSpace(schemaType)) continue;
+
+                string name = propType.GetPropertyName();
+                if (property.Equals(name, StringComparison.OrdinalIgnoreCase))
+                    return await GetNodeTypeAsync<Runtime.PropertyType>(schemaType);
             }
         }
         return null;

@@ -14,7 +14,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaKind>(SCHEMA_KIND_NODE_NAMESPACE, SCHEMA_KIND_ORDER_NAMESPACE)]
 [Meta<NodeKind>(NODE_KIND_NAMESPACE, SCHEMA_KIND_ORDER_NAMESPACE)]
 [Meta<NodeType>(typeof(RuntimeNamespaceType))]
-public sealed class NamespaceSchema;
+public sealed class NamespaceKind;
 
 /// <summary>
 /// Represents the namespace type

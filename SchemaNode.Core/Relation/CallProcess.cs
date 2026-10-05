@@ -45,7 +45,7 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
     public FunctionType? FuncType { get; private set; }
 
     /// <inheritdoc/>
-    public async Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner)
+    public async Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner, params string?[] kinds)
     {
         FuncCall? call = schema.GetProperty<Call>()?.GetValue<FuncCall>();
         if (call == null)

@@ -46,7 +46,7 @@ public sealed class RelationAttribute<TP, TR> : System.Attribute, IRelationAttri
         {
             Target = string.IsNullOrWhiteSpace(_target) || _target.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase) ? target : _target,
             Kind = kind,
-            Property = typeof(TP).GetSchemaType() ??
+            Property = typeof(TP).GetPropertyName() ??
                        throw new Exception($"The {typeof(TP).Name} is not a valid property.")
         };
         schema.SetProperty(prop);

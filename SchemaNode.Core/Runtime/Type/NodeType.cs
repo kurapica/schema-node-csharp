@@ -53,7 +53,7 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
     /// </summary>
     public string Name => Schema != null 
         ? GenericParams is { Count: > 0 }
-            ? $"{Schema.FullName}<{string.Join(", ", GenericParams.Select(g => g.Name))}>" 
+            ? $"{Schema.FullName}<{string.Join(",", GenericParams.Select(g => g.Name))}>" 
             : Schema.FullName 
         : string.Empty;
 

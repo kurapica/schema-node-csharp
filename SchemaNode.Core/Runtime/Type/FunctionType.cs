@@ -14,6 +14,8 @@ using SchemaNode.Property.Function;
 using SchemaNode.Schema.Provider;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
+using System.Reflection.Metadata.Ecma335;
+using System.Security.Cryptography;
 
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedMember.Local
@@ -159,34 +161,35 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                 return;
             }
         }
-        
-        // Load Relation
-        if (func.GetProperty<Relations>()?.Value is { Length: > 0 } relations)
-        {
-            foreach (RelationSchema relation in relations)
-            {
-                // Gets the target type
-                IValueTypeAccess? currentType = GetAccessValueType(relation.Target);
-                if (currentType == null) continue;
-                
-                // Gets the property type
-                PropertyType? prop = await context.GetNodeTypeAsync<PropertyType>(relation.Property);
-                if (prop == null) continue;
-                
-                // Only work for constraint properties
-                Type? propType = prop.GetCsharpType();
-                if (propType == null) continue;
-                
-                var relationType = await relation.LoadAsync(context, this);
-                Error ??= relationType.Error;
 
-                _relations ??= [];
-                _relations.Add(relationType);
+        // Load Relation
+        if (!IsGeneric)
+        {
+            if (func.GetProperty<Relations>()?.Value is { Length: > 0 } relations)
+            {
+                foreach (RelationSchema relation in relations)
+                {
+                    // Gets the target type
+                    IValueTypeAccess? currentType = GetAccessValueType(relation.Target);
+                    if (currentType == null) continue;
+
+                    // Gets the property type
+                    var kind = (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(currentType.Kind);
+                    PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_FUNC_ARG);
+                    if (prop == null) continue;
+
+                    // Only work for constraint properties
+                    Type? propType = prop.GetCsharpType();
+                    if (propType == null) continue;
+
+                    var relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_FUNC_ARG);
+                    Error ??= relationType.Error;
+
+                    _relations ??= [];
+                    _relations.Add(relationType);
+                }
             }
         }
-    
-        // Generate the exp trees
-        await PreCompileAsync(context);
     }
     
     /// <inheritdoc />
@@ -256,6 +259,11 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
     /// <inheritdoc/>
     public IValueTypeAccess? GetAccessValueType(string path)
     {
+        string[] access = path.Split('.', 2, StringSplitOptions.TrimEntries);
+        if (access[0].Equals(FUNC_RETURN, StringComparison.OrdinalIgnoreCase)) return Return;
+        var a = Args.FirstOrDefault(a => a.Name.Equals(access[0], StringComparison.OrdinalIgnoreCase));
+        if (a != null)
+            return a.ValueType;
         return _systemObjectType; // only used to pass the relation checks
     }
 
@@ -403,12 +411,12 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
         }
         catch(FunctionVisitException fex)
         {
-            Error = fex.Status;
+            Error ??= fex.Status;
         }
         catch(Exception ex)
         {
             context.LogError(ex, "FunctionType LoadAsync Error: {0}", Name);
-            Error = ErrorCodes.FUNC_COMPILE_ERROR;
+            Error ??= ErrorCodes.FUNC_COMPILE_ERROR;
         }
 
         return null;
@@ -559,7 +567,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                 }
 
                 // Parse argument
-                var eleType = GetArgType(arg, argNode?.Type.GetCsharpType() ?? (argJson == null ? argObj.GetType() : null));
+                var eleType = GetArgType(arg, argNode?.Type.GetCsharpType() ?? (argJson == null ? argObj?.GetType() : null));
 
                 // JsonNode
                 if (argJson != null)

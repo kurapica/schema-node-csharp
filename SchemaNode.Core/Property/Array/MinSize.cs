@@ -17,7 +17,7 @@ namespace SchemaNode.Property.Array;
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ARRAY}.{nameof(MinSize)}")]
 [Meta<LowLimitInt>(0L)]
-[Relation<UpLimitInt, Call>($"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(MaxSize)}")]
+[Relation<UpLimitInt, Call>(nameof(MinSize), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(MaxSize)}")]
 public class MinSize : Property<long>, IConstraintProperty
 {
     /// <summary>

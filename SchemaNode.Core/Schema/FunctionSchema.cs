@@ -198,7 +198,7 @@ public class FuncCall
     /// <summary>
     /// The apply mode
     /// </summary>
-    [Relation<WhiteList, Call>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getapplymodes)}", $"@{nameof(Return)}")]
+    [Relation<WhiteList, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getapplymodes)}", $"@{nameof(Return)}")]
     [Meta<Require>(true)]
     public ApplyMode Mode { get; set; } = ApplyMode.Call;
 
@@ -208,7 +208,7 @@ public class FuncCall
     [Meta<SchemaType>(typeof(ValueType))]
     [Meta<DisplayOnly>(true)]
     [Meta<InVisible>(true)]
-    [Relation<Default, Call>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getexpectreturn)}", $"@{nameof(Return)}", $"@{nameof(Mode)}")]
+    [Relation<Default, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getexpectreturn)}", $"@{nameof(Return)}", $"@{nameof(Mode)}")]
     public string? FuncReturn { get; set;}
      
     /// <summary>

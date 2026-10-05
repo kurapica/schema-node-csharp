@@ -20,10 +20,14 @@ public class AssignProcess : IRelationProcess
     private IProperty? _value;
 
     /// <inheritdoc/> 
-    public async Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner)
+    public async Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner, params string?[] kinds)
     {
         var value = schema.GetProperty<Assign>()?.GetValue<object>();
-        var propType = (await context.GetNodeTypeAsync(schema.Property))?.GetCsharpType();
+        var nodeKind = owner.GetAccessValueType(schema.Target)?.Kind;
+        var kind = nodeKind != null ? (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(nodeKind): null;
+        if (kind != null && !kinds.Any(k => kind.Equals(k))) kinds = kinds.Append(kind).ToArray();
+
+        var propType = (await context.GetPropertyType(schema.Property, kinds))?.GetCsharpType();
         if (propType != null && propType.IsAssignableTo(typeof(IProperty)))
         {
             _value = Activator.CreateInstance(propType) as IProperty;

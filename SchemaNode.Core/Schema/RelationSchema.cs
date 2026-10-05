@@ -29,20 +29,40 @@ public class RelationSchema : PropertyOwner
     [Meta<PrimaryIndex>(0)]
     [Meta<EntrySourceConsumer>(true)]
     public string Target { get; set; } = null!;
-    
+
+    /// <summary>
+    /// The target value type
+    /// </summary>
+    [Meta<DisplayOnly>(true)]
+    [Meta<AccessValueTypeResolver>(nameof(Target))]
+    public string? TargetType { get; set; }
+
+    /// <summary>
+    /// The target kind
+    /// </summary>
+    [Meta<DisplayOnly>(true)]
+    [Relation<Default, Call>(nameof(TargetKind), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getschemakind)}", $"@{nameof(TargetType)}")]
+    public string? TargetKind { get; set; }
+
+    /// <summary>
+    /// The relation owner kind
+    /// </summary>
+    [Meta<DisplayOnly>(true)]
+    [Meta<KindResolver>(true)]
+    public string? OwnerKind { get; set; }
+
     /// <summary>
     /// The property the relation applied to
     /// </summary>
     [Meta<PrimaryIndex>(1)]
-    [Meta<SchemaType>(typeof(SchemaPropertyType))]
-    [Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT_PROPERTY}.{nameof(Function.Reflect.Property.notstatic)}", NODE_SELF)]
+    [Relation<EntrySource, Assign>(nameof(Property), $"{NS_SYSTEM_SCHEMA_REFLECT_PROPERTY}.{nameof(Function.Reflect.Property.getkindproperties)}", $"@{nameof(TargetKind)}", $"@{nameof(OwnerKind)}")]
     public string Property { get; set; } = null!;
     
     /// <summary>
     /// The property value type
     /// </summary>
     [Meta<DisplayOnly>(true)]
-    [Relation<Default, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_PROPERTY}.{nameof(Function.Reflect.Property.getvaluetype)}", $"@{nameof(Property)}")]
+    [Relation<Default, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_PROPERTY}.{nameof(Function.Reflect.Property.getkindpropvaluetype)}", $"@{nameof(Property)}", $"@{nameof(TargetKind)}", $"@{nameof(OwnerKind)}")]
     public string? ValueType { get; set; }
 
     /// <summary>
@@ -101,7 +121,10 @@ public class Relations : Property<RelationSchema[]>
 /// </summary>
 public interface IRelationProcess
 {
-    Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner);
+    /// <summary>
+    /// Loading the relation schema and prepare for processing
+    /// </summary>
+    Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner, params string?[] kinds);
     
     /// <summary>
     /// Process the relation and return the new property value

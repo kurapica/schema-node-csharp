@@ -58,8 +58,9 @@ public sealed class ArrayType: ValueType, IRelationProvider, INodeTypeReLoadHand
             Error = ErrorCodes.ARRAY_WRONG_ELEMENT;
             return;
         }
-        
+
         // Load Relation
+        if (IsGeneric) return;
         if (GetProperty<Relations>()?.Value is { Length: > 0 } relations)
         {
             foreach (RelationSchema relation in relations)
@@ -69,14 +70,15 @@ public sealed class ArrayType: ValueType, IRelationProvider, INodeTypeReLoadHand
                 if (currentType == null) continue;
                 
                 // Gets the property type
-                PropertyType? prop = await context.GetNodeTypeAsync<PropertyType>(relation.Property);
+                var kind = (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(currentType.Kind);
+                PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_STRUCT_FIELD);
                 if (prop == null) continue;
                 
                 // Only work for constraint properties
                 Type? propType = prop.GetCsharpType();
                 if (propType == null) continue;
                 
-                RelationType relationType = await relation.LoadAsync(context, this);
+                RelationType relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_STRUCT_FIELD);
                 Error ??= relationType.Error;
                 
                 _relations ??= [];
