@@ -58,9 +58,11 @@
 
 因此，无论语义空间还是执行层，都必须对原型存在明确的认知。
 
-所以我们无需关注原型的抽象定义，只需要基于它们可以区分实体，实体所属的原型即可。为了跨语言和跨平台的兼容性，我们采用唯一的字符串标识来代表它。
+原型本身并不需要携带复杂的抽象描述。只要能够唯一标识一个原型，使语义空间和执行层能够对它形成共同认知即可。为了跨语言和跨平台兼容，我们采用唯一的字符串标识来代表原型。
 
-例如上一章中使用到的`struct`，`enum`，`array`等，但直接使用它们会占据顶层原型名，并不是一个好的实践。
+例如，上一章中出现的 struct、enum、array 等，首先是节点的分类（Node Kind）；对应的具体原型则由定义域建立。例如在 SchemaNode Core 中，结构体对应的原型是 node.struct。
+
+直接将 struct、enum、array 作为顶层原型，会使不同定义域之间容易产生命名冲突，因此需要进一步引入原型族。
 
 ---
 
@@ -96,7 +98,9 @@ node.function
 node.function.arg
 ```
 
-这里的 `node` 是 SchemaNode Core 公共定义域所选择的唯一顶层原型名, `node.struct` 则是`node` 原型族下代表结构体数据类型的原型。
+这里的 node 是 SchemaNode Core 公共定义域选择的顶层原型，node.struct 则是 node 原型族中用于描述结构体节点的具体原型。
+
+需要注意的是，struct 本身是 Node Kind，而 node.struct 才是对应的 Node Prototype。这样的区分使节点的分类与原型的定义保持独立，也避免将某一种定义域的具体实现直接固化到语义声明中。
 
 语义声明虽然依赖原型提供的 Meta 和 Property 进行解释，但语义声明本身通常并不需要携带所属原型的完整描述。
 
@@ -149,7 +153,7 @@ add(1, 2, 3, 4)
 }
 ```
 
-对于 `func.arg` 来说：
+对于 `node.function.arg` 来说：
 
 ```text
 Meta
@@ -162,7 +166,7 @@ Property
 
 其中，`name` 和 `type` 是参数结构中确定存在的 Meta，而 `variadic` 是可选的语义 Property。
 
-`variadic` 本身并没有特殊的数据表示。它之所以能够被理解，是因为 `func.arg` 原型定义了 `Variadic` Property，执行层因此知道这个属性代表参数是否为可变参数。
+`variadic` 本身并没有特殊的数据表示。它之所以能够被理解，是因为 `node.function.arg` 原型定义了 `Variadic` Property，执行层因此知道这个属性代表参数是否为可变参数。
 
 这也是原型存在的意义：
 
@@ -212,8 +216,9 @@ SchemaNode Core 申明的`node` 原型，用于实现类型的定义与管理。
 public sealed class NodeKind;
 
 // 申明 node 原型使用的 Meta，因为它是结构体类型，采用SchemaType注册为结构体语义类型
+// 注意原型本身并不需要知道这个结构体，而是这个结构体类型通过 Attach 属性指明采用 node 原型，即它可以保存 node 的所有语义属性
 [Meta<SchemaType>("system.schema.node.schema")]
-[Meta<Attach>("node")]  // 为这个结构体指明采用 node 原型，即它可以保存 node 的所有语义属性
+[Meta<Attach>("node")]
 public sealed class NodeSchema: PropertyOwner
 {
     // 命名空间，通过 SchemaType 进一步限定它使用的语义类型
@@ -234,10 +239,9 @@ public sealed class NodeSchema: PropertyOwner
 
 ![node-schema](./pic/04_node_define.png)
 
-途中 Display 是定义`node`原型时主动注册的，而 Auths 则是App领域方言为 `node` 原型注册的，用于提供权限管理。
+图中 Display 是定义`node`原型时主动注册的，而 Auths 则是App领域方言为 `node` 原型注册的，用于提供权限管理。
 
-上述代码采用**代码即Schema**的设计模式，确保执行层代码和申明在一起定义，无需额外的对齐和注册机制。
-
+上述代码采用**代码即Schema**的设计模式，确保执行层代码和申明在一起定义，无需额外的对齐和注册机制。这里的“代码即 Schema”，并不是说语义只能通过代码定义，而是指 SchemaNode Core 的执行层可以直接使用代码声明自身所支持的语义结构，从而避免另外维护一套与执行代码对应的 Schema。
 
 ### 3.2 命名空间语义类型
 
@@ -270,27 +274,27 @@ public sealed class StructKind;
 
 // 申明 `struct` 类型的 Meta 定义结构体
 [Meta<SchemaType>($"system.schema.struct.schema")]
-[Meta<Attach>("struct")]  // 为这个结构体指明采用 struct 原型，配置和保存都可以处理 struct 类型的语义属性
+[Meta<Attach>("struct")]  // 为这个结构体指明采用 struct 原型，即它可以保存 struct 的所有语义属性
 public sealed class StructSchema : PropertyOwner
 {
     // 结构体字段
     public StructFieldSchema[] Fields { get; set; } = [];
 }
 
-// 为`node`原型定义 `struct` 属性
-[Meta<ForSchema>("node")]  // 申明属性是为了`node`原型定义
-[Meta<OfNodeKind>("property")] // 申明该class需要解析为`node`下的`property`语义类型
+// 为`node`原型定义 `struct` 属性，基于类型名生成`struct`属性，挂载到`node`原型上
+[Meta<ForSchema>("node")]  // 表示这个 Property 服务于 node 原型——它回答的是“我在哪个原型上挂载”
+[Meta<OfNodeKind>("property")] // 表示这个 class 被解析为 node 下的 property 语义类型分类——它回答的是“我是什么语义类型”
 [Meta<SchemaType>("system.schema.prop.struct.struct")] // 申明该属性注册的语义类型名称
 [Relation<Visible, Relation.Call>("struct", "system.logic.eq", $"@{nameof(NodeSchema.Kind)}", "struct")]
 public sealed class StructProperty : Property<StructSchema>
 
 // 申明 `node.struct.field` 原型
 [Meta<SchemaKind>("node.struct.field")]
-[Meta<Append>(typeof(Disable), typeof(Display), typeof(Visible), typeof(Require))]
+[Meta<Append>(typeof(Disable), typeof(Display), typeof(Visible), typeof(Require))] // 省略更多
 public sealed class StructFieldKind;
 
 // 申明 `node.struct.field` 原型的 Meta 定义结构体
-[Meta<SchemaType>("node.struct.field.schema")]
+[Meta<SchemaType>("system.schema.struct.field.schema")]
 [Meta<Attach>("node.struct.field")]
 public sealed class StructFieldSchema : PropertyOwner
 {
@@ -304,7 +308,7 @@ public sealed class StructFieldSchema : PropertyOwner
 }
 ```
 
-这里最特殊的是`StructProperty`属性，它以`struct`的定义体为值类型，然后挂载到 `node` 原型上,并且它申明了
+这里最特殊的是`StructProperty`属性定义，它以 StructSchema 为值类型，然后挂载到 `node` 原型上,并且它申明了可见性关联。
 
 ```C#
 [Relation<Visible, Relation.Call>("struct", "system.logic.eq", $"@{nameof(NodeSchema.Kind)}", "struct")]
@@ -315,7 +319,7 @@ public sealed class StructFieldSchema : PropertyOwner
 ```jsonc
 {
     target: "struct", // 目标是struct属性自身
-    property: "Visible",  // 关联的是Visible属性
+    property: "visible",  // 关联的是visible属性
     call: "system.logic.eq", // 执行采用函数调用，函数是相等判定
     args: [
         { source: "kind" },  // 挂载 `node` 原型附着的结构体上存在 `kind` 字段
@@ -328,9 +332,7 @@ public sealed class StructFieldSchema : PropertyOwner
 
 这张图中选择`kind`为结构体后，下面的结构体字段(fields), 关系(Relation)等属于`struct`原型的字段和属性才变得可见。
 
-上述结构体的定义相对传统编程，只是将`struct`的显示判定从前端代码转移到了关联描述中，但完成这一步后，前端配置UI变成了执行层，而无需依赖特殊代码实现对`struct`的支持。
-
-当然，这里演示的关联是比较简单的，定义域的关联可以更加复杂。
+上述结构体的定义相对传统编程，而将`struct`的显示判定从前端代码转移到了关联描述中就是定义了它的部分语义，完成这一步后，前端配置UI变成了执行层，而无需依赖特殊代码实现对`struct`的支持。
 
 类似这种形式，SchemaNode Core 提供了 `bool`, `int`, `decimal`, `string`, `date`, `enum`, `struct`, `array`这些结构化数据类型。这些在 `core` 的文档中进一步介绍。
 
@@ -359,90 +361,179 @@ public sealed class StructFieldSchema : PropertyOwner
         // 将 min 赋值给 max.lowlimit
         "call": {
             "args": [
-            {
-                "type": "system.int",
-                "source": "min"
-            }
+                {
+                    "type": "system.int",
+                    "source": "min"
+                }
             ],
-            "func": "system.intrinsic.assign<system.int>",
+            "func": "system.intrinsic.assign<system.int>", // 赋值函数
             "mode": "call"
         },
-        "kind": "call",
+        "kind": "call", // 关联执行类型，采用函数调用
         "target": "max",
-        "property": "lowlimit",
+        "property": "lowlimit", // 下限
       }
     ]
   }
 }
 ```
 
-这里也可以看到，实际的语义申明中并没有`node`相关的特殊标识。虽然 SchemaNode Core 定义了定义域的一个实现，但实质来说，它的修改或者变更都不会影响已经存在的语义申明。
+这里也可以看到，实际的语义申明中并没有`node`相关的特殊标识，或者特殊`system.schema.struct.schema`这样的类型。而`property: "lowlimit"` 只表达“目标实体具有一个名为 lowlimit 的语义属性”，至于这个属性由哪个 Property 解释，则由当前定义域根据目标实体所属的原型进行解析。
+
+`system.schema`下的类型都是定义相关的，而类似 `system.intrinsic.assign`这样的语义函数则是公共语义的组成部分，定义相关类型在不同的定义域实现中可以不同，但公共语义类型则需要被所有执行层实现。
+
 
 
 ---
 
 ### 3.4 属性类型
 
-Property 是构成多维语义空间的重要原语。它申明自己支持的原型，
+Property 是构成多维语义空间的重要原语。它申明自己支持的原型，用于描述语义实体的属性。以上面使用的 `lowlimit` 为例：
+
+```C#
+[Meta<Alias>("lowlimit")] // 当类型名不能直接作为属性名时，用 Alias 申明属性名
+[Meta<ForSchema>("node.int", "node.int.define", "node.int.usage")]
+[Meta<OfNodeKind>("property")]
+[Meta<SchemaType>("system.schema.prop.int.lowlimit")]
+public class LowLimitInt : Property<long>, IConstraintProperty
+{
+    public bool? ValidateInt(SchemaContext context, IntNode node)
+    {
+        if (!HasValue || node.IsEmpty) return null;
+        return node.GetValue<long>() >= Value;
+    }
+}
+```
+
+* 属性存在同名，这里定义的是`int`类型的下限属性。基于原型进行区分，在上面的关联中，`max`的类型`system.int`的原型是`node.int`，所以可以确保关联使用`system.schema.prop.int.lowlimit`属性，而不是`system.schema.prop.string.lowlimit`。
+* SchemaNode Core 中还存在针对定义和使用场景的原型变体，它们最终仍归属于 node.int 的公共语义能力。具体机制属于 Core 实现细节，此处不再展开。
+* 有一大类属性是约束属性，它们用于描述语义实体的约束条件，例如`lowlimit`属性，用于完成对`int`数据节点的校验，所有数据节点违反的约束都会被记录作为错误信息。
+* 在执行层间传递的语义实体，只含有`lowlimit`而非具体的属性类型，所以，不同的执行层可以采用不同机制定义的属性完成语义的消费。这也是之前提到 SchemaNode Core 是可以被替换的，只要实现了公共语义共识。
+
 
 ---
 
-### 3.5 关联类型
+### 3.5 Relation
 
-当多个语义实体之间存在依赖时，仅仅定义 Property 仍然不足。
+在`test.minmax`中, `min`和`max`是两个语义实体，通过`test.minmax`为它们定义了关联关系。而更大的基于`test.minmax`类型构建的复杂结构化类型，可以为它下属的其他语义实体定义关联关系。
 
-Relation 用于描述这些语义之间的关联，并通过 Function 产生确定的语义作用。
+例如 App 方言中每个 App Field 对应一个数据库表，而 App 可以为多个 App Field 定义关联关系。综合来说，通过这种树状的，由祖先为后代的关联关系，可以实现稳定的有向无环图。
 
-例如：
+Relation 的代码申明为:
 
-```text
-minMax
-├── min
-└── max
-     ↑
-     │ lowlimit
-     │
-    min
+```C#
+[Meta<SchemaKind>("node.relation")]
+[Meta<SchemaType>("system.schema.relation.schema")]
+[Meta<Attach>("node.relation")]
+public class RelationSchema : PropertyOwner
+{    
+    // 关联的目标语义实体
+    public string Target { get; set; } = null!;
+
+    // 关联的属性名
+    public string Property { get; set; } = null!;
+    
+    // 关联类型
+    [Meta<SchemaType>(typeof(RelationKind))]
+    public string Kind { get; set; } = null!;
+}
+
+[Meta<OfNodeKind>("property")]
+[Meta<SchemaType>("system.schema.prop.core.relations")]
+public class Relations : Property<RelationSchema[]>;
 ```
 
-这里 `max.lowlimit` 并不是一个静态值，而是由 `min` 动态提供。
+这里的 RelationSchema 并不是一个业务语义类型，而是用于描述 Relations 属性值结构的定义类型。
+这样，任何需要它的地方都可以主动申明具有 Relations 属性，例如`node.struct`原型申明了结构体类型具有 Relations 属性。
+关联类型类似于 `node` 的 `kind`，允许外界注册自定义关联执行类型， SchemaNode Core 提供 `assign`, `call`, `any` 三种关联执行类型，在`test.minmax`的例子中看到的是 `call` 关联执行的使用。
 
-因此：
+关联更多在UI配置界面中进行配置，例如在`test.minmax`中，`min`和`max`的关联关系如下：
 
-```text
-Relation
-    ↓
-Function
-    ↓
-语义作用
-```
+![Relation](./pic/04_relation_ui.png)
 
-共同构成了语义空间中的动态关系。
-
-Relation 本身也可以被定义为语义实体，并具有自己的 Property、类型和执行方式。
-
-这使得关联不再依赖某个业务系统中隐藏的代码逻辑，而成为可以被定义、复用和解释的结构化语义。
+属性和关联构成了语义实体的完整定义，而它们的实现依赖语义函数。
 
 ---
 
 ### 3.6 函数类型
 
-Function 是定义域中用于描述执行语义的基本原语。
+语义函数包含两部分:
 
-函数不仅描述“调用一个方法”，还可以描述参数结构、返回值、调用条件、缓存策略、权限要求以及其他执行相关语义。
+1. 原子语义函数，例如 `system.intrinsic.assign`。它有两个来源
 
-例如函数参数可以通过 `node.function.arg` 进行结构化定义：
+    * 一种是公共语义共识定义的，需要各个执行层实现（当然实际上是执行层实现注册到语义空间中），例如 `system.intrinsic.assign`。
+    * 另一种是执行层自行注册的，如果为了过渡，将旧微服务的处理注册到语义空间中，同样也可以被调用。
+    
+    但不管怎样，它们的注册方式都是一致的:
 
-```text
-node.function
-    └── node.function.arg
-```
+    ```C#
+    [Meta<SchemaType>("system.intrinsic")]
+    public static class SystemIntrinsic
+    {
+        // 定义了 system.intrinsic.assign 辅助函数
+        public static T? assign<T>(T? value) => value;
+    }
+    ```
 
-函数参数因此不再是执行语言中一个特殊的、无法进一步描述的参数列表，而是定义域中的语义实体。
+2. 自定义语义函数，通过UI配置界面进行定义，申明参数，返回值，和执行用的表达式，例如：
 
-这使得 Function 自身也可以继续被 Property、Relation 等语义机制描述。
+    ![Function](./pic/04_function_define.png)
 
-最终，函数不再是定义域之外的一块黑盒执行代码，而成为语义空间中可以被理解和组合的一部分。
+    > 它设计是基于纯函数式编程的，即函数的输入和输出都是确定的，没有副作用。
+
+
+普通函数中，除了参数和返回值，对外不含有任何信息，很多特定的限制只能通过 `assert` 之类机制在内部进行判定，这种隐含的约定造成函数自身的语义是不完整的。
+
+语义函数的语义由两处提供:
+
+1. 函数参数的语义
+    
+    除了 `node.function` 原型外，`node.function.arg` 是为函数参数定义的原型，它不仅仅可以通过属性对参数进行描述，同时支持为参数配置关联，类似于结构体为它的字段申明关联。
+
+    当函数调用时，这些关联会应用在调用参数上，例如上图中，使用`获取请求上下文`这个语义函数，它的参数提供的是级联选择，而非直接输入。这点不是UI提供的支持，而是该语义函数自身携带的。
+
+    下面以 getcontext 为例，展示函数参数如何通过 Property 和 Relation 获得完整的语义描述。具体的机制将在 Core 文档中展开。
+    通过这种机制可以实现相当复杂的参数选择，这时可以说这个语义函数是语义完备的，因为它原本内置的约定已经暴露给调用者。
+
+    ```C#
+    [Meta<SchemaType>("system.data")]
+    public static class SystemData
+    {
+        // 获取请求上下文
+        // 这个关联为access参数配置一个级联选择的消费器，既级联选择的内容对应的类型必须满足函数调用时的返回值类型
+        [Relation<AccessEntryConsumer, Assign>($"{nameof(access)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.isassignableto)}", NODE_SELF, false, $"@{FUNC_RETURN}")]
+        public static T? getcontext<T>(
+            // C# 执行上下文，注册为语义函数时自动忽略
+            SchemaContext context,
+            
+            // EntrySource 为 access 参数提供级联数据源
+            [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.getaccessentries)}", NS_SYSTEM_CONTEXT, NODE_SELF)]
+
+            // AccessValueTypeProvider 将级联选择的值类似 `user.id` 转换为实际的数据类型
+            [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.getaccessvaluetype)}", NS_SYSTEM_CONTEXT, NODE_SELF)]
+            string access)
+        {
+            IValueAccess? item = context.GetContextItem(access);
+            return item != null ? item.GetValue<T>() : default(T?);
+        }
+    }
+    ```
+
+2. 数据化的语义表达式
+
+    基于这种形式定义的语义函数表达式，是纯数据化的，并且没有临时变量，没有控制结构，是基于纯函数式编程的，它在编译时很容易转换为AST语法树，从而被执行层理解，修改，编译和执行。
+
+    它是可推理的，例如 App 应用时可以基于 ETL 数据转换函数直接定位数据血缘关系，进而自动完成原本依赖人力需要反复实现的功能。
+
+---
+
+### 3.7 定义域
+
+基于上述的命名空间、数据类型、Property、Relation 和 Function，我们构建了一个完整的语义定义域。而这些用于定义语义的原型和类型本身，也由同一个定义域完成定义。
+
+SchemaNode Core 只是提供了一套基于 node 原型族的定义域实现。定义域与由它定义出的语义声明并不是强耦合关系，定义域可以独立于语义声明进行替换、扩展和迭代。
+
+这与前面讨论的语义与执行分离是一致的：语义声明可以保持稳定，而解释和执行这些语义的定义域与执行层可以独立发展。
 
 ---
 
@@ -450,153 +541,26 @@ node.function
 
 定义域解决的是如何定义和处理语义，而公共语义共识解决的是：
 
-> **不同语义执行层之间，哪些定义能力必须能够被共同理解。**
+不同语义执行层之间，哪些定义能力必须能够被共同理解。
 
-它并不是一个固定的业务模型，也不是试图为所有领域规定统一的业务语义。
+这种共识并不要求不同定义域采用完全相同的内部实现，甚至不要求原型名称完全一致。例如 SchemaNode Core 使用 node.int，另一种实现可以使用 atom.int。
 
-公共语义共识更接近一个**定义域的公共基础**。
+真正需要保持一致的，是原型所表达的 Meta、Property 以及它们之间的语义约束。不同实现可以通过各自的原型体系完成映射，但最终需要能够对同一公共语义形成一致的解释。
 
-它至少需要覆盖：
+因此，公共语义共识至少需要覆盖三个层次：
 
-```text
-语义原型
-    ↓
-语义类型
-    ↓
-结构与数据
-    ↓
-Property
-    ↓
-Relation
-    ↓
-Function
-    ↓
-定义与处理
-```
+1. 公共原型能力
+    需要能够表达基本的语义实体分类。例如结构体、数组、基本数据类型等。具体原型名称可以不同，但所表达的语义能力必须能够对应。
 
-因此，公共语义共识同时覆盖两个方面：
+2. 原型的 Meta 与 Property
+    例如，表示结构体的原型必须能够表达类似 fields: {name: string, type: string}[] 的结构，并能够承载其必要的语义属性。
 
-1. **数据处理域**
+3. 公共语义类型与函数
+    基于上述定义域构造出的语义类型，以及诸如 system.intrinsic.assign 这样的公共语义函数，需要具有跨执行层可理解的语义。
 
-   语义定义本身是结构化数据，因此需要能够定义、读取、修改、组合和处理这些数据。
+system.schema 下的类型属于当前定义域的实现，而 system.intrinsic.assign 这类语义函数则属于公共语义的一部分。前者可以随着定义域实现而变化，后者则需要由不同执行层提供对应的实现。
 
-2. **语义原语**
-
-   Meta、Property、Relation、Function 必须能够被定义域自身描述和处理。
-
-这两个部分共同构成了语义语言能够自我描述、自我扩展的基础。
-
-### 4.1 SchemaNode 的实现
-
-SchemaNode Core 对这个公共定义域给出了一种具体实现。
-
-其核心不是定义某个固定业务模型，而是提供一组能够继续构造语义的基础 Prototype、Node kind、Property、Relation 和 Function。
-
-其中，`node` 是 Core 当前公共语义定义域所使用的顶级 Prototype：
-
-```text
-node
-├── scalar
-├── enum
-├── struct
-│   └── field
-├── array
-├── function
-│   └── arg
-└── ...
-```
-
-这些定义进一步构成 SchemaNode 自身的 System Schema。
-
-System Schema 并不是一套业务 Schema，而是执行层能够理解和处理哪些语义的公开定义。
-
-因此可以把 SchemaNode 当前的关系表示为：
-
-```text
-公共定义域
-     │
-     ↓
-System Schema
-     │
-     ↓
-Prototype / Node kind
-     │
-     ↓
-语义类型
-     │
-     ↓
-语义实体
-     │
-     ↓
-执行层
-```
-
-执行层不需要预先知道所有业务类型。
-
-它只需要理解公共定义域中的 Prototype 以及这些 Prototype 所规定的语义处理能力，就能够继续解释由这些能力构造出来的未知语义类型。
-
-这也是定义域能够支持未知领域的关键。
-
----
-
-### 4.2 定义域本身也是语义
-
-到这里可以看到，SchemaNode 所实现的并不是一个“描述业务 Schema 的工具”。
-
-它首先需要解决的是：
-
-> **如何定义 Schema。**
-
-而 Schema 本身又是结构化语义数据，因此定义 Schema 的语言也必须能够被 Schema 描述。
-
-最终形成：
-
-```text
-定义语言
-   ↓
-定义原型
-   ↓
-定义类型
-   ↓
-定义语义
-   ↓
-定义语言自身
-```
-
-这就是定义域的自举。
-
-一旦这个闭环成立，公共语义就不再依赖一套不可扩展的固定元模型，而可以在同一套机制中继续产生新的语义类型和新的语义方言。
-
----
-
-### 4.3 从公共语义到语义方言
-
-公共语义共识并不意味着所有领域都使用相同的业务模型。
-
-它只规定构造和处理语义所需要的公共基础。
-
-在此基础上，不同领域可以使用自己的语义原型、Property、Relation 和 Function，对公共能力进行组合和扩展，从而形成不同的语义方言。
-
-因此：
-
-```text
-公共定义域
-      │
-      ↓
-公共语义共识
-      │
- ┌────┼─────┐
- ↓    ↓     ↓
- App  ETL  其他领域
- ↓
-领域语义方言
-```
-
-SchemaNode Core 负责的是定义域和公共语义基础，而 App 则是建立在这些基础之上的一个具体语义方言。
-
-App 中的实体、权限、数据源、视图、ETL、Workflow 等，并不是 SchemaNode 公共语义本身，而是公共语义能力在特定领域中的组织方式和使用方式。
-
-因此，**方言即语言的具体领域实现，而定义域则是构造这些语言所共同依赖的基础。**
+因此，公共语义共识并不是规定一套固定的 SchemaNode 内部实现，而是规定不同执行层之间必须共同理解的最小语义能力。
 
 ---
 
