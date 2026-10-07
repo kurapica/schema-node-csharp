@@ -320,6 +320,7 @@
   "system.schema.node.kind.array": "Array",
   "system.schema.node.kind.function": "Function",
   "system.schema.node.kind.property": "Property",
+  "system.schema.node.kind.generic": "Generic",
   "system.schema.node.schema": "Node Schema",
   "system.schema.node.schema.error": "Error",
   "system.schema.node.schema.kind": "Kind",

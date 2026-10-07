@@ -227,3 +227,9 @@ SchemaNode 目前并不是一个已经完成的“多维语义空间”。
 * 📖 [语义方言与公共语义共识](link_here)
 * 🧪 [在线 Demo 与执行验证](link_here)
 * 💻 [源码](link_here)
+
+
+✅ architecture/  → 完整（7 篇）
+✅ tryit/         → 完整 Demo（2 个层次）
+🚧 core/          → 持续补充中
+🚧 app/           → 持续补充中

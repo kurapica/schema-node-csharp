@@ -320,6 +320,7 @@
   "system.schema.node.kind.array": "数组",
   "system.schema.node.kind.function": "函数",
   "system.schema.node.kind.property": "属性",
+  "system.schema.node.kind.generic": "泛型",
   "system.schema.node.schema": "Node Schema 定义",
   "system.schema.node.schema.error": "错误码",
   "system.schema.node.schema.kind": "类型分类",
