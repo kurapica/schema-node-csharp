@@ -7,14 +7,12 @@ using SchemaNode.Property.App;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Relation;
-using SchemaNode.Runtime.Interface;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using static SchemaNode.Utility.AppConstant;
-using static SchemaNode.Utility.Constant;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable MemberCanBePrivate.Global
@@ -411,7 +409,7 @@ public sealed class AppFieldType
     {
         if (ValueType != null)
             yield return ValueType;
-        
+
         if (_refTypes != null)
             foreach (var node in _refTypes)
                 yield return node;
@@ -420,7 +418,7 @@ public sealed class AppFieldType
     /// <summary>
     /// Get the application field schema
     /// </summary>
-    public async Task<AppFieldSchema> GetSchemaAsync(SchemaContext context)
+    public async Task<AppFieldSchema> GetSchemaAsync(SchemaContext context, bool noAuth = false)
     {
         AppFieldSchema schema = new AppFieldSchema
         {
@@ -432,16 +430,19 @@ public sealed class AppFieldType
         schema.CombineProperties(_appFieldSchema);
         
         // The auth properties
-        bool isSystem = Application.GetProperty<SystemDefined>()?.Value == true;
-        schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true));
-        schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true));
-        schema.SetProperty<SchemaUpdate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true));
-        schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true));
-        schema.SetProperty<DataCreate, bool>(!isSystem && !ReadOnly && await context.AuthorizeAsync(this, PolicyScope.DataCreate, true));
-        schema.SetProperty<DataRead, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.DataRead, true));
-        schema.SetProperty<DataUpdate, bool>(!isSystem && !ReadOnly && await context.AuthorizeAsync(this, PolicyScope.DataUpdate, true));
-        schema.SetProperty<DataDelete, bool>(!isSystem && !ReadOnly && await context.AuthorizeAsync(this, PolicyScope.DataDelete, true));
-        
+        if (!noAuth)
+        {
+            bool isSystem = Application.GetProperty<SystemDefined>()?.Value == true;
+            schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true));
+            schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true));
+            schema.SetProperty<SchemaUpdate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true));
+            schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true));
+            schema.SetProperty<DataCreate, bool>(!isSystem && !ReadOnly && await context.AuthorizeAsync(this, PolicyScope.DataCreate, true));
+            schema.SetProperty<DataRead, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.DataRead, true));
+            schema.SetProperty<DataUpdate, bool>(!isSystem && !ReadOnly && await context.AuthorizeAsync(this, PolicyScope.DataUpdate, true));
+            schema.SetProperty<DataDelete, bool>(!isSystem && !ReadOnly && await context.AuthorizeAsync(this, PolicyScope.DataDelete, true));
+        }
+
         // The block columns
         // column access check
         if ((ValueType is ArrayType arr ? arr.Element : ValueType) is StructType @struct)

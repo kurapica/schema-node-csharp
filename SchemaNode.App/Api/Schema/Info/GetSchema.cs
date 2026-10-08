@@ -47,7 +47,7 @@ public class GetSchemaApi : SchemaApi<GetSchemaRequest, GetSchemaResponse>
             if (node == null) return;
             if (await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead, true) == false) return;
 
-            await SchemaContext.GetNodeSchemasAsync(node, root, types, request.IncludeRefs ?? false, true, cancellationToken);
+            await SchemaContext.GetNodeSchemasAsync(node, root, types, request.IncludeRefs ?? false, cancellationToken: cancellationToken);
 
             if (node is NamespaceType ns && first)
                 foreach (var pair in ns.GetNodeSchemas())

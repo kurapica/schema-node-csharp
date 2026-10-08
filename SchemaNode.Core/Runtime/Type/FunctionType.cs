@@ -228,12 +228,15 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
             if (exp.Args is { Length: > 0 })
             {
                 foreach (var callArg in exp.Args)
-                {
                     if (callArg.ValueType != null && callArg.ValueType is not GenericType && callArg.ValueType is ValueType v)
                         yield return v;
-                }
             }
         }
+        
+        if (_relations != null)
+            foreach(var r in _relations.OfType<INodeReferences>())
+                foreach(var node in r.GetReferenceTypes())
+                    yield return node;
 
         foreach (var type in base.GetReferenceTypes())
             yield return type;

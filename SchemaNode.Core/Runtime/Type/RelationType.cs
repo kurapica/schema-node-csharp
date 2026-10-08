@@ -1,6 +1,5 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Core;
 using SchemaNode.Schema;

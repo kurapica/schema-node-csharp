@@ -131,8 +131,9 @@ public sealed class StructType: ValueType, IRelationProvider, INodeTypeReLoadHan
         }
 
         if (_relations != null)
-            foreach (NodeType node in _relations.OfType<INodeReferences>().SelectMany(n => n.GetReferenceTypes()))
-                yield return node;
+            foreach (var r in _relations.OfType<INodeReferences>())
+                foreach (NodeType node in r.GetReferenceTypes())
+                    yield return node;
                 
         foreach (NodeType nodeType in base.GetReferenceTypes())
             yield return nodeType;

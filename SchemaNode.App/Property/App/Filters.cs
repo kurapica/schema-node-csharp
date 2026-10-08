@@ -30,7 +30,7 @@ namespace SchemaNode.Property.App;
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(Filters)}")]
 [Relation<Visible, Call>(nameof(Filters), NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, $"@{nameof(Type)}", true, NODE_KIND_STRUCT)]
-public class Filters : Property<FieldFilter[]>, ILoadableProperty, IErrorProvider
+public class Filters : Property<FieldFilter[]>, ILoadableProperty, IErrorProvider, ITypeRefProperty
 {
     public string? Error { get; set; }
 
@@ -66,6 +66,15 @@ public class Filters : Property<FieldFilter[]>, ILoadableProperty, IErrorProvide
                     break;
                 }
             }
+        }
+    }
+
+    public IEnumerable<string> GetRefTypes()
+    {
+        if (Value == null) yield break;
+        foreach (FieldFilter filter in Value)
+        {
+            if (!string.IsNullOrWhiteSpace(filter.FilterFunc)) yield return filter.FilterFunc;
         }
     }
 }

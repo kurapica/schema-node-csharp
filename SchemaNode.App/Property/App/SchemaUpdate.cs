@@ -4,6 +4,7 @@ using SchemaNode.Property.Core;
 using SchemaNode.Property.Property;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
+using SchemaNode.Property.Struct;
 
 namespace SchemaNode.Property.App;
 
@@ -15,5 +16,5 @@ namespace SchemaNode.Property.App;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(SchemaUpdate)}")]
 [Meta<Static>(true)]
 [Meta<InVisible>(true)]
-[Meta<ReadOnly>(true)]
+[Meta<DisplayOnly>(true)]
 public class SchemaUpdate: Property<bool>;

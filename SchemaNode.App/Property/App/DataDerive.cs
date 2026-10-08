@@ -31,7 +31,7 @@ namespace SchemaNode.Property.App;
 [Relation<BlackList, Call>($"{nameof(DataDerive)}.{nameof(Derive.Source)}", $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.newarray)}", $"@{nameof(AppFieldSchema.Name)}")]
 [Relation<Default, Call>($"{nameof(DataDerive)}.{nameof(Derive.SourceType)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldtype)}",  $"@{nameof(App)}", $"@{nameof(DataDerive)}.{nameof(Derive.Source)}", true)]
 [Relation<Default, Call>($"{nameof(DataDerive)}.{nameof(Derive.FieldType)}", $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}",  $"@{nameof(AppFieldSchema.Type)}")]
-public class DataDerive : Property<Derive>
+public class DataDerive : Property<Derive>, ITypeRefProperty
 {
     public override void SetValue<TValue>(TValue value)
     {
@@ -52,6 +52,11 @@ public class DataDerive : Property<Derive>
 
         if (!string.IsNullOrEmpty(source) && !string.IsNullOrEmpty(calc))
             base.SetValue(new Derive { Source = source, Calc =  calc });
+    }
+    public IEnumerable<string> GetRefTypes()
+    {
+        if (Value == null) yield break;
+        yield return Value.Calc;
     }
 }
 

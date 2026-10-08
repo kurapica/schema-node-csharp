@@ -21,7 +21,7 @@ namespace SchemaNode.Property.App;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(RowAuths)}")]
 [Relation<Visible, Relation.Call>(nameof(RowAuths), NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, $"@{nameof(Type)}", true, NODE_KIND_STRUCT)]
 [Relation<Default, Relation.Call>($"{nameof(RowAuths)}.{ARRAY_ELEMENT}.{nameof(RowPolicy.FieldType)}", $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(SchemaNode.Function.Reflect.Array.getarrayelement)}", $"@{nameof(AppFieldType.Type)}")]
-public class RowAuths : Property<RowPolicy[]>, ILoadableProperty, IErrorProvider
+public class RowAuths : Property<RowPolicy[]>, ILoadableProperty, IErrorProvider, ITypeRefProperty
 {
     public string? Error { get; set; }
     
@@ -42,6 +42,16 @@ public class RowAuths : Property<RowPolicy[]>, ILoadableProperty, IErrorProvider
             if (item.FilterFunc is { Args.Length: 1 } && item.FilterFunc.Return.IsAssignableTo(context.System.Bool) && 
                 (ownerType == null || (item.FilterFunc.Args[0].ValueType != null && item.FilterFunc.Args[0].ValueType!.IsAssignableTo(ownerType)))) continue;
             Error ??= AppErrorCodes.APP_ROW_AUTH_FILTER_NOT_VALID;
+        }
+    }
+
+    public IEnumerable<string> GetRefTypes()
+    {
+        if (Value == null) yield break;
+        foreach (RowPolicy item in Value)
+        {
+            if (!string.IsNullOrWhiteSpace(item.Evaluator)) yield return item.Evaluator;
+            if (!string.IsNullOrWhiteSpace(item.Filter)) yield return item.Filter;
         }
     }
 }

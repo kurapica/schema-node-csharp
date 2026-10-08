@@ -21,7 +21,7 @@ namespace SchemaNode.Property.App;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(ColAuths)}")]
 [Relation<Visible, Call>(nameof(ColAuths), NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, $"@{nameof(AppFieldSchema.Type)}", true, NODE_KIND_STRUCT)]
 [Relation<EntrySource, Assign>($"{nameof(ColAuths)}.{ARRAY_ELEMENT}.{nameof(ColPolicy.Name)}", NS_SYSTEM_SCHEMA_REFLECT_GET_ACCESS_ENTRIES, $"@{nameof(AppFieldSchema.Type)}")]
-public class ColAuths : Property<ColPolicy[]>, ILoadableProperty, IErrorProvider
+public class ColAuths : Property<ColPolicy[]>, ILoadableProperty, IErrorProvider, ITypeRefProperty
 {
     public string? Error { get; set; }
     
@@ -52,6 +52,16 @@ public class ColAuths : Property<ColPolicy[]>, ILoadableProperty, IErrorProvider
                 evaluators.Add(func);
             }
             item.Functions = evaluators.ToArray();
+        }
+    }
+
+    public IEnumerable<string> GetRefTypes()
+    {
+        if (Value == null) yield break;
+        foreach (var item in Value)
+        {
+            foreach (var evaluator in item.Evaluators)
+                yield return evaluator;
         }
     }
 }

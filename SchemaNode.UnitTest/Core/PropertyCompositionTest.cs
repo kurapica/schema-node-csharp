@@ -98,7 +98,7 @@ public class PropertyCompositionTest : Base.CoreTestBase
         var intType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_INT);
         Assert.IsNotNull(intType);
 
-        // ScalarType.GetProperty proxies to BaseNode if not found locally
+        // ScalarType.GetProperty proxies to BaseType if not found locally
         // This test verifies the property chain doesn't throw
         var display = intType.GetProperty<Display>();
         Console.WriteLine($"Display from int (may be from base): {display?.Value}");

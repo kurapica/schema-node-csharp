@@ -25,7 +25,7 @@ namespace SchemaNode.Property.App;
 [Meta<ForSchema>(SCHEMA_KIND_NODE, SCHEMA_KIND_APP, SCHEMA_KIND_APP_FIELD, SCHEMA_KIND_APP_WORKFLOW)]
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(Auths)}")]
-public class Auths : Property<PolicyItem[]>, ILoadableProperty, IErrorProvider
+public class Auths : Property<PolicyItem[]>, ILoadableProperty, IErrorProvider, ITypeRefProperty
 {
     public string? Error { get; set; }
     
@@ -38,6 +38,13 @@ public class Auths : Property<PolicyItem[]>, ILoadableProperty, IErrorProvider
             if (item.Function is { Args.Length: 0 } && item.Function.Return.IsAssignableTo(context.System.Bool)) continue;
             Error ??= AppErrorCodes.APP_POLICY_EVALUATOR_NOT_VALID;
         }
+    }
+
+    public IEnumerable<string> GetTypeRefs()
+    {
+        if (Value == null) yield break;
+        foreach (var item in Value)
+            yield return item.Evaluator;
     }
 }
 

@@ -520,10 +520,10 @@ public static class SchemaContextOntologyExtension
 
         // Handle inheritance
         string? baseClassIri = null;
-        /*if (structType.BaseNode != null)
+        /*if (structType.BaseType != null)
         {
-            baseClassIri = $"{graph.AppPrefix}{Seg(structType.BaseNode.Name)}";
-            BuildEntityClass(context, graph, structType.BaseNode, visitedStructs, visitedEnums);
+            baseClassIri = $"{graph.AppPrefix}{Seg(structType.BaseType.Name)}";
+            BuildEntityClass(context, graph, structType.BaseType, visitedStructs, visitedEnums);
         }*/
 
         var entity = new OntologyEntityClass

@@ -14,7 +14,7 @@ public abstract class ScalarType : ValueType
     #region Properties
 
     /// <summary>The base type node.</summary>
-    public ScalarType? BaseNode { get; private set; }
+    public ScalarType? BaseType { get; private set; }
 
     #endregion
     
@@ -32,13 +32,13 @@ public abstract class ScalarType : ValueType
     /// <inheritdoc />
     public override async Task LoadAsync(SchemaContext context)
     {
-        BaseNode = null;
+        BaseType = null;
         ScalarSchema? scalar = GetScalarSchema();
 
         if (!string.IsNullOrWhiteSpace(scalar?.Base))
         {
-            BaseNode = await context.GetNodeTypeAsync<ScalarType>(scalar.Base);
-            if (BaseNode == null || !BaseNode.Kind.Equals(Kind, StringComparison.OrdinalIgnoreCase))
+            BaseType = await context.GetNodeTypeAsync<ScalarType>(scalar.Base);
+            if (BaseType == null || !BaseType.Kind.Equals(Kind, StringComparison.OrdinalIgnoreCase))
                 Error = ErrorCodes.SCALAR_WRONG_BASE;
         }
     }
@@ -48,7 +48,7 @@ public abstract class ScalarType : ValueType
     /// </summary>
     public override IEnumerable<NodeType> GetReferenceTypes()
     {
-        if (BaseNode != null) yield return BaseNode;
+        if (BaseType != null) yield return BaseType;
         foreach(var nodeType in base.GetReferenceTypes())
             yield return nodeType;
     }
@@ -58,7 +58,7 @@ public abstract class ScalarType : ValueType
         => Kind.Equals(other.Kind,  StringComparison.OrdinalIgnoreCase) || base.IsAssignableTo(other);
 
     /// <inheritdoc />
-    public override Type? GetCsharpType() => base.GetCsharpType() ?? BaseNode?.GetCsharpType();
+    public override Type? GetCsharpType() => base.GetCsharpType() ?? BaseType?.GetCsharpType();
     
     #endregion
 
@@ -68,13 +68,13 @@ public abstract class ScalarType : ValueType
     /// Gets the property with the given type
     /// </summary>
     public override T? GetProperty<T>() where T : class 
-        => base.GetProperty<T>() ?? (BaseNode != null ? BaseNode.GetProperty<T>() : Runtime?.GetSchemaKindProperty<T>(SchemaKind));
+        => base.GetProperty<T>() ?? (BaseType != null ? BaseType.GetProperty<T>() : Runtime?.GetSchemaKindProperty<T>(SchemaKind));
 
     /// <summary>
     /// Gets the properties with the given type
     /// </summary>
     public override IEnumerable<T> GetProperties<T>()
-        => this.JoinProperties(base.GetProperties<T>(), BaseNode != null ? BaseNode.GetProperties<T>() : Runtime?.GetSchemaKindProperties<T>(SchemaKind));
+        => this.JoinProperties(base.GetProperties<T>(), BaseType != null ? BaseType.GetProperties<T>() : Runtime?.GetSchemaKindProperties<T>(SchemaKind));
     
     #endregion
 }

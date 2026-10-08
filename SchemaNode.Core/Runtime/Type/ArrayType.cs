@@ -104,8 +104,9 @@ public sealed class ArrayType: ValueType, IRelationProvider, INodeTypeReLoadHand
             yield return Element;
         
         if (_relations != null)
-            foreach (NodeType node in _relations.OfType<INodeReferences>().SelectMany(n => n.GetReferenceTypes()))
-                yield return node;
+            foreach (var r in _relations.OfType<INodeReferences>())
+                foreach(var node in r.GetReferenceTypes())
+                    yield return node;
         
         foreach (NodeType nodeType in base.GetReferenceTypes())
             yield return nodeType;

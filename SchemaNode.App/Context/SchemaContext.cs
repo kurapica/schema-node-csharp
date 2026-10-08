@@ -125,11 +125,14 @@ public static class AppSchemaContextExtension
         /// <summary>
         /// Gets the node schema with auth properties
         /// </summary>
-        public async Task<NodeSchema?> GetNodeSchemaAsync(NodeType type)
+        public async Task<NodeSchema?> GetNodeSchemaAsync(NodeType type, bool noAuth = false)
         {
             NodeSchema schema = type.GetNodeSchema(context.Runtime)!;
             bool canRead = await context.AuthorizeAsync(type, PolicyScope.SchemaRead, true);
             if (!canRead) return null;
+            if (noAuth) return schema;
+
+            // auth
             bool isSystem = type.GetProperty<SystemDefined>()?.Value == true;
             schema.SetProperty<SchemaRead, bool>(canRead);
             schema.SetProperty<SchemaCreate, bool>(await context.AuthorizeAsync(type, PolicyScope.SchemaCreate, true));
@@ -146,6 +149,7 @@ public static class AppSchemaContextExtension
             HashSet<string>? types = null,
             bool fullRefs = false,
             bool includeUsedBy = false,
+            bool noAuth = false,
             CancellationToken? cancellationToken = null)
         {
             types ??= [];
@@ -157,7 +161,7 @@ public static class AppSchemaContextExtension
             };
             if (!types.Add(nodeType.Name) || nodeType is GenericType) return root;
 
-            NodeSchema? schema = await context.GetNodeSchemaAsync(nodeType);
+            NodeSchema? schema = await context.GetNodeSchemaAsync(nodeType, noAuth);
             if (schema == null) return root;
             
             // install full namespace path
@@ -179,7 +183,7 @@ public static class AppSchemaContextExtension
                     if (sub == null)
                     {
                         cancellationToken?.ThrowIfCancellationRequested();
-                        sub = await context.GetNodeSchemaAsync(n);
+                        sub = await context.GetNodeSchemaAsync(n, noAuth);
                         if (sub == null) return root; // no read permission
                         parent.Schemas = parent.Schemas == null ? [sub] : parent.Schemas.Append(sub).ToArray();
                     }
@@ -204,7 +208,7 @@ public static class AppSchemaContextExtension
                 foreach (NodeType n in nodeType.GetReferenceTypes())
                 {
                     cancellationToken?.ThrowIfCancellationRequested();
-                    await context.GetNodeSchemasAsync(n, root, types, fullRefs, includeUsedBy, cancellationToken);
+                    await context.GetNodeSchemasAsync(n, root, types, fullRefs, includeUsedBy, noAuth, cancellationToken);
                 }
             }
 
@@ -216,7 +220,7 @@ public static class AppSchemaContextExtension
         /// </summary>
         /// <returns></returns>
         public async Task<NodeSchema[]> GetNodeSchemasAsync(Runtime.AppType app, NodeSchema? root = null,
-            HashSet<string>? types = null, bool includeUsedBy = false, CancellationToken? cancellationToken = null)
+            HashSet<string>? types = null, bool includeUsedBy = false, bool noAuth = false, CancellationToken? cancellationToken = null)
         {
             types ??= [];
             root ??= new NodeSchema
@@ -229,7 +233,7 @@ public static class AppSchemaContextExtension
             foreach (NodeType t in app.GetReferenceTypes())
             {
                 cancellationToken?.ThrowIfCancellationRequested();
-                await context.GetNodeSchemasAsync(t, root, types, false, includeUsedBy, cancellationToken);
+                await context.GetNodeSchemasAsync(t, root, types, false, includeUsedBy, noAuth, cancellationToken);
             }
 
             return root.Schemas!;
