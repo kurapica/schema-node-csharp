@@ -10,6 +10,7 @@ using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using SchemaNode.Runtime.Interface;
 using SchemaNode.Node;
+using System.Dynamic;
 
 namespace SchemaNode.Runtime;
 
@@ -172,21 +173,24 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
         await LoadAsync(context);
         Loaded = true;
 
-        (_refTypes, string? error) = await schema.LoadPropertiesAsync(context, props, this as ValueType);
-        Error ??= error;
-        
-        // Loading schema properties after loading, to avoid cycle ref
-        _refTypes = GenericParams == null ? _refTypes : null;
-        
-        // Register UsedBy
-        foreach (NodeType referenceType in GenericParams ?? GetReferenceTypes())
+        context.DeferLoadTask(async () =>
         {
-            if (referenceType is not GenericType)
-                referenceType.AddUsedBy(this);
-        }
+            (_refTypes, string? error) = await schema.LoadPropertiesAsync(context, props, this as ValueType);
+            Error ??= error;
 
-        // notify reload
-        NotifyReload([]);
+            // Loading schema properties after loading, to avoid cycle ref
+            _refTypes = GenericParams == null ? _refTypes : null;
+
+            // Register UsedBy
+            foreach (NodeType referenceType in GenericParams ?? GetReferenceTypes())
+            {
+                if (referenceType is not GenericType)
+                    referenceType.AddUsedBy(this);
+            }
+
+            // notify reload
+            NotifyReload([]);
+        });
     }
 
     private void UnloadType()

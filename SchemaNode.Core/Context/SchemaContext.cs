@@ -26,6 +26,14 @@ namespace SchemaNode.Context;
 /// </summary>
 public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): ISchemaContext, IDisposable
 {
+    #region Lock & Load
+
+    const string LOCK_AND_LOAD_KEY = "__LockAndLoad__";
+    private bool _lockAcquired = false;
+    private ConcurrentQueue<Func<Task>> _deferLoadTasks = [];
+
+    #endregion
+
     #region Properties
 
     /// <summary>
@@ -126,6 +134,27 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     
     #region Methods
 
+    public void DeferLoadTask(Func<Task> task)
+    {
+        if (task == null) return;
+        _deferLoadTasks.Enqueue(task);
+    }
+
+    private async Task ProcessDeferLoadTasksAsync()
+    {
+        while (_deferLoadTasks.TryDequeue(out var task))
+        {
+            try
+            {
+                await task();
+            }
+            catch (Exception e)
+            {
+                LogError(e, "Deferred load task failed");
+            }
+        }
+    }
+
     /// <summary>
     /// Gets the schema node type by name
     /// </summary>
@@ -150,6 +179,8 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
         async Task<NodeType?> LoadNodeTypeAsync(NodeType node, SpanReader spans)
         {
             ReadOnlySpan<char> next = spans.Current;
+            string nextVal = next.IsEmpty ? "" : next.ToString();
+
             NamespaceType? parent = node as NamespaceType;
             NodeType? result = node;
             if (!next.IsEmpty)
@@ -165,7 +196,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     string key = next.Contains(' ') ? next.ToString().Where(c => !char.IsWhiteSpace(c)).ToArray().AsSpan().ToString() : next.ToString();
 
                     // Check cache, allow duplicate if next contains different spaces (e.g. List<T> vs List< T >), keep it simple
-                    if (node.GetGenericType(key) is { } genType) return genType;
+                    if (node.GetGenericType(key) is { } genType && genType.Loaded) return genType;
 
                     List<NodeType> genParams = [];
                     SpanReader genericReader = next[1..^1];
@@ -207,19 +238,33 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
 
                     // Check if the generic type is already loaded
                     genType = node.GetGenericType(key);
-                    if (genType != null && (genType.Loaded || schemaRuntime.LockLoading.TryGetValue(fullName, out var ctx) && ctx == this))
+                    bool acquired = schemaRuntime.LockLoading.TryGetValue(LOCK_AND_LOAD_KEY, out var ctx) && ctx == this;
+                    if (genType != null && (genType.Loaded || acquired))
                         return genType;
 
                     // lock and load
-                    if (!schemaRuntime.LockLoading.TryAdd(fullName, this))
+                    if (!acquired)
                     {
-                        while (true)
+                        if (!schemaRuntime.LockLoading.TryAdd(LOCK_AND_LOAD_KEY, this))
                         {
-                            genType ??= node.GetGenericType(key);
-                            if (genType != null && genType.Loaded)
-                                return genType;
-                            if (schemaRuntime.LockLoading.TryAdd(fullName, this)) break;
-                            await Task.Delay(10);
+                            while (!acquired)
+                            {
+                                genType ??= node.GetGenericType(key);
+                                if (genType != null && genType.Loaded)
+                                    return genType;
+                                if (schemaRuntime.LockLoading.TryAdd(LOCK_AND_LOAD_KEY, this))
+                                {
+                                    acquired = true;
+                                    _lockAcquired = true;
+                                    break;
+                                }
+                                await Task.Delay(10);
+                            }
+                        }
+                        else
+                        {
+                            acquired = true;
+                            _lockAcquired = true;
                         }
                     }
 
@@ -244,35 +289,51 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     }
                     finally
                     {
-                        // simple lock to avoid conflict access
-                        schemaRuntime.LockLoading.TryRemove(fullName, out _);
+                        if (_lockAcquired)
+                        {
+                            _lockAcquired = false;
+                            await ProcessDeferLoadTasksAsync();
+                            schemaRuntime.LockLoading.TryRemove(LOCK_AND_LOAD_KEY, out _);
+                        }
                     }
                 }
                 
                 // Get loaded node type
-                result = parent?.GetNodeType(next);
+                result = parent?.GetNodeType(nextVal);
             }
             // reload means don't load it if not existed
             if (result == null && reload || result?.Loaded == true && !(spans.IsEnd && reload))
                 return result;
 
-            string nextVal = next.IsEmpty ? "" : next.ToString();
-
             string schemaName = parent != result ? $"{parent?.Name}.{nextVal}".Trim('.') : nextVal;
 
             // If in loading state, return the loading task to avoid deadlock
-            if (result != null && schemaRuntime.LockLoading.TryGetValue(schemaName, out var loadingTask) && loadingTask == this)
-                return result;
+            bool acquire = schemaRuntime.LockLoading.TryGetValue(LOCK_AND_LOAD_KEY, out var loadingTask) && loadingTask == this;
+            if (result != null && acquire) return result;
 
             // lock and load
-            if (!schemaRuntime.LockLoading.TryAdd(schemaName, this)){
-                while (true)
+            if (!acquire)
+            {
+                if (!schemaRuntime.LockLoading.TryAdd(LOCK_AND_LOAD_KEY, this))
                 {
-                    result ??= parent?.GetNodeType(nextVal);
-                    if (result != null && result.Loaded) 
-                        return result;
-                    if (schemaRuntime.LockLoading.TryAdd(schemaName, this)) break;
-                    await Task.Delay(10);
+                    while (true)
+                    {
+                        result ??= parent?.GetNodeType(nextVal);
+                        if (result != null && result.Loaded)
+                            return result;
+                        if (schemaRuntime.LockLoading.TryAdd(LOCK_AND_LOAD_KEY, this))
+                        {
+                            acquire = true;
+                            _lockAcquired = true;
+                            break;
+                        }
+                        await Task.Delay(10);
+                    }
+                }
+                else
+                {
+                    acquire = true;
+                    _lockAcquired = true;
                 }
             }
 
@@ -324,7 +385,12 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             finally
             {
                 // simple lock to avoid conflict access
-                schemaRuntime.LockLoading.TryRemove(schemaName, out _);
+                if (_lockAcquired)
+                {
+                    _lockAcquired = false;
+                    await ProcessDeferLoadTasksAsync();
+                    schemaRuntime.LockLoading.TryRemove(LOCK_AND_LOAD_KEY, out _);
+                }
             }
         }
         
