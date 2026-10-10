@@ -11,5 +11,6 @@ namespace SchemaNode.Property.Core;
 [Meta<Static>(true)]
 [Meta<ReadOnly>(true)]
 [Meta<InVisible>(true)]
+[Meta<NoInherit>(true)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_CORE}.{nameof(SystemDefined)}")]
 public class SystemDefined: Property<bool>;

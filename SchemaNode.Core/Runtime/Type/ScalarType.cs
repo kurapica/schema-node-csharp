@@ -68,13 +68,13 @@ public abstract class ScalarType : ValueType
     /// Gets the property with the given type
     /// </summary>
     public override T? GetProperty<T>() where T : class 
-        => base.GetProperty<T>() ?? (BaseType != null ? BaseType.GetProperty<T>() : Runtime?.GetSchemaKindProperty<T>(SchemaKind));
+        => base.GetProperty<T>() ?? (BaseType != null && BaseType.GetProperty<T>() is { Inheritable: true } p ? p : Runtime?.GetSchemaKindProperty<T>(SchemaKind));
 
     /// <summary>
     /// Gets the properties with the given type
     /// </summary>
     public override IEnumerable<T> GetProperties<T>()
-        => this.JoinProperties(base.GetProperties<T>(), BaseType != null ? BaseType.GetProperties<T>() : Runtime?.GetSchemaKindProperties<T>(SchemaKind));
+        => this.JoinProperties(base.GetProperties<T>(), BaseType != null ? BaseType.GetProperties<T>().Where(p => p.Inheritable) : Runtime?.GetSchemaKindProperties<T>(SchemaKind));
     
     #endregion
 }

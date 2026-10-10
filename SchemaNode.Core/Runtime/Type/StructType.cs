@@ -347,11 +347,11 @@ public class StructFieldType : INodeReferences, IPropertyProvider
     /// Get the property with property type
     /// </summary>
     public T? GetProperty<T>() where T : class, IProperty 
-        => Properties?.OfType<T>().FirstOrDefault() ?? Type?.GetProperty<T>();
+        => Properties?.OfType<T>().FirstOrDefault() ?? (Type?.GetProperty<T>() is { Inheritable: true } p ? p : null);
 
     /// <summary>
     /// Gets the properties
     /// </summary>
     public IEnumerable<T> GetProperties<T>() where T : IProperty
-        => this.JoinProperties(Properties?.OfType<T>(), Type?.GetProperties<T>());
+        => this.JoinProperties(Properties?.OfType<T>(), Type?.GetProperties<T>().Where(p => p.Inheritable));
 }

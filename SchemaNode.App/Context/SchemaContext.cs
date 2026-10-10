@@ -10,7 +10,6 @@ using static SchemaNode.Utility.Constant;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
 using NodeType = SchemaNode.Runtime.NodeType;
 using SchemaNode.Struct;
-using SchemaNode.Api.Schema.Info;
 
 namespace SchemaNode.Context;
 
