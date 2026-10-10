@@ -12,8 +12,8 @@ public class JsonSchemaFormatProvider : ISchemaFormatProvider
     /// <inheritdoc/>
     public async Task<SchemaApiFile?> GenerateAppSchemaOutput(SchemaContext context, Runtime.AppType app, string format, CancellationToken cancellationToken)
     {
-        AppSchema schema = await app.GetSchemaAsync(context);
-        schema.NodeSchemas = await context.GetNodeSchemasAsync(app, includeUsedBy: false, noAuth: true, cancellationToken: cancellationToken);
+        AppSchema schema = await app.GetSchemaAsync(context, noAuth: true);
+        schema.NodeSchemas = await context.GetNodeSchemasAsync(app, includeUsedBy: false, fullRefs: true, noAuth: true, fullEnum: true, cancellationToken: cancellationToken);
 
         // Generate output stream
         return new SchemaApiFile

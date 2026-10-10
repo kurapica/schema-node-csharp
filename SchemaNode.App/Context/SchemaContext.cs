@@ -9,6 +9,8 @@ using RuntimeAppType = SchemaNode.Runtime.AppType;
 using static SchemaNode.Utility.Constant;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
 using NodeType = SchemaNode.Runtime.NodeType;
+using SchemaNode.Struct;
+using SchemaNode.Api.Schema.Info;
 
 namespace SchemaNode.Context;
 
@@ -150,6 +152,7 @@ public static class AppSchemaContextExtension
             bool fullRefs = false,
             bool includeUsedBy = false,
             bool noAuth = false,
+            bool fullEnum = false,
             CancellationToken? cancellationToken = null)
         {
             types ??= [];
@@ -202,13 +205,26 @@ public static class AppSchemaContextExtension
                 parent.Schemas = parent.Schemas.Append(schema).ToArray();
             }
 
+            // Enum sub values
+            if (nodeType is Runtime.EnumType enumType && fullEnum)
+            {
+                var enumSchema = schema.GetProperty<EnumProperty>()?.Value;
+                if (enumSchema != null && enumSchema.Values is { Length: > 0 })
+                {
+                    foreach (var valueEntry in enumSchema.Values)
+                        await context.BuildEnumChildren(enumType, valueEntry);
+                    schema.SetProperty<EnumProperty, EnumSchema>(enumSchema);
+                }
+            }
+
             // add references
             if (fullRefs == true)
             {
                 foreach (NodeType n in nodeType.GetReferenceTypes())
                 {
+                    if (n.GetProperty<SystemDefined>()?.Value == true) continue;
                     cancellationToken?.ThrowIfCancellationRequested();
-                    await context.GetNodeSchemasAsync(n, root, types, fullRefs, includeUsedBy, noAuth, cancellationToken);
+                    await context.GetNodeSchemasAsync(n, root, types, fullRefs, includeUsedBy, noAuth, fullEnum, cancellationToken);
                 }
             }
 
@@ -220,7 +236,7 @@ public static class AppSchemaContextExtension
         /// </summary>
         /// <returns></returns>
         public async Task<NodeSchema[]> GetNodeSchemasAsync(Runtime.AppType app, NodeSchema? root = null,
-            HashSet<string>? types = null, bool includeUsedBy = false, bool noAuth = false, CancellationToken? cancellationToken = null)
+            HashSet<string>? types = null, bool includeUsedBy = false, bool fullRefs = false, bool noAuth = false, bool fullEnum = false, CancellationToken? cancellationToken = null)
         {
             types ??= [];
             root ??= new NodeSchema
@@ -233,10 +249,22 @@ public static class AppSchemaContextExtension
             foreach (NodeType t in app.GetReferenceTypes())
             {
                 cancellationToken?.ThrowIfCancellationRequested();
-                await context.GetNodeSchemasAsync(t, root, types, false, includeUsedBy, noAuth, cancellationToken);
+                await context.GetNodeSchemasAsync(t, root, types, fullRefs, includeUsedBy, noAuth, fullEnum, cancellationToken);
             }
 
             return root.Schemas!;
+        }
+
+        private async Task BuildEnumChildren(Runtime.EnumType enumType, Entry<string> valueEntry)
+        {
+            if (valueEntry.HasChildren != true) return;
+            var access = await enumType.GetEnumEntryAccessAsync(context, valueEntry.Value);
+            valueEntry.Children = access.LastOrDefault()?.Children;
+            if (valueEntry.Children is { Length: > 0 })
+            {
+                foreach (var child in valueEntry.Children)
+                    await context.BuildEnumChildren(enumType, child);
+            }
         }
     }
 }

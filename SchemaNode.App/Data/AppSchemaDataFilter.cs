@@ -523,7 +523,7 @@ public static class AppSchemaDataFilterExtensions
                     {
                         IValueAccess val = binary.Right.Test(context, structNode);
                         AppSchemaDataFilterValue? container = binary.Left as AppSchemaDataFilterValue;
-                        if (container == null || container.Value is not IEnumerable<object> enums || val.IsEmpty || !val.GetType().IsSubclassOfGenericType(typeof(ScalarNode<>))) return context.System.Bool.From(false);
+                        if (container == null || container.Value is not IEnumerable<object> enums || val.IsEmpty || !val.GetType().IsAssignableTo(typeof(ScalarNode))) return context.System.Bool.From(false);
                         
                         bool exist = enums.Any(e => e.ToString() == val.ToString());
                         return binary.Type switch

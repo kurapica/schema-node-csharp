@@ -35,7 +35,7 @@ public class Entry<T>: PropertyOwner where T: notnull
     /// The children entries of the entry
     /// </summary>
     [SchemaIgnore]
-    public Entry<T>[]? Children;
+    public Entry<T>[]? Children { get; set; }
 
     #region Runtime info
 

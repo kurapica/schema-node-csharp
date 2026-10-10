@@ -40,7 +40,7 @@ public class Auths : Property<PolicyItem[]>, ILoadableProperty, IErrorProvider, 
         }
     }
 
-    public IEnumerable<string> GetTypeRefs()
+    public IEnumerable<string> GetRefTypes()
     {
         if (Value == null) yield break;
         foreach (var item in Value)
