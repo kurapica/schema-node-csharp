@@ -511,7 +511,7 @@
           },
           "kind": "call",
           "target": "city",
-          "property": "system.schema.prop.common.visible"
+          "property": "visible"
         },
         {
           "call": {
@@ -530,7 +530,7 @@
           },
           "kind": "call",
           "target": "city",
-          "property": "system.schema.prop.enum.root"
+          "property": "root"
         },
         {
           "call": {
@@ -549,7 +549,7 @@
           },
           "kind": "call",
           "target": "admindiv",
-          "property": "system.schema.prop.common.visible"
+          "property": "visible"
         },
         {
           "call": {
@@ -568,7 +568,7 @@
           },
           "kind": "call",
           "target": "admindiv",
-          "property": "system.schema.prop.enum.root"
+          "property": "root"
         },
         {
           "call": {
@@ -587,7 +587,7 @@
           },
           "kind": "call",
           "target": "address",
-          "property": "system.schema.prop.common.visible"
+          "property": "visible"
         }
       ]
     },

@@ -1,0 +1,665 @@
+[
+  {
+    "namespace": "activity",
+    "name": "admindiv",
+    "kind": "enum",
+    "enum": {
+      "type": "int",
+      "cascade": [
+        {
+          "key": "Province",
+          "trans": [
+            {
+              "lang": "zhCN",
+              "tran": "省"
+            }
+          ]
+        },
+        {
+          "key": "City",
+          "trans": [
+            {
+              "lang": "zhCN",
+              "tran": "市"
+            }
+          ]
+        },
+        {
+          "key": "Prefecture",
+          "trans": [
+            {
+              "lang": "zhCN",
+              "tran": "地"
+            }
+          ]
+        },
+        {
+          "key": "County",
+          "trans": [
+            {
+              "lang": "zhCN",
+              "tran": "县"
+            }
+          ]
+        }
+      ],
+      "values": [
+        {
+          "value": "330000",
+          "hasChildren": true,
+          "display": {
+            "key": "Zhe Jiang",
+            "trans": [
+              {
+                "lang": "zhCN",
+                "tran": "浙江"
+              }
+            ]
+          },
+          "children": [
+            {
+              "value": "330100",
+              "hasChildren": true,
+              "display": {
+                "key": "Hang Zhou",
+                "trans": [
+                  {
+                    "lang": "zhCN",
+                    "tran": "杭州市"
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "value": "330102",
+                  "hasChildren": true,
+                  "display": {
+                    "key": "Shang Cheng Section",
+                    "trans": [
+                      {
+                        "lang": "zhCN",
+                        "tran": "上城区"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "value": "330102001",
+                      "hasChildren": false,
+                      "display": {
+                        "key": "Qing Bo Road",
+                        "trans": [
+                          {
+                            "lang": "zhCN",
+                            "tran": "清波街道"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "value": "330102003",
+                      "hasChildren": false,
+                      "display": {
+                        "key": "Hu Bing Road",
+                        "trans": [
+                          {
+                            "lang": "zhCN",
+                            "tran": "湖滨街道"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "value": "330106",
+                  "hasChildren": true,
+                  "display": {
+                    "key": "Xi Hu Section",
+                    "trans": [
+                      {
+                        "lang": "zhCN",
+                        "tran": "西湖区"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "value": "330106002",
+                      "hasChildren": false,
+                      "display": {
+                        "key": "Bei Shan Road"
+                      }
+                    },
+                    {
+                      "value": "330106003",
+                      "hasChildren": false,
+                      "display": {
+                        "key": "LIng Yin Road",
+                        "trans": [
+                          {
+                            "lang": "zhCN",
+                            "tran": "灵隐街道"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "value": "330106110",
+                      "hasChildren": false,
+                      "display": {
+                        "key": "Shang Pu Villiage",
+                        "trans": [
+                          {
+                            "lang": "zhCN",
+                            "tran": "双浦镇"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "value": "330110",
+                  "hasChildren": true,
+                  "display": {
+                    "key": "Yu Hang Section",
+                    "trans": [
+                      {
+                        "lang": "zhCN",
+                        "tran": "余杭区"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "value": "330110005",
+                      "hasChildren": false,
+                      "display": {
+                        "key": "Wu Chang Road",
+                        "trans": [
+                          {
+                            "lang": "zhCN",
+                            "tran": "五常街道"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "value": "330110011",
+                      "hasChildren": false,
+                      "display": {
+                        "key": "Zhong Tai Road",
+                        "trans": [
+                          {
+                            "lang": "zhCN",
+                            "tran": "中泰街道"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "value": "330200",
+              "hasChildren": true,
+              "display": {
+                "key": "Ning Bo",
+                "trans": [
+                  {
+                    "lang": "zhCN",
+                    "tran": "宁波市"
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "value": "330205",
+                  "hasChildren": true,
+                  "display": {
+                    "key": "Jiang Bei Section",
+                    "trans": [
+                      {
+                        "lang": "zhCN",
+                        "tran": "江北区"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "value": "330205003",
+                      "hasChildren": false,
+                      "display": {
+                        "key": "Kong Pu Road",
+                        "trans": [
+                          {
+                            "lang": "zhCN",
+                            "tran": "孔浦街道"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "value": "330205004",
+                      "hasChildren": false,
+                      "display": {
+                        "key": "Wen Jiao Road",
+                        "trans": [
+                          {
+                            "lang": "zhCN",
+                            "tran": "文教街道"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "value": "330211",
+                  "hasChildren": true,
+                  "display": {
+                    "key": "Zhen Hai Section",
+                    "trans": [
+                      {
+                        "lang": "zhCN",
+                        "tran": "镇海区"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "value": "330211003",
+                      "hasChildren": false,
+                      "display": {
+                        "key": "Luo Tuo Road",
+                        "trans": [
+                          {
+                            "lang": "zhCN",
+                            "tran": "骆驼街道"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "value": "330211101",
+                      "hasChildren": false,
+                      "display": {
+                        "key": "Nine Dragon Village",
+                        "trans": [
+                          {
+                            "lang": "zhCN",
+                            "tran": "九龙湖镇"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "value": "340000",
+          "hasChildren": true,
+          "display": {
+            "key": "An Hui",
+            "trans": [
+              {
+                "lang": "zhCN",
+                "tran": "安徽"
+              }
+            ]
+          },
+          "children": [
+            {
+              "value": "340100",
+              "hasChildren": true,
+              "display": {
+                "key": "He Fei",
+                "trans": [
+                  {
+                    "lang": "zhCN",
+                    "tran": "合肥"
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "value": "340122",
+                  "hasChildren": true,
+                  "display": {
+                    "key": "Fei Dong County",
+                    "trans": [
+                      {
+                        "lang": "zhCN",
+                        "tran": "肥东县"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "value": "340122105",
+                      "hasChildren": false,
+                      "display": {
+                        "key": "Ba Dou Village",
+                        "trans": [
+                          {
+                            "lang": "zhCN",
+                            "tran": "八斗镇"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "value": "340122106",
+                      "hasChildren": false,
+                      "display": {
+                        "key": "Whte Dragon Village",
+                        "trans": [
+                          {
+                            "lang": "zhCN",
+                            "tran": "白龙镇"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "value": "340122110",
+                      "hasChildren": false,
+                      "display": {
+                        "key": "Bao Gong Village",
+                        "trans": [
+                          {
+                            "lang": "zhCN",
+                            "tran": "包公镇"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "value": "340123",
+                  "hasChildren": false,
+                  "display": {
+                    "key": "Fei  Xi County",
+                    "trans": [
+                      {
+                        "lang": "zhCN",
+                        "tran": "肥西县"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "value": "430000",
+          "hasChildren": false,
+          "display": {
+            "key": "Hu Nan",
+            "trans": [
+              {
+                "lang": "zhCN",
+                "tran": "湖南"
+              }
+            ]
+          }
+        },
+        {
+          "value": "440000",
+          "hasChildren": false,
+          "display": {
+            "key": "Guang Dong",
+            "trans": [
+              {
+                "lang": "zhCN",
+                "tran": "广东"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "display": {
+      "key": "Administrative division",
+      "trans": [
+        {
+          "lang": "zhCN",
+          "tran": "行政区划"
+        }
+      ]
+    }
+  },
+  {
+    "namespace": "activity",
+    "name": "address",
+    "kind": "struct",
+    "struct": {
+      "fields": [
+        {
+          "name": "province",
+          "type": "activity.admindiv",
+          "display": {
+            "key": "Province",
+            "trans": [
+              {
+                "lang": "zhCN",
+                "tran": "省"
+              }
+            ]
+          },
+          "require": true,
+          "leafOnly": true,
+          "cascadeDepth": 1
+        },
+        {
+          "name": "city",
+          "type": "activity.admindiv",
+          "display": {
+            "key": "City",
+            "trans": [
+              {
+                "lang": "zhCN",
+                "tran": "市"
+              }
+            ]
+          },
+          "require": true,
+          "leafOnly": true,
+          "cascadeDepth": 2
+        },
+        {
+          "name": "admindiv",
+          "type": "activity.admindiv",
+          "require": true
+        },
+        {
+          "name": "address",
+          "type": "system.string",
+          "display": {
+            "key": "Address",
+            "trans": [
+              {
+                "lang": "zhCN",
+                "tran": "详细地址"
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [
+        {
+          "call": {
+            "args": [
+              {
+                "name": {
+                  "key": "system.logic.notempty.a"
+                },
+                "type": "system.object",
+                "source": "province",
+                "sourceType": "activity.admindiv"
+              }
+            ],
+            "func": "system.logic.notempty",
+            "mode": "call"
+          },
+          "kind": "call",
+          "target": "city",
+          "property": "system.schema.prop.common.visible"
+        },
+        {
+          "call": {
+            "args": [
+              {
+                "name": {
+                  "key": "system.intrinsic.assign.value"
+                },
+                "type": "activity.admindiv",
+                "source": "province",
+                "sourceType": "activity.admindiv"
+              }
+            ],
+            "func": "system.intrinsic.assign<activity.admindiv>",
+            "mode": "call"
+          },
+          "kind": "call",
+          "target": "city",
+          "property": "system.schema.prop.enum.root"
+        },
+        {
+          "call": {
+            "args": [
+              {
+                "name": {
+                  "key": "system.logic.notempty.a"
+                },
+                "type": "system.object",
+                "source": "city",
+                "sourceType": "activity.admindiv"
+              }
+            ],
+            "func": "system.logic.notempty",
+            "mode": "call"
+          },
+          "kind": "call",
+          "target": "admindiv",
+          "property": "system.schema.prop.common.visible"
+        },
+        {
+          "call": {
+            "args": [
+              {
+                "name": {
+                  "key": "system.intrinsic.assign.value"
+                },
+                "type": "activity.admindiv",
+                "source": "city",
+                "sourceType": "activity.admindiv"
+              }
+            ],
+            "func": "system.intrinsic.assign<activity.admindiv>",
+            "mode": "call"
+          },
+          "kind": "call",
+          "target": "admindiv",
+          "property": "system.schema.prop.enum.root"
+        },
+        {
+          "call": {
+            "args": [
+              {
+                "name": {
+                  "key": "system.logic.notempty.a"
+                },
+                "type": "system.object",
+                "source": "admindiv",
+                "sourceType": "activity.admindiv"
+              }
+            ],
+            "func": "system.logic.notempty",
+            "mode": "call"
+          },
+          "kind": "call",
+          "target": "address",
+          "property": "system.schema.prop.common.visible"
+        }
+      ]
+    },
+    "display": {
+      "key": "Address",
+      "trans": [
+        {
+          "lang": "zhCN",
+          "tran": "地址"
+        }
+      ]
+    }
+  },
+  {
+    "namespace": "activity",
+    "name": "minmax",
+    "kind": "struct",
+    "struct": {
+      "fields": [
+        {
+          "name": "min",
+          "type": "system.int",
+          "display": {
+            "key": "Min",
+            "trans": [
+              {
+                "lang": "zhCN",
+                "tran": "最小值"
+              }
+            ]
+          }
+        },
+        {
+          "name": "max",
+          "type": "system.int",
+          "display": {
+            "key": "Max",
+            "trans": [
+              {
+                "lang": "zhCN",
+                "tran": "最大值"
+              }
+            ]
+          }
+        }
+      ],
+      "relations": [
+        {
+          "call": {
+            "args": [
+              {
+                "type": "system.int",
+                "source": "min"
+              }
+            ],
+            "func": "system.intrinsic.assign<system.int>",
+            "mode": "call"
+          },
+          "kind": "call",
+          "target": "max",
+          "property": "lowlimit"
+        }
+      ]
+    },
+    "display": {
+      "key": "Data Range",
+      "trans": [
+        {
+          "lang": "zhCN",
+          "tran": "值范围"
+        }
+      ]
+    }
+  }
+]

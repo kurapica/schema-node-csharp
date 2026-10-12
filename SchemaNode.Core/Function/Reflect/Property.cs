@@ -7,6 +7,7 @@ using SchemaNode.Property.Property;
 using SchemaNode.Runtime;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
+using System.Runtime.InteropServices;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Function.Reflect;
@@ -51,7 +52,9 @@ public static class Property
     /// <summary>
     /// Gets the property value type of the given kind
     /// </summary>
-    public static async Task<string?> getkindpropvaluetype(SchemaContext context, string property, [Meta<SchemaType>(NS_SYSTEM_SCHEMA_KIND)] params string[] kinds)
+    public static async Task<string?> getkindpropvaluetype(SchemaContext context, string property, 
+        [Meta<SchemaType>(typeof(Schema.ValueType))] string ownerType, 
+        [Meta<SchemaType>(NS_SYSTEM_SCHEMA_KIND)] params string[] kinds)
     {
         foreach (var kind in kinds)
         {
@@ -64,7 +67,21 @@ public static class Property
                 if (property.Equals(name, StringComparison.OrdinalIgnoreCase))
                 {
                     var type = await context.GetNodeTypeAsync<PropertyType>(schemaType);
-                    if (type != null) return type.ValueType?.Name;
+                    if (type == null) continue;
+                    if (!string.IsNullOrWhiteSpace(ownerType))
+                    {
+                        var resolver = type.GetProperty<PropertyValueTypeResolver>()?.Value;
+                        if (!string.IsNullOrWhiteSpace(resolver))
+                        {
+                            var func = await context.GetNodeTypeAsync<FunctionType>(resolver);
+                            if (func != null)
+                            {
+                                var res = await func.CallAsync<string>(context, [ownerType]);
+                                if (!string.IsNullOrWhiteSpace(res)) return res;
+                            }
+                        }
+                    }
+                    return type.ValueType?.Name == NS_SYSTEM_OBJECT && !string.IsNullOrWhiteSpace(ownerType) ? ownerType : type.ValueType?.Name;
                 }
             }
         }
@@ -107,18 +124,6 @@ public static class Property
         return !(propertyType?.GetProperty<Stackable>()?.Value ?? false);
     }
     
-    /// <summary>
-    /// Gets the property value type
-    /// </summary>
-    public static async Task<string?> getvaluetype(SchemaContext context, 
-        [Meta<SchemaType>(typeof(Schema.PropertyType))] string name,
-        [Meta<SchemaType>(typeof(Schema.ValueType))] string? ownerType = null)
-    {
-        var prop = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<Runtime.PropertyType>(name) : null;
-        var typeName = prop?.ValueType?.Name;
-        return typeName == NS_SYSTEM_OBJECT && !string.IsNullOrWhiteSpace(ownerType) ? ownerType : typeName;
-    }
-
     /// <summary>
     /// The property is for the schema kind, which means it can be used in the schema kind
     /// </summary>
