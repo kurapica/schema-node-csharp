@@ -57,3 +57,9 @@ SchemaNode 正是沿着这个问题继续发展的。
 - 💻 [源码与贡献](https://github.com/kurapica/schema-node-csharp)
 
 **我们目前只是打开了多维语义空间的一小部分。真正的多维语义空间，还有待继续探索。**
+
+## 联系我们
+
+您可以在 Discord 上加入我们的社区：[5xZuk7kMpz](https://discord.gg/5xZuk7kMpz)
+
+也可以加入 QQ 群：[1043828069](https://qm.qq.com/cgi-bin/qm/qr?k=q7Fr8seFSdRzgAD-j5d3OZDKIWNNES3U)

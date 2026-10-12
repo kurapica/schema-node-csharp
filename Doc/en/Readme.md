@@ -61,3 +61,7 @@ The architecture documentation systematically introduces SchemaNode's design mot
 - 💻 [Source Code and Contributions](https://github.com/kurapica/schema-node-csharp)
 
 **We have only opened up a small part of the multi-dimensional semantic space. The true multi-dimensional semantic space still awaits further exploration.**
+
+## Contact
+
+You can join the community on [Discord](https://discord.gg/5xZuk7kMpz).
