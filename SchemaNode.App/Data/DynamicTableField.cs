@@ -96,7 +96,7 @@ public class DynamicTableField
     /// <summary>
     /// Get JToken from reader
     /// </summary>
-    public DataNode? FromReader(DbDataReader reader, int col = 0)
+    public IValueAccess? FromReader(DbDataReader reader, int col = 0)
     {
         if (reader.IsDBNull(col)) return null;
         object? data;
@@ -128,7 +128,7 @@ public class DynamicTableField
                 DynamicTableFieldType.UBigInt => reader.GetInt64(col),
                 DynamicTableFieldType.Float => reader.GetFloat(col),
                 DynamicTableFieldType.Double => reader.GetDouble(col),
-                DynamicTableFieldType.DateTime => reader.GetDateTime(col),
+                DynamicTableFieldType.DateTime => new DateTimeOffset(reader.GetDateTime(col), TimeSpan.Zero),
                 _ => reader.GetString(col)
             });
         }
@@ -139,7 +139,7 @@ public class DynamicTableField
     /// <summary>
     /// Gets the string of the JToken value
     /// </summary>
-    public string? ToString(DataNode? value)
+    public string? ToString(IValueAccess? value)
     {
         if (value == null || value.IsEmpty) return null;
 

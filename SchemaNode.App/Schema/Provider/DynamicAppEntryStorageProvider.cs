@@ -2,7 +2,6 @@ using SchemaNode.Context;
 using SchemaNode.Data;
 using SchemaNode.Data.Entity;
 using SchemaNode.Runtime;
-using SchemaNode.Property;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
@@ -22,7 +21,7 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
     {
         try
         {
-            List<NodeSchema> result = new();
+            List<NodeSchema> result = [];
             foreach (string name in names)
             {
                 NodeSchema? schema;
@@ -34,7 +33,7 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
                     schema = new NodeSchema
                     {
                         Name = name,
-                        Kind = SCHEMA_KIND_NAMESPACE,
+                        Kind = NODE_KIND_NAMESPACE,
                     };
                 }
                 else
@@ -50,7 +49,7 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
                         {
                             Namespace = namespaceName,
                             Name = schemaName,
-                            Kind = SCHEMA_KIND_NAMESPACE,
+                            Kind = NODE_KIND_NAMESPACE,
                         };
                         checkSubNs = true;
                     }
@@ -58,26 +57,45 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
 
                 switch (schema.Kind)
                 {
-                    case SCHEMA_KIND_NAMESPACE: 
+                    case NODE_KIND_NAMESPACE: 
                     {
                         // sub namespace
                         string ns = string.IsNullOrEmpty(schema.Name) ? ROOT : schema.FullName;
                         NodeSchema[] value = (await context.GetEntitiesAsync<NodeEntity>(Target, s => s.Namespace == ns)).Select(s => (NodeSchema)s!).ToArray();
                         if (value.Length == 0 && checkSubNs) continue;
                         schema.Schemas = value;
+                        foreach (NodeSchema sub in value)
+                        {
+                            if (sub.Kind == NODE_KIND_ENUM)
+                            {
+                                EnumSchema? @enum = sub.GetProperty<EnumProperty>()?.Value;
+                                if (@enum is { Cascade.Length: > 0 })
+                                {
+                                    foreach (var v in @enum.Values)
+                                    {
+                                        v.HasChildren = (await context.GetEntitiesAsync<EnumValueEntity>(Target,e => e.Enum == sub.FullName && e.Root == v.Value, take: 1)).Count != 0;
+                                    }
+                                    sub.SetProperty<EnumProperty, EnumSchema>(@enum);
+                                }
+                            }
+                        }
                         break;
                     }
-                    case SCHEMA_KIND_ENUM:
+                    case NODE_KIND_ENUM:
+                    {
                         EnumSchema? @enum = schema.GetProperty<EnumProperty>()?.Value;
                         if (@enum is { Cascade.Length: > 0 })
                         {
                             foreach (var value in @enum.Values)
                             {
-                                value.HasChildren = (await context.GetEntitiesAsync<EnumValueEntity>(Target,e => e.Enum == schema.FullName && e.Root == value.Value, take: 1)).Count != 0;
+                                value.HasChildren = (await context.GetEntitiesAsync<EnumValueEntity>(Target,
+                                    e => e.Enum == schema.FullName && e.Root == value.Value, take: 1)).Count != 0;
                             }
+
                             schema.SetProperty<EnumProperty, EnumSchema>(@enum);
                         }
                         break;
+                    }
                 }
 
                 result.Add(schema);
@@ -127,7 +145,7 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
 
             switch (nodeSchema.Kind)
             {
-                case SCHEMA_KIND_ENUM:
+                case NODE_KIND_ENUM:
                     if (delNode is Runtime.EnumType { Cascade.Length: > 0 })
                         await context.DeleteEntitiesAsync<EnumValueEntity>(Target, e => e.Enum == nodeSchema.FullName);
                     break;
@@ -276,7 +294,7 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
                     e.Enum = name;
                     e.Root = value;
                     e.HasChildren = false;
-                    e.Seqno = i;
+                    e.Seqno = i + 1;
                     
                     var exist = existEntries.FirstOrDefault(v => v.Value.Equals(e.Value, StringComparison.OrdinalIgnoreCase));
                     if (exist != null) e.HasChildren = exist.HasChildren; // keep the sub list info if exist

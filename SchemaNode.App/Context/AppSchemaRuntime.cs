@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
@@ -16,7 +17,7 @@ public class AppSchemaRuntime : SchemaRuntime
 {
     #region System App schema
 
-    private readonly AppSchema _rootAppSchema = new();
+    private readonly AppSchema _rootAppSchema = new AppSchema{ Name = "" };
     private readonly ConcurrentDictionary<string, Type> _appFieldTypes = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<Type, (string App, string Field)> _typeAppFields = new();
     private readonly ConcurrentDictionary<string, AppType> _apps = new(StringComparer.OrdinalIgnoreCase);
@@ -29,6 +30,7 @@ public class AppSchemaRuntime : SchemaRuntime
         string schemaName = schema.FullName.ToLowerInvariant();
         AppSchema root = _rootAppSchema;
         string fullPath = "";
+        schema.SetProperty<SystemDefined, bool>(true);
 
         SpanReader reader = schemaName;
         while(reader.NextNamespace())
@@ -56,6 +58,7 @@ public class AppSchemaRuntime : SchemaRuntime
                         Container = container
                     };
                     node.SetProperty<Display, LocaleString>(node.FullName);
+                    node.SetProperty<SystemDefined, bool>(true);
                     
                     root.Apps = root.Apps != null ? root.Apps.Concat([node]).ToArray() : [node];
                     root = node;
@@ -133,6 +136,7 @@ public class AppSchemaRuntime : SchemaRuntime
                     Container = node.FullName
                 };
                 curr.SetProperty<Display, LocaleString>(curr.FullName);
+                curr.SetProperty<SystemDefined, bool>(true);
                 node.Apps = node.Apps != null ? node.Apps.Concat([curr]).ToArray() : [curr];
             }
             node = curr;
@@ -153,10 +157,13 @@ public class AppSchemaRuntime : SchemaRuntime
     /// Gets the app & field of the given type
     /// </summary>
     public (AppType? App, AppFieldType? Field) GetSystemAppField(Type fieldType)
-        => _typeAppFields.TryGetValue(fieldType, out var info) && _apps.TryGetValue(info.App, out var app)
-            ? (app, app.GetField(info.Field))
-            : (null, null);
-    
+    {
+        if (_typeAppFields.TryGetValue(fieldType, out var info))
+            if (_apps.TryGetValue(info.App, out var app))
+                return (app, app.GetField(info.Field));
+        return (null, null);
+    }
+
     /// <summary>
     /// Gets the app & field of the given type
     /// </summary>

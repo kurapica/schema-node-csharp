@@ -445,7 +445,7 @@ public class FunctionTypeTest : Base.CoreTestBase
     [TestMethod]
     public async Task SystemCollection_Contains()
     {
-        var arrType = await Context.GetNodeTypeAsync<ArrayType>("system.array");
+        var arrType = await Context.GetNodeTypeAsync<ArrayType>("system.list<system.int>");
         Assert.IsNotNull(arrType);
         var arrNode = arrType.Create() as ArrayNode;
         Assert.IsNotNull(arrNode);

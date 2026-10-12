@@ -7,6 +7,7 @@ using SchemaNode.Utility;
 using SchemaNode.Workflow;
 using System.Reflection;
 using SchemaNode.Property.App;
+using SchemaNode.Property.Core;
 using static SchemaNode.Utility.AppConstant;
 
 namespace SchemaNode.Runtime;
@@ -137,7 +138,7 @@ public sealed class AppWorkflowType: IDisposable
     /// Get the application workflow schema
     /// </summary>
     /// <returns></returns>
-    public async Task<AppWorkflowSchema> GetSchemaAsync(SchemaContext context)
+    public async Task<AppWorkflowSchema> GetSchemaAsync(SchemaContext context, bool noAuth = false)
     {
         AppWorkflowSchema schema = new AppWorkflowSchema
         {
@@ -170,12 +171,16 @@ public sealed class AppWorkflowType: IDisposable
             }).ToArray()
         };
         schema.CombineProperties(_appWorkflowSchema);
-        
+
         // The auth properties
-        schema.SetProperty<SchemaCreate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true));
-        schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true));
-        schema.SetProperty<SchemaUpdate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true));
-        schema.SetProperty<SchemaDelete, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true));
+        if (!noAuth)
+        {
+            bool isSystem = Application.GetProperty<SystemDefined>()?.Value == true;
+            schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true));
+            schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true));
+            schema.SetProperty<SchemaUpdate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true));
+            schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true));
+        }
         
         return schema;
     }

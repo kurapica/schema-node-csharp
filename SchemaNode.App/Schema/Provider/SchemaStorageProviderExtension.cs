@@ -2,10 +2,12 @@
 using SchemaNode.Data;
 using SchemaNode.Enum;
 using SchemaNode.Event;
+using SchemaNode.Property;
 using SchemaNode.Property.App;
 using SchemaNode.Runtime;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
+using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Schema.Provider;
@@ -17,6 +19,7 @@ public static class SchemaStorageProviderExtension
     /// </summary>
     public static async Task<bool> SaveSchemaAsync(this SchemaContext context, NodeSchema schema)
     {
+        ClearPolicyFlags(schema);
         NodeType? node = await context.GetNodeTypeAsync(schema.FullName);
 
         // authorize
@@ -24,7 +27,7 @@ public static class SchemaStorageProviderExtension
         if (node == null)
         {
             string name = schema.FullName.GetNamespace();
-            while (!string.IsNullOrEmpty(name) && (parent = await context.GetNodeTypeAsync(name)) is not {})
+            while (!string.IsNullOrEmpty(name) && (parent = await context.GetNodeTypeAsync(name)) is null)
                 name = name.GetNamespace();
             
             // parent if creation
@@ -39,9 +42,44 @@ public static class SchemaStorageProviderExtension
         // Gets storage provider
         IAppEntryStorageProvider? provider = context.GetService<IAppEntryStorageProvider>();
         if (provider == null) return false;
+        
+        // enum check
+        Queue<(string, Entry<string>[])>? enumValues = null;
+        if (schema.Kind == NODE_KIND_ENUM)
+        {
+            EnumSchema? enumSchema = schema.GetProperty<EnumProperty>()?.Value;
+            if (enumSchema != null)
+            {
+                void ScanChildren(Entry<string>[] children, int cascade)
+                {
+                    foreach (Entry<string> child in children)
+                    {
+                        Entry<string>[] childs = (child.Children is {  Length: > 0 } 
+                            ? child.Children 
+                            : (child.Extensions != null && child.Extensions.TryGetValue("children", out JsonNode? a) && a is JsonArray arr ? arr.ToValue<Entry<string>[]>() : [])) ?? [];
+
+                        if (cascade > 1 && childs is { Length: > 0 })
+                        {
+                            enumValues ??= [];
+                            enumValues.Enqueue((child.Value, childs));
+                            ScanChildren(childs, cascade - 1);
+                        }
+                        child.Children = null;
+                        child.Extensions?.Remove("children");
+                    }
+                }
+                ScanChildren(enumSchema.Values, enumSchema.Cascade?.Length ?? 1);
+                schema.SetProperty<EnumProperty, EnumSchema>(enumSchema);
+            }
+        }
 
         // save schema
         if (!await provider.SaveSchemaAsync(schema)) return false;
+        
+        // enum sub entries
+        if (enumValues is { Count: > 0 })
+            foreach ((string, Entry<string>[]) value in enumValues)
+                await provider.SaveEnumEntriesAsync(schema.FullName, value.Item1, value.Item2, false);
 
         // save runtime
         if (node == null)
@@ -50,10 +88,10 @@ public static class SchemaStorageProviderExtension
             if (parent is Runtime.NamespaceType ns)
                 ns.SaveNodeSchema(schema);
         }
-        await context.GetNodeTypeAsync(schema.Name, reload: true); // force reload
+        await context.GetNodeTypeAsync(schema.FullName, reload: true); // force reload
         
         // check sub schemas
-        if (schema is { Kind: SCHEMA_KIND_NAMESPACE, Schemas.Length: > 0 })
+        if (schema is { Kind: NODE_KIND_NAMESPACE, Schemas.Length: > 0 })
             foreach (var subSchema in schema.Schemas)
                 await context.SaveSchemaAsync(subSchema);
         
@@ -85,7 +123,7 @@ public static class SchemaStorageProviderExtension
         if (!await provider.DeleteSchemaAsync(name)) return false;
 
         // runtime remove
-        node.Namespace?.RemoveNodeSchema(name);
+        node.Namespace?.RemoveNodeSchema(name.GetSchemaName());
 
         // event
         context.RaiseEvent<SchemaDeleteEvent, string>(name);
@@ -109,41 +147,27 @@ public static class SchemaStorageProviderExtension
         NodeType? node = await context.GetNodeTypeAsync(name);
         if (node is not Runtime.EnumType { Cascade.Length: > 1 } @enum) return false;
 
+        EntryAccess<string>[] access = await @enum.GetEnumEntryAccessAsync(context, value);
+        if (access.Length == 0 || string.IsNullOrWhiteSpace(access.Last().Entry?.Value)) return false;
+        
         // authorize
         await context.AuthorizeAsync(@enum, PolicyScope.SchemaUpdate);
 
         // gets storage provider
         IAppEntryStorageProvider? provider = context.GetService<IAppEntryStorageProvider>();
         if (provider == null) return false;
-                
-        // Need check the delete case when it has sub list, only delete the leaf node
-        await context.SaveSubEnumListWithoutNonLeafNodesDeleted(provider, @enum, value, values, append);
+
+        foreach (var entry in values)
+            entry.Children = null;
+        await provider.SaveEnumEntriesAsync(name, value, values, append);
 
         // Reload to avoid strange errors
         await context.GetNodeTypeAsync(@enum.Name, reload: true);
 
         // event
-        if (!noEvent)
-            context.RaiseEvent<SchemaChangeEvent, string>(node.Name);
+        if (!noEvent) context.RaiseEvent<SchemaChangeEvent, string>(node.Name);
         return true;
     }
-
-    static async Task SaveSubEnumListWithoutNonLeafNodesDeleted(this SchemaContext context, IAppEntryStorageProvider provider, Runtime.EnumType @enum, string value, Entry<string>[] values, bool append = false)
-    {
-        var access = await @enum.GetEnumEntryAccessAsync(context, value);
-        if (access.Length == 0 || string.IsNullOrWhiteSpace(access.Last().Entry?.Value)) return;
-        
-        if (!append)
-        {
-            var existSubList = access.Last().Children ?? [];
-            var appends = existSubList.Where(e => e.HasChildren == true && values.All(v => !v.Value.Equals(e.Value, StringComparison.OrdinalIgnoreCase))).ToArray();
-            values = appends.Length > 0 ? values.Concat(appends).ToArray() : values; // keep it simple
-        }
-
-        // Save
-        await provider.SaveEnumEntriesAsync(@enum.Name, value, values.Select(v => v.Clone()).ToArray(), append);
-    }
-
 
     /// <summary>
     /// Save the app schema
@@ -153,6 +177,7 @@ public static class SchemaStorageProviderExtension
     /// <returns></returns>
     public static async Task<bool> SaveAppSchemaAsync(this SchemaContext context, AppSchema app)
     {
+        ClearPolicyFlags(app);
         Runtime.AppType? node = await context.GetAppTypeAsync(app.FullName);
 
         // authorize
@@ -267,6 +292,7 @@ public static class SchemaStorageProviderExtension
     /// </summary>
     public static async Task<bool> SaveAppFieldSchemaAsync(this SchemaContext context, string app, AppFieldSchema field)
     {
+        ClearPolicyFlags(field);
         var node = await context.GetAppTypeAsync(app);
         if (node == null) return false;
         
@@ -369,6 +395,7 @@ public static class SchemaStorageProviderExtension
     /// </summary>
     public static async Task<bool> SaveAppWorkflowSchemaAsync(this SchemaContext context, string app, AppWorkflowSchema workflow, bool forActive = false)
     {
+        ClearPolicyFlags(workflow);
         Runtime.AppType? node = await context.GetAppTypeAsync(app);
         if (node == null) return false;
 
@@ -468,5 +495,17 @@ public static class SchemaStorageProviderExtension
                 return false;
             }
         }
+    }
+
+    static void ClearPolicyFlags(PropertyOwner schema)
+    {
+        schema.ClearProperty<SchemaCreate>();
+        schema.ClearProperty<SchemaRead>();
+        schema.ClearProperty<SchemaUpdate>();
+        schema.ClearProperty<SchemaDelete>();
+        schema.ClearProperty<DataCreate>();
+        schema.ClearProperty<DataRead>();
+        schema.ClearProperty<DataUpdate>();
+        schema.ClearProperty<DataDelete>();
     }
 }

@@ -8,7 +8,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Xml;
 using SchemaNode.Attribute;
-using SchemaNode.Property;
+using SchemaNode.Property.Property;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
@@ -18,6 +18,7 @@ namespace SchemaNode.Utility;
 internal static class Extension
 {
     #region Utility
+    private static readonly NullabilityInfoContext _nullabilityContext = new();
 
     private static readonly JsonSerializerOptions DefaultJsonOptions = new()
     {
@@ -71,7 +72,7 @@ internal static class Extension
     internal static string ToJson<T>(this T value)
         => value is JsonNode json 
             ? json.ToString() 
-            : value is DataNode node 
+            : value is IValueAccess node 
                 ? (node.TryGetValue(out JsonNode? jnode) 
                     ? jnode!.ToString() 
                     : "") 
@@ -82,8 +83,8 @@ internal static class Extension
         try
         {
             if (value == null) return null;
-            if (value is DataNode node) return node.TryGetValue(out JsonNode? jsonNode) ? jsonNode : null;
-            if (value is JsonNode) return (JsonNode?)(object)value;
+            if (value is IValueAccess node) return node.TryGetValue(out JsonNode? jsonNode) ? jsonNode : null;
+            if (value is JsonNode) return ((JsonNode?)(object)value)?.DeepClone();
             return JsonSerializer.SerializeToNode(value, DefaultJsonOptions);
         }
         catch 
@@ -94,10 +95,11 @@ internal static class Extension
         }
     }
     
-    internal static T? ConvertTo<T>(this object? value) => typeof(T).TryConvert(value, out object? result) ? (T?)result : default(T?);
+    internal static T? ConvertTo<T>(this object? value) => value is not null && typeof(T).TryConvert(value, out object? result) ? (T?)result : default(T?);
 
     internal static bool TryConvertTo<T>(this object? value, out T? result)
     {
+        if (value is IValueAccess n) return n.TryGetValue(out result);
         if (value == null || !typeof(T).TryConvert(value, out object? r))
         {
             result = default(T?);
@@ -362,6 +364,35 @@ internal static class Extension
 
     #region Type
 
+    internal static bool HasNullableAttribute(this ICustomAttributeProvider p)
+    {
+        System.Runtime.CompilerServices.NullableAttribute[] props = 
+            p.GetCustomAttributes(typeof(System.Runtime.CompilerServices.NullableAttribute), false)
+                .Cast<System.Runtime.CompilerServices.NullableAttribute>().ToArray();
+        return props.Any(a => a.NullableFlags is { Length: > 0 } && a.NullableFlags.Any(v => (v & 2) > 0));
+    }
+
+    internal static bool IsNullable(this PropertyInfo p)
+    {
+        return p.PropertyType.GetTypeDetail().Nullable ||
+               _nullabilityContext.Create(p).ReadState == NullabilityState.Nullable ||
+               p.HasNullableAttribute();
+    }
+
+    internal static bool IsNullable(this FieldInfo p)
+    {
+        return p.FieldType.GetTypeDetail().Nullable ||
+               _nullabilityContext.Create(p).ReadState == NullabilityState.Nullable ||
+               p.HasNullableAttribute();
+    }
+
+    internal static bool IsNullable(this ParameterInfo p)
+    {
+        return p.ParameterType.GetTypeDetail().Nullable || p.HasDefaultValue ||
+               _nullabilityContext.Create(p).ReadState == NullabilityState.Nullable ||
+               p.HasNullableAttribute();
+    }
+
     extension(Type type)
     {
         /// <summary>
@@ -447,7 +478,7 @@ internal static class Extension
         /// <summary>
         /// Gets the nullable type
         /// </summary>
-        internal Type GetNullableType() => type.IsSubclassOfGenericType(typeof(Nullable<>)) ? type : typeof(Nullable<>).MakeGenericType(type);
+        internal Type GetNullableType() => type.IsSubclassOfGenericType(typeof(Nullable<>)) || !type.IsValueType ? type : typeof(Nullable<>).MakeGenericType(type);
 
         /// <summary>
         /// The type is simple array type
@@ -482,7 +513,7 @@ internal static class Extension
                 result = null;
 
                 // for data node
-                if (value is DataNode node)
+                if (value is IValueAccess node)
                 {
                     if (node.TryGetValue(out object? nv))
                         value = nv;

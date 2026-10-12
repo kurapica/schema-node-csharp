@@ -1,0 +1,248 @@
+using SchemaNode.Attribute;
+using SchemaNode.Context;
+using SchemaNode.Enum;
+using SchemaNode.Property.Common;
+using SchemaNode.Property.Core;
+using SchemaNode.Runtime;
+using SchemaNode.Schema;
+using SchemaNode.Struct;
+using static SchemaNode.Utility.Constant;
+using ValueType = SchemaNode.Schema.ValueType;
+// ReSharper disable InconsistentNaming
+
+namespace SchemaNode.Function.Reflect;
+
+/// <summary>
+/// The reflection helpers for the schema functions
+/// </summary>
+[Meta<SchemaType>(NS_SYSTEM_SCHEMA_REFLECT_FUNC)]
+public static class Function
+{
+    /// <summary>
+    /// Checks if the function type's return type match the given type
+    /// </summary>
+    public static async Task<bool> withreturn(SchemaContext context,
+        [Meta<SchemaType>(typeof(FuncType))] string func,
+        [Meta<SchemaType>(typeof(ValueType))] string? type = null,
+        bool matchArrayElement = false)
+    {
+        var returnType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        if (returnType == null) return true;
+        var nodeType = !string.IsNullOrWhiteSpace(func) ? await context.GetNodeTypeAsync<FunctionType>(func) : null;
+        if (nodeType == null) return false;
+        return nodeType?.Return != null && returnType != null && (nodeType.Return.IsAssignableTo(returnType) || matchArrayElement && returnType is Runtime.ArrayType { Element: not null } arr && nodeType.Return.IsAssignableTo(arr.Element));
+    }
+
+    /// <summary>
+    /// Checks if the function type's argument match the given types
+    /// </summary>
+    public static async Task<bool> withargs(SchemaContext context,
+        [Meta<SchemaType>(typeof(AnyType))] string func,
+        [Meta<SchemaType>(typeof(ValueType))] params string[] args)
+    {
+        var funcType = !string.IsNullOrWhiteSpace(func) ? await context.GetNodeTypeAsync<FunctionType>(func) : null;
+        if (funcType == null || args.Length != funcType.Args.Length) return false;
+        for (int i = 0; i < args.Length; i++)
+        {
+            var argType = !string.IsNullOrWhiteSpace(args[i]) ? await context.GetNodeTypeAsync<Runtime.ValueType>(args[i]) : null;
+            if (argType == null) return false;
+            if (funcType.Args[i].ValueType == null || !funcType.Args[i].ValueType!.IsAssignableTo(argType)) return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Gets the arguments of the function schema
+    /// </summary>
+    public static async Task<List<EntryAccess<string>>> getaccessentries(SchemaContext context,
+        FuncArg[]? args,
+        FuncExp[]? exps,
+        string? path = null,
+        [Meta<EntryRoot>(true)] string? root = null)
+    {
+        if (!string.IsNullOrWhiteSpace(root) && !string.IsNullOrWhiteSpace(path) && !path.Equals(root, StringComparison.OrdinalIgnoreCase) && !path.StartsWith($"{root}.", StringComparison.OrdinalIgnoreCase))
+            return []; // not access-able
+        path ??= root;
+
+        List<Entry<string>> first = [];
+        IValueTypeAccess? valueType = null;
+        Entry<string>? curr = null;
+
+        // arguments
+        if (args is { Length: > 0 })
+        {
+            foreach (FuncArg arg in args)
+            {
+                if (string.IsNullOrWhiteSpace(arg.Name) || string.IsNullOrWhiteSpace(arg.Type)) continue;
+                var fieldType = await context.GetNodeTypeAsync<IValueTypeAccess>(arg.Type);
+                if (fieldType == null) continue;
+                var entry = new Entry<string> { Value = arg.Name, HasChildren = fieldType is not Runtime.ArrayType && !fieldType.HasAccessEntries };
+                entry.SetProperty<Display, LocaleString>(arg.GetProperty<Display>()?.Value ?? arg.Name);
+                first.Add(entry);
+                if (curr == null && !string.IsNullOrWhiteSpace(path) &&
+                    (path.Equals(arg.Name, StringComparison.OrdinalIgnoreCase) ||
+                     path.StartsWith($"{arg.Name}.", StringComparison.OrdinalIgnoreCase)))
+                {
+                    valueType = fieldType;
+                    curr = entry;
+                }
+            }
+        }
+
+        // expressions
+        if (exps is { Length: > 0 })
+        {
+            foreach (FuncExp exp in exps)
+            {
+                if (string.IsNullOrWhiteSpace(exp.Name) || string.IsNullOrWhiteSpace(exp.Return)) continue;
+                Runtime.ValueType? fieldType = await context.GetNodeTypeAsync<Runtime.ValueType>(exp.Return);
+                if (fieldType == null) continue;
+                var entry = new Entry<string> { Value = exp.Name, HasChildren = fieldType is not Runtime.ArrayType && fieldType.HasAccessEntries };
+                entry.SetProperty<Display, LocaleString>(exp.Name);
+                first.Add(entry);
+
+                if (curr == null && !string.IsNullOrWhiteSpace(path) &&
+                    (path.Equals(exp.Name, StringComparison.OrdinalIgnoreCase) ||
+                     path.StartsWith($"{exp.Name}.", StringComparison.OrdinalIgnoreCase)))
+                {
+                    valueType = fieldType;
+                    curr = entry;
+                }
+            }
+        }
+
+        // build the access entries
+        List<EntryAccess<string>> result = [new() { Children = first.ToArray() }];
+
+        while (valueType != null)
+        {
+            var accessEntry = new EntryAccess<string>();
+            Entry<string>[] accesses = valueType is not Runtime.ArrayType ? valueType.GetAccessEntries().ToArray() : [];
+            if (curr != null)
+            {
+                accessEntry.Entry = new Entry<string> { Value = curr.Value, HasChildren = accesses.Length > 0 };
+                accessEntry.Entry.SetProperty<Display, LocaleString>(curr.GetProperty<Display>()?.Value ?? curr.Value);
+            }
+            accessEntry.Children = accesses;
+
+            // check next part
+            IValueTypeAccess? next = null;
+            Entry<string>? nextCurr = null;
+            foreach (var a in accesses)
+            {
+                string n = a.Value;
+                var nvtype = valueType.GetAccessValueType(n);
+                if (curr != null) a.Value = $"{curr.Value}.{n}";
+                if (nvtype is Runtime.ArrayType) a.HasChildren = false;
+                if (!string.IsNullOrWhiteSpace(path) && (path.Equals(a.Value, StringComparison.OrdinalIgnoreCase) ||
+                                                         path.StartsWith($"{a.Value}.", StringComparison.OrdinalIgnoreCase)))
+                {
+                    next = nvtype;
+                    nextCurr = a;
+                }
+            }
+            result.Add(accessEntry);
+            valueType = next;
+            curr = nextCurr;
+        }
+
+        // cut
+        if (!string.IsNullOrWhiteSpace(root))
+            result = result.SkipWhile(r => (r.Entry?.Value.Length ?? 0) < root.Length).ToList();
+        return result;
+    }
+
+    /// <summary>
+    /// Gets the access value type
+    /// </summary>
+    public static async Task<string?> getaccessvaluetype(SchemaContext context, FuncArg[]? args, FuncExp[]? exps, string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return null;
+        string[] paths = path.Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
+        var type = args?.FirstOrDefault(f => f.Name.Equals(paths[0], StringComparison.OrdinalIgnoreCase))?.Type
+            ?? exps?.FirstOrDefault(e => e.Name.Equals(paths[0], StringComparison.OrdinalIgnoreCase))?.Return;
+        Runtime.ValueType? valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        return paths.Length > 1 ? valueType?.GetAccessValueType(paths[1])?.Name : valueType?.Name;
+    }
+
+
+    /// <summary>
+    /// Gets the function apply modes for the given return type
+    /// </summary>
+    public static async Task<List<ApplyMode>> getapplymodes(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type)
+    {
+        var returnType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        if (returnType == null) return [];
+        if (returnType is Runtime.ArrayType)
+        {
+            return [ApplyMode.Call, ApplyMode.Filter, ApplyMode.Map];
+        }
+        else if (returnType is Runtime.BoolType)
+        {
+            return [ApplyMode.Call, ApplyMode.All, ApplyMode.Any];
+        }
+        else if (returnType is Runtime.IntType)
+        {
+            return [ApplyMode.Call, ApplyMode.Count, ApplyMode.Reduce];
+        }
+        else if (returnType is Runtime.DecimalType)
+        {
+            return [ApplyMode.Call, ApplyMode.Reduce];
+        }
+        return [ApplyMode.Call, ApplyMode.First, ApplyMode.Last, ApplyMode.Reduce];
+    }
+
+    /// <summary>
+    /// Gets the expected function return type for the given exp return type
+    /// </summary>
+    public static async Task<string?> getexpectreturn(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type, ApplyMode applyMode)
+    {
+        var valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        if (valueType == null) return null;
+        return applyMode switch
+        {
+            ApplyMode.Call => valueType.Name,
+            ApplyMode.Map => valueType is Runtime.ArrayType arr ? arr.Element?.Name : valueType.Name,
+            ApplyMode.Reduce => valueType.Name,
+            ApplyMode.First => NS_SYSTEM_BOOL,
+            ApplyMode.Last => NS_SYSTEM_BOOL,
+            ApplyMode.Filter => NS_SYSTEM_BOOL,
+            ApplyMode.Count => NS_SYSTEM_BOOL,
+            ApplyMode.All => NS_SYSTEM_BOOL,
+            ApplyMode.Any => NS_SYSTEM_BOOL,
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    ///  Gets the sub entries of the struct fields 
+    /// </summary>
+    public static async Task<EntryAccess<string>[]> getreturnfields(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type,
+        FuncArg[]? args,
+        FuncExp[]? exps)
+    {
+        var valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        if (valueType is not Runtime.StructType strt) return [];
+        return [
+            new EntryAccess<string>{
+                Children = strt.GetFields().Where(f => f.DisplayOnly != true && 
+                    (args == null || !args.Any(a => a.Name.Equals(f.Name, StringComparison.OrdinalIgnoreCase))) &&
+                    (exps == null || !exps.Any(e => e.Name.Equals(f.Name, StringComparison.OrdinalIgnoreCase))))
+                    .Select(f => {
+                        var entry = new Entry<string>{ Value = f.Name };
+                        entry.SetProperty<Display, LocaleString>(f.GetProperty<Display>()?.Value ?? f.Name);
+                        return entry;
+                    }).ToArray()
+            }
+        ];
+    }
+
+    public static async Task<string?> getreturnfieldtype(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type, string field)
+    {
+        if (string.IsNullOrWhiteSpace(field)) return null;
+        var valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        if (valueType is Runtime.ArrayType arr) valueType = arr.Element;
+        if (valueType is not Runtime.StructType strt) return "";
+        return strt.GetField(field)?.Type?.Name;
+    }
+}

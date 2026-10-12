@@ -3,7 +3,6 @@ using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using SchemaNode.Runtime;
-using SchemaNode.Utility;
 using ArrayType = SchemaNode.Runtime.ArrayType;
 using StructFieldType = SchemaNode.Runtime.StructFieldType;
 using StructType = SchemaNode.Runtime.StructType;
@@ -12,19 +11,20 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Node;
 
-public class ArrayNode : DataNode, IEnumerable<DataNode>
+public class ArrayNode : DataNode, IEnumerable<IValueAccess>
 {
     #region Constructors
     
-    public ArrayNode(ValueType type, IValueAccess? parent = null)
+    public ArrayNode(IValueTypeAccess type, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
     {
-        Type = type.ArrayType ?? type;
+        Type = (type as ValueType)?.ArrayType ?? type;
         Parent = parent;
         ElementType = (type is ArrayType arr ? arr.Element : type) ??
                       throw new Exception($"The type '{type.Name}' is not a valid array type.");
+        PropertyProvider = propertyProvider ?? Type as IPropertyProvider;
     }
 
-    public ArrayNode(ValueType type, object value, IValueAccess? parent = null): this(type, parent)
+    public ArrayNode(IValueTypeAccess type, object value, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null): this(type, parent, propertyProvider)
     {
         if (!TrySetValue(value))
             throw new InvalidCastException($"Failed to set value to schema type {type.Name}.");
@@ -41,7 +41,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     #region Indexer
     
     /// <summary>
-    /// array[index] accesser
+    /// array[index] access
     /// </summary>
     /// <param name="index"></param>
     /// <exception cref="IndexOutOfRangeException"></exception>
@@ -62,7 +62,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
 
             if (index == _elements.Count)
             {
-                if (!TryCreateElement(value, out DataNode node))
+                if (!TryCreateElement(value, out var node))
                     throw new InvalidCastException($"Invalid array element value type '{value?.GetType()}'.");
                 _elements.Add(node);
                 return;
@@ -79,7 +79,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     /// <summary>
     /// The array element type
     /// </summary>
-    public ValueType ElementType { get; }
+    public IValueTypeAccess ElementType { get; }
     
     /// <summary>
     /// The element count
@@ -92,6 +92,14 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     
     /// <inheritdoc/>
     public override bool IsEmpty => Count == 0;
+
+    /// <inheritdoc/>
+    public override void ClearDisplayOnlyNode()
+    {
+        base.ClearDisplayOnlyNode();
+        foreach (var item in _elements.OfType<DataNode>())
+            item.ClearDisplayOnlyNode();
+    }
 
     /// <inheritdoc/>
     public sealed override bool TrySetValue<T>(T? value) where T : default
@@ -135,7 +143,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
         if (type == typeof(JsonArray) || type == typeof(JsonNode))
         {
             JsonArray array = [];
-            foreach (DataNode element in _elements)
+            foreach (var element in _elements)
                 if (element.TryGetValue(out JsonNode? jsonElement))
                     array.Add(jsonElement!.DeepClone());
             value = array;
@@ -174,7 +182,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
             Type itemType = type.GetGenericArguments()[0];
             Type listType = typeof(List<>).MakeGenericType(itemType);
             IList list = (IList)Activator.CreateInstance(listType)!;
-            foreach (DataNode element in _elements)
+            foreach (var element in _elements)
                 list.Add(ToLiteralValue(element, itemType));
             value = list;
             return true;
@@ -192,7 +200,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     /// </summary>
     public override IValueAccess? GetAccessValue(string path, IValueAccess? node = null)
     {
-        if (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return this;
+        if (base.GetAccessValue(path, node) is { } v) return v;
         
         string[] paths = path.Split('.',2, StringSplitOptions.RemoveEmptyEntries);
         int eleIndex = -1;
@@ -206,28 +214,26 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
         }
         
         // previous array
-        IValueAccess? result;
         if (paths[0].Equals(ARRAY_PREVIOUS, StringComparison.OrdinalIgnoreCase)) 
-            result = eleIndex >= 0 ? new ArrayNode(this, eleIndex) : node is null ? this : null;
-        else
-        {
-            // deep access
-            DataNode? arrayEle = eleIndex >= 0 ? _elements[eleIndex] : node is null ? _elements.LastOrDefault() : null;
-            result = paths[0].Equals(ARRAY_ELEMENT, StringComparison.OrdinalIgnoreCase)
-                ? arrayEle
-                : arrayEle?.GetAccessValue(paths[0], node);
-        }
-        return paths.Length > 1 ? result?.GetAccessValue(paths[1]) : result;
+            return eleIndex >= 0 ? new ArrayNode(this, eleIndex) : node is null ? this : null;
+        if (!paths[0].Equals(ARRAY_ELEMENT, StringComparison.OrdinalIgnoreCase)) return null;
+        
+        // deep access
+        var arrayEle = eleIndex >= 0 ? _elements[eleIndex] : null;
+        return paths.Length <= 1 ? arrayEle : arrayEle?.GetAccessValue(paths[1], node);
     }
 
     /// <inheritdoc/>
     public override bool IsValid => _elements.All(element => element.IsValid);
 
     /// <inheritdoc/>
-    public override DataNode Clone()
+    public override JsonNode? Violated => !IsValid ? new JsonArray(_elements.Select(e => e.Violated ?? JsonValue.Create(true)).ToArray()) : null;
+
+    /// <inheritdoc/>
+    public override IValueAccess Clone()
     {
         ArrayNode node = new ArrayNode(ElementType);
-        foreach (DataNode element in _elements)
+        foreach (var element in _elements)
             node.Add(element.Clone());
         return node;
     }
@@ -251,9 +257,9 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     /// </summary>
     public void Add(object? node)
     {
-        if (node is null or DataNode { IsEmpty: true }) return;
+        if (node is null or IValueAccess { IsEmpty: true }) return;
 
-        if (!TryCreateElement(node, out DataNode element))
+        if (!TryCreateElement(node, out var element))
             throw new InvalidCastException($"Invalid array element value type '{node.GetType()}'.");
         _elements.Add(element);
     }
@@ -281,7 +287,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
         };
     }
 
-    public override bool Equals(DataNode? other)
+    public override bool Equals(IValueAccess? other)
     {
         if (ReferenceEquals(this, other)) return true;
         if (other is not ArrayNode otherArray) return false;
@@ -293,7 +299,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
         {
             object? left = this[i];
             object? right = otherArray[i];
-            if (left is DataNode leftNode && right is DataNode rightNode)
+            if (left is IValueAccess leftNode && right is IValueAccess rightNode)
             {
                 if (!leftNode.Equals(rightNode)) return false;
             }
@@ -306,7 +312,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
         return true;
     }
 
-    public IEnumerator<DataNode> GetEnumerator() => _elements.GetEnumerator();
+    public IEnumerator<IValueAccess> GetEnumerator() => _elements.GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => _elements.GetEnumerator();
 
@@ -316,12 +322,12 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     
     private bool ReplaceTypedRange(IEnumerable<object?> values)
     {
-        List<DataNode> nodes = [];
+        List<IValueAccess> nodes = [];
         foreach (object? item in values)
         {
             if (item == null) continue;
-            if (item is DataNode { IsEmpty: true }) continue;
-            if (!TryCreateElement(item, out DataNode node)) return false;
+            if (item is IValueAccess { IsEmpty: true }) continue;
+            if (!TryCreateElement(item, out var node)) return false;
             nodes.Add(node);
         }
 
@@ -329,9 +335,9 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
         return true;
     }
 
-    private bool TryCreateElement(object? value, out DataNode node)
+    private bool TryCreateElement(object? value, out IValueAccess node)
     {
-        if (value is DataNode dataNode && dataNode.Type.IsAssignableTo(ElementType))
+        if (value is IValueAccess dataNode && dataNode.Type.IsAssignableTo(ElementType))
         {
             node = dataNode;
             return true;
@@ -341,7 +347,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
         return node.TrySetValue(value);
     }
 
-    private static object? ToLiteralValue(DataNode node, Type? targetType = null)
+    private static object? ToLiteralValue(IValueAccess node, Type? targetType = null)
     {
         if (targetType != null && node.TryGetValue(targetType, out object? typedValue))
             return typedValue;
@@ -349,7 +355,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
         return node.TryGetValue(out object? value) ? value : null;
     }
 
-    private List<DataNode> _elements = [];
+    private List<IValueAccess> _elements = [];
     
     #endregion
 }

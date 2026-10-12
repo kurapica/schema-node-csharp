@@ -1,0 +1,65 @@
+
+name: Publish SchemaNode.Core to NuGet
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Verify version
+        shell: bash
+        run: |
+          PROJECT="SchemaNode.Core/SchemaNode.Core.csproj"
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PROJECT_VERSION=$(dotnet msbuild "$PROJECT" -getProperty:Version)
+
+          echo "Git tag version: $TAG_VERSION"
+          echo "Project version: $PROJECT_VERSION"
+
+          if [ "$TAG_VERSION" != "$PROJECT_VERSION" ]; then
+            echo "::error::Git tag and project version do not match"
+            exit 1
+          fi
+
+      - name: Build and test
+        run: dotnet build "SchemaNode.Core/SchemaNode.Core.csproj" -c Release
+
+      - name: Pack NuGet
+        run: |
+          dotnet pack "SchemaNode.Core/SchemaNode.Core.csproj" \
+            -c Release \
+            --no-build \
+            -o ./artifacts
+
+      - name: NuGet login (OIDC)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      - name: Publish to NuGet
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          dotnet nuget push ./artifacts/*.nupkg \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json

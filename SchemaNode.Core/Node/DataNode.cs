@@ -1,7 +1,11 @@
-﻿using ValueType = SchemaNode.Runtime.ValueType;
-using static SchemaNode.Utility.Constant;
+﻿using static SchemaNode.Utility.Constant;
 using SchemaNode.Property;
+using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
+using System.Text.Json.Nodes;
+using SchemaNode.Context;
+using SchemaNode.Property.Struct;
+using SchemaNode.Property.Common;
 
 // ReSharper disable InconsistentNaming
 // ReSharper disable VirtualMemberCallInConstructor
@@ -14,17 +18,71 @@ namespace SchemaNode.Node;
 /// </summary>
 public abstract class DataNode : IValueAccess
 {
+    #region Relation
+
+    /// <summary>
+    /// Gets the relation that effect this node for the given property
+    /// </summary>
+    public (RelationType Relation, IValueAccess Owner)? GetRelation<T>() where T: IProperty
+    {
+        IValueAccess? curr = this.Parent;
+        RelationType? last = null;
+        IValueAccess? owner = null;
+        while (curr != null)
+        {
+            foreach(RelationType r in curr!.Type.GetRelations())
+            {
+                if (r.Property?.GetCsharpType() != typeof(T)) continue;
+                if (curr.GetAccessValue(r.Target, this) != this) continue;
+                last = r;
+                owner = curr;
+                break;
+            }
+            curr = curr.Parent;
+        }
+        return last != null ? (last, owner!) : null;
+    }
+
+    /// <summary>
+    /// Loading default value for node
+    /// </summary>
+    public async Task LoadDefaultAsync(SchemaContext context)
+    {
+        // For now only load default value for displayonly field
+        if (!this.IsEmpty || this.PropertyProvider?.GetProperty<DisplayOnly>()?.Value != true) return;
+        var r = this.GetRelation<Default>();
+        if (r is null) return;
+        var d = await r.Value.Relation.ProcessAsync(context, r.Value.Owner, this);
+        if (d is null || !d.HasValue) return;
+        this.TrySetValue(d.GetValue<object>());
+    }
+
+    /// <summary>
+    /// Clear displayOnly node to avoid un-valid data
+    /// </summary>
+    public virtual void ClearDisplayOnlyNode() {
+        if (this.PropertyProvider?.GetProperty<DisplayOnly>()?.Value == true)
+            this.ClearValue();
+    }
+
+    #endregion
+
     #region Properties
 
     /// <summary>
     /// The value type
     /// </summary>
-    public ValueType Type { get; init; } = null!;
+    public IValueTypeAccess Type { get; init; } = null!;
 
     /// <summary>
     /// The parent
     /// </summary>
     public IValueAccess? Parent { get; init; }
+    
+    /// <summary>
+    /// The property provider
+    /// </summary>
+    public IPropertyProvider? PropertyProvider { get; init; }
 
     /// <summary>
     /// Violated Constraints
@@ -34,12 +92,25 @@ public abstract class DataNode : IValueAccess
     #endregion
     
     #region Implementation
-    
+
     /// <summary>
     /// Gets the access value by path
     /// </summary>
     public virtual IValueAccess? GetAccessValue(string path, IValueAccess? node = null)
-        => (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase))  ? this : null;
+    {
+        if (string.IsNullOrEmpty(path)) return this;
+        if (path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return node ?? this;
+        if (path.Equals(TYPE_PROVIDER, StringComparison.OrdinalIgnoreCase))
+        {
+            var access = node ?? this;
+            while (access != null && access.PropertyProvider?.GetProperty<TypeProvider>() is not
+                       { HasValue: true })
+                access = access.Parent;
+            if (access?.PropertyProvider?.GetProperty<TypeProvider>() is { HasValue: true } type)
+                return access.GetAccessValue(type.GetValue<string>()!, node);
+        }
+        return null;
+    }
 
     /// <inheritdoc/>
     public void RecordConstraint(IConstraintProperty constraint, bool result)
@@ -72,6 +143,11 @@ public abstract class DataNode : IValueAccess
     /// Whether the node is valid, which means no violated constraints
     /// </summary>
     public virtual bool IsValid => _violated is not { Count: > 0 };
+
+    /// <summary>
+    /// Gets the violated
+    /// </summary>
+    public virtual JsonNode? Violated => _violated is {  Count: > 0 } ? new JsonArray(_violated.Select(v => JsonValue.Create(v.Name)).ToArray()) : null;
 
     #endregion
 
@@ -125,7 +201,7 @@ public abstract class DataNode : IValueAccess
     /// <summary>
     /// Clones the data node
     /// </summary>
-    public abstract DataNode Clone();
+    public abstract IValueAccess Clone();
     
     #endregion
 
@@ -134,12 +210,12 @@ public abstract class DataNode : IValueAccess
     /// <summary>
     /// The c# type representation
     /// </summary>
-    public virtual Type? CsharpType => Type.GetCsharpType();
+    public virtual Type? CsharpType => (Type as Runtime.ValueType)?.GetCsharpType();
     
     /// <summary>
     /// Equals check
     /// </summary>
-    public virtual bool Equals(DataNode? other) 
+    public virtual bool Equals(IValueAccess? other) 
         => other != null && 
            (ReferenceEquals(this, other) || 
             IsEmpty 

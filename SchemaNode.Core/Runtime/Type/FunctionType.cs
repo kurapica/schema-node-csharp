@@ -8,12 +8,14 @@ using System.Text.Json.Nodes;
 using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Service;
-using ExpType = SchemaNode.Enum.ExpType;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
 using SchemaNode.Property.Function;
 using SchemaNode.Schema.Provider;
+using SchemaNode.Struct;
+using static SchemaNode.Utility.Constant;
+using System.Reflection.Metadata.Ecma335;
+using System.Security.Cryptography;
 
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedMember.Local
@@ -25,7 +27,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory function schema representation
 /// </summary>
-public sealed class FunctionType : NodeType
+public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
 {
     #region Properties
 
@@ -69,6 +71,16 @@ public sealed class FunctionType : NodeType
     /// </summary>
     internal SchemaFuncInfo? FuncInfo { get; private set; }
     
+    /// <summary>
+    /// The relations between the fields
+    /// </summary>
+    private List<RelationType>? _relations;
+
+    /// <summary>
+    /// The system value type
+    /// </summary>
+    private IValueTypeAccess? _systemObjectType;
+    
     #endregion
     
     #region Methods
@@ -95,7 +107,8 @@ public sealed class FunctionType : NodeType
     /// <inheritdoc />
     public override async Task LoadAsync(SchemaContext context)
     {
-        FunctionSchema? func = GetProperty<FuncProperty>()?.Value;
+        FunctionSchema? func = GetProperty<FunctionProperty>()?.Value;
+        _relations = null;
         
         // Status
         if (func == null)
@@ -104,9 +117,12 @@ public sealed class FunctionType : NodeType
             return;
         }
 
+        // for relation
+        _systemObjectType = context.System.Object;
+
         // Return type
         ValueType? retType = !string.IsNullOrWhiteSpace(func.Return)
-            ? await context.GetNodeTypeAsync<ValueType>(func.Return, Generics)
+            ? await context.GetNodeTypeAsync<ValueType>(func.Return, Generics, GenericParams)
             : null;
         if (retType == null || retType is GenericType && !IsSystemCall)
         {
@@ -116,11 +132,11 @@ public sealed class FunctionType : NodeType
         Return = retType;
         
         // Data
-        Args = func.Args.Select(a => (FunctionNodeArgument)a).ToArray();
+        Args = func.Args?.Select(a => (FunctionNodeArgument)a).ToArray() ?? [];
         Exps = func.Exps.Select(e => (FunctionNodeExpression)e).ToArray();
 
         Converter = func.GetProperty<Converter>()?.Value;
-        FuncInfo = FunctionGenerator.GetSystemFuncInfo(Name);
+        FuncInfo = FunctionGenerator.GetSystemFuncInfo(GenericParams is { Count: > 0 } ? Name.Split('<', 2, StringSplitOptions.RemoveEmptyEntries).First() : Name);
 
         // Argument types
         HashSet<string> existNames = [];
@@ -137,9 +153,7 @@ public sealed class FunctionType : NodeType
                 return;
             }
 
-            arg.ValueType = !string.IsNullOrWhiteSpace(arg.Type) 
-                ? await context.GetNodeTypeAsync<ValueType>(arg.Type, Generics)
-                : null;
+            arg.ValueType = !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetNodeTypeAsync<ValueType>(arg.Type, Generics) : null;
 
             if (arg.ValueType == null || arg.ValueType is GenericType && !IsSystemCall)
             {
@@ -147,9 +161,35 @@ public sealed class FunctionType : NodeType
                 return;
             }
         }
-        
-        // Generate the exp trees
-        await PreCompileAsync(context);
+
+        // Load Relation
+        if (!IsGeneric)
+        {
+            if (func.GetProperty<Relations>()?.Value is { Length: > 0 } relations)
+            {
+                foreach (RelationSchema relation in relations)
+                {
+                    // Gets the target type
+                    IValueTypeAccess? currentType = GetAccessValueType(relation.Target);
+                    if (currentType == null) continue;
+
+                    // Gets the property type
+                    var kind = (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(currentType.Kind);
+                    PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_FUNC_ARG);
+                    if (prop == null) continue;
+
+                    // Only work for constraint properties
+                    Type? propType = prop.GetCsharpType();
+                    if (propType == null) continue;
+
+                    var relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_FUNC_ARG);
+                    Error ??= relationType.Error;
+
+                    _relations ??= [];
+                    _relations.Add(relationType);
+                }
+            }
+        }
     }
     
     /// <inheritdoc />
@@ -188,12 +228,15 @@ public sealed class FunctionType : NodeType
             if (exp.Args is { Length: > 0 })
             {
                 foreach (var callArg in exp.Args)
-                {
-                    if (callArg.ValueType != null && callArg.ValueType is not GenericType)
-                        yield return callArg.ValueType;
-                }
+                    if (callArg.ValueType != null && callArg.ValueType is not GenericType && callArg.ValueType is ValueType v)
+                        yield return v;
             }
         }
+        
+        if (_relations != null)
+            foreach(var r in _relations.OfType<INodeReferences>())
+                foreach(var node in r.GetReferenceTypes())
+                    yield return node;
 
         foreach (var type in base.GetReferenceTypes())
             yield return type;
@@ -203,14 +246,84 @@ public sealed class FunctionType : NodeType
     /// Gets the property with the given type
     /// </summary>
     public override T? GetProperty<T>() where T : class 
-        => base.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(Kind);
+        => base.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(SchemaKind);
 
     /// <summary>
     /// Gets the properties with the given type
     /// </summary>
     public override IEnumerable<T> GetProperties<T>()
-        => this.JoinProperties(base.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(Kind));
+        => this.JoinProperties(base.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(SchemaKind));
 
+    /// <summary>
+    /// Gets relations
+    /// </summary>
+    public IEnumerable<RelationType> GetRelations() => _relations?.AsEnumerable() ?? [];
+    
+    /// <inheritdoc/>
+    public IValueTypeAccess? GetAccessValueType(string path)
+    {
+        string[] access = path.Split('.', 2, StringSplitOptions.TrimEntries);
+        if (access[0].Equals(FUNC_RETURN, StringComparison.OrdinalIgnoreCase)) return Return;
+        var a = Args.FirstOrDefault(a => a.Name.Equals(access[0], StringComparison.OrdinalIgnoreCase));
+        if (a != null)
+            return a.ValueType;
+        return _systemObjectType; // only used to pass the relation checks
+    }
+
+    /// <inheritdoc/>
+    public IEnumerable<Entry<string>> GetAccessEntries()
+    {
+        yield return new Entry<string>
+        {
+            Value = FUNC_RETURN,
+            HasChildren = Return.HasAccessEntries
+        };
+        foreach (FunctionNodeArgument a in Args)
+        {
+            var entry = new Entry<string>
+            {
+                Value = a.Name,
+                HasChildren = false
+            };
+            var display = a.GetProperty<Display>();
+            if (display != null) entry.SetProperty(display);
+            yield return entry;
+        }
+    }
+
+    /// <inheritdoc/>
+    public bool IsAssignableTo(IValueTypeAccess other)
+    {
+        return false;
+    }
+
+    /// <inheritdoc/>
+    public bool HasAccessEntries => true;
+    
+    /// <inheritdoc/>
+    public IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc/>
+    public IValueAccess From(object? value, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc/>
+    public Type? GetCsharpType(bool nullable = false)
+    {
+        return null;
+    }
+
+    /// <inheritdoc/>
+    public Task<IValueAccess?> ValidateValueAsync(ISchemaContext context, object? value)
+    {
+        return Task.FromResult<IValueAccess?>(null);
+    }
+    
     #endregion
 
     #region Cache Management
@@ -301,12 +414,12 @@ public sealed class FunctionType : NodeType
         }
         catch(FunctionVisitException fex)
         {
-            Error = fex.Status;
+            Error ??= fex.Status;
         }
         catch(Exception ex)
         {
             context.LogError(ex, "FunctionType LoadAsync Error: {0}", Name);
-            Error = ErrorCodes.FUNC_COMPILE_ERROR;
+            Error ??= ErrorCodes.FUNC_COMPILE_ERROR;
         }
 
         return null;
@@ -372,6 +485,13 @@ public sealed class FunctionType : NodeType
     /// </summary>
     private async Task<object?> CallSystemFuncAsync(SchemaContext context, object?[] args, string? rType = null)
     {
+        // Cache
+        bool enableCache = this.GetProperty<ServerOnly>()?.Value == true && this.GetProperty<NoCache>()?.Value != true && args.All(a => a is null || Type.GetTypeCode(a.GetType()) != TypeCode.Object);
+        var cache = enableCache ? context.GetOrAddContextItem<Dictionary<string, object>>() : null;
+        string? key = enableCache ? string.Join('|', args.Select(a => a is null ? "<NULL>" : a.ToString())) : null;
+        if (cache != null && cache.TryGetValue(key!, out object? v))
+            return v is DBNull ? null : v;
+
         // Argument validation
         SchemaFuncInfo funcInfo = await GetSchemaFuncInfoAsync(context) ?? throw new Exception($"Function {Name} can't be complied");
         
@@ -383,7 +503,17 @@ public sealed class FunctionType : NodeType
             {
                 int idx = Array.FindIndex(funcInfo.Generics, f => f.CoreType == arg.CoreType);
                 if (idx < 0) return maybeType;
+                if (arg.AnyArray && maybeType != null)
+                {
+                    generics[idx] ??= maybeType.GetTypeDetail().CoreType;
+                    return maybeType;
+                }
                 generics[idx] ??= maybeType;
+                if (generics[idx] is null) return maybeType;
+                if (arg.Params) return generics[idx];
+                if (arg.List) return typeof(List<>).MakeGenericType(generics[idx]!);
+                if (arg.Array) return generics[idx]!.MakeArrayType();
+                if (arg.Enumerable) return typeof(IEnumerable<>).MakeGenericType(generics[idx]!);
                 return generics[idx];
             }
             else if (arg.IsGenericType && arg.GenericArguments?.Any(g => g.IsGenericParameter) == true)
@@ -419,17 +549,28 @@ public sealed class FunctionType : NodeType
             {
                 object? argObj = args.ElementAtOrDefault(i);
                 JsonNode? argJson = argObj as JsonNode;
-                DataNode? argNode = argObj as DataNode;
+                IValueAccess? argNode = argObj as IValueAccess;
 
                 // check null or empty
                 if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
                 {
-                    if (arg.Nullable) continue;
-                    throw new Exception($"The {i + 1} argument must be provided");
+                    if (arg.Nullable)
+                    {
+                        if (Args[i].Default != null)
+                        {
+                            argObj = Args[i].Default;
+                            argNode = null;
+                            argJson = null;
+                        }
+                        else
+                            continue;
+                    }
+                    else
+                        throw new Exception($"The {i + 1} argument must be provided");
                 }
 
                 // Parse argument
-                var eleType = GetArgType(arg, argNode?.Type.GetCsharpType() ?? (argJson == null ? argObj.GetType() : null));
+                var eleType = GetArgType(arg, argNode?.Type.GetCsharpType() ?? (argJson == null ? argObj?.GetType() : null));
 
                 // JsonNode
                 if (argJson != null)
@@ -440,12 +581,12 @@ public sealed class FunctionType : NodeType
                     {
                         GetArgType(arg, gen ?? o.GetType());
                     }
-                    else if (eleType.IsAssignableTo(typeof(DataNode)))
+                    else if (eleType.IsAssignableTo(typeof(IValueAccess)))
                     {
                         GetArgType(arg, eleType);
                         if (argInfo.ValueType != null && argInfo.ValueType is not GenericType)
                         {
-                            DataNode node = argInfo.ValueType.Create();
+                            var node = argInfo.ValueType.Create();
                             if (!node.TrySetValue(argJson)) throw new Exception($"The {i + 1} argument must be provided and valid");
                             callArgs[i] = node;
                         }
@@ -456,7 +597,7 @@ public sealed class FunctionType : NodeType
                 // DataNode
                 else if (argNode != null)
                 {
-                    if (eleType != null && eleType.IsAssignableTo(typeof(DataNode)))
+                    if (eleType != null && eleType.IsAssignableTo(typeof(IValueAccess)))
                         callArgs[i] = argNode;
                     else
                         callArgs[i] = eleType != null && argNode.TryGetValue(eleType, out var r) ? r : throw new Exception($"The {i + 1} argument must be provided and valid");
@@ -479,7 +620,7 @@ public sealed class FunctionType : NodeType
                 {
                     object? argObj = args.ElementAtOrDefault(j);
                     JsonNode? argJson = argObj as JsonNode;
-                    DataNode? argNode = argObj as DataNode;
+                    IValueAccess? argNode = argObj as IValueAccess;
 
                     if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true }) continue;
 
@@ -490,7 +631,7 @@ public sealed class FunctionType : NodeType
                         argObj = o ?? throw new Exception($"The {j + 1} argument not valid");
                         eleType ??= GetArgType(arg, gen ?? o.GetType());
 
-                        if (eleType != null && eleType.IsAssignableTo(typeof(DataNode)))
+                        if (eleType != null && eleType.IsAssignableTo(typeof(IValueAccess)))
                         {
                             if (schemaType != null && schemaType is not GenericType)
                             {
@@ -505,7 +646,7 @@ public sealed class FunctionType : NodeType
                     // AnySchemaNode
                     else if (argNode != null)
                     {
-                        if (eleType != null && eleType.IsAssignableTo(typeof(DataNode)))
+                        if (eleType != null && eleType.IsAssignableTo(typeof(IValueAccess)))
                             argObj = argNode;
                         else
                         {
@@ -546,101 +687,371 @@ public sealed class FunctionType : NodeType
         }
 
         // Call the method
-        return (funcInfo.Sign & FunctionFlags.Async) > 0
+        object? res = (funcInfo.Sign & FunctionFlags.Async) > 0
             ? GetCallAsyncFunc(callMethod.ReturnType.GetGenericArguments()[0]).Invoke(null, [callMethod, callArgs])
             : callMethod.Invoke(null, callArgs);
+
+        // Cache
+        if (cache != null)
+            cache[key!] = res is null ? DBNull.Value : res;
+        return res;
     }
     
     /// <summary>
     /// Call the function asynchronously
     /// </summary>
-    public async Task<T?> CallAsync<T, TC>(SchemaContext context, object?[] args, string? rType = null)
+    public async Task<T?> CallAsync<T, TC>(SchemaContext context, object?[] args, string? rType = null, ApplyMode mode = ApplyMode.Call)
         where TC: CompileContext
     {
-        object? result;
+        object? result = null;
 
         // Remote call
         if (IsRemoteCall)
         {
             JsonArray cArgs = [];
             foreach (object? arg in args) 
-                cArgs.Add(arg is DataNode node ? node.ToJsonNode() : arg.ToJsonNode());
+                cArgs.Add(arg.ToJsonNode());
 
-            result = Provider != null && context.GetRequiredService(Provider) is IFunctionSchemaProvider provider
-                ? await provider.CallFunctionAsync(Name, cArgs, rType)
+            // ReSharper disable once SuspiciousTypeConversion.Global
+            result = Provider != null && Provider.IsAssignableTo(typeof(IFunctionSchemaProvider))
+                ? await (context.GetRequiredService(Provider) as IFunctionSchemaProvider)!.CallFunctionAsync(Name, cArgs, rType, mode)
                 : null;
         }
-
-        // Call system method
-        else if (IsSystemCall)
-        {
-            result = await CallSystemFuncAsync(context, args, rType);
-        }
-
-        // Invoke the dynamic method
         else
         {
+            bool isCall = mode == ApplyMode.Call;
+            int arrayIdx = -1;
+
             // Argument validation
             FunctionTypeSchema funcSchema = await context.VisitFunctionTypeAsync<TC>(this);
-        
-            // parse parameters
-            object?[] callArgs = new object[funcSchema.Args.Length];
-            for (int i = 0; i < funcSchema.Args.Length; i++)
-            {
-                ArgumentExp arg = funcSchema.Args[i];
             
+            // parse parameters
+            int cnt = Math.Max(funcSchema.Args.Length, args.Length);
+            object?[] callArgs = new object[cnt];
+            for (int i = 0; i < cnt; i++)
+            {
+                ArgumentExp arg = funcSchema.Args.ElementAtOrDefault(i) ?? funcSchema.Args.Last();
+
                 // validate argument
                 object? argObj = args.ElementAtOrDefault(i);
                 JsonNode? argJson = argObj as JsonNode;
-                DataNode? argNode = argObj as DataNode;
+                IValueAccess? argNode = argObj as IValueAccess;
 
                 // check null or empty
-                if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
+                if (argObj == null || (argJson != null && argJson.IsEmpty()) || argNode is { IsEmpty: true } && argNode.Type.Kind != NODE_KIND_ARRAY)
                 {
-                    if (!arg.Require) continue;
-                    throw new Exception($"The {i + 1} argument must be provided");
+                    if (!arg.Require)
+                    {
+                        var a = Args.ElementAtOrDefault(i) ?? Args.Last();
+                        if (a.Default != null)
+                        {
+                            argObj = a.Default;
+                            argJson = null;
+                            argNode = null;
+                        }
+                        else
+                            continue;
+                    }
+                    else
+                        throw new Exception($"The {i + 1} argument must be provided");
                 }
 
                 // Parse argument
-                var eleType = arg.ValueType.GetCsharpType()!;
+                var eleType = arg.ValueType.GetCsharpType();
 
-                if (eleType.IsAssignableTo(typeof(DataNode)))
+                // indicate the array
+                if (!isCall && arg.ValueType is not ArrayType &&
+                    (argObj is JsonArray || argObj.GetType().IsArrayType()) && arrayIdx == -1)
                 {
-                    var node = arg.ValueType.Create();
-                    if (!node.TrySetValue(argObj))
-                        throw new Exception($"The {i + 1} argument must be provided and valid");
-                    callArgs[i] = node;
+                    object[] maps = [];
+
+                    IEnumerable<object> values = argObj is System.Collections.IEnumerable list
+                        ? list.Cast<object>()
+                        : throw new Exception($"The {i + 1} argument must be provided and valid");
+                    int index = 0;
+                    foreach (object value in values)
+                    {
+                        if (eleType != null)
+                        {
+                            if (eleType.IsAssignableTo(typeof(IValueAccess)))
+                            {
+                                var node = arg.ValueType.Create();
+                                if (!node.TrySetValue(value))
+                                    throw new Exception($"The {i + 1} argument must be provided and valid");
+                                maps[index++] = node;
+                            }
+                            else
+                            {
+                                // DataNode
+                                if (value is IValueAccess dataNode)
+                                {
+                                    maps[index++] = dataNode.TryGetValue(eleType, out var o)
+                                        ? o!
+                                        : throw new Exception($"The {i + 1} argument must be provided and valid");
+                                }
+
+                                // other
+                                else
+                                {
+                                    maps[index++] = eleType.TryConvert(value, out var o)
+                                        ? o!
+                                        : throw new Exception($"The {i + 1} argument must be provided and valid");
+                                }
+                            }
+                        }
+                        else
+                        {
+                            maps[index++] = value;
+                        }
+                    }
+
+                    callArgs[i] = maps;
+                    arrayIdx = i;
+                }
+                else if (eleType != null)
+                {
+                    if (eleType.IsAssignableTo(typeof(IValueAccess)))
+                    {
+                        var node = arg.ValueType.Create();
+                        if (!node.TrySetValue(argObj))
+                            throw new Exception($"The {i + 1} argument must be provided and valid");
+                        callArgs[i] = node;
+                    }
+                    else
+                    {
+                        // DataNode
+                        if (argNode != null)
+                        {
+                            callArgs[i] = argNode.TryGetValue(eleType, out var o)
+                                ? o
+                                : throw new Exception($"The {i + 1} argument must be provided and valid");
+                        }
+
+                        // JsonNode | object
+                        else
+                        {
+                            callArgs[i] = eleType.TryConvert(argObj, out var o)
+                                ? o
+                                : throw new Exception($"The {i + 1} argument must be provided and valid");
+                        }
+                    }
                 }
                 else
                 {
-                    // DataNode
-                    if (argNode != null)
-                    {
-                        callArgs[i] = argNode.TryGetValue(eleType, out var o) ? o : throw new Exception($"The {i + 1} argument must be provided and valid");
-                    }
-                
-                    // JsonNode | object
-                    else if (argJson != null)
-                    {
-                        callArgs[i] = eleType.TryConvert(argJson, out var o) ? o : throw new Exception($"The {i + 1} argument must be provided and valid");
-                    }
-                    
-                    // other
-                    else
-                    {
-                        callArgs[i] = eleType.TryConvert(argObj, out var o) ? o : throw new Exception($"The {i + 1} argument must be provided and valid");
-                    }
+                    callArgs[i] = argObj;
                 }
             }
-        
+            
             // All custom function use context
-            callArgs = callArgs.Prepend(context).ToArray();
+            if (!IsSystemCall)
+            {
+                callArgs = callArgs.Prepend(context).ToArray();
+                if (arrayIdx >= 0)
+                    arrayIdx++;
+            }
 
+            Delegate? method = !IsSystemCall 
+                ? await context.CompileFunctionTypeAsync<TC>(this) ?? throw new Exception($"The function {Name} dynamic method compile failed") 
+                : null;
+
+            // Call
             try
             {
-                Delegate method = await context.CompileFunctionTypeAsync<TC>(this)
-                    ?? throw new Exception($"The function {Name} dynamic method compile failed");
-                result = method.DynamicInvoke(callArgs);
+                if (!isCall)
+                {
+                    var returnType = !string.IsNullOrWhiteSpace(rType) ? await context.GetNodeTypeAsync<ValueType>(rType) : null;
+                    switch (mode)
+                    {
+                        case ApplyMode.Map:
+                            rType = (returnType as ArrayType)?.Element?.Name;
+                            break;
+                        case ApplyMode.First:
+                        case ApplyMode.Last:
+                        case ApplyMode.Filter:
+                        case ApplyMode.Count:
+                        case ApplyMode.All:
+                        case ApplyMode.Any:
+                            rType = context.System.Bool.Name;
+                            break;
+                    }
+                }
+                
+                if (mode == ApplyMode.Call)
+                {
+                    result = await getResult();
+                }
+                else if (arrayIdx >= 1)
+                {
+                    switch (mode)
+                    {
+                        case ApplyMode.Map:
+                        {
+                            List<object> results = [];
+                            object[] col = (callArgs[arrayIdx] as object[])!;
+                            foreach (var t in col)
+                            {
+                                callArgs[arrayIdx] = t;
+                                object? m = await getResult();
+                                if (m != null) results.Add(m);
+                            }
+
+                            if (results.Count > 0)
+                            {
+                                if (results[0] is IValueAccess n)
+                                {
+                                    var arrayNode =
+                                        ((await context.GetArrayNodeTypeAsync(n.Type))!.Create() as ArrayNode)!;
+                                    arrayNode.AddRange(results);
+                                    result = arrayNode;
+                                }
+                                else if (results[0] is JsonNode)
+                                {
+                                    var jsonArray = new JsonArray();
+                                    foreach (object obj in results)
+                                        jsonArray.Add(obj);
+                                    result = jsonArray;
+                                }
+                                else
+                                    result = results.ToArray();
+                            }
+
+                            break;
+                        }
+                        case ApplyMode.Filter:
+                        {
+                            List<object> results = [];
+                            object[] col = (callArgs[arrayIdx] as object[])!;
+                            foreach (var t in col)
+                            {
+                                callArgs[arrayIdx] = t;
+                                object? v = await getResult();
+                                if (v is bool and true || v is BoolNode bn && bn.GetValue<bool>())
+                                    results.Add(t);
+                            }
+
+                            if (results.Count > 0)
+                            {
+                                if (results[0] is IValueAccess n)
+                                {
+                                    var arrayNode =
+                                        ((await context.GetArrayNodeTypeAsync(n.Type))!.Create() as ArrayNode)!;
+                                    arrayNode.AddRange(results);
+                                    result = arrayNode;
+                                }
+                                else if (results[0] is JsonNode)
+                                {
+                                    var jsonArray = new JsonArray();
+                                    foreach (object obj in results)
+                                        jsonArray.Add(obj);
+                                    result = jsonArray;
+                                }
+                                else
+                                    result = results.ToArray();
+                            }
+                            
+                            break;
+                        }
+                        case ApplyMode.Reduce:
+                        {
+                            object[] col = (callArgs[arrayIdx] as object[])!;
+                            int reduceIdx = arrayIdx == 1 ? 2 : 1;
+                            object? reduce = callArgs[reduceIdx];
+                            int startIndex = 0;
+                            while (reduce is null)
+                                reduce = col.ElementAtOrDefault(startIndex++);
+
+                            for (int i = startIndex; i < col.Length; i++)
+                            {
+                                callArgs[arrayIdx] = col[i];
+                                object? m = await getResult();
+                                if (m != null) callArgs[reduceIdx] = m;
+                            }
+
+                            result = callArgs[reduceIdx];
+                            break;
+                        }
+                        case ApplyMode.First:
+                        {
+                            object[] col = (callArgs[arrayIdx] as object[])!;
+                            foreach (object c in col)
+                            {
+                                callArgs[arrayIdx] = c;
+                                object? v = await getResult();
+                                if (v is bool and true || v is BoolNode bn && bn.GetValue<bool>())
+                                {
+                                    result = c;
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                        case ApplyMode.Last:
+                        {
+                            object[] col = (callArgs[arrayIdx] as object[])!;
+                            for(int i = col.Length - 1; i >= 0; i--)
+                            {
+                                callArgs[arrayIdx] = col[i];
+                                object? v = await getResult();
+                                if (v is bool and true || v is BoolNode bn && bn.GetValue<bool>())
+                                {
+                                    result = col[i];
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                        case ApplyMode.Count:
+                        {
+                            object[] col = (callArgs[arrayIdx] as object[])!;
+                            int count = 0;
+                            foreach(var c in col)
+                            {
+                                callArgs[arrayIdx] = c;
+                                object? v = await getResult();
+                                if (v is bool and true || v is BoolNode bn && bn.GetValue<bool>())
+                                    count++;
+                            }
+                            result = count;
+                            break;
+                        }
+                        case ApplyMode.All:
+                        {
+                            object[] col = (callArgs[arrayIdx] as object[])!;
+                            bool all = true;
+                            foreach(var c in col)
+                            {
+                                callArgs[arrayIdx] = c;
+                                object? v = await getResult();
+                                if (!(v is bool and true || v is BoolNode bn && bn.GetValue<bool>()))
+                                {
+                                    all = false;
+                                    break;
+                                }
+                            }
+                            result = all;
+                            break;
+                        }
+                        case ApplyMode.Any:
+                        {
+                            object[] col = (callArgs[arrayIdx] as object[])!;
+                            bool any = false;
+                            foreach(var c in col)
+                            {
+                                callArgs[arrayIdx] = c;
+                                object? v = await getResult();
+                                if (v is bool and true || v is BoolNode bn && bn.GetValue<bool>())
+                                {
+                                    any = true;
+                                    break;
+                                }
+                            }
+                            result = any;
+                            break;
+                        }
+                        default:
+                            throw new ArgumentOutOfRangeException(nameof(mode), mode, null);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -648,12 +1059,18 @@ public sealed class FunctionType : NodeType
                 // ReSharper disable once PossibleIntendedRethrow
                 throw ex;
             }
+
+            async Task<object?> getResult()
+            {
+                if (IsSystemCall) return await CallSystemFuncAsync(context, callArgs, rType);
+                return method!.DynamicInvoke(callArgs);
+            }
         }
 
         // Parse the return type
         if (result == null) return default(T);
         if (result is T r) return r;
-        if (typeof(T).IsAssignableTo(typeof(DataNode)))
+        if (typeof(T).IsAssignableTo(typeof(IValueAccess)))
         {
             return await context.GetSchemaNodeAsync(result) is T rNode ? rNode : default(T?);
         }
@@ -663,8 +1080,8 @@ public sealed class FunctionType : NodeType
     /// <summary>
     /// Call the function asynchronously with default compile context
     /// </summary>
-    public Task<T?> CallAsync<T>(SchemaContext context, object?[] args, string? rType = null)
-        => CallAsync<T, CompileContext>(context, args, rType);
+    public Task<T?> CallAsync<T>(SchemaContext context, object?[] args, string? rType = null, ApplyMode mode = ApplyMode.Call )
+        => CallAsync<T, CompileContext>(context, args, rType, mode);
 
     #endregion
 
@@ -791,7 +1208,7 @@ public class FunctionNodeExpression : FunctionNodeExpTree
     /// <summary>
     /// The function used to map array elements
     /// </summary>
-    public ExpType? Type { get; init; } = ExpType.Call;
+    public ApplyMode? Mode { get; init; } = ApplyMode.Call;
 
     /// <summary>
     /// The namespace.
@@ -830,10 +1247,10 @@ public class FunctionNodeExpression : FunctionNodeExpTree
         return new FunctionNodeExpression
         {
             Name = exp.Name,
-            Type = exp.Type,
             Return = exp.Return,
-            Args = exp.Args,
-            Func = exp.Func,
+            Mode = exp.Call.Mode,
+            Func = exp.Call.Func,
+            Args = exp.Call.Args,
         };
     }
 
@@ -851,9 +1268,10 @@ public static class FunctionTypeExtensions
     /// <param name="node">The function schema node</param>
     /// <param name="args">The arguments</param>
     /// <param name="rType">The return type</param>
+    /// <param name="mode">The function apply mode</param>
     /// <returns>The result</returns>
-    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, FunctionType node, JsonArray args, string? rType = null)
-        => node.CallAsync<JsonNode>(context, args.Select(object? (p) => p).ToArray(), rType);
+    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, FunctionType node, JsonArray args, string? rType = null, ApplyMode mode = ApplyMode.Call)
+        => node.CallAsync<JsonNode>(context, args.Select(object? (p) => p).ToArray(), rType, mode);
 
     /// <summary>
     /// Call the function with arguments and given generic type
@@ -862,9 +1280,10 @@ public static class FunctionTypeExtensions
     /// <param name="name">The function schema name</param>
     /// <param name="args">The arguments</param>
     /// <param name="rType">The return types</param>
+    /// <param name="mode">The function apply mode</param>
     /// <returns>The result</returns>
-    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, string name, JsonArray args, string? rType = null)
-        => CallFunctionAsync<JsonNode>(context, name,  args.Select(object? (p) => p).ToArray(), rType);
+    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, string name, JsonArray args, string? rType = null, ApplyMode mode = ApplyMode.Call)
+        => CallFunctionAsync<JsonNode>(context, name,  args.Select(object? (p) => p).ToArray(), rType, mode);
     
     /// <summary>
     /// Call the function with arguments and given generic type
@@ -873,9 +1292,10 @@ public static class FunctionTypeExtensions
     /// <param name="name">The function schema name</param>
     /// <param name="args">The arguments</param>
     /// <param name="rType">The return type</param>
+    /// <param name="mode">The function apply mode</param>
     /// <returns>The result</returns>
-    public static Task<T?> CallFunctionAsync<T>(this SchemaContext context, string name, object?[] args, string? rType = null) 
-        => CallFunctionAsync<T, CompileContext>(context, name, args, rType);
+    public static Task<T?> CallFunctionAsync<T>(this SchemaContext context, string name, object?[] args, string? rType = null, ApplyMode mode = ApplyMode.Call)
+        => CallFunctionAsync<T, CompileContext>(context, name, args, rType, mode);
     
     /// <summary>
     /// Call the function with arguments and given generic type
@@ -884,11 +1304,12 @@ public static class FunctionTypeExtensions
     /// <param name="name">The function schema name</param>
     /// <param name="args">The arguments</param>
     /// <param name="rType">The return type</param>
+    /// <param name="mode">The function apply mode</param>
     /// <returns>The result</returns>
-    public static async Task<T?> CallFunctionAsync<T, TC>(this SchemaContext context, string name, object?[] args, string? rType = null) 
+    public static async Task<T?> CallFunctionAsync<T, TC>(this SchemaContext context, string name, object?[] args, string? rType = null, ApplyMode mode = ApplyMode.Call)
         where TC: CompileContext
     {
         FunctionType node = await context.GetNodeTypeAsync<FunctionType>(name) ?? throw new Exception($"Function {name} not found");
-        return await node.CallAsync<T, TC>(context, args, rType);
+        return await node.CallAsync<T, TC>(context, args, rType, mode);
     }
 }

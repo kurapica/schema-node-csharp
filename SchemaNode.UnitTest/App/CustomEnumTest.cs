@@ -1,6 +1,4 @@
 using SchemaNode.Enum;
-using SchemaNode.Node;
-using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Schema.Provider;
 using SchemaNode.Struct;
@@ -18,7 +16,7 @@ public class CustomEnumTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "status",
-            Kind = SCHEMA_KIND_ENUM,
+            Kind = NODE_KIND_ENUM,
         };
         EnumSchema enumSchema = new EnumSchema
         {
@@ -37,7 +35,7 @@ public class CustomEnumTest : Base.AppTestBase
         var statusType = await Context.GetNodeTypeAsync<Runtime.EnumType>(schema.FullName);
         Assert.IsNotNull(statusType);
         
-        DataNode? node = await statusType.ValidateValueAsync(Context, "active");
+        var node = await statusType.ValidateValueAsync(Context, "active");
         Assert.IsNotNull(node);
         Assert.IsTrue(node.IsValid);
     }
@@ -49,7 +47,7 @@ public class CustomEnumTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "region",
-            Kind = SCHEMA_KIND_ENUM,
+            Kind = NODE_KIND_ENUM,
         };
         EnumSchema enumSchema = new EnumSchema
         {
@@ -88,7 +86,7 @@ public class CustomEnumTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "priority",
-            Kind = SCHEMA_KIND_ENUM,
+            Kind = NODE_KIND_ENUM,
         };
         EnumSchema enumSchema = new EnumSchema
         {
@@ -119,7 +117,7 @@ public class CustomEnumTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "continent",
-            Kind = SCHEMA_KIND_ENUM,
+            Kind = NODE_KIND_ENUM,
         };
         EnumSchema enumSchema = new EnumSchema
         {
@@ -157,7 +155,7 @@ public class CustomEnumTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "todelete_enum",
-            Kind = SCHEMA_KIND_ENUM,
+            Kind = NODE_KIND_ENUM,
         };
         EnumSchema enumSchema = new EnumSchema
         {

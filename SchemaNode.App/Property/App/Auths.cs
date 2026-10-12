@@ -2,8 +2,9 @@ using System.Collections.Concurrent;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
@@ -22,9 +23,9 @@ namespace SchemaNode.Property.App;
 /// The auths property, used for declaring the auth policies for the node, the value is an array of policy items which will be evaluated at runtime to determine if the access is allowed or not. It supports multiple policies with different scopes and combine methods, and the evaluation result will be combined based on the combine method.
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_NODE, SCHEMA_KIND_APP, SCHEMA_KIND_APP_FIELD, SCHEMA_KIND_APP_WORKFLOW)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(Auths)}")]
-public class Auths : Property<PolicyItem[]>, ILoadableProperty, IErrorProvider
+public class Auths : Property<PolicyItem[]>, ILoadableProperty, IErrorProvider, ITypeRefProperty
 {
     public string? Error { get; set; }
     
@@ -38,6 +39,13 @@ public class Auths : Property<PolicyItem[]>, ILoadableProperty, IErrorProvider
             Error ??= AppErrorCodes.APP_POLICY_EVALUATOR_NOT_VALID;
         }
     }
+
+    public IEnumerable<string> GetRefTypes()
+    {
+        if (Value == null) yield break;
+        foreach (var item in Value)
+            yield return item.Evaluator;
+    }
 }
 
 /// <summary>
@@ -46,23 +54,6 @@ public class Auths : Property<PolicyItem[]>, ILoadableProperty, IErrorProvider
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.policy.evaluator")]
 [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS, NODE_SELF)] // All parameters will be fetched from context
 public class EvaluatorType : ValidFuncType;
-
-/// <summary>
-/// The policy combine
-/// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.policy.combine")]
-public enum PolicyCombine
-{
-    /// <summary>
-    /// auth1 && auth2
-    /// </summary>
-    AndAlso = 1,
-    
-    /// <summary>
-    /// auth1 || auth2
-    /// </summary>
-    OrElse = 2,
-}
 
 /// <summary>
 /// The policy scope
@@ -132,11 +123,6 @@ public sealed class PolicyItem
     /// </summary>
     [Meta<SchemaType>(typeof(EvaluatorType))]
     public required string Evaluator { get; set; }
-
-    /// <summary>
-    /// The policy combine method
-    /// </summary>
-    public required PolicyCombine Combine { get; set; }
 
     /// <summary>
     /// The function type of the evaluator
@@ -283,9 +269,7 @@ public static class PolicyExtensions
                         }
                     }
                 
-                    if (authorized && item.Combine == PolicyCombine.OrElse)
-                        break;
-                    if (!authorized && item.Combine == PolicyCombine.AndAlso)
+                    if (authorized)
                         break;
                 }
                 catch(Exception ex)

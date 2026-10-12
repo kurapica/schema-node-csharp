@@ -3,8 +3,9 @@ using SchemaNode.Enum;
 using SchemaNode.Function;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
-using static SchemaNode.Utility.Constant;
+using SchemaNode.Property.Property;
 using static SchemaNode.Utility.AppConstant;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.App;
 
@@ -12,7 +13,8 @@ namespace SchemaNode.Property.App;
 /// The storage table name
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(AttrTableName)}")]
-[Relation<Visible, Relation.Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"@{nameof(Topology)}", FieldStorageTopology.AttributeBased)]
+[Relation<InVisible, Relation.Call>(nameof(AttrTableName), $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.not)}", $"@{nameof(EnableStorage)}")]
+[Relation<Visible, Relation.Call>(nameof(AttrTableName), NS_SYSTEM_LOGIC_EQ, $"@{nameof(Topology)}", FieldStorageTopology.AttributeBased)]
 public class AttrTableName : Property<string>;

@@ -11,16 +11,16 @@ namespace SchemaNode.Api.Schema.Info;
 /// <summary>
 /// The LoadSchema api
 /// </summary>
-public class GetAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaResponse>
+public class GetAppSchemaApi : SchemaApi<GetAppSchemaRequest, GetAppSchemaResponse>
 {
     /// <inheritdoc />
-    protected override async Task<LoadAppSchemaResponse?> ExecuteAsync(LoadAppSchemaRequest request,
+    protected override async Task<GetAppSchemaResponse?> ExecuteAsync(GetAppSchemaRequest request,
         CancellationToken cancellationToken)
     {
         Logger.LogDebug("[Api]LoadAppSchemaApi [Request]{request}", request);
 
         Runtime.AppType? node = await SchemaContext.GetAppTypeAsync(request.Name);
-        if (node == null) return new LoadAppSchemaResponse();
+        if (node == null) return new GetAppSchemaResponse();
         
         // authorize
         await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead);
@@ -34,7 +34,7 @@ public class GetAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaResp
                 SchemaApiFile? output = await provider.GenerateAppSchemaOutput(SchemaContext, node, request.Format, cancellationToken);
                 if (output != null)
                 {
-                    return new LoadAppSchemaResponse
+                    return new GetAppSchemaResponse
                     {
                         Output = output
                     };
@@ -60,7 +60,7 @@ public class GetAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaResp
             schema.Apps = apps.ToArray();
         }
 
-        return new LoadAppSchemaResponse
+        return new GetAppSchemaResponse
         {
             Schema = schema,
         };
@@ -70,7 +70,7 @@ public class GetAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaResp
 /// <summary>
 /// The LoadSchema request
 /// </summary>
-public class LoadAppSchemaRequest : SchemaApiRequest
+public class GetAppSchemaRequest : SchemaApiRequest
 {
     /// <summary>
     /// The app schema name
@@ -91,7 +91,7 @@ public class LoadAppSchemaRequest : SchemaApiRequest
 /// <summary>
 /// The LoadSchema response
 /// </summary>
-public class LoadAppSchemaResponse : SchemaApiResponse
+public class GetAppSchemaResponse : SchemaApiResponse
 {
     /// <summary>
     /// The app schema

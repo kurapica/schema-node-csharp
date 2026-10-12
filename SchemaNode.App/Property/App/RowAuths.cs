@@ -1,8 +1,10 @@
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
+using SchemaNode.Property.Struct;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
@@ -15,10 +17,11 @@ namespace SchemaNode.Property.App;
 /// The row auths
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(RowAuths)}")]
-[Relation<Valid, Relation.Call>($"{nameof(RowAuths)}.{nameof(RowPolicy.Filter)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS, NODE_SELF, $"@{nameof(AppFieldSchema.Type)}", true)]
-public class RowAuths : Property<RowPolicy[]>, ILoadableProperty, IErrorProvider
+[Relation<Visible, Relation.Call>(nameof(RowAuths), NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, $"@{nameof(Type)}", true, NODE_KIND_STRUCT)]
+[Relation<Default, Relation.Call>($"{nameof(RowAuths)}.{ARRAY_ELEMENT}.{nameof(RowPolicy.FieldType)}", $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(SchemaNode.Function.Reflect.Array.getarrayelement)}", $"@{nameof(AppFieldType.Type)}")]
+public class RowAuths : Property<RowPolicy[]>, ILoadableProperty, IErrorProvider, ITypeRefProperty
 {
     public string? Error { get; set; }
     
@@ -41,6 +44,16 @@ public class RowAuths : Property<RowPolicy[]>, ILoadableProperty, IErrorProvider
             Error ??= AppErrorCodes.APP_ROW_AUTH_FILTER_NOT_VALID;
         }
     }
+
+    public IEnumerable<string> GetRefTypes()
+    {
+        if (Value == null) yield break;
+        foreach (RowPolicy item in Value)
+        {
+            if (!string.IsNullOrWhiteSpace(item.Evaluator)) yield return item.Evaluator;
+            if (!string.IsNullOrWhiteSpace(item.Filter)) yield return item.Filter;
+        }
+    }
 }
 
 /// <summary>
@@ -59,7 +72,16 @@ public sealed class RowPolicy
     /// The row filter function
     /// </summary>
     [Meta<SchemaType>(typeof(ValidFuncType))]
+    [Relation<Valid, Relation.Assign>(nameof(RowPolicy.Filter), NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS, NODE_SELF, $"@{nameof(FieldType)}")]
     public required string Filter { get; set; }
+
+    /// <summary>
+    /// The field element type
+    /// </summary>
+    [Meta<SchemaType>(typeof(Schema.ValueType))]
+    [Meta<DisplayOnly>(true)]
+    [Meta<InVisible>(true)]
+    public string? FieldType { get; set; }
 
     /// <summary>
     /// The function type of the evaluator

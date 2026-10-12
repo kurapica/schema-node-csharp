@@ -3,13 +3,14 @@ using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
 using SchemaNode.Runtime;
-using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Data.Common;
 using SchemaNode.Node;
+using SchemaNode.Property.Array;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Int;
+using SchemaNode.Property.String;
 using SchemaNode.Relation;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
@@ -115,7 +116,7 @@ public class DynamicTableSchema
                         string? dataField = call.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();
                         if (string.IsNullOrWhiteSpace(dataField) || dataField.Equals(appFieldType.Name, StringComparison.OrdinalIgnoreCase)) continue; // no data field
                         var dataFieldType = structType.GetField(dataField);
-                        if (dataFieldType == null) continue; // data field not exist
+                        if (dataFieldType == null || appField.IsForeignView == true && dataFieldType.DisplayOnly == true) continue; // data field not exist or none-query field in foreign view
 
                         // Check joins
                         if (joins == null || joins.All(j => !j.Field.Equals(field, StringComparison.OrdinalIgnoreCase)))
@@ -124,7 +125,7 @@ public class DynamicTableSchema
                             Dictionary<string, AppSchemaDataFilter> keyMap = new();
 
                             // build primary key
-                            for (int i = 3; i < call.Args.Length - 1; i++)
+                            for (int i = 3; i < call.Args.Length; i++)
                             {
                                 keyMap[primary[i - 3]] = !string.IsNullOrEmpty(call.Args[i].Source)
                                     ? new AppSchemaDataFilterField(call.Args[i].Source!)
@@ -264,7 +265,7 @@ public class DynamicTableSchema
                             string? dataField = call.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();
                             if (string.IsNullOrWhiteSpace(dataField) || dataField.Equals(appFieldType.Name, StringComparison.OrdinalIgnoreCase)) continue; // no data field
                             var dataFieldType = structType.GetField(dataField);
-                            if (dataFieldType == null) continue; // data field not exist
+                            if (dataFieldType == null || appField.IsForeignView == true && dataFieldType.DisplayOnly == true) continue; // data field not exist
 
                             // Check joins
                             if (joins == null || joins.All(j => !j.Field.Equals(field, StringComparison.OrdinalIgnoreCase)))
@@ -273,7 +274,7 @@ public class DynamicTableSchema
                                 Dictionary<string, AppSchemaDataFilter> keyMap = new();
 
                                 // build primary key
-                                for (int i = 3; i < call.Args.Length - 1; i++)
+                                for (int i = 3; i < call.Args.Length; i++)
                                 {
                                     keyMap[primary[i - 3]] = !string.IsNullOrEmpty(call.Args[i].Source)
                                         ? new AppSchemaDataFilterField(call.Args[i].Source!)
@@ -399,7 +400,7 @@ public class DynamicTableSchema
         }
 
         // Add the foreign key field if not added for query
-        if (isView)
+        if (isView && appFieldType.View?.AppType?.ScopeType != AppScopeType.SystemLevel)
         {
             AppFieldType sourceField = appFieldType.View?.AppType?.GetField(appFieldType.View?.Field ?? "") ?? throw new Exception($"Invalid view source field: {appFieldType.View?.App}.{appFieldType.View?.Field}");
             var foreign = sourceField.Foreigns?.FirstOrDefault(f => f.App.Equals(appFieldType.App, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception($"Invalid view source field: {appFieldType.View?.App}.{appFieldType.View?.Field}");
@@ -503,7 +504,7 @@ public class DynamicTableSchema
 
     #region Methods
     
-    public IEnumerable<(string field, DataNode? value)> GetFieldValues(StructNode pack, bool primaryOnly = false, bool noPrimary = false)
+    public IEnumerable<(string field, IValueAccess? value)> GetFieldValues(StructNode pack, bool primaryOnly = false, bool noPrimary = false)
     {
         IEnumerable<DynamicTableField> fields = NonScopeFields;
         if (primaryOnly) fields = fields.Where(p => p.Primary);
@@ -515,7 +516,7 @@ public class DynamicTableSchema
                 var fieldNode = pack.GetAccessValue(field.Name);
                 if (fieldNode is { IsEmpty: false })
                 {
-                    yield return (field.Name, fieldNode as DataNode);
+                    yield return (field.Name, fieldNode);
                 }
                 else
                 {
@@ -527,7 +528,7 @@ public class DynamicTableSchema
                 var complex = pack.GetAccessValue(field.Complex.Main);
                 if (complex is StructNode sPack && sPack.GetAccessValue(field.Complex.Field) is { IsEmpty: false } part)
                 {
-                    yield return (field.Name, part as DataNode);
+                    yield return (field.Name, part);
                 }
                 else
                 {
@@ -571,7 +572,7 @@ public class DynamicTableSchema
     /// <summary>
     /// Gets the scope context items for the dynamic table, used for data partition and target selection
     /// </summary>
-    public IEnumerable<(string item, DataNode? value)> GetScopeItems(ISchemaContext context)
+    public IEnumerable<(string item, IValueAccess? value)> GetScopeItems(ISchemaContext context)
     {
         if (context is not SchemaContext schemaContext) yield break;
         bool isview = AppField.IsForeignView;
@@ -579,6 +580,8 @@ public class DynamicTableSchema
         {
             if (isview && isTarget)
             {
+                if (AppField.View?.AppType?.ScopeType == AppScopeType.SystemLevel) continue; // no target
+
                 // change the view target to the foreign field
                 var sourceField = AppField.View?.AppType?.GetField(AppField.View?.Field ?? "") ?? throw new Exception($"Invalid view source field: {AppField.View?.App}.{AppField.View?.Field}");
                 var foreign = sourceField.Foreigns?.FirstOrDefault(f => f.App.Equals(AppField.App, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception($"Invalid view source field: {AppField.View?.App}.{AppField.View?.Field}");
@@ -595,7 +598,7 @@ public class DynamicTableSchema
     public string? GetPrimaryKey(StructNode pack)
     {
         List<string> keys = [];
-        foreach ((string _, DataNode? node) in GetFieldValues(pack, true))
+        foreach ((string _, var node) in GetFieldValues(pack, true))
         {
             if (node == null || node.IsEmpty) return null;
             keys.Add(node.GetValue<string>()!);
@@ -606,7 +609,7 @@ public class DynamicTableSchema
     /// <summary>
     /// Gets the primary token from the key nodes
     /// </summary>
-    public string? GetPrimaryKey(params DataNode?[] keyNodes)
+    public string? GetPrimaryKey(params IValueAccess?[] keyNodes)
     {
         string[] keys = new string[keyNodes.Length];
         for (int i = 0; i < keyNodes.Length; i++)
@@ -620,12 +623,12 @@ public class DynamicTableSchema
     /// <summary>
     /// Gets the field data pack from the reader
     /// </summary>
-    public DataNode GetFieldPack(DbDataReader reader, int offset = 0, bool queryOnly = false)
+    public IValueAccess GetFieldPack(DbDataReader reader, int offset = 0, bool queryOnly = false)
     {
         StructNode result = new StructNode((StructType)(ValueType is ArrayType arr ? arr.Element : ValueType)!);
         foreach (DynamicTableField field in queryOnly ? QueryFields : NonScopeFields)
         {
-            DataNode? val = field.FromReader(reader, offset++);
+            IValueAccess? val = field.FromReader(reader, offset++);
 
             if (field.Target)
             {
@@ -668,7 +671,7 @@ public class DynamicTableSchema
     /// <summary>
     /// Gets the field data pack from the reader by field name
     /// </summary>
-    public DataNode? GetFieldPack(DbDataReader reader, string fieldName, bool queryOnly = false)
+    public IValueAccess? GetFieldPack(DbDataReader reader, string fieldName, bool queryOnly = false)
     {
         int offset = 0;
         StructNode? complexResult = null;
@@ -681,7 +684,7 @@ public class DynamicTableSchema
             else if (field.Complex != null && field.Complex.Field.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
             {
                 complexResult ??= new StructNode((StructType)((StructType)ValueType).GetField(field.Complex.Main)!.Type!);
-                DataNode? val = field.FromReader(reader, offset);
+                var val = field.FromReader(reader, offset);
                 if (val != null)
                     complexResult[field.Complex.Field] = val;
             }
@@ -715,21 +718,22 @@ public class DynamicTableSchema
     /// <summary>
     /// Generate display only fields
     /// </summary>
-    public Task GenerateDisplayOnlyFields(SchemaContext context, DataNode? pack)
+    public Task GenerateDisplayOnlyFields(SchemaContext context, IValueAccess? pack)
     {
         // Generate the display only fields
-        return ValueType is StructType @struct 
-            ? GenerateDisplayOnlyFields(context, @struct, pack)
-            : ValueType is ArrayType { Element: StructType structEle }
-                ? GenerateDisplayOnlyFields(context, structEle, pack)
-                : Task.CompletedTask;
+        return ValueType switch
+        {
+            StructType @struct => GenerateDisplayOnlyFields(context, @struct, pack),
+            ArrayType { Element: StructType structEle } => GenerateDisplayOnlyFields(context, structEle, pack),
+            _ => Task.CompletedTask
+        };
     }
 
     #endregion
     
     #region Utility
 
-    internal static bool IsReferenceFunc(string func) => $"{NS_SYSTEM_DATA}.app.{nameof(SystemAppData.getfield)}".Equals(func, StringComparison.OrdinalIgnoreCase);
+    internal static bool IsReferenceFunc(string func) => $"{NS_SYSTEM_DATA_APP}.{nameof(SystemAppData.getfield)}".Equals(func.Split('<', 2).First(), StringComparison.OrdinalIgnoreCase);
 
     // Generate the display only fields
     private static async Task GenerateDisplayOnlyFields(SchemaContext context, StructType type, IValueAccess? node, bool joinHandled = false)
@@ -781,11 +785,11 @@ public class DynamicTableSchema
                         if (string.IsNullOrWhiteSpace(target)) continue; // no app target
 
                         // collect keys
-                        Dictionary<string, List<DataNode>> keyMap = new();
+                        Dictionary<string, List<IValueAccess>> keyMap = new();
                         AppSchemaDataFilter? filter = null;
                         if (primary.Count > 0)
                         {
-                            foreach (DataNode row in array)
+                            foreach (IValueAccess row in array)
                             {
                                 if (row is not StructNode pack || 
                                     pack.GetAccessValue(relation.Target) is null ||
@@ -828,14 +832,14 @@ public class DynamicTableSchema
                         if (filter == null) continue; // no valid data to query
 
                         // query the dynamic data
-                        (DataNode? value, _) = await context.GetAppFieldDataAsync(appField, AppSchemaDataResult.List, filter);
+                        (IValueAccess? value, _) = await context.GetAppFieldDataAsync(appField, AppSchemaDataResult.List, filter);
 
                         // set the display only field value
                         switch (primary.Count)
                         {
                             case > 0 when value is ArrayNode resultArray:
                             {
-                                foreach (DataNode resultRow in resultArray)
+                                foreach (IValueAccess resultRow in resultArray)
                                 {
                                     if (resultRow is not StructNode resultStruct) continue;
 
@@ -857,19 +861,19 @@ public class DynamicTableSchema
                                     string pkey = string.Join(":", keys);
 
                                     // get data node
-                                    var dataNode = resultStruct.GetAccessValue(dataField);
-                                    if (dataNode == null || dataNode.IsEmpty) continue;
+                                    var dataValue = resultStruct.GetAccessValue(dataField);
+                                    if (dataValue == null || dataValue.IsEmpty) continue;
 
                                     // set value
-                                    if (!keyMap.TryGetValue(pkey, out List<DataNode>? packs)) continue;
-                                    foreach (DataNode row in packs)
+                                    if (!keyMap.TryGetValue(pkey, out List<IValueAccess>? packs)) continue;
+                                    foreach (IValueAccess row in packs)
                                     {
                                         if (row is not StructNode pack) continue;
                                         var fld = pack.GetAccessValue(relation.Target);
                                         if (fld is not { IsEmpty: true }) continue;
 
                                         // set value
-                                        fld.TrySetValue(dataNode);
+                                        fld.TrySetValue(dataValue);
                                     }
                                 }
 
@@ -878,17 +882,17 @@ public class DynamicTableSchema
                             case 0 when value is StructNode resultStruct:
                             {
                                 // single key
-                                var dataNode = resultStruct.GetAccessValue(dataField);
-                                if (dataNode == null || dataNode.IsEmpty) continue;
+                                var dataValue = resultStruct.GetAccessValue(dataField);
+                                if (dataValue == null || dataValue.IsEmpty) continue;
 
-                                foreach (DataNode row in array)
+                                foreach (IValueAccess row in array)
                                 {
                                     if (row is not StructNode pack) continue;
                                     var fld = pack.GetAccessValue(relation.Target);
                                     if (fld is not { IsEmpty: true }) continue;
 
                                     // set value
-                                    fld.TrySetValue(dataNode);
+                                    fld.TrySetValue(dataValue);
                                 }
 
                                 break;
@@ -898,7 +902,7 @@ public class DynamicTableSchema
                 }
                 
                 // generate for each row
-                foreach (DataNode row in array)
+                foreach (IValueAccess row in array)
                     await GenerateDisplayOnlyFields(context, type, row, true);
                 break;
             }
@@ -1096,7 +1100,7 @@ public enum TransactionChangeOperation
 /// <summary>
 /// The field data change info
 /// </summary>
-internal record FieldDataChangeData(TransactionChangeOperation Operation, DataNode? Value, DataNode? Origin);
+internal record FieldDataChangeData(TransactionChangeOperation Operation, IValueAccess? Value, IValueAccess? Origin);
 
 // The transaction change data
 internal class TransactionChangeData
@@ -1131,12 +1135,12 @@ internal struct FieldDataPushArg
     /// <summary>
     /// The value
     /// </summary>
-    public DataNode? Value { get; set; }
+    public IValueAccess? Value { get; set; }
 
     /// <summary>
     /// The origin value
     /// </summary>
-    public DataNode? Origin { get; set; }
+    public IValueAccess? Origin { get; set; }
 
     /// <summary>
     /// Whether is array data

@@ -1,14 +1,15 @@
 using SchemaNode.Schema;
 using SchemaNode.Enum;
 using SchemaNode.Property.App;
+using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema.Provider;
 using SchemaNode.Utility;
 using RuntimeAppType = SchemaNode.Runtime.AppType;
 using static SchemaNode.Utility.Constant;
-using static SchemaNode.Utility.AppConstant;
-using AppType = SchemaNode.Schema.AppType;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
+using NodeType = SchemaNode.Runtime.NodeType;
+using SchemaNode.Struct;
 
 namespace SchemaNode.Context;
 
@@ -73,10 +74,9 @@ public static class AppSchemaContextExtension
             {
                 // get loaded app schema from app container if not in reload mode
                 AppSchema? schema = reload ? null : root?.GetAppSchema(name);
-                if (schema != null) return schema;
 
                 string schemaName = $"{root?.Name}.{name}".Trim('.');
-                schema = SetSchemaState(runtime.GetSystemAppSchema(schemaName), SchemaLoadState.System);
+                schema ??= SetSchemaState(runtime.GetSystemAppSchema(schemaName), SchemaLoadState.System);
                 if (context.SystemMode) return schema;
 
                 // 3rd app schema provider
@@ -84,10 +84,9 @@ public static class AppSchemaContextExtension
                 {
                     try
                     {
-                        AppSchema? loadAppSchema = await provider.GetAppSchemaAsync(schemaName);
-                        if (loadAppSchema == null) continue;
-                        AppSchema loadSchema =
-                            SetSchemaState(loadAppSchema, SchemaLoadState.Service, provider.GetType())!;
+                        AppSchema? loadSchema = await provider.GetAppSchemaAsync(schemaName);
+                        if (loadSchema == null) continue;
+                        loadSchema = SetSchemaState(loadSchema, SchemaLoadState.Service, provider)!;
 
                         // check && combine
                         if (schema == null)
@@ -100,35 +99,8 @@ public static class AppSchemaContextExtension
                         schema.Provider ??= loadSchema.Provider;
 
                         // CombineProperties
-                        schema.CombineProperties(loadSchema, runtime, SCHEMA_KIND_APP);
-
-                        if (schema.Apps == null || schema.Apps.Length == 0)
-                        {
-                            schema.Apps = loadSchema.Apps;
-                            continue;
-                        }
-
-                        if (loadSchema.Apps == null || schema.Apps.Length == 0) continue;
-
-                        // combine
-                        List<AppSchema>? otherSchemas = null;
-                        foreach (var otherSchema in loadSchema.Apps)
-                        {
-                            int index = Array.FindIndex(schema.Apps,
-                                s => s.Name.Equals(otherSchema.Name, StringComparison.OrdinalIgnoreCase));
-                            if (index >= 0)
-                            {
-                                schema.Apps[index].CombineProperties(otherSchema, runtime, SCHEMA_KIND_APP);
-                            }
-                            else
-                            {
-                                otherSchemas ??= [];
-                                otherSchemas.Add(otherSchema);
-                            }
-                        }
-
-                        if (otherSchemas != null)
-                            schema.Apps = schema.Apps.Concat(otherSchemas).ToArray();
+                        loadSchema.Combine(schema, runtime); // don't change the system schema part
+                        schema = loadSchema;
                     }
                     catch (Exception e)
                     {
@@ -140,7 +112,7 @@ public static class AppSchemaContextExtension
                 return schema;
             }
 
-            AppSchema? SetSchemaState(AppSchema? schema, SchemaLoadState loadState, Type? provider = null)
+            AppSchema? SetSchemaState(AppSchema? schema, SchemaLoadState loadState, IAppEntryProvider? provider = null)
             {
                 schema?.Provider = provider;
                 schema?.LoadState = loadState;
@@ -154,38 +126,44 @@ public static class AppSchemaContextExtension
         /// <summary>
         /// Gets the node schema with auth properties
         /// </summary>
-        public async Task<NodeSchema?> GetNodeSchemaAsync(NodeType type)
+        public async Task<NodeSchema?> GetNodeSchemaAsync(NodeType type, bool noAuth = false)
         {
             NodeSchema schema = type.GetNodeSchema(context.Runtime)!;
             bool canRead = await context.AuthorizeAsync(type, PolicyScope.SchemaRead, true);
             if (!canRead) return null;
+            if (noAuth) return schema;
+
+            // auth
+            bool isSystem = type.GetProperty<SystemDefined>()?.Value == true;
             schema.SetProperty<SchemaRead, bool>(canRead);
             schema.SetProperty<SchemaCreate, bool>(await context.AuthorizeAsync(type, PolicyScope.SchemaCreate, true));
-            schema.SetProperty<SchemaUpdate, bool>(await context.AuthorizeAsync(type, PolicyScope.SchemaUpdate, true));
-            schema.SetProperty<SchemaDelete, bool>(await context.AuthorizeAsync(type, PolicyScope.SchemaDelete, true));
+            schema.SetProperty<SchemaUpdate, bool>((!isSystem || type.Kind == NODE_KIND_NAMESPACE) && await context.AuthorizeAsync(type, PolicyScope.SchemaUpdate, true));
+            schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(type, PolicyScope.SchemaDelete, true));
             return schema;
         }
 
         /// <summary>
         /// Gets all node schemas related by the node schema
         /// </summary>
-        public async Task<NodeSchema> GetNodeSchemasAsync(NodeType nodeType,
+        public async Task<NodeSchema> GetNodeSchemasAsync(NodeType nodeType,    
             NodeSchema? root = null,
             HashSet<string>? types = null,
-            bool fullNs = false,
+            bool fullRefs = false,
             bool includeUsedBy = false,
+            bool noAuth = false,
+            bool fullEnum = false,
             CancellationToken? cancellationToken = null)
         {
             types ??= [];
             root ??= new NodeSchema
             {
                 Name = "",
-                Kind = SCHEMA_KIND_NAMESPACE,
+                Kind = NODE_KIND_NAMESPACE,
                 Schemas = []
             };
             if (!types.Add(nodeType.Name) || nodeType is GenericType) return root;
 
-            NodeSchema? schema = await context.GetNodeSchemaAsync(nodeType);
+            NodeSchema? schema = await context.GetNodeSchemaAsync(nodeType, noAuth);
             if (schema == null) return root;
             
             // install full namespace path
@@ -207,7 +185,7 @@ public static class AppSchemaContextExtension
                     if (sub == null)
                     {
                         cancellationToken?.ThrowIfCancellationRequested();
-                        sub = await context.GetNodeSchemaAsync(n);
+                        sub = await context.GetNodeSchemaAsync(n, noAuth);
                         if (sub == null) return root; // no read permission
                         parent.Schemas = parent.Schemas == null ? [sub] : parent.Schemas.Append(sub).ToArray();
                     }
@@ -219,29 +197,34 @@ public static class AppSchemaContextExtension
             if (includeUsedBy)
                 schema.UsedBy = nodeType.GetUsedBy().Select(p => p.Name).ToArray();
 
-            if (parent.Schemas == null ||
-                !parent.Schemas.Any(s => s.FullName.Equals(schema.FullName, StringComparison.OrdinalIgnoreCase)))
+            if (!string.IsNullOrEmpty(schema.FullName) && (parent.Schemas == null ||
+                !parent.Schemas.Any(s => s.FullName.Equals(schema.FullName, StringComparison.OrdinalIgnoreCase))))
             {
                 parent.Schemas ??= [];
                 parent.Schemas = parent.Schemas.Append(schema).ToArray();
             }
 
-            if (nodeType is NamespaceType ns && fullNs)
+            // Enum sub values
+            if (nodeType is Runtime.EnumType enumType && fullEnum)
             {
-                foreach (NodeSchema s in ns.GetNodeSchemas())
+                var enumSchema = schema.GetProperty<EnumProperty>()?.Value;
+                if (enumSchema != null && enumSchema.Values is { Length: > 0 })
                 {
-                    cancellationToken?.ThrowIfCancellationRequested();
-                    NodeType? sns = await context.GetNodeTypeAsync(s.Name);
-                    if (sns != null)
-                        await context.GetNodeSchemasAsync(sns, root, types, fullNs, includeUsedBy, cancellationToken);
+                    foreach (var valueEntry in enumSchema.Values)
+                        await context.BuildEnumChildren(enumType, valueEntry);
+                    schema.SetProperty<EnumProperty, EnumSchema>(enumSchema);
                 }
             }
 
             // add references
-            foreach (NodeType n in nodeType.GetReferenceTypes())
+            if (fullRefs == true)
             {
-                cancellationToken?.ThrowIfCancellationRequested();
-                await context.GetNodeSchemasAsync(n, root, types, fullNs, includeUsedBy, cancellationToken);
+                foreach (NodeType n in nodeType.GetReferenceTypes())
+                {
+                    if (n.GetProperty<SystemDefined>()?.Value == true) continue;
+                    cancellationToken?.ThrowIfCancellationRequested();
+                    await context.GetNodeSchemasAsync(n, root, types, fullRefs, includeUsedBy, noAuth, fullEnum, cancellationToken);
+                }
             }
 
             return root;
@@ -252,23 +235,35 @@ public static class AppSchemaContextExtension
         /// </summary>
         /// <returns></returns>
         public async Task<NodeSchema[]> GetNodeSchemasAsync(Runtime.AppType app, NodeSchema? root = null,
-            HashSet<string>? types = null, bool includeUsedBy = false, CancellationToken? cancellationToken = null)
+            HashSet<string>? types = null, bool includeUsedBy = false, bool fullRefs = false, bool noAuth = false, bool fullEnum = false, CancellationToken? cancellationToken = null)
         {
             types ??= [];
             root ??= new NodeSchema
             {
                 Name = "",
-                Kind = SCHEMA_KIND_NAMESPACE,
+                Kind = NODE_KIND_NAMESPACE,
                 Schemas = []
             };
 
             foreach (NodeType t in app.GetReferenceTypes())
             {
                 cancellationToken?.ThrowIfCancellationRequested();
-                await context.GetNodeSchemasAsync(t, root, types, false, includeUsedBy, cancellationToken);
+                await context.GetNodeSchemasAsync(t, root, types, fullRefs, includeUsedBy, noAuth, fullEnum, cancellationToken);
             }
 
             return root.Schemas!;
+        }
+
+        private async Task BuildEnumChildren(Runtime.EnumType enumType, Entry<string> valueEntry)
+        {
+            if (valueEntry.HasChildren != true) return;
+            var access = await enumType.GetEnumEntryAccessAsync(context, valueEntry.Value);
+            valueEntry.Children = access.LastOrDefault()?.Children;
+            if (valueEntry.Children is { Length: > 0 })
+            {
+                foreach (var child in valueEntry.Children)
+                    await context.BuildEnumChildren(enumType, child);
+            }
         }
     }
 }

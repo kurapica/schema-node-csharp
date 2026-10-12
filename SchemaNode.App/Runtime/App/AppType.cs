@@ -4,10 +4,14 @@ using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
-using SchemaNode.Node;
+using SchemaNode.Property.App;
+using SchemaNode.Struct;
+using SchemaNode.Property.Common;
+using SchemaNode.Property.Core;
+using SchemaNode.Runtime.Interface;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
-using SchemaNode.Property.App;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Runtime;
@@ -15,7 +19,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory application schema representation
 /// </summary>
-public sealed class AppType : IValueTypeAccess
+public sealed class AppType : IValueTypeAccess, INodeTypeReLoadHandler
 {
     #region Fields
     
@@ -49,6 +53,11 @@ public sealed class AppType : IValueTypeAccess
     /// The application name
     /// </summary>
     public string Name => _schema?.FullName ?? string.Empty;
+    
+    /// <summary>
+    /// The application kind
+    /// </summary>
+    public string Kind => SCHEMA_KIND_APP;
 
     /// <summary>
     /// The target policies, can only be changeable when no app & no fields or in debug mode
@@ -138,13 +147,35 @@ public sealed class AppType : IValueTypeAccess
 
     internal void RemoveAppSchema(ReadOnlySpan<char> name)
     {
+        _subApps?.TryRemove(name.ToString(), out _);
         _schemas?.TryRemove(name.ToString(), out _);
     }
     
+    /// <summary>
+    /// Gets the sub application schemas
+    /// </summary>
     internal IEnumerable<AppSchema> GetSubAppSchemas() => _schemas?.Values ?? [];
     
+    /// <summary>
+    /// Gets the sub applications
+    /// </summary>
     public IEnumerable<AppType> GetSubApps() => _subApps?.Values ?? [];
     
+    /// <summary>
+    /// Has sub apps
+    /// </summary>
+    public bool HasSubApps => _schemas?.Count > 0;
+    
+    /// <summary>
+    /// Rest loading stage for reload
+    /// </summary>
+    internal void ResetLoadState()
+    {
+        Loaded = false;
+        foreach (var app in _subApps?.Values ?? [])
+            app.ResetLoadState();
+    }
+
     #endregion
     
     #region Methods
@@ -180,18 +211,19 @@ public sealed class AppType : IValueTypeAccess
             foreach (RelationSchema relation in relations)
             {
                 // Gets the target type
-                ValueType? currentType = GetAccessValueType(relation.Target);
+                IValueTypeAccess? currentType = GetAccessValueType(relation.Target);
                 if (currentType == null) continue;
                 
                 // Gets the property type
-                PropertyType? prop = await context.GetNodeTypeAsync<PropertyType>(relation.Property);
+                var kind = (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(currentType.Kind);
+                PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_STRUCT_FIELD);
                 if (prop == null) continue;
                 
                 // Only work for constraint properties
-                Type? propType = context.Runtime.GetSchemaKindPropertyTypeByName(currentType.Kind, prop.Property);
+                Type? propType = prop.GetCsharpType();
                 if (propType == null) continue;
                 
-                var relationType = await relation.LoadAsync(context, this);
+                var relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_STRUCT_FIELD);
                 Error ??= relationType.Error;
 
                 _relations ??= [];
@@ -216,7 +248,7 @@ public sealed class AppType : IValueTypeAccess
             if (context.Runtime.Stage == RuntimeStage.Activated)
                 await wf.LoadAsync(context);
             else
-                (context.Runtime as SchemaRuntime)?.GetOrAddRuntimeItem<AppWorkflowQueue>()?.Enqueue(wf);
+                (context.Runtime as SchemaRuntime)?.GetOrAddRuntimeItem<AppWorkflowQueue>().Enqueue(wf);
         }
 
         // Add referenced by for fields, workflows and relations
@@ -231,6 +263,27 @@ public sealed class AppType : IValueTypeAccess
     {
         foreach (NodeType t in GetReferenceTypes())
             t.RemoveUsedBy(this);
+    }
+
+    /// <summary>
+    /// Clear field type cache items
+    /// </summary>
+    public void OnNodeTypeLoaded(NodeType[] types)
+    {
+        if (_fields != null)
+        {
+            foreach(AppFieldType f in _fields)
+            {
+                if (types.Any(t => t == f.ValueType))
+                    f.ResetItems();
+            }
+        }
+    }
+
+    /// <inheritdoc/>
+    public bool IsAssignableTo(IValueTypeAccess other)
+    {
+        return false;
     }
 
     public IEnumerable<NodeType> GetReferenceTypes()
@@ -259,34 +312,38 @@ public sealed class AppType : IValueTypeAccess
     /// <summary>
     /// Gets the schema of the application
     /// </summary>
-    public async Task<AppSchema> GetSchemaAsync(SchemaContext context)
+    public async Task<AppSchema> GetSchemaAsync(SchemaContext context, bool noAuth = false)
     {
-        if (_schema == null) return new AppSchema();
+        if (_schema == null) return new AppSchema{ Name = "" };
         AppSchema schema = new AppSchema
         {
-            Name = Name,
+            Name = _schema.Name,
             Container = _schema.Container
         };
         schema.CombineProperties(_schema);
-        
+
         // The auth properties
-        schema.SetProperty<SchemaCreate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true));
-        schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true));
-        schema.SetProperty<SchemaUpdate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true));
-        schema.SetProperty<SchemaDelete, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true));
+        if (!noAuth)
+        {
+            bool isSystem = GetProperty<SystemDefined>()?.Value == true;
+            schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true));
+            schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true));
+            schema.SetProperty<SchemaUpdate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true)); // more property allowed
+            schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true));
+        }
 
         if (_fields is { Count: > 0 })
         {
             schema.Fields = new AppFieldSchema[_fields.Count];
             for (int i = 0; i < _fields.Count; i++)
-                schema.Fields[i] = await _fields[i].GetSchemaAsync(context);
+                schema.Fields[i] = await _fields[i].GetSchemaAsync(context, noAuth);
         }
 
         if (_workflows is { Count: > 0 })
         {
             schema.Workflows = new AppWorkflowSchema[_workflows.Count];
             for (int i = 0; i < _workflows.Count; i++)
-                schema.Workflows[i] = await _workflows[i].GetSchemaAsync(context);
+                schema.Workflows[i] = await _workflows[i].GetSchemaAsync(context, noAuth);
         }
         
         return schema;
@@ -300,7 +357,7 @@ public sealed class AppType : IValueTypeAccess
     /// <summary>
     /// Gets the constraints
     /// </summary>
-    public IEnumerable<T> GetProperties<T>() => _props?.OfType<T>() ?? [];
+    public IEnumerable<T> GetProperties<T>() where T: IProperty => _props?.OfType<T>() ?? [];
     
     /// <summary>
     /// Gets the property by property name
@@ -341,7 +398,7 @@ public sealed class AppType : IValueTypeAccess
     /// <summary>
     /// Gets the access value type
     /// </summary>
-    public ValueType? GetAccessValueType(string path)
+    public IValueTypeAccess? GetAccessValueType(string path)
     {
         if (_fields == null || _fields.Count == 0) return null;
         ReadOnlySpan<char> remain = null;
@@ -357,6 +414,49 @@ public sealed class AppType : IValueTypeAccess
                 return remain.IsEmpty ? field.ValueType : field.ValueType?.GetAccessValueType(remain.ToString());
         }
         return null;
+    }
+
+    /// <summary>
+    /// Gets the access entries for the application
+    /// </summary>
+    public IEnumerable<Entry<string>> GetAccessEntries()
+    {
+        if (_fields == null || _fields.Count == 0) yield break;
+        foreach (AppFieldType field in _fields)
+        {
+            var entry = new Entry<string> { Value = field.Name, HasChildren = field.ValueType?.HasAccessEntries };
+            entry.SetProperty<Display, LocaleString>(field.GetProperty<Display>()?.Value ?? field.Name);
+            yield return entry;
+        }
+    }
+
+    /// <summary>
+    /// Whether has access entries
+    /// </summary>
+    public bool HasAccessEntries => _fields is { Count: > 0 };
+
+    /// <inheritdoc/>
+    public IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc/>
+    public IValueAccess From(object? value, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc/>
+    public Type GetCsharpType(bool nullable = false)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc/>
+    public Task<IValueAccess?> ValidateValueAsync(ISchemaContext context, object? value)
+    {
+        throw new NotImplementedException();
     }
 
     /// <summary>
@@ -398,7 +498,7 @@ public sealed class AppType : IValueTypeAccess
     /// <summary>
     /// Gets the scope context items for the application, which will be used for policy evaluation and data push
     /// </summary>
-    public IEnumerable<(string item, DataNode? value, bool isTarget)> GetScopeContextItems(SchemaContext ctx)
+    public IEnumerable<(string item, IValueAccess? value, bool isTarget)> GetScopeContextItems(SchemaContext ctx)
     {
         if (ScopePolicy?.Type == AppScopeType.SystemLevel)
             yield break;

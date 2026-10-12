@@ -13,7 +13,7 @@ public class ArrayTypeTest : Base.CoreTestBase
     {
         var arrayType = await Context.GetNodeTypeAsync<ArrayType>(NS_SYSTEM_ARRAY);
         Assert.IsNotNull(arrayType);
-        Assert.AreEqual(SCHEMA_KIND_ARRAY, arrayType.Kind);
+        Assert.AreEqual(NODE_KIND_ARRAY, arrayType.Kind);
     }
 
     [TestMethod]
@@ -23,7 +23,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         Assert.IsNotNull(objType);
         var arrayType = await Context.GetArrayNodeTypeAsync(objType);
         Assert.IsNotNull(arrayType);
-        Assert.AreEqual(SCHEMA_KIND_ARRAY, arrayType.Kind);
+        Assert.AreEqual(NODE_KIND_ARRAY, arrayType.Kind);
     }
 
     [TestMethod]
@@ -33,7 +33,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         Assert.IsNotNull(arrayType);
         var node = arrayType.Create() as ArrayNode;
         Assert.IsNotNull(node);
-        Assert.AreEqual(SCHEMA_KIND_ARRAY, node.Type.Kind);
+        Assert.AreEqual(NODE_KIND_ARRAY, node.Type.Kind);
     }
 
     [TestMethod]
@@ -62,9 +62,9 @@ public class ArrayTypeTest : Base.CoreTestBase
         node.Add(10);
         node.Add(20);
         // Indexer returns boxed DataNode; extract value via TryGetValue
-        var n0 = node[0] as DataNode; Assert.IsNotNull(n0); Assert.IsTrue(n0.TryGetValue(out int v0));
+        var n0 = node[0] as IValueAccess; Assert.IsNotNull(n0); Assert.IsTrue(n0.TryGetValue(out int v0));
         Assert.AreEqual(10, v0);
-        var n1 = node[1] as DataNode; Assert.IsNotNull(n1); Assert.IsTrue(n1.TryGetValue(out int v1));
+        var n1 = node[1] as IValueAccess; Assert.IsNotNull(n1); Assert.IsTrue(n1.TryGetValue(out int v1));
         Assert.AreEqual(20, v1);
     }
 
@@ -143,7 +143,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         node.Add("third");
 
         var items = new List<string>();
-        foreach (DataNode item in node)
+        foreach (var item in node)
             items.Add(item.GetValue<string>()!);
 
         Assert.AreEqual(3, items.Count);

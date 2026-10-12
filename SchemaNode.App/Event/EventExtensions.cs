@@ -60,7 +60,7 @@ public static class EventExtensions
         /// <summary>
         /// Raise the event with data node, no check for the payload type
         /// </summary>
-        public void RaiseEvent<TE>(TE @event, DataNode payLoad) where TE : BaseEvent
+        public void RaiseEvent<TE>(TE @event, IValueAccess payLoad) where TE : BaseEvent
         {
             // Use directly
             @event.Payload = payLoad;
@@ -81,7 +81,7 @@ public static class EventExtensions
         /// <summary>
         /// Raise the event without constructor parameters
         /// </summary>
-        public void RaiseEvent<TE>(DataNode payLoad) where TE : BaseEvent, new()
+        public void RaiseEvent<TE>(IValueAccess payLoad) where TE : BaseEvent, new()
             => context.RaiseEvent(new TE(), payLoad);
         
         #endregion

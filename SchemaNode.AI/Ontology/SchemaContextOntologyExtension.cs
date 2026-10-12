@@ -1,7 +1,6 @@
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Function;
 using SchemaNode.Relation;
 using SchemaNode.Runtime;
@@ -16,6 +15,9 @@ using IntType = SchemaNode.Runtime.IntType;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
 using StructType = SchemaNode.Runtime.StructType;
 using SchemaNode.Property.App;
+using SchemaNode.Property.Decimal;
+using SchemaNode.Property.Int;
+using SchemaNode.Property.String;
 
 namespace SchemaNode.AI;
 
@@ -518,10 +520,10 @@ public static class SchemaContextOntologyExtension
 
         // Handle inheritance
         string? baseClassIri = null;
-        /*if (structType.BaseNode != null)
+        /*if (structType.BaseType != null)
         {
-            baseClassIri = $"{graph.AppPrefix}{Seg(structType.BaseNode.Name)}";
-            BuildEntityClass(context, graph, structType.BaseNode, visitedStructs, visitedEnums);
+            baseClassIri = $"{graph.AppPrefix}{Seg(structType.BaseType.Name)}";
+            BuildEntityClass(context, graph, structType.BaseType, visitedStructs, visitedEnums);
         }*/
 
         var entity = new OntologyEntityClass

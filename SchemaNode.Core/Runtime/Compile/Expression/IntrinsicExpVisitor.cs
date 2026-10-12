@@ -1,9 +1,11 @@
 ﻿using System.Linq.Expressions;
 using System.Reflection;
+using SchemaNode.Attribute;
+using SchemaNode.Enum;
 using SchemaNode.Function;
+using SchemaNode.Property.Function;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
-using ExpressionType = SchemaNode.Enum.ExpType;
 
 namespace SchemaNode.Runtime;
 
@@ -21,16 +23,6 @@ public enum BreakExpType
 }
 
 /// <summary>
-/// The attribute to mark a method as constant expression
-/// </summary>
-/// <param name="value"></param>
-[AttributeUsage(AttributeTargets.Method, Inherited = false)]
-public class ConstantAttribute(object value): System.Attribute
-{
-    public object Value { get; } = value;
-}
-
-/// <summary>
 /// Represents a break operation expression composed of a condition and a value.
 /// </summary>
 /// <param name="Type">The break type</param>
@@ -44,25 +36,25 @@ public record BreakExp(BreakExpType Type, SchemaExp Cond, SchemaExp Value) : Sch
 /// <param name="Condition">The condition</param>
 /// <param name="TrueExp">The true value</param>
 /// <param name="FalseExp">The false value</param>
-public record ConditionalExp(SchemaExp Condition, SchemaExp TrueExp, SchemaExp FalseExp, ValueType ValueType) : SchemaExp(ValueType);
+public record ConditionalExp(SchemaExp Condition, SchemaExp TrueExp, SchemaExp FalseExp, IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// Represents a schema expression that evaluates to a constant value.
 /// </summary>
 /// <param name="Value">The schema node representing the constant value for this expression. Cannot be null.</param>
-public record ConstantExp(Node.DataNode Value) : SchemaExp(Value.Type);
+public record ConstantExp(IValueAccess Value) : SchemaExp(Value.Type);
 
 /// <summary>
 /// The default expression
 /// </summary>
 /// <param name="Inner"></param>
 /// <param name="Default"></param>
-public record DefaultExp(SchemaExp Inner, Node.DataNode Default) : SchemaExp(Default.Type);
+public record DefaultExp(SchemaExp Inner, IValueAccess Default) : SchemaExp(Default.Type);
 
 /// <summary>
 /// The null expression
 /// </summary>
-public record NullExp(ValueType ValueType) : SchemaExp(ValueType);
+public record NullExp(IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The field access expression
@@ -70,7 +62,7 @@ public record NullExp(ValueType ValueType) : SchemaExp(ValueType);
 /// <param name="Owner">The field owner</param>
 /// <param name="FieldName">The field name</param>
 /// <param name="ValueType">The schema type</param>
-public record FieldAccessExp(SchemaExp Owner, string FieldName, ValueType ValueType, ConstantExp? Default = null) : SchemaExp(ValueType);
+public record FieldAccessExp(SchemaExp Owner, string FieldName, IValueTypeAccess ValueType, ConstantExp? Default = null) : SchemaExp(ValueType);
 
 #endregion
 
@@ -87,13 +79,13 @@ public class IntrinsicExpVisitor : IExpVisitor
         await Task.Yield();
         
         // Atomic function call expression check
-        if (exp is not FuncCallExp { ExpType: ExpressionType.Call, Function:{ MethodInfo: { }} } callExp) return null;
+        if (exp is not FuncCallExp { ApplyMode: ApplyMode.Call, Function:{ MethodInfo: { }} } callExp) return null;
         
         // Constant expression
-        if (callExp.Function.MethodInfo.GetCustomAttribute<ConstantAttribute>() is { } constAttr)
+        if (callExp.Function.MethodInfo.GetMetaProperty<Property.Function.Constant>() is { } constAttr)
             return new ConstantExp(callExp.ValueType.From(constAttr.Value));
         
-        switch (callExp.Function.Name)
+        switch (callExp.Function.BaseName)
         {
             // Assign expression
             case $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}":
@@ -136,7 +128,7 @@ public class IntrinsicExpVisitor : IExpVisitor
                     string.IsNullOrEmpty(fieldName))
                     throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
 
-                if (callExp.Args.Length == 3)
+                if (callExp.Args.Length == 3 && callExp.Args[2] is not NullExp)
                 {
                     if (callExp.Args[2] is not ConstantExp defaultValueExp || 
                         defaultValueExp.Value.IsEmpty || 
@@ -183,7 +175,7 @@ public class IntrinsicExpVisitor : IExpVisitor
                     
                     // if empty
                     BreakExpType.IfEmpty => Expression.Block([resultVar], Expression.Assign(resultVar, value),
-                        Expression.IfThen(Expression.Call(typeof(SystemLogic).GetMethod(nameof(SystemLogic.isempty))!, cond),
+                        Expression.IfThen(Expression.Call(typeof(SystemLogic).GetMethod(nameof(SystemLogic.isempty))!, Expression.Convert(cond, typeof(object))),
                             Expression.Return(context.GetReturnLabel()!, resultVar)), resultVar),
                     _ => throw new ArgumentOutOfRangeException()
                 };

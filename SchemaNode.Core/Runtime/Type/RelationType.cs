@@ -1,6 +1,5 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Core;
 using SchemaNode.Schema;
@@ -28,11 +27,6 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
     /// The property type the relation applied to
     /// </summary>
     public PropertyType? Property  { get; private set; }
-
-    /// <summary>
-    /// The stage of the relation been applied
-    /// </summary>
-    public RelationStage Stage { get; } = relation.Stage;
 
     /// <summary>
     /// The relation kind
@@ -75,10 +69,10 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
     /// <summary>
     /// Load the relation type
     /// </summary>
-    public async Task LoadAsync(SchemaContext context)
+    public async Task LoadAsync(SchemaContext context, params string?[] kinds)
     {
         Property = !string.IsNullOrWhiteSpace(relation.Property) 
-            ? await context.GetNodeTypeAsync<PropertyType>(relation.Property)
+            ? await context.GetPropertyType(relation.Property, kinds)
             : null;
         if (Property?.GetCsharpType() == null)
         {
@@ -86,7 +80,7 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
             return;
         }
         
-        foreach (Type propType in context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_RELATION))
+        foreach (Type propType in context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_NODE_RELATION))
         {
             if (!Kind.Equals(propType.GetMetaProperty<Property.Record.RelationKind>()?.Value, StringComparison.OrdinalIgnoreCase)) continue;
             
@@ -97,7 +91,7 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
                 Error = ErrorCodes.RELATION_PROPERTY_NOT_VALID;
                 break;
             }
-            await Process.LoadAsync(context, relation, Owner);
+            await Process.LoadAsync(context, relation, Owner, kinds);
             if (Process is IErrorProvider error && !string.IsNullOrWhiteSpace(error.Error))
                 Error = error.Error;
         }
@@ -109,10 +103,10 @@ public static class RelationTypeExtensions
     /// <summary>
     /// Load the relation schema as relation runtime type
     /// </summary>
-    public static async Task<RelationType> LoadAsync(this RelationSchema relation, SchemaContext context, IValueTypeAccess owner)
+    public static async Task<RelationType> LoadAsync(this RelationSchema relation, SchemaContext context, IValueTypeAccess owner, params string?[] kinds)
     {
         RelationType type = new(relation, owner);
-        await type.LoadAsync(context);
+        await type.LoadAsync(context, kinds);
         return type;
     }
 }

@@ -1,6 +1,7 @@
 using SchemaNode.Attribute;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Decimal;
+using SchemaNode.Property.Int;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 
@@ -10,7 +11,7 @@ namespace SchemaNode.Scalar;
 /// Represents the number scalar value type (root of the decimal type family)
 /// </summary>
 [Meta<SchemaType>(NS_SYSTEM_NUMBER)]
-[Meta<OfSchema>(SCHEMA_KIND_DECIMAL)]
+[Meta<OfNodeKind>(NODE_KIND_DECIMAL)]
 public class Number : IScalarType<decimal>;
 
 /// <summary>
@@ -38,7 +39,7 @@ public class Float : Number, IScalarType<float>;
 [Meta<ClrEquivalent>(typeof(ulong))]
 [Meta<ClrEquivalent>(typeof(Int64))]
 [Meta<ClrEquivalent>(typeof(UInt16))]
-[Meta<OfSchema>(SCHEMA_KIND_INT)]
+[Meta<OfNodeKind>(NODE_KIND_INT)]
 public class Int : Number, IScalarType<long>;
 
 /// <summary>

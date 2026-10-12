@@ -3,6 +3,7 @@ using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Event;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 
@@ -50,32 +51,31 @@ public abstract class AppFieldEvent(string app, string field, string? target = n
 /// <summary>
 /// Fired when create the target field data in the application
 /// </summary>
-[Meta<OfSchema>(SCHEMA_KIND_EVENT)]
+[Meta<OfNodeKind>(NODE_KIND_EVENT)]
 [Meta<SchemaType>($"{NS_SYSTEM_EVENT}.app.data.create")]
-[Meta<PayloadEvaluator>($"{NS_SYSTEM_SCHEMA_REFLECT}.event.{nameof(SystemAppReflect.Event.getappfieldpayload)}")]
+[Meta<PayloadEvaluator>($"{NS_SYSTEM_SCHEMA_REFLECT}.event.{nameof(SystemReflectEvent.getappfieldpayload)}")]
 public class AppFieldDataCreateEvent(string app, string field, string? target = null) 
     : AppFieldEvent(app, field, target), IEventPayload<AppFieldPayload>;
 
 /// <summary>
 /// Fired when delete the target field data in the application
 /// </summary>
-[Meta<OfSchema>(SCHEMA_KIND_EVENT)]
+[Meta<OfNodeKind>(NODE_KIND_EVENT)]
 [Meta<SchemaType>($"{NS_SYSTEM_EVENT}.app.data.delete")]
-[Meta<PayloadEvaluator>($"{NS_SYSTEM_SCHEMA_REFLECT}.event.{nameof(SystemAppReflect.Event.getappfieldpayload)}")]
+[Meta<PayloadEvaluator>($"{NS_SYSTEM_SCHEMA_REFLECT}.event.{nameof(SystemReflectEvent.getappfieldpayload)}")]
 public class AppFieldDataDeleteEvent(string app, string field, string? target = null) 
     : AppFieldEvent(app, field, target), IEventPayload<AppFieldPayload>;
 
 /// <summary>
 /// Fired when update the target field data in the application
 /// </summary>
-[Meta<OfSchema>(SCHEMA_KIND_EVENT)]
+[Meta<OfNodeKind>(NODE_KIND_EVENT)]
 [Meta<SchemaType>($"{NS_SYSTEM_EVENT}.app.data.update")]
-[Meta<PayloadEvaluator>($"{NS_SYSTEM_SCHEMA_REFLECT}.event.{nameof(SystemAppReflect.Event.getappfieldupdatepayload)}")]
+[Meta<PayloadEvaluator>($"{NS_SYSTEM_SCHEMA_REFLECT}.event.{nameof(SystemReflectEvent.getappfieldupdatepayload)}")]
 public class AppFieldDataUpdateEvent(string app, string field, string? target = null) 
     : AppFieldEvent(app, field, target), IEventPayload<AppFieldUpdatePayload>;
 
 [Meta<SchemaType>($"{NS_SYSTEM_EVENT}.app.data.payload")]
-[Meta<Generics>(NS_GENERIC_TYPE)]
 public class AppFieldPayload
 {
     /// <summary>
@@ -96,12 +96,11 @@ public class AppFieldPayload
     /// <summary>
     /// The event data
     /// </summary>
-    [Meta<SchemaType>(NS_GENERIC_TYPE)]
-    public DataNode? Data { get; set; }
+    [Meta<SchemaType>(NS_SYSTEM_OBJECT)]
+    public IValueAccess? Data { get; set; }
 }
 
 [Meta<SchemaType>($"{NS_SYSTEM_EVENT}.app.data.updatepayload")]
-[Meta<Generics>(NS_GENERIC_TYPE)]
 public class AppFieldUpdatePayload
 {
     /// <summary>
@@ -122,12 +121,12 @@ public class AppFieldUpdatePayload
     /// <summary>
     /// The event data
     /// </summary>
-    [Meta<SchemaType>(NS_GENERIC_TYPE)]
-    public DataNode? Data { get; set; }
+    [Meta<SchemaType>(NS_SYSTEM_OBJECT)]
+    public IValueAccess? Data { get; set; }
     
     /// <summary>
     ///  The origin data
     /// </summary>
-    [Meta<SchemaType>(NS_GENERIC_TYPE)]
-    public DataNode? Origin { get; set; }
+    [Meta<SchemaType>(NS_SYSTEM_OBJECT)]
+    public IValueAccess? Origin { get; set; }
 }

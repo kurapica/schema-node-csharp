@@ -366,6 +366,9 @@ internal static class TypeDetailExtensions
             CoreType = input,
         };
 
+        if (input.HasNullableAttribute())
+            result.Kind |= TypeDetail.ParameterTypeKind.Nullable;
+
         // Always keep the origin type
         result.Type = input;
         _typeDetailCache[input] = result;

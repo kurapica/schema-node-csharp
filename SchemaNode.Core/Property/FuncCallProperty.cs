@@ -1,9 +1,6 @@
 using System.Text.Json.Nodes;
-using SchemaNode.Attribute;
-using SchemaNode.Property.Core;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
-using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property;
 
@@ -22,10 +19,14 @@ public abstract class FuncCallProperty : Property<FuncCall>, ITypeRefProperty
     /// <inheritdoc/>
     public override void SetValue<TValue>(TValue value)
     {
-        switch (value)
+        object? val = value as object;
+        if (val is JsonArray arr)
+            val = arr.TryConvertTo<string[]>(out string[]? res) ? res : throw new InvalidOperationException($"Cannot convert JsonArray to string[] for FuncCallProperty: {arr}");
+        
+        switch (val)
         {
             case string func when !string.IsNullOrEmpty(func):
-                base.SetValue(new  FuncCall { Func = func });
+                base.SetValue(new FuncCall { Func = func });
                 break;
             case object[] { Length: > 0 } args when args[0] is string f && !string.IsNullOrEmpty(f):
                 base.SetValue(new FuncCall
@@ -48,22 +49,4 @@ public abstract class FuncCallProperty : Property<FuncCall>, ITypeRefProperty
                 break;
         }
     }
-}
-
-/// <summary>
-/// The function call 
-/// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(FuncCall)}")]
-public class FuncCall
-{
-    /// <summary>
-    /// The function name
-    /// </summary>
-    [Meta<SchemaType>(typeof(FuncType))]
-    public string Func { get; set; } = string.Empty;
-
-    /// <summary>
-    /// The call arguments
-    /// </summary>
-    public CallArg[] Args { get; set; } = [];
 }

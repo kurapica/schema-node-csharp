@@ -15,6 +15,7 @@ using static SchemaNode.Utility.Constant;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
 using NodeType = SchemaNode.Property.Core.NodeType;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
+using SchemaNode.Property.Struct;
 
 namespace SchemaNode.Service;
 
@@ -76,7 +77,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
 
         #region Prepare
 
-        List<(string kind, Type schemaType, Type? nodeSchemaProp)> nodeSchemaTypes = [];
+        List<(string kind, string nodeKind, Type schemaType, Type? nodeSchemaProp)> nodeSchemaTypes = [];
         List<INodeSchemaGenerator> schemaGenerators = [];
         Dictionary<string, INodeSchemaGenerator> kindGenerators = [];
         Dictionary<Type, string> scalarTypes = [];
@@ -85,17 +86,22 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         foreach ((string kind, Type type) in runtime.GetSchemaKinds())
         {
             // Gets node schema kind
-            if (type.GetMetaProperty<NodeSchemaKind>() is not { HasValue: true } schemaKind) continue;
+            if (type.GetMetaProperty<NodeKind>() is not { HasValue: true } schemaKind) continue;
             
             // Register node types
             if (type.GetMetaProperty<NodeType>()?.Value is { } runtimeType)
                 runtime.RegisterNodeType(schemaKind.Value!, runtimeType);
                         
             // Gets the match node schema property type
-            nodeSchemaTypes.Add((kind, type,
-    runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_NODE).
-                FirstOrDefault(p => p.GetGenericBaseType(typeof(Property<>))?.
-                GetGenericArguments().ElementAtOrDefault(0) == type)));
+            nodeSchemaTypes.Add((kind, schemaKind.Value!, type, runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_NODE).
+                FirstOrDefault(p => p.GetGenericBaseType(typeof(Property<>))?.GetGenericArguments().ElementAtOrDefault(0) is {} etype 
+                                    && (etype == type || etype.GetMetaProperty<SchemaKind>()?.Value is {} k && 
+                                    (k.Equals(kind, StringComparison.OrdinalIgnoreCase) || 
+                                     k.StartsWith($"{kind}.", StringComparison.OrdinalIgnoreCase)) || 
+                                     etype.GetMetaProperty<Attach>()?.Value is { } a && (
+                                     a.Equals(kind, StringComparison.OrdinalIgnoreCase) ||
+                                     a.StartsWith($"{kind}.", StringComparison.OrdinalIgnoreCase)
+                                     )))));
             
             // Load schema generators
             if (type.GetMetaProperty<SchemaGenerator>()?.Value is { } schemaGenerator)
@@ -113,7 +119,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
                     }
                     schemaGenerators.Add(generator);
                 }
-                kindGenerators[kind] = generator;
+                kindGenerators[schemaKind.Value!] = generator;
             }
         }
         
@@ -125,14 +131,14 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
 
         // system.array
         {
-            NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_ARRAY, NS_SYSTEM_ARRAY, typeof(ArrayNode));
+            NodeSchema schema = NodeSchema.Create(runtime, NODE_KIND_ARRAY, NS_SYSTEM_ARRAY, typeof(ArrayNode));
             schema.SetProperty<ArrayProperty, ArraySchema>(new ArraySchema{ Element = NS_SYSTEM_OBJECT });
             runtime.SaveSystemSchema(schema);
         }
 
         // system.list<T>
         {
-            NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_ARRAY, NS_SYSTEM_LIST, typeof(List<>));
+            NodeSchema schema = NodeSchema.Create(runtime, NODE_KIND_ARRAY, NS_SYSTEM_LIST, typeof(List<>));
             ArraySchema arraySchema = new ArraySchema{ Element = NS_GENERIC_TYPE };
             arraySchema.SetProperty<Generics, GenericParameter[]>([new GenericParameter(NS_GENERIC_TYPE)]);
             schema.SetProperty<ArrayProperty, ArraySchema>(arraySchema);
@@ -143,6 +149,8 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         
         #region Auto Scan
 
+        HashSet<Type> accessPathHandlers = [];
+
         // Scan and register system schemas
         foreach (Assembly assembly in assemblies)
         {
@@ -151,10 +159,10 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
                                ?? throw new Exception($"Failed to get default namespace for assembly '{assembly.FullName}'");
 
             // Check if we need create the namespace schema manually
-            IProperty[] props = assembly.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_NAMESPACE).ToArray();
+            IProperty[] props = assembly.GetMetaPropertiesForSchema<IProperty>(runtime, SCHEMA_KIND_NODE_NAMESPACE).ToArray();
             if (props.Length > 0)
             {
-                NodeSchema nsSchema = NodeSchema.Create(SCHEMA_KIND_NAMESPACE, defaultNs);
+                NodeSchema nsSchema = NodeSchema.Create(runtime, NODE_KIND_NAMESPACE, defaultNs);
                 foreach (IProperty prop in props) nsSchema.SetProperty(prop);
                 runtime.SaveSystemSchema(nsSchema);
             }
@@ -164,6 +172,9 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             // scalar type first because the schema type is not the type declare it
             foreach (Type type in assembly.GetTypes())
             {
+                if (type is { IsClass: true, IsAbstract: false } && type.IsAssignableTo(typeof(IValueAccessPathHandler)))
+                    accessPathHandlers.Add(type);
+                
                 if (type.GetMetaProperty<SchemaType>() == null) continue;
                 
                 if (type.IsSubclassOfGenericType(typeof(IScalarType<>)))
@@ -212,7 +223,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             // cache
             provider.BindSchemaContextItemProvider(field.Name, schemaType, providerType, itemType);
         }
-        NodeSchema contextSchema = NodeSchema.Create(SCHEMA_KIND_STRUCT, NS_SYSTEM_CONTEXT);
+        NodeSchema contextSchema = NodeSchema.Create(runtime, NODE_KIND_STRUCT, NS_SYSTEM_CONTEXT);
         contextSchema.SetProperty<StructProperty, StructSchema>(new StructSchema { Fields = fieldTypes.ToArray() });
         runtime.SaveSystemSchema(contextSchema);
         
@@ -237,6 +248,23 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         access.Int = (await schemaContext.GetNodeTypeAsync<Runtime.IntType>(NS_SYSTEM_INT))!;
         access.Date = (await schemaContext.GetNodeTypeAsync<Runtime.DateType>(NS_SYSTEM_DATE))!;
         access.Context = (await schemaContext.GetNodeTypeAsync<Runtime.StructType>(NS_SYSTEM_CONTEXT))!;
+        access.Object = (await schemaContext.GetNodeTypeAsync<Runtime.ObjectType>(NS_SYSTEM_OBJECT))!;
+
+        // Loading all access path handlers
+        if (accessPathHandlers.Count > 0)
+        {
+            List<IValueAccessPathHandler> handlers = [];
+            foreach (Type handlerType in accessPathHandlers)
+            {
+                IValueAccessPathHandler handler = (IValueAccessPathHandler)ActivatorUtilities.CreateInstance(context.Services, handlerType);
+                await handler.LoadAsync(context);
+                handlers.Add(handler);
+            }
+            
+            // keep it simple for now, I may move the access path as schema kind or property in the future, so it can be resolved by schema generator
+            if (handlers.Count > 0)
+                runtime.SetRuntimeItem(typeof(IValueAccessPathHandler), handlers);
+        }
         
         #endregion
         
@@ -259,11 +287,11 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
                 .Select(i => i.GetGenericArguments().FirstOrDefault())
                 .LastOrDefault(t => t != null && runtime.GetTypeSchema(t) == null);
             
-            // OfSchema marks a kind root — check it first so that types like Int (which extend Number
+            // OfNodeKind marks a kind root — check it first so that types like Int (which extend Number
             // but belong to a different kind) are not incorrectly categorized by their C# base class.
-            if (type.GetMetaProperty<OfSchema>() is { HasValue: true } ofSchema && valType != null)
+            if (type.GetMetaProperty<OfNodeKind>() is { HasValue: true } ofNodeKind && valType != null)
             {
-                schema = NodeSchema.Create(ofSchema.GetValue<string>()!, name, valType);
+                schema = NodeSchema.Create(runtime, ofNodeKind.Value!, name, valType);
             }
             else if (type.BaseType?.IsSubclassOfGenericType(typeof(IScalarType<>)) == true)
             {
@@ -271,7 +299,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
                 string baseTypeName = ResolveScalarSchema(type.BaseType, defaultNs);
                 baseSchema = runtime.GetSystemSchema(baseTypeName) 
                              ?? throw new Exception($"Failed to resolve schema for type '{baseTypeName}'");
-                schema = NodeSchema.Create(baseSchema.Kind, name, valType ?? baseSchema.Type);
+                schema = NodeSchema.Create(runtime, baseSchema.Kind, name, valType ?? baseSchema.Type);
             }
             else
             {
@@ -289,7 +317,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
                 .ToArray();
             
             // Gen scalar definitions
-            Type? propType = nodeSchemaTypes.FirstOrDefault(t => t.kind.Equals(schema.Kind, StringComparison.OrdinalIgnoreCase)).nodeSchemaProp;
+            Type? propType = nodeSchemaTypes.FirstOrDefault(t => t.nodeKind.Equals(schema.Kind, StringComparison.OrdinalIgnoreCase)).nodeSchemaProp;
             if (propType != null)
             {
                 IProperty prop = (ActivatorUtilities.CreateInstance(context.Services, propType) as IProperty)!;
@@ -310,11 +338,11 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             defaultNs = schemaType?.Value?.GetNamespace() ?? defaultNs;
             string name = schemaType?.Value?.GetSchemaName() ?? type.Name.ToLowerInvariant();
             
-            OfSchema? ofSchema = type.GetMetaProperty<OfSchema>();
+            OfNodeKind? ofKind = type.GetMetaProperty<OfNodeKind>();
             NodeSchema? mainSchema = null;
-            foreach (INodeSchemaGenerator generator in ofSchema is { HasValue: true } 
+            foreach (INodeSchemaGenerator generator in ofKind is { HasValue: true } 
                          ? kindGenerators
-                             .Where(g => ofSchema.GetValue<string>()!.Equals(g.Key, StringComparison.OrdinalIgnoreCase))
+                             .Where(g => ofKind.GetValue<string>()!.Equals(g.Key, StringComparison.OrdinalIgnoreCase))
                              .Select(g => g.Value)
                          : schemaGenerators)
             {
@@ -370,8 +398,8 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         // Save properties to the schema
         NodeSchema ExtendSchema(NodeSchema nodeSchema, Type type)
         {
-            (string kind, Type schemaType, Type? nodeSchemaProp)? info = nodeSchemaTypes.
-                FirstOrDefault(t => nodeSchema.Kind.Equals(t.kind, StringComparison.OrdinalIgnoreCase));
+            (string kind, string nodeKind, Type schemaType, Type? nodeSchemaProp)? info = nodeSchemaTypes.
+                FirstOrDefault(t => nodeSchema.Kind.Equals(t.nodeKind, StringComparison.OrdinalIgnoreCase));
             if (info?.nodeSchemaProp == null) return nodeSchema;
             
             // get the property
@@ -381,7 +409,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             PropertyOwner? schema = property.GetValue<PropertyOwner>();
             if (schema == null) return nodeSchema;
             
-            foreach (IProperty prop in type.GetMetaPropertiesForSchema<IProperty>(nodeSchema.Kind))
+            foreach (IProperty prop in type.GetMetaPropertiesForSchema<IProperty>(runtime, runtime.GetSchemaKindByNodeKind(nodeSchema.Kind)))
                 schema.SetProperty(prop);
             
             // save back

@@ -127,7 +127,7 @@ public class AppRuntimeStageHandler : IRuntimeStageHandler
                     string appName = app.Value!.ToLowerInvariant();
 
                     // Check application properties
-                    var appProperties = type.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_APP).ToArray();
+                    var appProperties = type.GetMetaPropertiesForSchema<IProperty>(runtime, SCHEMA_KIND_APP).ToArray();
                     if (appProperties.Length > 0)
                     {
                         AppSchema appSchema = new AppSchema
@@ -153,18 +153,18 @@ public class AppRuntimeStageHandler : IRuntimeStageHandler
                     };
 
                     // app field property
-                    foreach (IProperty property in type.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_APP_FIELD))
+                    foreach (IProperty property in type.GetMetaPropertiesForSchema<IProperty>(runtime, SCHEMA_KIND_APP_FIELD))
                         field.SetProperty(property);
 
                     // schema type property
-                    foreach (IProperty property in type.GetMetaPropertiesForSchema<IProperty>(typeSchema.Kind))
+                    foreach (IProperty property in type.GetMetaPropertiesForSchema<IProperty>(runtime, runtime.GetSchemaKindByNodeKind(typeSchema.Kind)))
                         field.SetProperty(property);
 
                     // data derive
                     if (type.GetMetaProperty<DataDerive>() is { HasValue: true } derive)
                     {
                         // Data combine rules
-                        if (typeSchema.Kind == SCHEMA_KIND_STRUCT)
+                        if (typeSchema.Kind == NODE_KIND_STRUCT)
                         {
                             var deriveProp = derive.GetValue<Derive>()!;
                             var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
@@ -176,9 +176,9 @@ public class AppRuntimeStageHandler : IRuntimeStageHandler
                                 {
                                     if (properties.FirstOrDefault(x => x.Name.Equals(f.Name, StringComparison.OrdinalIgnoreCase)) is {} p)
                                     {
-                                        var combine = p.GetMetaProperty<SchemaNode.Property.App.DataCombine>();
+                                        var combine = p.GetMetaProperty<DataCombine>();
                                         if (combine is { HasValue: true })
-                                            combineRules.Add(new FieldCombine(f.Name, combine.Value));
+                                            combineRules.Add(new FieldCombine{ Field = f.Name, Type = combine.Value });
                                     }
                                 }
 
@@ -215,6 +215,18 @@ public class AppRuntimeStageHandler : IRuntimeStageHandler
             foreach (var schema in appType.GetSubAppSchemas())
                 await LoadAllAppTypes(schema.FullName);
         }
+    }
+
+    /// <inheritdoc/>
+    public Task OnSchemaLoadingAsync(ISchemaContext context)
+    {
+        if (context is not SchemaContext schemaContext || context.Runtime is not AppSchemaRuntime runtime) return Task.CompletedTask; // not support
+        
+        // mark all node types not loaded, so they can combine custom schemas
+        schemaContext.SystemMode = false; // avoid system mode
+        runtime.RootAppType.ResetLoadState();
+        
+        return Task.CompletedTask;
     }
 
     /// <summary>

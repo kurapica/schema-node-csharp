@@ -16,7 +16,7 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
         return true;
     }
 
-    public async Task<(DataNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, AppSchemaDataResult type,
+    public async Task<(IValueAccess? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, AppSchemaDataResult type,
         AppSchemaDataFilter? filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null,
         string? dataField = null, bool forUpdate = false)
     {
@@ -24,12 +24,12 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
         
         await Task.Yield();
         string compositeKey = PrepareKey(schema);
-        ConcurrentDictionary<string, List<DataNode>> table = _dynamicTables.GetOrAdd(schema.AppField.DynamicTableName, _ => []);
-        List<DataNode> list = table.GetOrAdd(compositeKey, _ => []);
+        ConcurrentDictionary<string, List<IValueAccess>> table = _dynamicTables.GetOrAdd(schema.AppField.DynamicTableName, _ => []);
+        List<IValueAccess> list = table.GetOrAdd(compositeKey, _ => []);
 
         if (!schema.Single)
         {
-            List<DataNode> origins = [];
+            List<IValueAccess> origins = [];
 
             if (filter == null)
             {
@@ -78,17 +78,17 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
         }
         else
         {
-            DataNode? origin = list.FirstOrDefault();
+            IValueAccess? origin = list.FirstOrDefault();
             return (origin?.Clone(), origin == null ? 0 : 1);
         }
     }
 
-    public async Task<(bool result, DataNode? update, DataNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, DataNode? data = null, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null)
+    public async Task<(bool result, IValueAccess? update, IValueAccess? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, IValueAccess? data = null, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null)
     {
         await Task.Yield();
         string compositeKey = PrepareKey(schema);
-        ConcurrentDictionary<string, List<DataNode>> table = _dynamicTables.GetOrAdd(schema.AppField.DynamicTableName, _ => []);
-        List<DataNode> list = table.GetOrAdd(compositeKey, _ => []);
+        ConcurrentDictionary<string, List<IValueAccess>> table = _dynamicTables.GetOrAdd(schema.AppField.DynamicTableName, _ => []);
+        List<IValueAccess> list = table.GetOrAdd(compositeKey, _ => []);
 
         if (!schema.Single)
         {
@@ -100,16 +100,16 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
             {
                 case ArrayNode arrayNode:
                 {
-                    List<DataNode> origins = [];
-                    List<DataNode> updates = [];
-                    foreach (DataNode item in arrayNode)
+                    List<IValueAccess> origins = [];
+                    List<IValueAccess> updates = [];
+                    foreach (IValueAccess item in arrayNode)
                     {
                         string? key = schema.GetPrimaryKey((StructNode)item);
                         if (string.IsNullOrEmpty(key)) continue;
                         if (dict.TryGetValue(key, out int index))
                         {
                             if (onlyAdd) continue; // no update
-                            DataNode origin = list[index];
+                            IValueAccess origin = list[index];
                             list[index] = item;
                             origins.Add(origin);
                             updates.Add(item);
@@ -133,7 +133,7 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
                     if (dict.TryGetValue(key, out int index))
                     {
                         if (onlyAdd) return (false, null, null); // no update
-                        DataNode origin = list[index];
+                        IValueAccess origin = list[index];
                         list[index] = structNode;
                         return (true, new ArrayNode(schema.ValueType, structNode), new ArrayNode(schema.ValueType, origin));
                     }
@@ -153,7 +153,7 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
         }
         else
         {
-            DataNode? origin = list.FirstOrDefault();
+            IValueAccess? origin = list.FirstOrDefault();
             list.Clear();
             if (data != null) list.Add(data);
             return (true, data, origin);
@@ -163,12 +163,12 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
     /// <summary>
     /// Clear all dynamic table data
     /// </summary>
-    public async Task<(bool result, DataNode? origin)> ClearDynamicTableDataAsync(DynamicTableSchema schema)
+    public async Task<(bool result, IValueAccess? origin)> ClearDynamicTableDataAsync(DynamicTableSchema schema)
     {
         await Task.Yield();
         string compositeKey = PrepareKey(schema);
-        ConcurrentDictionary<string, List<DataNode>> table = _dynamicTables.GetOrAdd(schema.AppField.DynamicTableName, _ => []);
-        if (table.TryRemove(compositeKey, out List<DataNode>? list))
+        ConcurrentDictionary<string, List<IValueAccess>> table = _dynamicTables.GetOrAdd(schema.AppField.DynamicTableName, _ => []);
+        if (table.TryRemove(compositeKey, out List<IValueAccess>? list))
         {
             return (true, new ArrayNode(schema.ValueType, list));
         }
@@ -176,19 +176,19 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
         return (false, null);
     }
     
-    public async Task<(bool result, DataNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, AppSchemaDataFilter? filter)
+    public async Task<(bool result, IValueAccess? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, AppSchemaDataFilter? filter)
     {
         SchemaContext schemaContext = context as  SchemaContext ?? throw new ArgumentNullException(nameof(context));
         
         await Task.Yield();
         string compositeKey = PrepareKey(schema);
-        ConcurrentDictionary<string, List<DataNode>> table = _dynamicTables.GetOrAdd(schema.AppField.DynamicTableName, _ => []);
-        List<DataNode> list = table.GetOrAdd(compositeKey, _ => []);
+        ConcurrentDictionary<string, List<IValueAccess>> table = _dynamicTables.GetOrAdd(schema.AppField.DynamicTableName, _ => []);
+        List<IValueAccess> list = table.GetOrAdd(compositeKey, _ => []);
 
         if (!schema.Single)
         {
-            List<DataNode> origins = [];
-            List<DataNode> remains = [];
+            List<IValueAccess> origins = [];
+            List<IValueAccess> remains = [];
 
             foreach (StructNode t in list.OfType<StructNode>())
             {
@@ -203,7 +203,7 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
         }
         else
         {
-            DataNode? origin = list.FirstOrDefault();
+            IValueAccess? origin = list.FirstOrDefault();
             list.Clear();
             return (true, origin);
         }
@@ -232,7 +232,7 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
 
     #region Utility
 
-    static ConcurrentDictionary<string, ConcurrentDictionary<string, List<DataNode>>> _dynamicTables = [];
+    static ConcurrentDictionary<string, ConcurrentDictionary<string, List<IValueAccess>>> _dynamicTables = [];
 
     /// <summary>
     /// Clears all in-memory data; call between unit tests to ensure isolation.
@@ -247,7 +247,7 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
         List<string> keyParts = [];
         
         // Add scope items
-        foreach ((string item, DataNode? value) in schema.GetScopeItems(context))
+        foreach ((string item, IValueAccess? value) in schema.GetScopeItems(context))
         {
             if (value == null || value.IsEmpty)
                 throw new InvalidOperationException($"The scope field {item} is required for querying dynamic table data.");

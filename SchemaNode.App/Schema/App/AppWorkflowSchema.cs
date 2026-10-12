@@ -1,12 +1,15 @@
-using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using SchemaNode.Function;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Property;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.String;
+using SchemaNode.Property.Struct;
+using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
@@ -42,6 +45,8 @@ public sealed class AppWorkflowSchema: PropertyOwner
     /// <summary>
     /// The seqno
     /// </summary>
+    [SchemaIgnore]
+    [JsonIgnore]
     public int Seqno { get; set; }
     
     /// <summary>
@@ -53,6 +58,14 @@ public sealed class AppWorkflowSchema: PropertyOwner
     /// The workflow nodes
     /// </summary>
     public AppWorkflowNodeSchema[] Nodes { get; set; } = [];
+
+    /// <summary>
+    /// Combine other workflow schema
+    /// </summary>
+    public bool Combine(AppWorkflowSchema? other, ISchemaRuntime? runtime = null)
+    {
+        return other is not null && other.Name.Equals(Name, StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 /// <summary>
@@ -86,6 +99,7 @@ public sealed class AppWorkflowNodeSchema: PropertyOwner, IErrorProvider
     /// <summary>
     /// The workflow arguments
     /// </summary>
+    [Relation<Visible, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_WORKFLOW}.{nameof(SystemReflectWorkflow.hasargs)}", $"@{nameof(Type)}")]
     public CallArg[]? Args { get; set; }
     
     /// <summary>
@@ -102,26 +116,34 @@ public sealed class AppWorkflowNodeSchema: PropertyOwner, IErrorProvider
     /// The node could be triggered multiple times
     /// fork the workflow for next nodes
     /// </summary>
+    [Relation<Visible, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_WORKFLOW}.{nameof(SystemReflectWorkflow.isforkable)}", $"@{nameof(Type)}")]
     public bool? Fork { get; set; }
 
     /// <summary>
     /// The fork key paths in the payload
     /// </summary>
+    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.getaccessentries)}", $"@{nameof(Payload)}")]
+    [Meta<AccessEntryConsumer>(NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, NODE_SELF, false, NODE_KIND_ENUM, NODE_KIND_STRING, NODE_KIND_INT, NODE_KIND_DECIMAL, NODE_KIND_DATE, NODE_KIND_BOOL)]
+    [Relation<Visible, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_WORKFLOW}.{nameof(SystemReflectWorkflow.isforkable)}", $"@{nameof(Type)}")]
+    [Relation<InVisible, Call>(NODE_SELF, NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, $"@{nameof(Payload)}", false, NODE_KIND_ARRAY)]
     public string[]? ForkKey { get; set; }
     
     /// <summary>
     /// The node can't be canceled
     /// </summary>
+    [Relation<InVisible, Call>(NODE_SELF, $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}",  $"@{nameof(Fork)}")]
     public bool? UnCancelable { get; set; }
     
     /// <summary>
     /// Cancel the previous fork branches
     /// </summary>
+    [Relation<Visible, Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}",  $"@{nameof(ForkKey)}")]
     public bool? CancelPre { get; set; }
     
     /// <summary>
     /// Whether save the payload data
     /// </summary>
+    [Relation<Visible, Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Payload)}")]
     public bool? SavePayload { get; set; }
 
     /// <summary>

@@ -31,4 +31,14 @@
     <EmbeddedResource Include="locale\*.json" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="www.zip" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="www.zip">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+  </ItemGroup>
+
 </Project>

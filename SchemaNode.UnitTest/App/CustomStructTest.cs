@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using SchemaNode.Node;
-using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Int;
+using SchemaNode.Property.String;
 using SchemaNode.Schema;
 using SchemaNode.Schema.Provider;
 using static SchemaNode.Utility.Constant;
@@ -17,7 +18,7 @@ public class CustomStructTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "address",
-            Kind = SCHEMA_KIND_STRUCT,
+            Kind = NODE_KIND_STRUCT,
         };
         StructSchema addressSchema = new StructSchema
         {
@@ -61,7 +62,7 @@ public class CustomStructTest : Base.AppTestBase
         Assert.IsNotNull(data);
         Assert.IsFalse(data.IsValid);
         
-        var zipCode = data.GetAccessValue("zipCode") as DataNode;
+        var zipCode = data.GetAccessValue("zipCode");
         Assert.IsNotNull(zipCode);
         Assert.IsFalse(zipCode.IsValid);
         Assert.AreEqual("uplimit", zipCode.GetViolatedConstraints()?.FirstOrDefault()?.Name);
@@ -74,7 +75,7 @@ public class CustomStructTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "event_info",
-            Kind = SCHEMA_KIND_STRUCT,
+            Kind = NODE_KIND_STRUCT,
         };
         StructSchema eventSchema = new StructSchema
         {
@@ -104,7 +105,7 @@ public class CustomStructTest : Base.AppTestBase
 
         var title = node.GetAccessValue("title");
         Assert.IsNotNull(title);
-        Assert.AreEqual("Conference", (title as DataNode)?.GetValue<string>());
+        Assert.AreEqual("Conference", title.GetValue<string>());
     }
 
     [TestMethod]
@@ -114,7 +115,7 @@ public class CustomStructTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "profile",
-            Kind = SCHEMA_KIND_STRUCT,
+            Kind = NODE_KIND_STRUCT,
         };
         StructSchema profileSchema = new StructSchema
         {
@@ -142,7 +143,7 @@ public class CustomStructTest : Base.AppTestBase
         Assert.IsNotNull(node);
         Assert.IsFalse(node.IsValid);
 
-        var usernameField = node.GetAccessValue("username") as DataNode;
+        var usernameField = node.GetAccessValue("username");
         Assert.IsNotNull(usernameField);
         Assert.IsFalse(usernameField.IsValid);
     }
@@ -154,7 +155,7 @@ public class CustomStructTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "todelete_struct",
-            Kind = SCHEMA_KIND_STRUCT,
+            Kind = NODE_KIND_STRUCT,
         };
         StructSchema deleteSchema = new StructSchema
         {

@@ -2,6 +2,7 @@
 using SchemaNode.Attribute;
 using SchemaNode.Function;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
 
@@ -15,6 +16,8 @@ public interface IProperty
     private static readonly ConcurrentDictionary<Type, string> _names = [];
     private static readonly ConcurrentDictionary<Type, bool> _stackable = [];
     private static readonly ConcurrentDictionary<Type, bool> _static = [];
+    private static readonly ConcurrentDictionary<Type, bool> _noinherit = [];
+    private static readonly ConcurrentDictionary<Type, bool> _savable = [];
 
     /// <summary>
     /// Gets the property name
@@ -33,6 +36,16 @@ public interface IProperty
     /// Whether the property is static, which means the property value cannot be modified by relation system.
     /// </summary>
     public bool Static => _static.GetOrAdd(GetType(), static t => t.GetMetaProperty<Static>()?.Value ?? false);
+
+    /// <summary>
+    /// Whether the property is savable, which means the property type is defined as schema type.
+    /// </summary>
+    public bool Savable => _savable.GetOrAdd(GetType(), static t => t.GetMetaProperty<SchemaType>()?.HasValue ?? false);
+
+    /// <summary>
+    /// The property is inheritable, which means the property can be inherited by property access chain.
+    /// </summary>
+    public bool Inheritable => !_noinherit.GetOrAdd(GetType(), static t => t.GetMetaProperty<NoInherit>()?.Value ?? false);
 
     /// <summary>
     /// The property has value

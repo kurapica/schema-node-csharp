@@ -4,6 +4,7 @@ using SchemaNode.Function;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
@@ -19,10 +20,14 @@ public class AssignProcess : IRelationProcess
     private IProperty? _value;
 
     /// <inheritdoc/> 
-    public async Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner)
+    public async Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner, params string?[] kinds)
     {
         var value = schema.GetProperty<Assign>()?.GetValue<object>();
-        var propType = (await context.GetNodeTypeAsync(schema.Property))?.GetCsharpType();
+        var nodeKind = owner.GetAccessValueType(schema.Target)?.Kind;
+        var kind = nodeKind != null ? (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(nodeKind): null;
+        if (kind != null && !kinds.Any(k => kind.Equals(k))) kinds = kinds.Append(kind).ToArray();
+
+        var propType = (await context.GetPropertyType(schema.Property, kinds))?.GetCsharpType();
         if (propType != null && propType.IsAssignableTo(typeof(IProperty)))
         {
             _value = Activator.CreateInstance(propType) as IProperty;
@@ -38,11 +43,27 @@ public class AssignProcess : IRelationProcess
 /// <summary>
 /// Declare relation call field for the relation
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_RELATION)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_RELATION}.assign")]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_RELATION)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_RELATION}.assign")]
 [Meta<Property.Record.RelationKind>("assign", 0)]
 [Meta<RelationProcess>(typeof(AssignProcess))]
-[Relation<Visible, Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"@{nameof(RelationSchema.Kind)}", "assign")]
-[Relation<OverrideType, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.getproptype)}", $"@{nameof(RelationSchema.Property)}")]
-public class Assign : Property<object>;
+[Relation<Visible, Call>(nameof(Assign), NS_SYSTEM_LOGIC_EQ, $"@{nameof(RelationSchema.Kind)}", "assign")]
+[Relation<OverrideType, Call>(nameof(Assign), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}",
+    $"@{nameof(RelationSchema.ValueType)}")]
+public class Assign : Property<object>
+{
+    public override void SetValue<TValue>(TValue value)
+    {
+        if (value is object[] { Length: 2 } objs && objs[0] is Type ptype)
+        {
+            IProperty? prop = Activator.CreateInstance(ptype) as IProperty;
+            prop?.SetValue(objs[1]);
+            base.SetValue(prop?.GetValue<object>());
+        }
+        else
+        {
+            base.SetValue(value);
+        }
+    }
+}

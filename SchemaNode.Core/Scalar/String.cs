@@ -1,6 +1,6 @@
 using SchemaNode.Attribute;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.String;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 
@@ -10,7 +10,7 @@ namespace SchemaNode.Scalar;
 /// Represents the string scalar value type
 /// </summary>
 [Meta<SchemaType>(NS_SYSTEM_STRING)]
-[Meta<OfSchema>(SCHEMA_KIND_STRING)]
+[Meta<OfNodeKind>(NODE_KIND_STRING)]
 public class String: IScalarType<string>;
 
 /// <summary>

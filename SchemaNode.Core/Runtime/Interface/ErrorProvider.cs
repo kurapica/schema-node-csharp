@@ -1,4 +1,6 @@
-﻿namespace SchemaNode.Runtime;
+﻿using SchemaNode.Attribute;
+
+namespace SchemaNode.Runtime;
 
 /// <summary>
 /// The node error interface
@@ -8,5 +10,6 @@ public interface IErrorProvider
     /// <summary>
     /// Gets the runtime node error
     /// </summary>
+    [SchemaIgnore]
     string? Error { get; }
 }

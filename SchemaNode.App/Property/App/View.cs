@@ -3,10 +3,15 @@ using SchemaNode.Attribute;
 using SchemaNode.Function;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Enum;
+using SchemaNode.Property.Struct;
+using SchemaNode.Property.Property;
+using SchemaNode.Relation;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using SchemaNode.Scalar;
+using SchemaNode.Enum;
 
 namespace SchemaNode.Property.App;
 
@@ -15,9 +20,10 @@ namespace SchemaNode.Property.App;
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(View)}")]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<Static>(true)]
-[Relation<InVisible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(EnableStorage)}")]
+[Relation<InVisible, Call>(nameof(View), NS_SYSTEM_LOGIC_EQ, $"@{nameof(EnableStorage)}", true)]
+[Relation<Default, Call>($"{nameof(View)}.{nameof(FieldView.Owner)}", $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(App)}")]
 public class View : Property<FieldView>;
 
 /// <summary>
@@ -27,6 +33,14 @@ public class View : Property<FieldView>;
 public sealed class FieldView
 {
     /// <summary>
+    /// The owner application
+    /// </summary>
+    [Meta<SchemaType>(typeof(AppType))]
+    [Meta<DisplayOnly>(true)]
+    [Meta<InVisible>(true)]
+    public string Owner { get; set; } = string.Empty;
+
+    /// <summary>
     /// The source application
     /// </summary>
     [Meta<SchemaType>(typeof(AppType))]
@@ -35,15 +49,27 @@ public sealed class FieldView
     /// <summary>
     /// The source field
     /// </summary>
-    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemAppReflect.getappfields)}", $"@{nameof(App)}")]
     [Meta<SchemaType>(typeof(Identifier))]
+    [Relation<EntrySource, Assign>(nameof(Field), $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappforeignfields)}", $"@{nameof(App)}", $"@{nameof(Owner)}")]
     public string Field { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The field value type
+    /// </summary>
+    [Meta<DisplayOnly>(true)]
+    [Meta<InVisible>(true)]
+    [Relation<Default, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldtype)}", $"@{nameof(App)}", $"@{nameof(Field)}", true)]
+    public string? FieldType { get; set; }
 
     /// <summary>
     /// The target map field
     /// </summary>
     [Meta<SchemaType>(typeof(Identifier))]
-    public string Map { get; set; } = string.Empty;
+    [Meta<CascadeDepth>(1)]
+    [Relation<EntrySource, Assign>(nameof(Map), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.gettypeentries)}", $"@{nameof(FieldType)}")]
+    [Relation<Valid, Assign>(nameof(Map), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.isnodekindaccess)}", $"@{nameof(FieldType)}", NODE_SELF, false, NODE_KIND_STRING)]
+    [Relation<InVisible, Call>(nameof(Map), $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.isscopepolicy)}", $"@{nameof(App)}", AppScopeType.SystemLevel)]
+    public string? Map { get; set; } = string.Empty;
 
     [SchemaIgnore]
     [JsonIgnore]

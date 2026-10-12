@@ -71,7 +71,7 @@ public class OntologyVectorMatchDto
     /// <summary>Language tag the block was indexed under (e.g. <c>"enUS"</c>, <c>"zhCN"</c>).</summary>
     public string Locale { get; init; } = "enUS";
 
-    /// <summary>Full SSP block content.</summary>
+    /// <summary>IncludeRefs SSP block content.</summary>
     public required string Content { get; init; }
 
     /// <summary>Cosine similarity score in [0, 1].</summary>

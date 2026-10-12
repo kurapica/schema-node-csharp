@@ -1,17 +1,17 @@
-using System.Collections.Concurrent;
-using System.Reflection;
 using SchemaNode.Context;
 using SchemaNode.Enum;
+using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Property;
+using SchemaNode.Property.App;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Core;
+using SchemaNode.Relation;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
+using System.Collections.Concurrent;
+using System.Reflection;
 using System.Text.RegularExpressions;
-using SchemaNode.Function;
-using SchemaNode.Property.App;
-using SchemaNode.Relation;
-using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -80,6 +80,11 @@ public sealed class AppFieldType
     /// The field type node
     /// </summary>
     public ValueType? ValueType { get; private set; }
+
+    /// <summary>
+    /// The field is readonly
+    /// </summary>
+    public bool ReadOnly => IsForeignView || PushSource != null;
     
     #endregion
     
@@ -122,7 +127,7 @@ public sealed class AppFieldType
     /// <summary>
     /// The third-party push field info
     /// </summary>
-    public DataPushThirdFieldInfo[]? ThirdPushFields { get; private set; }
+    public DataDeriveThirdFieldInfo[]? ThirdPushFields { get; private set; }
 
     /// <summary>
     /// The combine rule for scalar/enum type
@@ -240,7 +245,9 @@ public sealed class AppFieldType
         StructType? structType = ((ValueType as ArrayType)?.Element ?? ValueType) as StructType;
         
         // primary property info
-        if (ValueType is ArrayType arr && arr.Primary is { Count: > 0} && structType != null && structType.GetCsharpType() is { } ctype)
+        if (ValueType is ArrayType arr && arr.Primary is { Count: > 0} && structType != null 
+            && structType.GetProperty<SystemDefined>()?.Value == true 
+            && structType.GetCsharpType() is { } ctype)
         {
             _primarys = [];
             foreach (string primary in arr.Primary)
@@ -254,11 +261,11 @@ public sealed class AppFieldType
         Derive? derive = GetProperty<DataDerive>()?.Value;
         if (!string.IsNullOrWhiteSpace(derive?.Source))
         {
-            if (await context.GetNodeTypeAsync<FunctionType>(derive?.Calc ?? string.Empty) is { Args.Length: 1 } funcNode)
+            if (await context.GetNodeTypeAsync<FunctionType>(derive.Calc) is { Args.Length: 1 } funcNode)
             {
                 PushFunc = funcNode;
                 
-                AppFieldType? pushSource = Application.GetField(derive!.Source);
+                AppFieldType? pushSource = Application.GetField(derive.Source);
                 if (pushSource == null || (pushSource.ValueType ?? await context.GetNodeTypeAsync<ValueType>(pushSource.Type))
                     is not ArrayType { Element: not null, Primary: { Count: > 0}} array ||
                     funcNode.Args[0].ValueType != null && funcNode.Args[0].ValueType is not GenericType && 
@@ -273,16 +280,16 @@ public sealed class AppFieldType
                     PushSource = pushSource;
         
                     // Compile with data push compile context
-                    funcNode.ClearRuntimeFuncCache<DataPushCompileContext>(); // must reset the field reference
-                    DataPushCompileContext compileContext = new DataPushCompileContext(context, funcNode);
+                    funcNode.ClearRuntimeFuncCache<DataDeriveCompileContext>(); // must reset the field reference
+                    DataDeriveCompileContext compileContext = new DataDeriveCompileContext(context, funcNode);
                     try
                     {
                         FunctionTypeSchema pushSchema = await compileContext.VisitFunctionType();
-                        DataPushThirdFieldInfo[] pushField = compileContext.ThirdFields;
+                        DataDeriveThirdFieldInfo[] pushField = compileContext.ThirdFields;
                         if (pushField.Length > 0)
                         {
                             ThirdPushFields = compileContext.ThirdFields;
-                            foreach (DataPushThirdFieldInfo push in pushField)
+                            foreach (DataDeriveThirdFieldInfo push in pushField)
                                 Application.GetField(push.Field)?.AddObserver(this);
                         }
                         PushFuncSchema = pushSchema;
@@ -330,11 +337,11 @@ public sealed class AppFieldType
         {
             if (structType == null || string.IsNullOrWhiteSpace(View?.App) || string.IsNullOrWhiteSpace(View?.Field) ||
                 await context.GetAppTypeAsync(View.App) is not { } sourceApp ||
-                sourceApp.ScopeType == AppScopeType.SystemLevel ||
                 sourceApp.GetField(View.Field) is not { } sourceField ||
+                sourceApp.ScopeType != AppScopeType.SystemLevel && (
                 sourceField.Foreigns == null || sourceField.Foreigns.Length == 0 || 
                 sourceField.Foreigns.All(f => !f.App.Equals(Name, StringComparison.OrdinalIgnoreCase)) ||
-                !string.IsNullOrWhiteSpace(View.Map) && structType.GetField(View.Map) == null)
+                !string.IsNullOrWhiteSpace(View.Map) && structType.GetField(View.Map) == null))
             {
                 Error ??= AppErrorCodes.APP_FIELD_VIEW_NOT_VALID;
             }
@@ -369,7 +376,7 @@ public sealed class AppFieldType
                             // Can be generated by other fields, or from the other field of the source app
                             RelationType? relation = structType.GetRelations(f.Name).FirstOrDefault(r => r.ForProperty<Default>());
 
-                            if (relation is not { Process: CallProcess call } ||$"{NS_SYSTEM_DATA}.{nameof(SystemAppData.getfield)}".Equals(call.Func, StringComparison.OrdinalIgnoreCase) &&
+                            if (relation is not { Process: CallProcess call } || $"{NS_SYSTEM_DATA_APP}.{nameof(SystemAppData.getfield)}".Equals(call.Func, StringComparison.OrdinalIgnoreCase) &&
                                 !sourceApp.Name.Equals(call.Args.FirstOrDefault()?.Value?.ToValue<string>(), StringComparison.OrdinalIgnoreCase))
                             {
                                 Error ??= AppErrorCodes.APP_FIELD_VIEW_NOT_VALID;
@@ -402,7 +409,7 @@ public sealed class AppFieldType
     {
         if (ValueType != null)
             yield return ValueType;
-        
+
         if (_refTypes != null)
             foreach (var node in _refTypes)
                 yield return node;
@@ -411,7 +418,7 @@ public sealed class AppFieldType
     /// <summary>
     /// Get the application field schema
     /// </summary>
-    public async Task<AppFieldSchema> GetSchemaAsync(SchemaContext context)
+    public async Task<AppFieldSchema> GetSchemaAsync(SchemaContext context, bool noAuth = false)
     {
         AppFieldSchema schema = new AppFieldSchema
         {
@@ -423,15 +430,19 @@ public sealed class AppFieldType
         schema.CombineProperties(_appFieldSchema);
         
         // The auth properties
-        schema.SetProperty<SchemaCreate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true));
-        schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true));
-        schema.SetProperty<SchemaUpdate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true));
-        schema.SetProperty<SchemaDelete, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true));
-        schema.SetProperty<DataCreate, bool>(await context.AuthorizeAsync(this, PolicyScope.DataCreate, true));
-        schema.SetProperty<DataRead, bool>(await context.AuthorizeAsync(this, PolicyScope.DataRead, true));
-        schema.SetProperty<DataUpdate, bool>(await context.AuthorizeAsync(this, PolicyScope.DataUpdate, true));
-        schema.SetProperty<DataDelete, bool>(await context.AuthorizeAsync(this, PolicyScope.DataDelete, true));
-        
+        if (!noAuth)
+        {
+            bool isSystem = Application.GetProperty<SystemDefined>()?.Value == true;
+            schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true));
+            schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true));
+            schema.SetProperty<SchemaUpdate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true));
+            schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true));
+            schema.SetProperty<DataCreate, bool>(!isSystem && !ReadOnly && await context.AuthorizeAsync(this, PolicyScope.DataCreate, true));
+            schema.SetProperty<DataRead, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.DataRead, true));
+            schema.SetProperty<DataUpdate, bool>(!isSystem && !ReadOnly && await context.AuthorizeAsync(this, PolicyScope.DataUpdate, true));
+            schema.SetProperty<DataDelete, bool>(!isSystem && !ReadOnly && await context.AuthorizeAsync(this, PolicyScope.DataDelete, true));
+        }
+
         // The block columns
         // column access check
         if ((ValueType is ArrayType arr ? arr.Element : ValueType) is StructType @struct)
@@ -502,12 +513,39 @@ public sealed class AppFieldType
         if (!_observers.Contains(observer))
             _observers.Add(observer);
     }
-    
+
     /// <summary>
     /// Validate field by DynamicTableSchema and return nullable
     /// </summary>
-    public async Task<DataNode?> ValidateDataAsync(SchemaContext context, object? value)
-        => await ValueType!.ValidateValueAsync(context, value);
+    public async Task<IValueAccess?> ValidateDataAsync(SchemaContext context, object? value, bool noValid = false)
+    {
+        if (noValid)
+        {
+
+            IValueAccess? result = null;
+            if (value is IValueAccess node)
+            {
+                if (node.Type == ValueType || ValueType!.IsAssignableTo(node.Type))
+                    result = node;
+                else
+                    value = node.TryGetValue(out object? v) ? v : null;
+            }
+
+            // skip validation if node can't set value
+            if (result == null)
+            {
+                result = ValueType!.Create();
+                if (value != null && !result.TrySetValue(value))
+                    return null;
+            }
+
+            // remove un-valid data
+            if (result is DataNode n) n.ClearDisplayOnlyNode();
+            return result;
+        }
+        else
+            return await ValueType!.ValidateValueAsync(context, value);
+    }
 
     /// <summary>
     /// Save item for the app field type
@@ -529,7 +567,15 @@ public sealed class AppFieldType
     /// Gets item
     /// </summary>
     public T? GetItem<T>() => _items?.TryGetValue(typeof(T), out object? obj) == true ? (T)obj : default(T?);
-    
+
+    /// <summary>
+    /// Resets the items
+    /// </summary>
+    public void ResetItems()
+    {
+        _items?.Clear();
+    }
+
     #endregion
 
     #region Dynamic table

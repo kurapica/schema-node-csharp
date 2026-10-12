@@ -3,7 +3,6 @@ using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
-using SchemaNode.Property;
 using SchemaNode.Struct;
 using SchemaNode.Schema.Provider;
 
@@ -96,16 +95,16 @@ public sealed class EnumType: ValueType
     /// Gets the property with the given type
     /// </summary>
     public override T? GetProperty<T>() where T : class 
-        => base.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(Kind);
+        => base.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(SchemaKind);
 
     /// <summary>
     /// Gets the properties with the given type
     /// </summary>
     public override IEnumerable<T> GetProperties<T>()
-        => this.JoinProperties(base.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(Kind));
+        => this.JoinProperties(base.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(SchemaKind));
 
     /// <inheritdoc />
-    public override bool IsAssignableTo(ValueType other)
+    public override bool IsAssignableTo(IValueTypeAccess other)
     {
         return base.IsAssignableTo(other) || other is ScalarType scalar && _enumSchema?.Type switch
         {
@@ -117,7 +116,7 @@ public sealed class EnumType: ValueType
     }
 
     /// <inheritdoc />
-    public override DataNode Create(IValueAccess? parent = null) => new EnumNode(this,  parent);
+    public override IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new EnumNode(this,  parent, propertyProvider);
 
     /// <inheritdoc />
     public override bool IsIndexable => true;
@@ -140,9 +139,10 @@ public sealed class EnumType: ValueType
         if (access is not null || root.IsFullyLoaded == true) return access ?? [];
 
         // Load from the provider
-        if (Provider != null && context.GetRequiredService(Provider) is IEnumEntryProvider provider)
+        if (Provider != null && Provider.IsAssignableTo(typeof(IEnumEntryProvider)))
         {
-            EntryAccess<string>[] accessList = await provider.GetEnumEntryAccessAsync(Name, value, !root.IsRoot ? root.Value : null);
+            EntryAccess<string>[] accessList = await (context.GetRequiredService(Provider) as IEnumEntryProvider)!
+                .GetEnumEntryAccessAsync(Name, value, !root.IsRoot ? root.Value : null);
             if (accessList.Length > 0)
             {
                 lock (_lock) root.SaveAccessList(accessList);

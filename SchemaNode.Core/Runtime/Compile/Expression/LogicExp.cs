@@ -5,7 +5,8 @@ using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
-using ExpressionType = SchemaNode.Enum.ExpType;
+using SchemaNode.Property.Function;
+using SchemaNode.Attribute;
 
 // ReSharper disable NotAccessedPositionalProperty.Global
 
@@ -14,28 +15,11 @@ namespace SchemaNode.Runtime;
 #region Logic Exp
 
 /// <summary>
-/// The logic exp type
-/// </summary>
-[AttributeUsage( AttributeTargets.Method)]
-public class LogicAttribute(LogicType type, bool includeMethod = false): System.Attribute
-{
-    /// <summary>
-    /// The logic exp type
-    /// </summary>
-    public LogicType Type { get; } = type;
-    
-    /// <summary>
-    /// Include the method info
-    /// </summary>
-    public bool IncludeMethod { get; } = includeMethod;
-}
-
-/// <summary>
 /// The logic expression
 /// </summary>
 /// <param name="Type">The logic exp type</param>
 /// <param name="ValueType">The result type(bool only)</param>
-public abstract record LogicExp(LogicType Type, ValueType ValueType) : SchemaExp(ValueType);
+public abstract record LogicExp(LogicType Type, IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The unary logic expression
@@ -44,7 +28,7 @@ public abstract record LogicExp(LogicType Type, ValueType ValueType) : SchemaExp
 /// <param name="Inner">The inner exp</param>
 /// <param name="ValueType">The result type(bool only)</param>
 /// <param name="Method">The method if require</param>
-public record UnaryLogicExp(LogicType Type, SchemaExp Inner, ValueType ValueType, FunctionType? Method = null) : LogicExp(Type, ValueType);
+public record UnaryLogicExp(LogicType Type, SchemaExp Inner, IValueTypeAccess ValueType, FunctionType? Method = null) : LogicExp(Type, ValueType);
 
 /// <summary>
 /// The binary logic expression
@@ -54,7 +38,7 @@ public record UnaryLogicExp(LogicType Type, SchemaExp Inner, ValueType ValueType
 /// <param name="Right">The right exp</param>
 /// <param name="ValueType">The result type(bool only)</param>
 /// <param name="Method">The method if require</param>
-public record BinaryLogicExp(LogicType Type, SchemaExp Left, SchemaExp Right, ValueType ValueType, FunctionType? Method = null) : LogicExp(Type, ValueType);
+public record BinaryLogicExp(LogicType Type, SchemaExp Left, SchemaExp Right, IValueTypeAccess ValueType, FunctionType? Method = null) : LogicExp(Type, ValueType);
 
 #endregion
 
@@ -69,7 +53,7 @@ public class LogicExpVisitor : IExpVisitor
     public async Task<SchemaExp?> VisitExpAsync(CompileContext context, SchemaExp exp)
     {
         await Task.Yield();
-        if (exp is not FuncCallExp { ExpType: ExpressionType.Call, Function: { MethodInfo: { } method } } callExp) return null;
+        if (exp is not FuncCallExp { ApplyMode: ApplyMode.Call, Function: { MethodInfo: { } method } } callExp) return null;
         
         // v in [a, b) - special case
         if (callExp.Function.Name.Equals($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.between)}", StringComparison.OrdinalIgnoreCase))
@@ -91,13 +75,13 @@ public class LogicExpVisitor : IExpVisitor
                 exp.ValueType);
         }
         
-        if (method.GetCustomAttribute<LogicAttribute>() is not { } logicAttr)
+        if (method.GetMetaProperty<Logic>() is not { } logicAttr)
             return null;
 
         LogicExp? logicExp = callExp.Function.Args.Length switch
         {
-            1 => new UnaryLogicExp(logicAttr.Type, callExp.Args[0], exp.ValueType, logicAttr.IncludeMethod ? callExp.Function : null),
-            2 => new BinaryLogicExp(logicAttr.Type, callExp.Args[0], callExp.Args[1], exp.ValueType, logicAttr.IncludeMethod ? callExp.Function : null),
+            1 => new UnaryLogicExp(logicAttr.Value, callExp.Args[0], exp.ValueType, callExp.Function),
+            2 => new BinaryLogicExp(logicAttr.Value, callExp.Args[0], callExp.Args[1], exp.ValueType, callExp.Function),
             _ => null
         };
 
@@ -145,6 +129,9 @@ public class LogicExpVisitor : IExpVisitor
             case BinaryLogicExp binExp:
                 Expression left = await context.CompileSchemaExpAsync(binExp.Left);
                 Expression right = await context.CompileSchemaExpAsync(binExp.Right);
+                Type exType = left.Type.GetNotNullType();
+                left = context.ConvertExp(exType, left);
+                right = context.ConvertExp(exType, right);
 
                 return binExp.Type switch
                 {

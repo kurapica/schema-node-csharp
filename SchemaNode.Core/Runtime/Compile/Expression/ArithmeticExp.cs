@@ -1,9 +1,10 @@
 ﻿using System.Linq.Expressions;
 using System.Reflection;
+using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using SchemaNode.Property.Function;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
-using ExpressionType = SchemaNode.Enum.ExpType;
 
 // ReSharper disable NotAccessedPositionalProperty.Global
 
@@ -12,25 +13,14 @@ namespace SchemaNode.Runtime;
 #region Arithmetic Exp Types
 
 /// <summary>
-/// The Arithmetic exp type
-/// </summary>
-public class ArithmeticAttribute(ArithmeticType type) : System.Attribute
-{
-    /// <summary>
-    ///  The arithmetic type
-    /// </summary>
-    public ArithmeticType Type { get; } = type;
-}   
-
-/// <summary>
 /// The arithmetic expression
 /// </summary>
-public record ArithmeticExp(ArithmeticType Type, SchemaExp[] Args, ValueType ValueType) : SchemaExp(ValueType);
+public record ArithmeticExp(ArithmeticType Type, SchemaExp[] Args, IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The transform arithmetic expression
 /// </summary>
-public record TransformArithmeticExp(MethodInfo Method, SchemaExp[] Args, ValueType ValueType) : ArithmeticExp(ArithmeticType.Transform, Args, ValueType);
+public record TransformArithmeticExp(MethodInfo Method, SchemaExp[] Args, IValueTypeAccess ValueType) : ArithmeticExp(ArithmeticType.Transform, Args, ValueType);
 
 #endregion
 
@@ -45,15 +35,15 @@ public class ArithmeticExpVisitor : IExpVisitor
     // <inheritdoc/>
     public Task<SchemaExp?> VisitExpAsync(CompileContext context, SchemaExp exp)
     {
-        if (exp is not FuncCallExp { ExpType: ExpressionType.Call } callExp ||
+        if (exp is not FuncCallExp { ApplyMode: ApplyMode.Call } callExp ||
             callExp.Function.MethodInfo == null ||
-            callExp.Function.MethodInfo.GetCustomAttribute<ArithmeticAttribute>() is not {} attr) 
+            callExp.Function.MethodInfo.GetMetaProperty<Arithmetic>() is not {} attr) 
             return Task.FromResult<SchemaExp?>(null);
         
         return Task.FromResult<SchemaExp?>(
-            attr.Type == ArithmeticType.Transform
+            attr.Value == ArithmeticType.Transform
                 ? new TransformArithmeticExp(callExp.Function.MethodInfo, callExp.Args, callExp.ValueType)
-                : new ArithmeticExp(attr.Type, callExp.Args, callExp.ValueType));
+                : new ArithmeticExp(attr.Value, callExp.Args, callExp.ValueType));
     }
 
     // <inheritdoc/>
@@ -64,19 +54,8 @@ public class ArithmeticExpVisitor : IExpVisitor
         // Prepare argument expressions
         List<Expression> argExps = [];
         foreach (SchemaExp arg in arithmeticExp.Args)
-        {
-            if (arg is ParamsExp pExp)
-            {
-                foreach (SchemaExp p in pExp.Exps)
-                {
-                    argExps.Add(await context.CompileSchemaExpAsync(p));
-                }
-            }
-            else
-            {
-                argExps.Add(await context.CompileSchemaExpAsync(arg));
-            }
-        }
+            argExps.Add(await context.CompileSchemaExpAsync(arg));
+
         if (argExps.Count == 0) throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
         
         // Compile based on arithmetic type

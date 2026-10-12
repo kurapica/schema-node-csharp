@@ -1,16 +1,73 @@
-﻿using SchemaNode.Property;
+﻿using SchemaNode.Context;
+using SchemaNode.Property;
+using SchemaNode.Struct;
+using System.Text.Json.Nodes;
 
 namespace SchemaNode.Runtime;
 
 /// <summary>
 /// The value type access interface, which indicates that the node has access to other value types
 /// </summary>
-public interface IValueTypeAccess
+public interface IValueTypeAccess : IPropertyProvider
 {
+    /// <summary>
+    /// The type name
+    /// </summary>
+    string Name { get; }
+    
+    /// <summary>
+    /// The type kind
+    /// </summary>
+    string Kind { get; }
+    
     /// <summary>
     /// Gets the access value type
     /// </summary>
-    ValueType? GetAccessValueType(string path);
+    IValueTypeAccess? GetAccessValueType(string path);
+
+    /// <summary>
+    /// Gets the access entries
+    /// </summary>
+    IEnumerable<Entry<string>> GetAccessEntries();
+
+    /// <summary>
+    /// Is assignable to the other value type access
+    /// </summary>
+    bool IsAssignableTo(IValueTypeAccess other);
+
+    /// <summary>
+    /// Whether has access entries
+    /// </summary>
+    /// <returns></returns>
+    bool HasAccessEntries { get; }
+
+    /// <summary>
+    /// Create the value access for the given parent and property provider
+    /// </summary>
+    /// <param name="parent"></param>
+    /// <param name="propertyProvider"></param>
+    /// <returns></returns>
+    IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null);
+
+    /// <summary>
+    /// Generate the data node with given value
+    /// </summary>
+    IValueAccess From(object? value, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null);
+
+    /// <summary>
+    /// Gets the match C# type
+    /// </summary>
+    Type? GetCsharpType(bool nullable = false);
+
+    /// <summary>
+    /// Validate value and return the access wrap
+    /// </summary>
+    Task<IValueAccess?> ValidateValueAsync(ISchemaContext context, object? value);
+
+    /// <summary>
+    /// Gets the relations types
+    /// </summary>
+    IEnumerable<RelationType> GetRelations();
 }
 
 /// <summary>
@@ -18,6 +75,11 @@ public interface IValueTypeAccess
 /// </summary>
 public interface IValueAccess
 {
+    /// <summary>
+    /// The value access type
+    /// </summary>
+    IValueTypeAccess Type { get;  }
+    
     /// <summary>
     /// Gets the access value
     /// </summary>
@@ -37,10 +99,25 @@ public interface IValueAccess
     bool TryGetValue<T>(out T? value);
 
     /// <summary>
+    /// Try get the value as the given type
+    /// </summary>
+    bool TryGetValue(Type type, out object? value); 
+    
+    /// <summary>
     /// Gets the value
     /// </summary>
     public T? GetValue<T>() => TryGetValue<T>(out T? value) ? value : default(T?);
 
+    /// <summary>
+    /// Gets the value
+    /// </summary>
+    public object? GetValue(Type type) => TryGetValue(type, out object? value) ? value : null;
+    
+    /// <summary>
+    /// Clear the value
+    /// </summary>
+    void ClearValue();
+    
     /// <summary>
     /// Whether the value is empty
     /// </summary>
@@ -50,6 +127,11 @@ public interface IValueAccess
     /// The value parent
     /// </summary>
     IValueAccess? Parent { get; }
+    
+    /// <summary>
+    /// The property provider
+    /// </summary>
+    IPropertyProvider? PropertyProvider { get; }
 
     /// <summary>
     /// Record the constraint result
@@ -62,7 +144,49 @@ public interface IValueAccess
     IEnumerable<IConstraintProperty> GetViolatedConstraints();
 
     /// <summary>
+    /// Clone the value access
+    /// </summary>
+    IValueAccess Clone();
+
+    /// <summary>
     /// The value is valid
     /// </summary>
-    public virtual bool IsValid => !GetViolatedConstraints().Any();
+    bool IsValid { get; } 
+
+    /// <summary>
+    /// The violated data
+    /// </summary>
+    JsonNode? Violated { get; }
+}
+
+/// <summary>
+/// The global value access path handler interface
+/// </summary>
+public interface IValueAccessPathHandler
+{
+    /// <summary>
+    /// Load the access path handler with the given schema context
+    /// </summary>
+    Task LoadAsync(ISchemaContext context);
+    
+    /// <summary>
+    /// The value access path
+    /// </summary>
+    public string Path { get; }
+    
+    /// <summary>
+    /// The value access path display
+    /// </summary>
+    public LocaleString Display { get; }
+    
+    /// <summary>
+    /// Gets the access value type
+    /// </summary>
+    public abstract IValueTypeAccess? GetAccessValueType(IValueTypeAccess owner);
+    
+    /// <summary>
+    /// Gets the access value
+    /// </summary>
+    public abstract IValueAccess? GetAccessValue(IValueAccess owner, IValueAccess? node = null);
+
 }

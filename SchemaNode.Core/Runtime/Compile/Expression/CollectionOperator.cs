@@ -5,7 +5,7 @@ using System.Linq.Expressions;
 using SchemaNode.Enum;
 using SchemaNode.Function;
 using static SchemaNode.Utility.Constant;
-using ExpType = SchemaNode.Enum.ExpType;
+using System.Security.Cryptography;
 
 namespace SchemaNode.Runtime;
 
@@ -14,89 +14,89 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The iterator expression represents an iteration over an array within a schema expression tree.
 /// </summary>
-public record CollectionRootExp(SchemaExp Collection, ValueType ValueType) : SchemaExp(ValueType);
+public record CollectionRootExp(SchemaExp Collection, IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The loop argument exp used to replace the collection source in the function call
 /// </summary>
-public record CollectionItemExp(CollectionRootExp Root, ValueType ValueType) : SchemaExp(ValueType);
+public record CollectionItemExp(CollectionRootExp Root, IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The collection result expression
 /// </summary>
-public abstract record CollectionResult(CollectionRootExp Root, ValueType ValueType) : SchemaExp(ValueType);
+public abstract record CollectionResult(CollectionRootExp Root, IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The collection expression
 /// </summary>
-public abstract record CollectionOperator(CollectionRootExp Root, ValueType ValueType): CollectionRootExp(Root, ValueType);
+public abstract record CollectionOperator(CollectionRootExp Root, IValueTypeAccess ValueType): CollectionRootExp(Root, ValueType);
 
 /// <summary>
 /// The predicate collection expression
 /// </summary>
-public record PredicateCollectionOperator(CollectionRootExp Root, CollectionItemExp Item, SchemaExp Predicate, ValueType ValueType) : CollectionOperator(Root, ValueType);
+public record PredicateCollectionOperator(CollectionRootExp Root, CollectionItemExp Item, SchemaExp Predicate, IValueTypeAccess ValueType) : CollectionOperator(Root, ValueType);
 
 /// <summary>
 /// Order by collection expression
 /// </summary>
-public record OrderByCollectionOperator(CollectionRootExp Root,  string OrderField, bool Descending, ValueType ValueType) : CollectionOperator(Root, ValueType);
+public record OrderByCollectionOperator(CollectionRootExp Root,  string OrderField, bool Descending, IValueTypeAccess ValueType) : CollectionOperator(Root, ValueType);
 
 /// <summary>
 /// The take collection expression
 /// </summary>
-public record TakeCollectionOperator(CollectionRootExp Root, SchemaExp Take, ValueType ValueType) : CollectionOperator(Root, ValueType);
+public record TakeCollectionOperator(CollectionRootExp Root, SchemaExp Take, IValueTypeAccess ValueType) : CollectionOperator(Root, ValueType);
 
 /// <summary>
 /// The skip collection expression
 /// </summary>
-public record SkipCollectionOperator(CollectionRootExp Root, SchemaExp Skip, ValueType ValueType) : CollectionOperator(Root, ValueType);
+public record SkipCollectionOperator(CollectionRootExp Root, SchemaExp Skip, IValueTypeAccess ValueType) : CollectionOperator(Root, ValueType);
 
-public abstract record PredicateCollectionResult(CollectionRootExp Root, ValueType ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : CollectionResult(Root, ValueType);
+public abstract record PredicateCollectionResult(CollectionRootExp Root, IValueTypeAccess ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : CollectionResult(Root, ValueType);
 
 /// <summary>
 /// The count collection expression
 /// </summary>
-public record CountCollectionResult(CollectionRootExp Root, ValueType ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
+public record CountCollectionResult(CollectionRootExp Root, IValueTypeAccess ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
 
 /// <summary>
 /// The any collection expression
 /// </summary>
-public record AnyCollectionResult(CollectionRootExp Root, ValueType ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
+public record AnyCollectionResult(CollectionRootExp Root, IValueTypeAccess ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
 
 /// <summary>
 /// The all collection expression
 /// </summary>
-public record AllCollectionResult(CollectionRootExp Root, ValueType ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
+public record AllCollectionResult(CollectionRootExp Root, IValueTypeAccess ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
 
 /// <summary>
 /// The first collection expression
 /// </summary>
-public record FirstCollectionResult(CollectionRootExp Root, ValueType ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
+public record FirstCollectionResult(CollectionRootExp Root, IValueTypeAccess ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
 
 /// <summary>
 /// The last collection expression
 /// </summary>
-public record LastCollectionResult(CollectionRootExp Root, ValueType ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
+public record LastCollectionResult(CollectionRootExp Root, IValueTypeAccess ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
 
 /// <summary>
 /// The fields collection expression
 /// </summary>
-public record FieldsCollectionResult(CollectionRootExp Root, string Field, ValueType ValueType): CollectionResult(Root, ValueType);
+public record FieldsCollectionResult(CollectionRootExp Root, string Field, IValueTypeAccess ValueType): CollectionResult(Root, ValueType);
 
 /// <summary>
 /// The reduce sum argument expression to be used as the accumulator in reduce expression
 /// </summary>
-public record ReduceSumExp(SchemaExp Init, ValueType ValueType) : SchemaExp(ValueType);
+public record ReduceSumExp(SchemaExp Init, IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The reduce collection expression
 /// </summary>
-public record ReduceCollectionResult(CollectionRootExp Root, CollectionItemExp Item, ReduceSumExp Sum, SchemaExp Expression, ValueType ValueType) : CollectionResult(Root, ValueType);
+public record ReduceCollectionResult(CollectionRootExp Root, CollectionItemExp Item, ReduceSumExp Sum, SchemaExp Expression, IValueTypeAccess ValueType) : CollectionResult(Root, ValueType);
 
 /// <summary>
 /// The map collection expression
 /// </summary>
-public record MapCollectionResult(CollectionRootExp Root, CollectionItemExp Item, SchemaExp Expression, ValueType ValueType) : CollectionResult(Root, ValueType);
+public record MapCollectionResult(CollectionRootExp Root, CollectionItemExp Item, SchemaExp Expression, IValueTypeAccess ValueType) : CollectionResult(Root, ValueType);
 
 #endregion
 
@@ -114,12 +114,12 @@ public class CollectionExpVisitor : IExpVisitor
         if (exp is not FuncCallExp funcExp) return null;
 
         // Handle final collection call
-        if (funcExp.ExpType == ExpType.Call)
+        if (funcExp.ApplyMode == ApplyMode.Call)
         {
             CollectionRootExp? sourceExp = funcExp.Args.FirstOrDefault(a => a is CollectionRootExp) as CollectionRootExp;
             if (sourceExp == null) return null;
             
-            switch (funcExp.Function.Name)
+            switch (funcExp.Function.BaseName)
             {
                 // getFields(source)
                 case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfields)}":
@@ -176,10 +176,10 @@ public class CollectionExpVisitor : IExpVisitor
 
         CollectionRootExp source = item.Root;
 
-        switch (funcExp.ExpType)
+        switch (funcExp.ApplyMode)
         {
             // Try to merge the predicate
-            case ExpType.Filter when source is PredicateCollectionOperator pre:
+            case ApplyMode.Filter when source is PredicateCollectionOperator pre:
                 return new PredicateCollectionOperator(pre.Root, pre.Item,
                     new BinaryLogicExp(LogicType.AndAlso, pre.Predicate, await context.VisitSchemaExpAsync(
                         // combine the iterator
@@ -192,29 +192,31 @@ public class CollectionExpVisitor : IExpVisitor
                     funcExp.ValueType);
             
             // Default filter
-            case ExpType.Filter:
+            case ApplyMode.Filter:
                 return new PredicateCollectionOperator(source, item,
                     await context.VisitSchemaExpAsync(new FuncCallExp(funcExp.Function, funcExp.Args, context.System.Bool)), 
                     funcExp.ValueType); 
             
             // Reduce the collection source
-            case ExpType.Reduce:
+            case ApplyMode.Reduce:
             {
                 ReduceSumExp sumExp = new ReduceSumExp(funcExp.Args.FirstOrDefault(a => a != iterArg) 
                                                        ?? new NullExp(funcExp.ValueType), funcExp.ValueType);
+                var newArgs = funcExp.Args.Select(a => a == iterArg ? iterArg : sumExp).ToArray();
+                if (!newArgs.Contains(sumExp)) newArgs = newArgs.Append(sumExp).ToArray();
                 return new ReduceCollectionResult(source, item, sumExp,
                     // Map the function call to schema expression if possible
                     await context.VisitSchemaExpAsync(new FuncCallExp(
                         funcExp.Function,
-                        funcExp.Args.Select(a => a == iterArg ? iterArg : sumExp).ToArray(),
+                        newArgs,
                         funcExp.ValueType
                     )),
                     funcExp.ValueType
                 );
             }
             
-            case ExpType.Map:
-                switch (funcExp.Function.Name)
+            case ApplyMode.Map:
+                switch (funcExp.Function.BaseName)
                 {
                     // getField(source, field), cover the case to FieldsDataSourceExpression
                     case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}":
@@ -253,7 +255,7 @@ public class CollectionExpVisitor : IExpVisitor
                     funcExp.ValueType
                 );
             
-            case ExpType.First:
+            case ApplyMode.First:
                 return new FirstCollectionResult(source, funcExp.ValueType, item,
                     // Map the function call to schema expression if possible
                     await context.VisitSchemaExpAsync(new FuncCallExp(
@@ -263,7 +265,7 @@ public class CollectionExpVisitor : IExpVisitor
                     )) as LogicExp
                 );
             
-            case ExpType.Last:
+            case ApplyMode.Last:
                 return new LastCollectionResult(source, funcExp.ValueType, item,
                     // Map the function call to schema expression if possible
                     await context.VisitSchemaExpAsync(new FuncCallExp(
@@ -272,7 +274,7 @@ public class CollectionExpVisitor : IExpVisitor
                         context.System.Bool
                     )) as LogicExp
                 );
-            case ExpType.Count:
+            case ApplyMode.Count:
                 return new CountCollectionResult(source, funcExp.ValueType, item,
                     // Map the function call to schema expression if possible
                     await context.VisitSchemaExpAsync(new FuncCallExp(
@@ -281,7 +283,7 @@ public class CollectionExpVisitor : IExpVisitor
                         context.System.Bool
                     )) as LogicExp
                 );
-            case ExpType.All:
+            case ApplyMode.All:
                 return new AllCollectionResult(source, funcExp.ValueType, item,
                     // Map the function call to schema expression if possible
                     await context.VisitSchemaExpAsync(new FuncCallExp(
@@ -290,7 +292,7 @@ public class CollectionExpVisitor : IExpVisitor
                         context.System.Bool
                     )) as LogicExp
                 );
-            case ExpType.Any:
+            case ApplyMode.Any:
                 return new AnyCollectionResult(source, funcExp.ValueType, item,
                     // Map the function call to schema expression if possible
                     await context.VisitSchemaExpAsync(new FuncCallExp(
@@ -358,6 +360,7 @@ public class CollectionExpVisitor : IExpVisitor
         Type expReturnType = exp.ValueType.GetCsharpType() ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
 
         // Handle different collection expression types
+        var arrayNodeCtor = typeof(ArrayNode).GetConstructors().First(c => c.GetParameters().Length == 3);
         switch (exp)
         {
             case PredicateCollectionOperator predicateExp:
@@ -370,13 +373,11 @@ public class CollectionExpVisitor : IExpVisitor
 
                 // Generate result expression
                 ParameterExpression resultExp = Expression.Variable(expReturnType.IsArrayType() ? expReturnType : typeof(ArrayNode));
-
                 return Expression.Block(
                     [arrExp, resultExp, start, stop, curr],
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayNode)
-                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.ValueType),
-                            Expression.Constant(null))
+                        ? Expression.New(arrayNodeCtor, Expression.Constant(exp.ValueType), Expression.Constant(null, typeof(IValueAccess)), Expression.Constant(null, typeof(IPropertyProvider)))
                         : Expression.New(resultExp.Type)),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
                     Expression.Assign(stop, arrayLen),
@@ -408,8 +409,7 @@ public class CollectionExpVisitor : IExpVisitor
                     [arrExp, resultExp, start, stop],
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayNode)
-                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.ValueType),
-                            Expression.Constant(null))
+                        ? Expression.New(arrayNodeCtor, Expression.Constant(exp.ValueType), Expression.Constant(null, typeof(IValueAccess)), Expression.Constant(null, typeof(IPropertyProvider)))
                         : Expression.New(resultExp.Type)),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
                     Expression.Assign(stop,  Expression.Condition(
@@ -439,8 +439,7 @@ public class CollectionExpVisitor : IExpVisitor
                     [arrExp, resultExp, start, stop],
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayNode)
-                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.ValueType),
-                            Expression.Constant(null))
+                        ? Expression.New(arrayNodeCtor, Expression.Constant(exp.ValueType), Expression.Constant(null, typeof(IValueAccess)), Expression.Constant(null, typeof(IPropertyProvider)))
                         : Expression.New(resultExp.Type)),
                     Expression.Assign(start, takeCount),
                     Expression.Assign(stop,  arrayLen),
@@ -674,10 +673,9 @@ public class CollectionExpVisitor : IExpVisitor
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
                     Expression.Assign(stop, arrayLen),
-                    Expression.Assign(resultExp, Expression.Coalesce(await context.CompileSchemaExpAsync(reduceExp.Sum),
-                        reduceExp.Sum.Init is NullExp
+                    Expression.Assign(resultExp, reduceExp.Sum.Init is NullExp
                             ? Expression.Default(expReturnType)
-                            : await context.CompileSchemaExpAsync(reduceExp.Sum.Init))),
+                            : await context.CompileSchemaExpAsync(reduceExp.Sum.Init)),
                     Expression.Loop(
                         Expression.IfThenElse(
                             Expression.LessThan(start, stop),
@@ -710,8 +708,7 @@ public class CollectionExpVisitor : IExpVisitor
                     [arrExp, resultExp, start, stop],
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayNode)
-                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.ValueType),
-                            Expression.Constant(null))
+                        ? Expression.New(arrayNodeCtor, Expression.Constant(exp.ValueType), Expression.Constant(null, typeof(IValueAccess)), Expression.Constant(null, typeof(IPropertyProvider)))
                         : Expression.New(resultExp.Type)),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
                     Expression.Assign(stop, arrayLen),
@@ -755,8 +752,7 @@ public class CollectionExpVisitor : IExpVisitor
                     [arrExp, resultExp, start, stop],
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayNode)
-                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.ValueType),
-                            Expression.Constant(null))
+                        ? Expression.New(arrayNodeCtor, Expression.Constant(exp.ValueType), Expression.Constant(null, typeof(IValueAccess)), Expression.Constant(null, typeof(IPropertyProvider)))
                         : Expression.New(resultExp.Type)),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
                     Expression.Assign(stop, arrayLen),
@@ -796,7 +792,7 @@ public class CollectionExpVisitor : IExpVisitor
     public static void AddIfNotEmpty(IList result, object? item)
     {
         if (item == null) return;
-        if (item is DataNode { IsEmpty: true }) return;
+        if (item is IValueAccess { IsEmpty: true }) return;
         result.Add(item);
     }
 
@@ -809,7 +805,7 @@ public class CollectionExpVisitor : IExpVisitor
         foreach (var item in items)
         {
             if (item == null) continue;
-            if (item is DataNode { IsEmpty: true }) continue;
+            if (item is IValueAccess { IsEmpty: true }) continue;
             result.Add(item);
         }
     }

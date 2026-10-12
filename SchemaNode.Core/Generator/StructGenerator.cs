@@ -1,9 +1,10 @@
 using System.Reflection;
 using SchemaNode.Attribute;
 using SchemaNode.Property;
-using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Array;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
@@ -35,7 +36,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             (type.IsValueType && type.IsPrimitiveLike())) yield break;
 
         // Build struct node schema
-        NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_STRUCT, @namespace, name, type, type.GetSummaryFromXmlDoc());
+        NodeSchema schema = NodeSchema.Create(runtime, NODE_KIND_STRUCT, @namespace, name, type, type.GetSummaryFromXmlDoc());
         if (typeResolver == null)
         {
             yield return schema;
@@ -51,8 +52,9 @@ internal sealed class StructGenerator : INodeSchemaGenerator
                     p.GetMetaProperty<Index>() != null))
             {
                 // Also generate a companion array schema when primary keys, indexes, or nested types are present
-                NodeSchema array = NodeSchema.Create(SCHEMA_KIND_ARRAY, @namespace, $"{name}s", null, 
-                    $"{Locale.LIST_PREFIX}{{@{schema.FullName}}}{Locale.LIST_SUFFIX}");
+                NodeSchema array = NodeSchema.Create(runtime, NODE_KIND_ARRAY, 
+                    @namespace, Function.Reflect.Array.genarrayname(name), null, 
+                    Function.Reflect.Array.genarraydisplay(schema.FullName));
                 array.SetProperty<ArrayProperty, ArraySchema>(new ArraySchema { Element = schema.FullName });
 
                 yield return array;
@@ -105,11 +107,11 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             field.SetProperty<Display, LocaleString>(type.GetSummaryFromXmlDoc(p) ?? $"{schema.FullName}.{fieldName}");
             
             // Extension Properties
-            foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_STRUCT_FIELD))
+            foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(runtime, SCHEMA_KIND_NODE_STRUCT_FIELD))
                 field.SetProperty(property);
             
             // Require Check
-            if (!p.PropertyType.GetTypeDetail().Nullable)
+            if (!p.IsNullable())
                 field.SetProperty<Require, bool>(true);
 
             // field type && property
@@ -125,16 +127,16 @@ internal sealed class StructGenerator : INodeSchemaGenerator
                     throw new Exception($"Failed to resolve type for field {field.Name} of struct {schema.FullName}");
 
                 var detail = p.PropertyType.GetTypeDetail();
-                if (detail.AnyArray && !fieldTypeSchema.Kind.Equals(SCHEMA_KIND_ARRAY))
+                if (detail.AnyArray && !fieldTypeSchema.Kind.Equals(NODE_KIND_ARRAY))
                     field.Type = runtime.GetSystemArraySchema(field.Type) ??
                                  throw new Exception(
                                      $"Failed to resolve array schema for field {field.Name} of struct {schema.FullName}");
 
                 // Extension Properties
-                foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(fieldTypeSchema.Kind))
+                foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(runtime, runtime.GetSchemaKindByNodeKind(fieldTypeSchema.Kind)))
                     field.SetProperty(property);
 
-                if (fieldTypeSchema.Kind.Equals(SCHEMA_KIND_ARRAY))
+                if (fieldTypeSchema.Kind.Equals(NODE_KIND_ARRAY))
                 {
                     ArraySchema arraySchema = fieldTypeSchema.GetProperty<ArrayProperty>()?.Value
                                               ?? throw new Exception(
@@ -148,7 +150,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
 
                     NodeSchema? element = runtime.GetSystemSchema(eleName);
                     if (element != null)
-                        foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(element.Kind))
+                        foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(runtime, runtime.GetSchemaKindByNodeKind(element.Kind)))
                             field.SetProperty(property);
                 }
             }
@@ -194,7 +196,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
         if (primaries is { Count: > 0 } || dataIndexes is { Length: > 0 })
         {
             // Also generate a companion array schema when primary keys, indexes, or nested types are present
-            NodeSchema array = NodeSchema.Create(SCHEMA_KIND_ARRAY, @namespace, $"{name}s", null, 
+            NodeSchema array = NodeSchema.Create(runtime, NODE_KIND_ARRAY, @namespace, $"{name}s", null, 
                 $"{Locale.LIST_PREFIX}{{@{schema.FullName}}}{Locale.LIST_SUFFIX}");
             ArraySchema arraySchema = new() { Element = schema.FullName };
             if (primaryFields is  { Length: > 0 })
@@ -258,11 +260,11 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             string[]? fields = BuildFields(index.Fields);
             if (fields == null || fields.Length == 0) continue;
 
-            dataIndexes.Add(new DataIndex(
-                Name : index.Name,
-                Fields : fields,
-                IsUnique : index.IsUnique
-            ));
+            dataIndexes.Add(new DataIndex{
+                Name = index.Name,
+                Fields = fields,
+                IsUnique = index.IsUnique
+            });
         }
 
         return dataIndexes.Count > 0 ? dataIndexes.ToArray() : null;

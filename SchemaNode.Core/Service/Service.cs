@@ -6,7 +6,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Property.Record;
-using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Runtime;
 using SchemaNode.Schema.Provider;
 using SchemaNode.Utility;
@@ -166,7 +166,7 @@ public static partial class SchemaNodeExtensions
         {
             foreach (Type type in assembly.GetTypes())
             {
-                // Gather [Meta<SchemaKind>] attribute
+                // Gather [Meta<AttachKind>] attribute
                 foreach (SchemaKind asSchemaKind in type.GetMetaProperties<SchemaKind>())
                 {
                     if (!schemaKinds.TryAdd(asSchemaKind.Value!, (type, asSchemaKind)))
@@ -185,15 +185,15 @@ public static partial class SchemaNodeExtensions
                             }
                             
                             string propName = propType.GetPropertyName();
-                            if (!propertyTypes.TryAdd(propName, type))
+                            if (!propertyTypes.TryAdd(propName, propType) && propertyTypes[propName] != propType)
                                 throw new Exception($"Duplicate property name '{propName}' found for schema kind '{asSchemaKind.Value}' in type '{type.FullName}' and '{propertyTypes[propName].FullName}'");
                         }
                     }
                     
                     // Prototype Properties
                     IProperty[] properties = type.GetMetaProperties<IProperty>().Where(p =>
-                        p.GetType().GetMetaProperty<ForSchema>() is { HasValue: true } f &&
-                        f.Value!.Contains(asSchemaKind.Value, StringComparer.OrdinalIgnoreCase)).ToArray();
+                        schemaProperties.ContainsKey(asSchemaKind.Value!) && schemaProperties[asSchemaKind.Value!].TryGetValue(p.Name, out Type? pType) && p.GetType() == pType || 
+                        p.GetType().GetMetaProperty<ForSchema>() is { HasValue: true } f && f.Value!.Contains(asSchemaKind.Value, StringComparer.OrdinalIgnoreCase)).ToArray();
                     if (properties.Length > 0)
                         kindProperties[asSchemaKind.Value!] = properties;
                 }
@@ -212,7 +212,7 @@ public static partial class SchemaNodeExtensions
                             schemaProperties[kind] = propertyTypes;
                         }
 
-                        if (!propertyTypes.TryAdd(propName, type))
+                        if (!propertyTypes.TryAdd(propName, type) && propertyTypes[propName] != type)
                             throw new Exception($"Duplicate property name '{propName}' found for schema kind '{kind}' in type '{type.FullName}' and '{propertyTypes[propName].FullName}'");
                     }
                 }
@@ -341,7 +341,7 @@ public static partial class SchemaNodeExtensions
     [LoggerMessage(LogLevel.Information, "Processing runtime stage: {stage}")]
     static partial void LogProcessingRuntimeStageStage(this ILogger logger, string stage);
 
-    [LoggerMessage(LogLevel.Debug, "[SchemaKind] Registered kind '{kind}' -> schema={schemaType}")]
+    [LoggerMessage(LogLevel.Debug, "[AttachKind] Registered kind '{kind}' -> schema={schemaType}")]
     static partial void LogSchemaKindRegistered(this ILogger logger, string kind, string schemaType);
     
     #endregion

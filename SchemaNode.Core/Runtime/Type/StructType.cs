@@ -1,13 +1,15 @@
-using System.Reflection;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Property;
-using SchemaNode.Schema;
-using SchemaNode.Utility;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Struct;
+using SchemaNode.Runtime.Interface;
+using SchemaNode.Schema;
 using SchemaNode.Struct;
+using SchemaNode.Utility;
+using System.Reflection;
+using System.Xml.Linq;
 using static SchemaNode.Utility.Constant;
 using Type = System.Type;
 
@@ -18,7 +20,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory struct schema representation
 /// </summary>
-public sealed class StructType: ValueType, IRelationProvider
+public sealed class StructType: ValueType, IRelationProvider, INodeTypeReLoadHandler
 {
     #region Fields
     
@@ -31,13 +33,20 @@ public sealed class StructType: ValueType, IRelationProvider
     /// The relations between the fields
     /// </summary>
     private List<RelationType>? _relations;
-    
+
     #endregion
-        
+
     #region Implementations
 
     /// <inheritdoc />
-    public override Type GetCsharpType() => base.GetCsharpType() ?? typeof(StructNode);
+    public void OnNodeTypeLoaded(NodeType[] types)
+    {
+        if (types.Any(t => _fields.Any(f => f.Type == t)))
+            this.NotifyReload(types);
+    }
+
+    /// <inheritdoc />
+    public override Type GetCsharpType(bool nullable = false) => base.GetCsharpType() ?? typeof(StructNode);
 
     /// <inheritdoc />
     public override async Task LoadAsync(SchemaContext context)
@@ -66,23 +75,25 @@ public sealed class StructType: ValueType, IRelationProvider
         }
 
         // Load Relation
+        if (IsGeneric) return;
         if (@struct.GetProperty<Relations>()?.Value is { Length: > 0 } relations)
         {
             foreach (RelationSchema relation in relations)
             {
                 // Gets the target type
-                ValueType? currentType = GetAccessValueType(relation.Target);
+                IValueTypeAccess? currentType = GetAccessValueType(relation.Target);
                 if (currentType == null) continue;
                 
                 // Gets the property type
-                PropertyType? prop = await context.GetNodeTypeAsync<PropertyType>(relation.Property);
+                var kind = (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(currentType.Kind);
+                PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_STRUCT_FIELD);
                 if (prop == null) continue;
                 
                 // Only work for constraint properties
-                Type? propType = context.Runtime.GetSchemaKindPropertyTypeByName(currentType.Kind, prop.Property);
+                Type? propType = prop.GetCsharpType();
                 if (propType == null) continue;
                 
-                var relationType = await relation.LoadAsync(context, this);
+                var relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_STRUCT_FIELD);
                 Error ??= relationType.Error;
 
                 _relations ??= [];
@@ -102,32 +113,37 @@ public sealed class StructType: ValueType, IRelationProvider
     /// Gets the property with the given type
     /// </summary>
     public override T? GetProperty<T>() where T : class 
-        => base.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(Kind);
+        => base.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(SchemaKind);
 
     /// <summary>
     /// Gets the properties with the given type
     /// </summary>
     public override IEnumerable<T> GetProperties<T>()
-        => this.JoinProperties(base.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(Kind));
+        => this.JoinProperties(base.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(SchemaKind));
 
     /// <inheritdoc />
     public override IEnumerable<NodeType> GetReferenceTypes()
     {
-        foreach (NodeType node in _fields.SelectMany(f => f.GetReferenceTypes()))
-            yield return node;
+        foreach (StructFieldType node in _fields.ToArray())
+        {
+            foreach (NodeType nodeType in node.GetReferenceTypes())
+                yield return nodeType;
+        }
 
         if (_relations != null)
-            foreach (NodeType node in _relations.OfType<INodeReferences>().SelectMany(n => n.GetReferenceTypes()))
-                yield return node;
+            foreach (var r in _relations.OfType<INodeReferences>())
+                foreach (NodeType node in r.GetReferenceTypes())
+                    yield return node;
                 
         foreach (NodeType nodeType in base.GetReferenceTypes())
             yield return nodeType;
     }
 
     /// <inheritdoc />
-    public override ValueType? GetAccessValueType(string path)
+    public override IValueTypeAccess? GetAccessValueType(string path)
     {
-        if (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return this;
+        IValueTypeAccess? g = base.GetAccessValueType(path);
+        if (g != null) return g;
         
         ReadOnlySpan<char> remain = null;
         int index = path.IndexOf('.');
@@ -145,7 +161,7 @@ public sealed class StructType: ValueType, IRelationProvider
     }
 
     /// <inheritdoc />
-    public override bool IsAssignableTo(ValueType other)
+    public override bool IsAssignableTo(IValueTypeAccess other)
     {
         if (base.IsAssignableTo(other)) return true;
         if (other is not StructType @struct) return false;
@@ -158,23 +174,28 @@ public sealed class StructType: ValueType, IRelationProvider
     }
 
     /// <inheritdoc />
-    public override DataNode Create(IValueAccess? parent = null) => new StructNode(this, parent);
+    public override IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new StructNode(this, parent, propertyProvider);
 
     /// <inheritdoc />
-    public override IEnumerable<Entry<string>> GetSubEntries()
+    public override IEnumerable<Entry<string>> GetAccessEntries()
     {
         return GetFields().Select(field =>
         {
             var entry = new Entry<string>
             {
                 Value = field.Name,
-                HasChildren = field.Type?.HasSubEntries ?? false
+                HasChildren = field.Type?.HasAccessEntries ?? false
             };
             var display = field.GetProperty<Display>();
             if (display != null) entry.SetProperty(display);
             return entry;
         });
     }
+
+    /// <summary>
+    /// Gets relations
+    /// </summary>
+    public override IEnumerable<RelationType> GetRelations() => _relations?.AsEnumerable() ?? [];
 
     #endregion
 
@@ -197,30 +218,7 @@ public sealed class StructType: ValueType, IRelationProvider
         }
         return null;
     }
-
-    /// <summary>
-    /// Gets or calc the field value
-    /// </summary>
-    public async Task<DataNode?> GetFieldValueAsync(SchemaContext context, StructNode node, string fieldName)
-    {
-        string[] paths = fieldName.Split('.', 2);
-        StructFieldType? fieldType = GetField(paths[0]);
-        if (fieldType == null) return null;
         
-        var value = node.GetAccessValue(paths[0]) as DataNode;
-        if (value == null) return null;
-        if (!value.IsEmpty || fieldType.DisplayOnly != true) return paths.Length > 1 ? value.GetAccessValue(paths[1]) as DataNode : null;
-        
-        // check relations
-        RelationType? r = _relations?.FirstOrDefault(rel => rel.Target.Equals(fieldName, StringComparison.OrdinalIgnoreCase) && rel.ForProperty<Default>() );
-        if (r == null) return value;
-        
-        // process relations
-        IProperty? def = await r.ProcessAsync(context, node, value);
-        value.TrySetValue(def?.GetValue<object>());
-        return paths.Length > 1 ? value.GetAccessValue(paths[1]) as DataNode : null;
-    }
-    
     /// <summary>
     /// Gets the field index, -1 if not found
     /// </summary>
@@ -233,11 +231,6 @@ public sealed class StructType: ValueType, IRelationProvider
         }
         return -1;
     }
-    
-    /// <summary>
-    /// Gets relations
-    /// </summary>
-    public IEnumerable<RelationType> GetRelations() => _relations?.AsEnumerable() ?? [];
     
     /// <summary>
     /// Gets relations for the given field name
@@ -301,7 +294,7 @@ public class StructFieldType : INodeReferences, IPropertyProvider
     /// <summary>
     /// The default value of the node.
     /// </summary>
-    public DataNode? Default { get; private set; }
+    public IValueAccess? Default { get; private set; }
 
     /// <summary>
     /// Load struct field schema
@@ -321,8 +314,8 @@ public class StructFieldType : INodeReferences, IPropertyProvider
         if (propType is ArrayType arrayType) propType = arrayType.Element;
 
         // Properties
-        var propTypes = context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_STRUCT_FIELD);
-        if (propType != null) propTypes = propTypes.Concat(context.Runtime.GetSchemaKindPropertyTypes(propType.Kind)).Distinct();
+        var propTypes = context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_NODE_STRUCT_FIELD);
+        if (propType != null) propTypes = propTypes.Concat(context.Runtime.GetSchemaKindPropertyTypes((context.Runtime as SchemaRuntime)!.GetSchemaKindByNodeKind(propType.Kind))).Distinct();
         IProperty[] props = field.GetProperties(propTypes).ToArray();
         
         (RefTypes, string? error) = await field.LoadPropertiesAsync(context, props, Type);
@@ -354,11 +347,11 @@ public class StructFieldType : INodeReferences, IPropertyProvider
     /// Get the property with property type
     /// </summary>
     public T? GetProperty<T>() where T : class, IProperty 
-        => Properties?.OfType<T>().FirstOrDefault() ?? Type?.GetProperty<T>();
+        => Properties?.OfType<T>().FirstOrDefault() ?? (Type?.GetProperty<T>() is { Inheritable: true } p ? p : null);
 
     /// <summary>
     /// Gets the properties
     /// </summary>
     public IEnumerable<T> GetProperties<T>() where T : IProperty
-        => this.JoinProperties(Properties?.OfType<T>(), Type?.GetProperties<T>());
+        => this.JoinProperties(Properties?.OfType<T>(), Type?.GetProperties<T>().Where(p => p.Inheritable));
 }

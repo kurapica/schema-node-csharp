@@ -12,7 +12,7 @@ namespace SchemaNode.Scalar;
 [Meta<ClrEquivalent>(typeof(DateTime))]
 [Meta<ClrEquivalent>(typeof(DateOnly))]
 [Meta<SchemaType>(NS_SYSTEM_DATE)]
-[Meta<OfSchema>(SCHEMA_KIND_DATE)]
+[Meta<OfNodeKind>(NODE_KIND_DATE)]
 public class Date: IScalarType<DateTimeOffset>;
 
 /// <summary>

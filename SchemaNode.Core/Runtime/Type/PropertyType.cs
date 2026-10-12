@@ -13,7 +13,12 @@ public class PropertyType : NodeType
     /// The property
     /// </summary>
     public string Property => _property?.Property ?? string.Empty;
-    
+
+    /// <summary>
+    /// The schema kinds the property can be applied to
+    /// </summary>
+    public IEnumerable<string> ForSchemas => _property?.ForSchemas ?? Enumerable.Empty<string>();
+
     /// <summary>
     /// The property value type
     /// </summary>
@@ -22,13 +27,18 @@ public class PropertyType : NodeType
     /// <inheritdoc/>
     public override async Task LoadAsync(SchemaContext context)
     {
-        _property = GetProperty<Schema.PropertyProperty>()?.Value;
+        _property = GetProperty<PropertyProperty>()?.Value;
         ValueType = !string.IsNullOrWhiteSpace(_property?.Type) 
             ? await context.GetNodeTypeAsync<ValueType>(_property.Type)
             : null;
         if (ValueType == null)
             Error = ErrorCodes.NO_DEFINITION;
     }
+
+    /// <summary>
+    /// Checks if the property can be applied to the schema with the given kind
+    /// </summary>
+    public bool ForSchema(string kind) => _property?.ForSchemas?.Any(k => k.Equals(kind, StringComparison.OrdinalIgnoreCase)) ?? false;
 
     /// <inheritdoc/>
     public override IEnumerable<NodeType> GetReferenceTypes()
@@ -43,11 +53,11 @@ public class PropertyType : NodeType
     /// Gets the property with the given type
     /// </summary>
     public override T? GetProperty<T>() where T : class 
-        => base.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(Kind);
+        => base.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(SchemaKind);
 
     /// <summary>
     /// Gets the properties with the given type
     /// </summary>
     public override IEnumerable<T> GetProperties<T>()
-        => this.JoinProperties(base.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(Kind));
+        => this.JoinProperties(base.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(SchemaKind));
 }

@@ -1,7 +1,10 @@
 using System.Collections.Concurrent;
+using SchemaNode.Attribute;
+using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Core;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
@@ -18,7 +21,7 @@ public class SchemaRuntime : ISchemaRuntime
 {
     #region Implementation of ISchemaRuntime
 
-    private (string kind, Type schemaType, Type[]? propertyTypes, IProperty[]? properties)[] _schemaKinds = [];
+    private (string kind, string? nodeKind, Type schemaType, Type[]? propertyTypes, IProperty[]? properties)[] _schemaKinds = [];
     private readonly object _schemaKindsLock = new();
 
     /// <summary>
@@ -30,7 +33,7 @@ public class SchemaRuntime : ISchemaRuntime
     public void RegisterSchemaKind(string kind, Type schemaType, Type[]? propertyTypes = null, IProperty[]? properties = null)
     {
         lock (_schemaKindsLock)
-            _schemaKinds = _schemaKinds.Append((kind, schemaType, propertyTypes, properties)).ToArray();
+            _schemaKinds = _schemaKinds.Append((kind, schemaType.GetMetaProperty<Property.Record.NodeKind>()?.Value, schemaType, propertyTypes, properties)).ToArray();
     }
 
     /// <inheritdoc/>
@@ -42,6 +45,20 @@ public class SchemaRuntime : ISchemaRuntime
         => _schemaKinds.FirstOrDefault(k => k.kind.Equals(kind, StringComparison.OrdinalIgnoreCase)).propertyTypes ?? [];
 
     /// <inheritdoc/>
+    public IEnumerable<string> GetPropertyForSchemas(Type propertyType)
+    {
+        foreach (var item in _schemaKinds)
+        {
+            if (item.propertyTypes != null && item.propertyTypes.Contains(propertyType))
+                yield return item.kind;
+        }
+    }
+
+    /// <inheritdoc/>
+    public bool IsPropertyForSchema(Type propertyType, string kind)
+        => GetSchemaKindPropertyTypes(kind).Contains(propertyType);
+
+    /// <inheritdoc/>
     public T? GetSchemaKindProperty<T>(string kind) where T : class, IProperty
         => _schemaKinds.FirstOrDefault(k => k.kind.Equals(kind, StringComparison.OrdinalIgnoreCase)).properties
             ?.OfType<T>().FirstOrDefault();
@@ -51,9 +68,12 @@ public class SchemaRuntime : ISchemaRuntime
         => _schemaKinds.FirstOrDefault(k => k.kind.Equals(kind, StringComparison.OrdinalIgnoreCase)).properties
             ?.OfType<T>() ?? [];
 
-    /// <inheritdoc/>
-    public Type? GetSchemaKindPropertyTypeByName(string kind, string propertyName)
-        => GetSchemaKindPropertyTypes(kind).FirstOrDefault(propType => propertyName.Equals(propType.GetPropertyName(), StringComparison.OrdinalIgnoreCase));
+    /// <summary>
+    /// Gets the usage schema for the given schema kind, if any.
+    /// </summary>
+    /// <param name="kind"></param>
+    /// <returns></returns>
+    public string? GetUsageSchema(string kind) => _schemaKinds.FirstOrDefault(k => k.kind.Equals(kind, StringComparison.OrdinalIgnoreCase)).schemaType?.GetMetaProperty<SchemaUsage>()?.Value;
 
     #endregion
 
@@ -70,6 +90,16 @@ public class SchemaRuntime : ISchemaRuntime
     /// Gets the node type for the schema kind
     /// </summary>
     public Type? GetNodeType(string kind) => _nodeTypes.GetValueOrDefault(kind);
+    
+    /// <summary>
+    /// Gets the node kind for the schema kind, if any.
+    /// </summary>
+    public string? GetNodeKind(string kind) => _schemaKinds.FirstOrDefault(k => k.kind.Equals(kind, StringComparison.OrdinalIgnoreCase)).nodeKind;
+
+    /// <summary>
+    /// Gets the schema kind for the node kind, if any.
+    /// </summary>
+    public string GetSchemaKindByNodeKind(string nodeKind) =>_schemaKinds.FirstOrDefault(k => k.nodeKind?.Equals(nodeKind, StringComparison.OrdinalIgnoreCase) ?? false).kind ?? nodeKind;
 
     #endregion
 
@@ -80,7 +110,7 @@ public class SchemaRuntime : ISchemaRuntime
     private readonly NodeSchema _rootSchema = new()
     {
         Name = "",
-        Kind = SCHEMA_KIND_NAMESPACE,
+        Kind = NODE_KIND_NAMESPACE,
         Schemas = [],
     };
 
@@ -123,9 +153,12 @@ public class SchemaRuntime : ISchemaRuntime
     internal void SaveSystemSchema(NodeSchema schema)
     {
         // special for array
-        if (schema.Kind == SCHEMA_KIND_ARRAY && schema.GetProperty<ArrayProperty>()?.Value is {} arraySchema)
+        if (schema.Kind == NODE_KIND_ARRAY && schema.GetProperty<ArrayProperty>()?.Value is {} arraySchema)
             _arrayCache[arraySchema.Element] = schema.FullName;
 
+        // mark the schema as system-defined
+        schema.SetProperty<SystemDefined, bool>(true);
+        
         string schemaName = schema.FullName.ToLowerInvariant();
         NodeSchema root = _rootSchema;
         string fullPath = "";
@@ -152,9 +185,10 @@ public class SchemaRuntime : ISchemaRuntime
                     {
                         Name = part,
                         Namespace = ns,
-                        Kind = SCHEMA_KIND_NAMESPACE,
+                        Kind = NODE_KIND_NAMESPACE,
                         Schemas = [],
                     };
+                    node.SetProperty<SystemDefined, bool>(true);
                     node.SetProperty<Display, LocaleString>(node.FullName);
                     root.Schemas = root.Schemas != null ? root.Schemas.Concat([node]).ToArray() : [node];
                     root = node;
@@ -172,7 +206,7 @@ public class SchemaRuntime : ISchemaRuntime
                 throw new InvalidOperationException($"System schema name conflict: {schema.FullName} with kind {schema.Kind} conflicts with existing kind {node.Kind}");
             }
             // override the extension properties
-            else if (node.Kind != SCHEMA_KIND_NAMESPACE)
+            else if (node.Kind != NODE_KIND_NAMESPACE)
             {
                 node.CombineProperties(schema, this, SCHEMA_KIND_NODE);
             }
@@ -267,10 +301,15 @@ public class SchemaRuntime : ISchemaRuntime
     /// </summary>
     public string? GetSystemArraySchema(string elementType, bool noGeneric = false) => 
         _arrayCache.GetValueOrDefault(elementType) ?? (!noGeneric ? $"{NS_SYSTEM_LIST}<{elementType.ToLowerInvariant()}>"  : null);
-    
+
     #endregion
 
     #region Node Types
+
+    /// <summary>
+    /// The lock loading check
+    /// </summary>
+    internal ConcurrentDictionary<string, ISchemaContext> LockLoading = [];
     
     /// <summary>
     /// The root namespace

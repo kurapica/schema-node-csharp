@@ -1,12 +1,11 @@
 ﻿using SchemaNode.Context;
 using System.Linq.Expressions;
 using SchemaNode.Data;
-using SchemaNode.Node;
+using SchemaNode.Enum;
 using SchemaNode.Property.Common;
 using SchemaNode.Relation;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
-using ExpType = SchemaNode.Enum.ExpType;
 
 namespace SchemaNode.Runtime;
 
@@ -31,7 +30,7 @@ public class QueryFilterCompileContext : CompileContext
     /// <summary>
     /// The field query access expression
     /// </summary>
-    record QueryFieldAccessExpression(string FieldName, ValueType ValueType) : SchemaExp(ValueType);
+    record QueryFieldAccessExpression(string FieldName, IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
     /// <summary>
     /// Transform the last logic expression to filter expression
@@ -61,7 +60,7 @@ public class QueryFilterCompileContext : CompileContext
     /// </summary>
     public override async Task<SchemaExp> VisitSchemaExpAsync(SchemaExp exp)
     {
-        if (exp is FuncCallExp { ExpType: ExpType.Call } funcCallExp)
+        if (exp is FuncCallExp { ApplyMode: ApplyMode.Call } funcCallExp)
         {
             SchemaExp[] args = new SchemaExp[funcCallExp.Args.Length];
             bool changed = false;
@@ -75,7 +74,8 @@ public class QueryFilterCompileContext : CompileContext
                     } fExp)
                 {
                     var field = _queryType!.GetField(fExp.FieldName);
-                    if (field == null) throw new FunctionVisitException(AppErrorCodes.FUNC_IS_NOT_POLICY_FILTER);
+                    if (field == null) 
+                        throw new FunctionVisitException(AppErrorCodes.FUNC_IS_NOT_POLICY_FILTER);
 
                     // Check field source
                     if (field.DisplayOnly == true)
@@ -83,7 +83,8 @@ public class QueryFilterCompileContext : CompileContext
                         var relation = _queryType.GetRelations(fExp.FieldName)
                             .FirstOrDefault(r => r.Process is CallProcess && r.ForProperty<Default>());
                         var call = (relation?.Process as CallProcess)!;
-                        if (call.FuncType == null) throw new FunctionVisitException(AppErrorCodes.FUNC_IS_NOT_POLICY_FILTER);
+                        if (call.FuncType == null) 
+                            throw new FunctionVisitException(AppErrorCodes.FUNC_IS_NOT_POLICY_FILTER);
 
                         if (DynamicTableSchema.IsReferenceFunc(call.Func))
                         {
@@ -105,7 +106,7 @@ public class QueryFilterCompileContext : CompileContext
                                 }
                                 else
                                 {
-                                    DataNode valueNode = await Context.GetSchemaNodeAsync(a.Value, a.ValueType ?? call.FuncType.Args[j].ValueType, true)
+                                    var valueNode = await Context.GetSchemaNodeAsync(a.Value, a.ValueType ?? call.FuncType.Args[j].ValueType, true)
                                         ?? throw new FunctionVisitException(AppErrorCodes.FUNC_IS_NOT_POLICY_FILTER);
                                     replaceArgs[j] = new ConstantExp(valueNode);
                                 }
@@ -128,7 +129,7 @@ public class QueryFilterCompileContext : CompileContext
                 }
             }
             if (changed)
-                exp = new FuncCallExp(funcCallExp.Function, args, funcCallExp.ValueType, funcCallExp.ExpType);
+                exp = new FuncCallExp(funcCallExp.Function, args, funcCallExp.ValueType, funcCallExp.ApplyMode);
         }
         SchemaExp result = await base.VisitSchemaExpAsync(exp);
         return (result is FieldAccessExp { Owner: ArgumentExp { Index: 0 } or 

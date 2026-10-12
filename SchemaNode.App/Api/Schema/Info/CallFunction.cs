@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Context;
+using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Property.App;
 using SchemaNode.Property.Function;
@@ -26,8 +27,8 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
         if (node is not FunctionType func || func.HasFlag<WorkflowOnly>() == true) return new CallFunctionResponse { Result = null };
 
         // set target
-        if (!string.IsNullOrWhiteSpace(request.Target))
-            SchemaContext.SetAccess(null, request.Target);
+        if (!string.IsNullOrWhiteSpace(request.App) || !string.IsNullOrWhiteSpace(request.Target))
+            SchemaContext.SetAccess(request.App, request.Target);
 
         // authorize
         await SchemaContext.AuthorizeAsync(node, PolicyScope.FuncExecute);
@@ -35,7 +36,7 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
         // call function
         return new CallFunctionResponse
         {
-            Result = await SchemaContext.CallFunctionAsync(func, request.Args, request.Return)
+            Result = await SchemaContext.CallFunctionAsync(func, request.Args, request.Return, request.ApplyMode)
         };
     }
 }
@@ -61,6 +62,16 @@ public class CallFunctionRequest : SchemaApiRequest
     /// The generic types
     /// </summary>
     public string? Return { get; set; }
+
+    /// <summary>
+    /// The apply mode
+    /// </summary>
+    public ApplyMode ApplyMode { get; set; } = ApplyMode.Call;
+
+    /// <summary>
+    /// The application
+    /// </summary>
+    public string? App { get; set; }
     
     /// <summary>
     /// The related target

@@ -36,7 +36,7 @@ public class DataSourceExpVisitor : IExpVisitor
     /// <inheritdoc />
     public async Task<SchemaExp?> VisitExpAsync(CompileContext context, SchemaExp exp)
     {
-        if (exp is not FuncCallExp { ExpType: ExpType.Call } callExp) return null;
+        if (exp is not FuncCallExp { ApplyMode: ApplyMode.Call } callExp) return null;
 
         // Data source check
         if (callExp.Function.Name != $"{NS_SYSTEM_DATA}.{nameof(SystemAppData.getdatasource)}") return null;

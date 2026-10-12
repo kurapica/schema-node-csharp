@@ -1,13 +1,13 @@
 using SchemaNode.Context;
 using SchemaNode.Node;
-using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Immutable;
-using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Array;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using Type = System.Type;
+using SchemaNode.Runtime.Interface;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -16,7 +16,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory array schema representation
 /// </summary>
-public sealed class ArrayType: ValueType, IRelationProvider
+public sealed class ArrayType: ValueType, IRelationProvider, INodeTypeReLoadHandler
 {
     #region Fields
 
@@ -40,9 +40,6 @@ public sealed class ArrayType: ValueType, IRelationProvider
     #region Implementation
 
     /// <inheritdoc />
-    public override Type GetCsharpType() => Element?.GetCsharpType() is { } type && !type.IsAssignableTo(typeof(DataNode)) ? typeof(List<>).MakeGenericType(type) : typeof(ArrayNode);
-
-    /// <inheritdoc />
     public override async Task LoadAsync(SchemaContext context)
     {
         ArraySchema? array = GetProperty<ArrayProperty>()?.Value;
@@ -61,31 +58,40 @@ public sealed class ArrayType: ValueType, IRelationProvider
             Error = ErrorCodes.ARRAY_WRONG_ELEMENT;
             return;
         }
-        
+
         // Load Relation
+        if (IsGeneric) return;
         if (GetProperty<Relations>()?.Value is { Length: > 0 } relations)
         {
             foreach (RelationSchema relation in relations)
             {
                 // Gets the target type
-                ValueType? currentType = GetAccessValueType(relation.Target);
+                IValueTypeAccess? currentType = GetAccessValueType(relation.Target);
                 if (currentType == null) continue;
                 
                 // Gets the property type
-                PropertyType? prop = await context.GetNodeTypeAsync<PropertyType>(relation.Property);
+                var kind = (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(currentType.Kind);
+                PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_STRUCT_FIELD);
                 if (prop == null) continue;
                 
                 // Only work for constraint properties
-                Type? propType = context.Runtime.GetSchemaKindPropertyTypeByName(currentType.Kind, prop.Property);
+                Type? propType = prop.GetCsharpType();
                 if (propType == null) continue;
                 
-                RelationType relationType = await relation.LoadAsync(context, this);
+                RelationType relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_STRUCT_FIELD);
                 Error ??= relationType.Error;
                 
                 _relations ??= [];
                 _relations.Add(relationType);
             }
         }
+    }
+
+    /// <inheritdoc />
+    public void OnNodeTypeLoaded(NodeType[] types)
+    {
+        if (types.Any(t => t == Element))
+            this.NotifyReload(types);
     }
 
     /// <inheritdoc />
@@ -98,46 +104,43 @@ public sealed class ArrayType: ValueType, IRelationProvider
             yield return Element;
         
         if (_relations != null)
-            foreach (NodeType node in _relations.OfType<INodeReferences>().SelectMany(n => n.GetReferenceTypes()))
-                yield return node;
+            foreach (var r in _relations.OfType<INodeReferences>())
+                foreach(var node in r.GetReferenceTypes())
+                    yield return node;
         
         foreach (NodeType nodeType in base.GetReferenceTypes())
             yield return nodeType;
     }
 
     /// <inheritdoc />
-    public override ValueType? GetAccessValueType(string path)
+    public override IValueTypeAccess? GetAccessValueType(string path)
     {
-        if (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase) || path.Equals(ARRAY_PREVIOUS, StringComparison.OrdinalIgnoreCase)) return this;
-        return path.Equals(ARRAY_ELEMENT, StringComparison.OrdinalIgnoreCase) ? Element : Element?.GetAccessValueType(path);
+        IValueTypeAccess? g = base.GetAccessValueType(path);
+        if (g != null) return g;
+        
+        if (path.Equals(ARRAY_PREVIOUS, StringComparison.OrdinalIgnoreCase)) return this;
+        string[] paths = path.Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
+        if (paths[0] != ARRAY_ELEMENT) return null;
+        return paths.Length <= 1 ? Element : Element?.GetAccessValueType(paths[1]);
     }
 
     /// <inheritdoc />
-    public override IEnumerable<Entry<string>> GetSubEntries()
+    public override IEnumerable<Entry<string>> GetAccessEntries()
     {
         // previous
-        yield return new Entry<string>
-        {
-            Value = ARRAY_PREVIOUS
-        };
+        yield return new Entry<string> { Value = ARRAY_PREVIOUS };
 
         if (Element == null) yield break;
         
         // element
-        yield return new Entry<string>
-        {
-            Value = ARRAY_ELEMENT,
-        };
-
-        foreach (Entry<string> entry in Element.GetSubEntries())
-            yield return entry;
+        yield return new Entry<string> { Value = ARRAY_ELEMENT, HasChildren = Element?.HasAccessEntries };
     }
 
     /// <inheritdoc />
-    public override bool HasSubEntries => Element?.HasSubEntries ?? false;
+    public override bool HasAccessEntries => Element?.HasAccessEntries ?? false;
 
     /// <inheritdoc />
-    public override bool IsAssignableTo(ValueType other)
+    public override bool IsAssignableTo(IValueTypeAccess other)
     {
         if (base.IsAssignableTo(other)) return true;
         if (other is not ArrayType array) return false;
@@ -145,10 +148,23 @@ public sealed class ArrayType: ValueType, IRelationProvider
     }
 
     /// <inheritdoc />
-    public override DataNode Create(IValueAccess? parent = null) => new ArrayNode(this, parent);
+    public override IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new ArrayNode(this, parent, propertyProvider);
 
     /// <inheritdoc />
-    public IEnumerable<RelationType> GetRelations() => _relations ?? [];
+    public override IEnumerable<RelationType> GetRelations() => _relations ?? [];
+
+    /// <summary>
+    /// Gets the csharp type with nullable modifier
+    /// </summary>
+    public override Type? GetCsharpType(bool nullable = false)
+    {
+        Type? eleType = Element?.GetCsharpType(false) ?? typeof(object);
+        if (eleType.IsAssignableTo(typeof(IValueAccess))) return typeof(ArrayNode);
+
+        Type type = base.GetCsharpType(false) ?? typeof(List<>);
+        return type.IsGenericTypeDefinition ? type.MakeGenericType(eleType) : type;
+    }
+ 
 
     #endregion
 
@@ -264,13 +280,13 @@ public sealed class ArrayType: ValueType, IRelationProvider
     /// Gets the property with the given type
     /// </summary>
     public override T? GetProperty<T>() where T : class 
-        => base.GetProperty<T>() ?? Element?.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(Kind);
+        => base.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(SchemaKind);
 
     /// <summary>
     /// Gets the properties with the given type
     /// </summary>
     public override IEnumerable<T> GetProperties<T>()
-        => this.JoinProperties(base.GetProperties<T>(), Element?.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(Kind));
+        => this.JoinProperties(base.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(SchemaKind));
     
     #endregion
 }

@@ -3,7 +3,7 @@ using SchemaNode.Schema;
 using System.Collections.Concurrent;
 using SchemaNode.Enum;
 using SchemaNode.Property;
-using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
+using NodeKind = SchemaNode.Property.Record.NodeKind;
 
 namespace SchemaNode.Runtime;
 
@@ -49,7 +49,7 @@ public sealed class NamespaceType: NodeType
     {
         // get order
         Dictionary<string, int> order = new (StringComparer.OrdinalIgnoreCase);
-        foreach (IOrderProperty recordedValue in typeof(NodeSchemaKind).GetRecordedValues())
+        foreach (IOrderProperty recordedValue in typeof(NodeKind).GetRecordedValues())
             order[recordedValue.GetValue<string>()!] = recordedValue.Order;
         
         // return the clone schemas

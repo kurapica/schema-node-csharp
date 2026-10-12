@@ -1,15 +1,16 @@
-﻿using SchemaNode.Utility;
+﻿using SchemaNode.Runtime;
+using SchemaNode.Utility;
 
 namespace SchemaNode.Node;
 
 public abstract class ScalarNode : DataNode;
 
-public abstract class ScalarNode<T> : ScalarNode
+public abstract class ScalarNode<T> : ScalarNode where T: struct
 {
     protected T? Value;
     
     /// <inheritdoc/>
-    public override bool IsEmpty => Value == null || Value.Equals(default(T));
+    public override bool IsEmpty => Value is null;
 
     /// <inheritdoc/>
     public override bool TrySetValue<T1>(T1? value) where T1 : default
@@ -47,16 +48,63 @@ public abstract class ScalarNode<T> : ScalarNode
     public override void ClearValue() => Value = default(T?);
 
     /// <inheritdoc/>
-    public override bool Equals(DataNode? other) => other is ScalarNode<T> scalarNode && Equals(Value, scalarNode.Value) ||
-                                                    other is EnumNode enumNode && enumNode.TryGetValue(out T? val) && Equals(Value, val);
+    public override bool Equals(IValueAccess? other) => other is ScalarNode<T> scalarNode && Equals(Value, scalarNode.Value) ||
+                                                        other is EnumNode enumNode && enumNode.TryGetValue(out T? val) && Equals(Value, val);
+}
+
+public abstract class RefScalarNode<T> : ScalarNode where T : class
+{
+    protected T? Value;
+
+    /// <inheritdoc/>
+    public override bool IsEmpty => Value is null;
+
+    /// <inheritdoc/>
+    public override bool TrySetValue<T1>(T1? value) where T1 : default
+    {
+        if (!value.TryConvertTo<T>(out var result)) return false;
+        Value = result;
+        return true;
+    }
+
+    /// <inheritdoc/>
+    public override bool TryGetValue(Type type, out object? value)
+    {
+        if (type.TryConvert(Value, out var result))
+        {
+            value = result;
+            return true;
+        }
+        value = null;
+        return false;
+    }
+
+    /// <inheritdoc/>
+    public override bool TryGetValue<T1>(out T1? value) where T1 : default
+    {
+        if (Value.TryConvertTo<T1>(out var result))
+        {
+            value = result;
+            return true;
+        }
+        value = default(T1?);
+        return false;
+    }
+
+    /// <inheritdoc/>
+    public override void ClearValue() => Value = default(T?);
+
+    /// <inheritdoc/>
+    public override bool Equals(IValueAccess? other) => other is ScalarNode scalarNode && Equals(Value, scalarNode.GetValue<T>()) ||
+                                                        other is EnumNode enumNode && enumNode.TryGetValue(out T? val) && Equals(Value, val);
 }
 
 /// <summary>
 /// Object data node
 /// </summary>
-public class AnyNode : ScalarNode<object>
+public class AnyNode : RefScalarNode<object>
 {
-    public override DataNode Clone()
+    public override IValueAccess Clone()
     {
         return new AnyNode
         {
@@ -71,7 +119,9 @@ public class AnyNode : ScalarNode<object>
 /// </summary>
 public class BoolNode : ScalarNode<bool>
 {
-    public override DataNode Clone()
+    public override bool IsEmpty => Value is null;
+
+    public override IValueAccess Clone()
     {
         return new BoolNode()
         {
@@ -84,9 +134,9 @@ public class BoolNode : ScalarNode<bool>
 /// <summary>
 ///  String data node
 /// </summary>
-public class StringNode : ScalarNode<string>
+public class StringNode : RefScalarNode<string>
 {
-    public override DataNode Clone()
+    public override IValueAccess Clone()
     {
         return new StringNode
         {
@@ -101,7 +151,7 @@ public class StringNode : ScalarNode<string>
 /// </summary>
 public class DecimalNode : ScalarNode<decimal>
 {
-    public override DataNode Clone()
+    public override IValueAccess Clone()
     {
         return new DecimalNode
         {
@@ -116,7 +166,7 @@ public class DecimalNode : ScalarNode<decimal>
 /// </summary>
 public class IntNode : ScalarNode<long>
 {
-    public override DataNode Clone()
+    public override IValueAccess Clone()
     {
         return new IntNode
         {
@@ -131,7 +181,7 @@ public class IntNode : ScalarNode<long>
 /// </summary>
 public class DateNode : ScalarNode<DateTimeOffset>
 {
-    public override DataNode Clone()
+    public override IValueAccess Clone()
     {
         return new DateNode
         {

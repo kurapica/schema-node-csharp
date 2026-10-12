@@ -1,10 +1,11 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.String;
+using SchemaNode.Property.Struct;
+using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 using RelationKind = SchemaNode.Enum.RelationKind;
@@ -17,33 +18,59 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The relation schemas
 /// </summary>
-[Meta<SchemaKind>(SCHEMA_KIND_RELATION, SCHEMA_KIND_ORDER_RELATION)]
+[Meta<SchemaKind>(SCHEMA_KIND_NODE_RELATION, SCHEMA_KIND_ORDER_RELATION)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_RELATION}.schema")]
-[Meta<Attach>(SCHEMA_KIND_RELATION)]
+[Meta<Attach>(SCHEMA_KIND_NODE_RELATION)]
 public class RelationSchema : PropertyOwner
 {
     /// <summary>
     /// The target of the relation
     /// </summary>
+    [Meta<PrimaryIndex>(0)]
+    [Meta<EntrySourceConsumer>(true)]
     public string Target { get; set; } = null!;
+
+    /// <summary>
+    /// The target value type
+    /// </summary>
+    [Meta<DisplayOnly>(true)]
+    [Meta<AccessValueTypeResolver>(nameof(Target))]
+    public string? TargetType { get; set; }
+
+    /// <summary>
+    /// The target kind
+    /// </summary>
+    [Meta<DisplayOnly>(true)]
+    [Relation<Default, Call>(nameof(TargetKind), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getschemakind)}", $"@{nameof(TargetType)}")]
+    public string? TargetKind { get; set; }
+
+    /// <summary>
+    /// The relation owner kind
+    /// </summary>
+    [Meta<DisplayOnly>(true)]
+    [Meta<KindResolver>(true)]
+    public string? OwnerKind { get; set; }
 
     /// <summary>
     /// The property the relation applied to
     /// </summary>
-    [Meta<SchemaType>(typeof(SchemaPropertyType))]
+    [Meta<PrimaryIndex>(1)]
+    [Relation<EntrySource, Assign>(nameof(Property), $"{NS_SYSTEM_SCHEMA_REFLECT_PROPERTY}.{nameof(Function.Reflect.Property.getkindproperties)}", $"@{nameof(TargetKind)}", $"@{nameof(OwnerKind)}")]
     public string Property { get; set; } = null!;
-
+    
     /// <summary>
-    /// The stage of the relation been applied
+    /// The property value type
     /// </summary>
-    public RelationStage Stage { get; set; } = RelationStage.Load | RelationStage.Input;
+    [Meta<DisplayOnly>(true)]
+    [Relation<Default, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_PROPERTY}.{nameof(Function.Reflect.Property.getkindpropvaluetype)}", $"@{nameof(Property)}", $"@{nameof(TargetType)}", $"@{nameof(TargetKind)}", $"@{nameof(OwnerKind)}")]
+    public string? ValueType { get; set; }
 
     /// <summary>
     /// The relation kind
     /// </summary>
     [Meta<SchemaType>(typeof(RelationKind))]
     public string Kind { get; set; } = null!;
-
+    
     /// <summary>
     /// Equals check
     /// </summary>
@@ -51,9 +78,8 @@ public class RelationSchema : PropertyOwner
     {
         if (other is not RelationSchema otherRelation) return false;
         if (ReferenceEquals(this, otherRelation)) return true;
-        return Target.Equals(otherRelation.Target, StringComparison.OrdinalIgnoreCase) && 
-               Property.Equals(otherRelation.Property, StringComparison.OrdinalIgnoreCase) && 
-               Stage == otherRelation.Stage && 
+        return Target.Equals(otherRelation.Target, StringComparison.OrdinalIgnoreCase) &&
+               Property.Equals(otherRelation.Property, StringComparison.OrdinalIgnoreCase) &&
                Kind.Equals(otherRelation.Kind, StringComparison.OrdinalIgnoreCase);
     }
 }
@@ -61,12 +87,19 @@ public class RelationSchema : PropertyOwner
 /// <summary>
 /// The relation property for data schemas
 /// </summary>
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.relations")]
-[Relation<EntrySource, Relation.Call>($"{nameof(Relations)}.{nameof(RelationSchema.Target)}",
-    NS_SYSTEM_SCHEMA_REFLECT_GET_SUB_ENTRIES, RELATION_OWNER, NODE_SELF)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_CORE}.relations")]
+//[Relation<EntrySource, Relation.Call>($"{nameof(Relations)}.{nameof(RelationSchema.Target)}", NS_SYSTEM_SCHEMA_REFLECT_GET_ACCESS_ENTRIES, NODE_SELF, $"@{nameof(Relations)}.{nameof(RelationSchema.Target)}")]
 public class Relations : Property<RelationSchema[]>
 {
+    public override void SetValue<TValue>(TValue value)
+    {
+        if (value is IEnumerable<RelationSchema> schemas)
+            base.SetValue(AnyProcess.CombineAnyRelations(schemas));
+        else
+            base.SetValue(value);
+    }
+
     /// <inheritdoc/>
     public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)
     {
@@ -84,18 +117,14 @@ public class Relations : Property<RelationSchema[]>
 }
 
 /// <summary>
-/// Represents the relation type
-/// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_RELATION}.type")]
-[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_RELATION)]
-public class RelationType: AnyType;
-
-/// <summary>
 /// The handler to process the relation, Check <see cref="RelationType"/> for details
 /// </summary>
 public interface IRelationProcess
 {
-    Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner);
+    /// <summary>
+    /// Loading the relation schema and prepare for processing
+    /// </summary>
+    Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner, params string?[] kinds);
     
     /// <summary>
     /// Process the relation and return the new property value

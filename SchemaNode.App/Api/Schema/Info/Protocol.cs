@@ -22,13 +22,22 @@ public class ProtocolApi : SchemaApi<ProtocolRequest, ProtocolResponse>
 
         ISchemaApiProtocol apiProtocol = SchemaContext.GetRequiredService<ISchemaApiProtocol>();
         var protocolMeta = apiProtocol.GetProtocolMeta(SchemaContext.Services);
+        Dictionary<string, string[]> kindProperties = [];
+
+        foreach (var (kind, _) in SchemaContext.Runtime.GetSchemaKinds())
+        {
+            kindProperties[kind] = SchemaContext.Runtime.GetSchemaKindPropertyTypes(kind).Select(p => p.GetSchemaType())
+                .Where(t => !string.IsNullOrWhiteSpace(t)).Cast<string>()
+                .ToArray();
+        }
         
         return new ProtocolResponse
         {
             Name = protocolMeta.Name,
             Request = protocolMeta.Request?.ToJsonNode(),
             Response = protocolMeta.Response?.ToJsonNode(),
-            SchemaFormat = protocolMeta.SchemaFormat
+            SchemaFormat = protocolMeta.SchemaFormat,
+            KindProperties = kindProperties
         };
     }
 }
@@ -64,4 +73,9 @@ public class ProtocolResponse : SchemaApiResponse
     /// The supported schema formats for download
     /// </summary>
     public string[]? SchemaFormat { get; init; }
+    
+    /// <summary>
+    /// The properties of each registered kind
+    /// </summary>
+    public Dictionary<string, string[]>? KindProperties { get; init; }
 }

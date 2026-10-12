@@ -4,6 +4,9 @@ using SchemaNode.Property.Core;
 using SchemaNode.Scalar;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
+using SchemaNode.Property.Common;
+using SchemaNode.Property.Property;
+using SchemaNode.Relation;
 
 namespace SchemaNode.Property.App;
 
@@ -11,7 +14,7 @@ namespace SchemaNode.Property.App;
 /// The application target policy
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_APP)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(ScopePolicy)}")]
 public class ScopePolicy : Property<AppScopePolicy>
 {
@@ -33,11 +36,13 @@ public sealed class AppScopePolicy: IEquatable<AppScopePolicy>
     /// <summary>
     /// The app target policy type
     /// </summary>
-    public AppScopeType Type { get; set; }
+    [Meta<Default>(AppScopeType.BusinessTarget)]
+    public AppScopeType Type { get; set; } = AppScopeType.BusinessTarget;
     
     /// <summary>
     /// The context maps for the context item mapping when the target policy is IsolationContext, can be used for multiple context items mapping
     /// </summary>
+    [Relation<Visible, Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"{nameof(Type)}", AppScopeType.IsolationContext)]
     public AppScopeContextMap[]? ContextMaps { get; set; }
     
     public bool Equals(AppScopePolicy? other)
@@ -60,6 +65,8 @@ public sealed class AppScopeContextMap: IEquatable<AppScopeContextMap>
     /// <summary>
     /// The context item
     /// </summary>
+    [Meta<PrimaryIndex>]
+    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.getaccessentries)}", NS_SYSTEM_CONTEXT, NODE_SELF)]
     public required string ContextItem { get; set; }
 
     /// <summary>

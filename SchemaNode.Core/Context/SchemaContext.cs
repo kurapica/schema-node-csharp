@@ -1,15 +1,14 @@
-﻿using System.Collections.Concurrent;
-using System.Text.Json;
-using System.Text.Json.Nodes;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Enum;
-using SchemaNode.Node;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Schema.Provider;
 using SchemaNode.Utility;
+using System.Collections.Concurrent;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
 using ArrayType = SchemaNode.Runtime.ArrayType;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
@@ -27,6 +26,14 @@ namespace SchemaNode.Context;
 /// </summary>
 public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): ISchemaContext, IDisposable
 {
+    #region Lock & Load
+
+    const string LOCK_AND_LOAD_KEY = "__LockAndLoad__";
+    private bool _lockAcquired = false;
+    private ConcurrentQueue<Func<Task>> _deferLoadTasks = [];
+
+    #endregion
+
     #region Properties
 
     /// <summary>
@@ -53,7 +60,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <summary>
     /// The context item
     /// </summary>
-    readonly ConcurrentDictionary<Type, object> _contextItems = [];     
+    readonly ConcurrentDictionary<Type, object> _contextItems = [];
     
     /// <summary>
     /// The system access
@@ -127,11 +134,34 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     
     #region Methods
 
+    public void DeferLoadTask(Func<Task> task)
+    {
+        if (task == null) return;
+        _deferLoadTasks.Enqueue(task);
+    }
+
+    private async Task ProcessDeferLoadTasksAsync()
+    {
+        while (_deferLoadTasks.TryDequeue(out var task))
+        {
+            try
+            {
+                await task();
+            }
+            catch (Exception e)
+            {
+                LogError(e, "Deferred load task failed");
+            }
+        }
+    }
+
     /// <summary>
     /// Gets the schema node type by name
     /// </summary>
     public async Task<NodeType?> GetNodeTypeAsync(string fullName, IReadOnlyList<GenericParameter>? generics = null, IReadOnlyList<NodeType>? genericParams = null, bool reload = false)
     {
+        fullName = fullName.ToLower();
+
         // generic type for simple
         if (generics?.FindIndex(g => g.Name.Equals(fullName, StringComparison.OrdinalIgnoreCase)) is {} gIdx and >= 0)
             return genericParams?.ElementAtOrDefault(gIdx) ?? new GenericType { Name = generics[gIdx].Name };
@@ -149,6 +179,8 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
         async Task<NodeType?> LoadNodeTypeAsync(NodeType node, SpanReader spans)
         {
             ReadOnlySpan<char> next = spans.Current;
+            string nextVal = next.IsEmpty ? "" : next.ToString();
+
             NamespaceType? parent = node as NamespaceType;
             NodeType? result = node;
             if (!next.IsEmpty)
@@ -161,94 +193,212 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         LogError("Invalid generic type format for {schemaName}", fullName);
                         return null;
                     }
-                    next = next[1..^1];
+                    string key = next.Contains(' ') ? next.ToString().Where(c => !char.IsWhiteSpace(c)).ToArray().AsSpan().ToString() : next.ToString();
 
                     // Check cache, allow duplicate if next contains different spaces (e.g. List<T> vs List< T >), keep it simple
-                    if (node.GetGenericType(next) is { } genType) return genType;
+                    if (node.GetGenericType(key) is { } genType && genType.Loaded) return genType;
 
                     List<NodeType> genParams = [];
-                    SpanReader genericReader = next;
-                    string key = next.ToString();
+                    SpanReader genericReader = next[1..^1];
 
                     // Convert <T1, T2> to [T1, T2]
+                    bool isTemplate = false;
                     while(genericReader.NextGenericParam())
                     {
-                        ReadOnlySpan<char> genericParam = genericReader.Current;
-                        NodeType? type = !genericParam.IsEmpty ? await GetNodeTypeAsync(genericParam.ToString(), generics, genParams) : null;
+                        string genericParam = genericReader.Current.ToString();
+                        if (string.IsNullOrWhiteSpace(genericParam)) return null;
+                        if (generics is { Count: > 0 })
+                        {
+                            int index = generics.FindIndex(g => genericParam.Equals(g.Name, StringComparison.OrdinalIgnoreCase));
+                            if (index >= 0)
+                            {
+                                isTemplate = true;
+                                if (genericParams != null && index < genericParams.Count)
+                                {
+                                    genParams.Add(genericParams[index]);
+                                    continue;
+                                }
+                            }
+                        }
+                        
+                        NodeType? type = await GetNodeTypeAsync(genericParam, generics, genericParams);
                         if (type == null) return null;
                         genParams.Add(type);
                     }
+                    // template means the generic type is not fully specified, just return the template node type
+                    if (isTemplate) return node;
 
                     if (node.Generics == null || node.Generics.Count != genParams.Count)
                     {
                         LogError("Generic type count mismatch for {schemaName}, expected {expected} but got {actual}", fullName, node.Generics?.Count ?? 0, genParams.Count);
                         return null;
                     }
+                    key = $"<{string.Join(",", genParams.Select(g => g.Name))}>";
+                    fullName = $"{node.Name}{key}";
 
-                    // Create generic type
-                    genType = ActivatorUtilities.CreateInstance(Services, node.GetType()) as NodeType;
-                    if (genType == null)
+                    // Check if the generic type is already loaded
+                    genType = node.GetGenericType(key);
+                    bool acquired = schemaRuntime.LockLoading.TryGetValue(LOCK_AND_LOAD_KEY, out var ctx) && ctx == this;
+                    if (genType != null && (genType.Loaded || acquired))
+                        return genType;
+
+                    // lock and load
+                    if (!acquired)
                     {
-                        LogError("Generic type {schemaName} load failed", fullName);
-                        return null;
+                        if (!schemaRuntime.LockLoading.TryAdd(LOCK_AND_LOAD_KEY, this))
+                        {
+                            while (!acquired)
+                            {
+                                genType ??= node.GetGenericType(key);
+                                if (genType != null && genType.Loaded)
+                                    return genType;
+                                if (schemaRuntime.LockLoading.TryAdd(LOCK_AND_LOAD_KEY, this))
+                                {
+                                    acquired = true;
+                                    _lockAcquired = true;
+                                    break;
+                                }
+                                await Task.Delay(10);
+                            }
+                        }
+                        else
+                        {
+                            acquired = true;
+                            _lockAcquired = true;
+                        }
                     }
-                    await genType.LoadTypeAsync(this, node.GetNodeSchema(schemaRuntime)!, genParams.ToArray());
-                    node.SetGenericType(key, genType);
-                    return genType;
+
+                    try
+                    {
+                        // Create generic type
+                        genType = ActivatorUtilities.CreateInstance(Services, node.GetType()) as NodeType;
+                        if (genType == null)
+                        {
+                            LogError("Generic type {schemaName} load failed", fullName);
+                            return null;
+                        }
+
+                        node.SetGenericType(key, genType);
+                        await genType.LoadTypeAsync(this, node.GetNodeSchema(schemaRuntime)!, genParams.ToArray());
+                        return genType;
+                    }
+                    catch (Exception e)
+                    {
+                        LogError(e, "Generic type {schemaName} load failed", fullName);
+                        throw;
+                    }
+                    finally
+                    {
+                        if (_lockAcquired)
+                        {
+                            _lockAcquired = false;
+                            await ProcessDeferLoadTasksAsync();
+                            schemaRuntime.LockLoading.TryRemove(LOCK_AND_LOAD_KEY, out _);
+                        }
+                    }
                 }
                 
                 // Get loaded node type
-                result = parent?.GetNodeType(next);
+                result = parent?.GetNodeType(nextVal);
             }
             // reload means don't load it if not existed
             if (result == null && reload || result?.Loaded == true && !(spans.IsEnd && reload))
                 return result;
-            
-            // loading
-            string nextVal = next.IsEmpty ? "" : next.ToString();
-            NodeSchema? schema = await LoadNodeSchemaAsync(parent != result ? parent : null, nextVal);
-            if (schema == null) return null;
 
-            // node type
-            Type nodeType = schemaRuntime.GetNodeType(schema.Kind) ?? typeof(NodeType);
-            result ??= ActivatorUtilities.CreateInstance(Services, nodeType) as NodeType;
-            if (result == null)
+            string schemaName = parent != result ? $"{parent?.Name}.{nextVal}".Trim('.') : nextVal;
+
+            // If in loading state, return the loading task to avoid deadlock
+            bool acquire = schemaRuntime.LockLoading.TryGetValue(LOCK_AND_LOAD_KEY, out var loadingTask) && loadingTask == this;
+            if (result != null && acquire) return result;
+
+            // lock and load
+            if (!acquire)
             {
-                LogError("[Runtime]Schema Type {schemaName} load failed", schema.FullName);
-                return null;
+                if (!schemaRuntime.LockLoading.TryAdd(LOCK_AND_LOAD_KEY, this))
+                {
+                    while (true)
+                    {
+                        result ??= parent?.GetNodeType(nextVal);
+                        if (result != null && result.Loaded)
+                            return result;
+                        if (schemaRuntime.LockLoading.TryAdd(LOCK_AND_LOAD_KEY, this))
+                        {
+                            acquire = true;
+                            _lockAcquired = true;
+                            break;
+                        }
+                        await Task.Delay(10);
+                    }
+                }
+                else
+                {
+                    acquire = true;
+                    _lockAcquired = true;
+                }
             }
-            
-            // cache by segment name (next), because result.Name is empty until LoadTypeAsync sets Schema
-            NodeSchema[]? schemas = schema.Schemas;
-            schema.Schemas = null;
-            if (parent != result)
+
+            try
             {
-                parent?.SaveNodeSchema(schema);
-                parent?.SaveNodeType(nextVal, result);
+                // loading
+                NodeSchema? schema = await LoadNodeSchemaAsync(parent != result ? parent : null, nextVal);
+                if (schema == null) return null;
+
+                // node type
+                Type nodeType = schemaRuntime.GetNodeType(schema.Kind) ?? typeof(NodeType);
+                result ??= ActivatorUtilities.CreateInstance(Services, nodeType) as NodeType;
+                if (result == null)
+                {
+                    LogError("[Runtime]Schema Type {schemaName} load failed", schema.FullName);
+                    return null;
+                }
+
+                // cache by segment name (next), because result.Name is empty until LoadTypeAsync sets Schema
+                NodeSchema[]? schemas = schema.Schemas;
+                schema.Schemas = null;
+                if (parent != result)
+                {
+                    parent?.SaveNodeSchema(schema);
+                    parent?.SaveNodeType(nextVal, result);
+                }
+
+                // Load the schema
+                LogDebug("[Runtime]Schema Type {schemaName} loading", schema.FullName);
+                await result.LoadTypeAsync(this, schema);
+
+                // Save sub-namespaces for the namespace
+                if (result is NamespaceType ns && schemas is { Length: > 0 })
+                    foreach (NodeSchema s in schemas)
+                        ns.SaveNodeSchema(s);
+
+                // Generic Types Reloading
+                foreach (NodeType g in result.GetGenericTypes())
+                    await g.LoadTypeAsync(this, schema.Clone(schemaRuntime), g.GenericParams!.ToArray());
+
+                LogDebug("[Runtime]Schema Type {schemaName} working", schema.FullName);
+                return result;
             }
-
-            // Load the schema
-            LogDebug("[Runtime]Schema Type {schemaName} loading", schema.FullName);
-            await result.LoadTypeAsync(this, schema);
-            
-            // Save sub-namespaces for the namespace
-            if (result is NamespaceType ns && schemas is { Length: > 0 })
-                foreach (NodeSchema s in schemas)
-                    ns.SaveNodeSchema(s);
-            
-            // Generic Types Reloading
-            foreach (NodeType g in result.GetGenericTypes())
-                await g.LoadTypeAsync(this, schema.Clone(schemaRuntime), g.GenericParams!.ToArray());
-
-            LogDebug("[Runtime]Schema Type {schemaName} working", schema.FullName);
-            return result;
+            catch (Exception e)
+            {
+                LogError(e, "[Runtime]Schema Type {schemaName} load failed", schemaName);
+                throw;
+            }
+            finally
+            {
+                // simple lock to avoid conflict access
+                if (_lockAcquired)
+                {
+                    _lockAcquired = false;
+                    await ProcessDeferLoadTasksAsync();
+                    schemaRuntime.LockLoading.TryRemove(LOCK_AND_LOAD_KEY, out _);
+                }
+            }
         }
         
         async Task<NodeSchema?> LoadNodeSchemaAsync(NamespaceType? @namespace, string name)
         {
             // get loaded schema from namespace if not in reload mode
             NodeSchema? schema = reload ? null : @namespace?.GetNodeSchema(name);
-            if (schema != null) return schema;
+            if (schema != null && schema.Kind != NODE_KIND_NAMESPACE) return schema;
             
             // system schema
             string schemaName = $"{@namespace?.Name}.{name}".Trim('.');
@@ -262,7 +412,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                 {
                     NodeSchema[] loadSchemas = await provider.GetSchemaAsync([schemaName]);
                     if (loadSchemas.Length == 0) continue;
-                    NodeSchema loadSchema = SetSchemaState(loadSchemas[0], SchemaLoadState.Service, provider.GetType())!;
+                    NodeSchema loadSchema = SetSchemaState(loadSchemas[0], SchemaLoadState.Service, provider)!;
 
                     // check && combine
                     if (schema == null)
@@ -274,9 +424,9 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     schema.Provider ??= loadSchema.Provider;
                     
                     // CombineProperties extensions
-                    schema.CombineProperties(loadSchema, schemaRuntime, schema.Kind);
+                    schema.CombineProperties(loadSchema, schemaRuntime, schemaRuntime.GetSchemaKindByNodeKind(schema.Kind));
 
-                    if (!loadSchema.Kind.Equals(SCHEMA_KIND_NAMESPACE, StringComparison.OrdinalIgnoreCase) ||
+                    if (!loadSchema.Kind.Equals(NODE_KIND_NAMESPACE, StringComparison.OrdinalIgnoreCase) ||
                         loadSchema.Schemas == null || loadSchema.Schemas.Length == 0) continue;
                     
                     if (schema.Schemas == null || schema.Schemas.Length == 0)
@@ -293,7 +443,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         if (index >= 0)
                         {
                             if (schema.Schemas[index].Kind.Equals(otherSchema.Kind, StringComparison.OrdinalIgnoreCase))
-                                schema.Schemas[index].CombineProperties(otherSchema, schemaRuntime, otherSchema.Kind);
+                                schema.Schemas[index].CombineProperties(otherSchema, schemaRuntime, schemaRuntime.GetSchemaKindByNodeKind(otherSchema.Kind));
                         }
                         else
                         {
@@ -312,11 +462,11 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             return schema;
         }
 
-        NodeSchema? SetSchemaState(NodeSchema? schema, SchemaLoadState loadState, Type? provider = null)
+        NodeSchema? SetSchemaState(NodeSchema? schema, SchemaLoadState loadState, INodeSchemaProvider? provider = null)
         {
-            schema?.Provider = provider;
+            schema?.Provider = provider?.GetType();
             schema?.LoadState = loadState;
-            if (schema?.Kind != SCHEMA_KIND_NAMESPACE || schema.Schemas == null || schema.Schemas.Length == 0) return schema;
+            if (schema?.Kind != NODE_KIND_NAMESPACE || schema.Schemas == null || schema.Schemas.Length == 0) return schema;
             foreach (NodeSchema s in schema.Schemas)
                 SetSchemaState(s, loadState, provider);
             return schema;
@@ -326,7 +476,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <summary>
     /// Gets the schema node of specific type
     /// </summary>
-    public async Task<T?> GetNodeTypeAsync<T>(string schemaName, IReadOnlyList<GenericParameter>? generics = null, IReadOnlyList<NodeType>? genericParams = null, bool reload = false) where T : NodeType
+    public async Task<T?> GetNodeTypeAsync<T>(string schemaName, IReadOnlyList<GenericParameter>? generics = null, IReadOnlyList<NodeType>? genericParams = null, bool reload = false) where T : class
         => await GetNodeTypeAsync(schemaName, generics, genericParams, reload) as T;
     
     /// <summary>
@@ -334,13 +484,13 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// </summary>
     /// <param name="elementType"></param>
     /// <returns></returns>
-    public async Task<ArrayType?> GetArrayNodeTypeAsync(ValueType elementType)
-        => elementType as ArrayType ?? (elementType.ArrayType ?? await GetNodeTypeAsync<ArrayType>((Runtime as SchemaRuntime)!.GetSystemArraySchema(elementType.Name)!));
+    public async Task<ArrayType?> GetArrayNodeTypeAsync(IValueTypeAccess elementType)
+        => elementType as ArrayType ?? ((elementType as ValueType)?.ArrayType ?? await GetNodeTypeAsync<ArrayType>((Runtime as SchemaRuntime)!.GetSystemArraySchema(elementType.Name)!));
     
     /// <summary>
     /// Gets the schema node from value
     /// </summary>
-    public async Task<DataNode?> GetSchemaNodeAsync(object? value, ValueType? expectedType = null, bool onlyValid = false)
+    public async Task<IValueAccess?> GetSchemaNodeAsync(object? value, IValueTypeAccess? expectedType = null, bool onlyValid = false)
     {
         if (value == null) return expectedType?.From(null);
 
@@ -350,7 +500,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             {
                 case JsonValue jsonValue:
                 {
-                    var (v, t) = jsonValue.ParseValueAndType();
+                    var (_, t) = jsonValue.ParseValueAndType();
                     string? schemaType = t?.GetSchemaType();
                     expectedType = !string.IsNullOrEmpty(schemaType) ? await GetNodeTypeAsync<ValueType>(schemaType) : null;
                     break;
@@ -360,9 +510,9 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     break; // can't handle it without expected type
                 default:
                 {
-                    var cacheItem = GetSchemeCacheItem().TypeCache;
+                    ConcurrentDictionary<Type, IValueTypeAccess> cacheItem = GetSchemeCacheItem().TypeCache;
                     Type valueType = value.GetType();
-                    if (cacheItem.TryGetValue(valueType, out ValueType? cached))
+                    if (cacheItem.TryGetValue(valueType, out IValueTypeAccess? cached))
                     {
                         expectedType = cached;
                     }
@@ -372,7 +522,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         if (!string.IsNullOrWhiteSpace(name))
                             expectedType = await GetNodeTypeAsync<ValueType>(name);
                         expectedType ??= new GenericType();
-                        cacheItem[valueType] = expectedType!;
+                        cacheItem[valueType] = expectedType;
                     }
                     break;
                 }
@@ -384,13 +534,40 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             try
             {
                 if (!onlyValid) return expectedType.From(value);
-                DataNode node = await expectedType.ValidateValueAsync(this, value);
-                return node.IsValid ? node : null;
+                var node = await expectedType.ValidateValueAsync(this, value);
+                return node?.IsValid == true ? node : null;
             }
             catch (Exception e)
             {
                 LogError(e, "Failed to convert value to expected type {expectedType}", expectedType.Name);
                 return null;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Gets the property type by property name and schema kinds
+    /// </summary>
+    public async Task<Runtime.PropertyType?> GetPropertyType(string property, params string?[] kinds)
+    {
+        if (string.IsNullOrWhiteSpace(property)) return null;
+        // for compatibility, if property contains dot, try to get the property type directly
+        if (property.Contains('.'))
+        {
+            var ptype = await GetNodeTypeAsync<Runtime.PropertyType>(property);
+            if (ptype != null) return ptype;
+        }
+        foreach (var kind in kinds)
+        {
+            if (string.IsNullOrWhiteSpace(kind)) continue;
+            foreach (var propType in Runtime.GetSchemaKindPropertyTypes(kind))
+            {
+                if (propType.GetSchemaType() is not { } schemaType || string.IsNullOrWhiteSpace(schemaType)) continue;
+
+                string name = propType.GetPropertyName();
+                if (property.Equals(name, StringComparison.OrdinalIgnoreCase))
+                    return await GetNodeTypeAsync<Runtime.PropertyType>(schemaType);
             }
         }
         return null;
@@ -447,21 +624,22 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <summary>
     /// Gets the context item as data node
     /// </summary>
-    public DataNode? GetContextItem(Type type) => GetContextItemResult(type, true) as DataNode;
+    public IValueAccess? GetContextItem(Type type) => GetContextItemResult(type, true) as IValueAccess;
 
     /// <summary>
     /// Gets the context item
     /// </summary>
-    internal DataNode? GetContextItem(string contextItem)
+    internal IValueAccess? GetContextItem(string contextItem)
     {
+        if (string.IsNullOrWhiteSpace(contextItem)) return null;
         string[] split = contextItem.Split('.', 2);
         if (split.Length == 0) return null;
         (string SchemaType, Type ProviderType, Type ItemType)? info = GetRequiredService<SchemaContextItemProvider>().GetProviderType(split[0]);
         if (info == null) return null;
-        DataNode? result = GetService(info.Value.ProviderType) is ISchemaContextItemProvider { HasItem: true } provider && provider.TryGetItem(out object? item)
+        var result = GetService(info.Value.ProviderType) is ISchemaContextItemProvider { HasItem: true } provider && provider.TryGetItem(out object? item)
             ? GetNodeTypeAsync<ValueType>(info.Value.SchemaType).GetAwaiter().GetResult()?.From(item)
             : null;
-        return result != null && split.Length > 1 ? result.GetAccessValue(split[1]) as DataNode : result;
+        return result != null && split.Length > 1 ? result.GetAccessValue(split[1]) : result;
     }
     
     /// <summary>
@@ -508,8 +686,8 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
 
     #region Scheme Cache Item
 
-    SchemeCacheItem GetSchemeCacheItem() => GetOrAddContextItem(() => new SchemeCacheItem(new ConcurrentDictionary<Type, ValueType>()));
-    record class SchemeCacheItem(ConcurrentDictionary<Type, ValueType> TypeCache);
+    SchemeCacheItem GetSchemeCacheItem() => GetOrAddContextItem(() => new SchemeCacheItem(new ConcurrentDictionary<Type, IValueTypeAccess>()));
+    record SchemeCacheItem(ConcurrentDictionary<Type, IValueTypeAccess> TypeCache);
 
     #endregion
 }
@@ -553,4 +731,9 @@ public class SystemAccess
     /// The context type
     /// </summary>
     public Runtime.StructType Context { get; internal set; } = null!;
+
+    /// <summary>
+    /// The object type
+    /// </summary>
+    public Runtime.ObjectType Object { get; internal set; } = null!;
 }

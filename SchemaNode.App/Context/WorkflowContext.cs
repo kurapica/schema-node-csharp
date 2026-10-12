@@ -205,7 +205,7 @@ public class WorkflowContext: SchemaContext
     /// <summary>
     /// Gets the payload by name
     /// </summary>
-    public DataNode? GetWorkflowPayload(string name)
+    public IValueAccess? GetWorkflowPayload(string name)
     {
         string[] paths = name.Split(".", 2, StringSplitOptions.RemoveEmptyEntries);
         if (paths.Length == 0) return null;
@@ -214,13 +214,13 @@ public class WorkflowContext: SchemaContext
             : _root?.GetWorkflowPayload(paths[0]);
         
         // check nested payload
-        return paths.Length > 1 ? data?.GetAccessValue(paths[1]) as DataNode : data;
+        return paths.Length > 1 ? data?.GetAccessValue(paths[1]) : data;
     }
 
     /// <summary>
     /// Gets the payload by workflow
     /// </summary>
-    public DataNode? GetWorkflowPayload(BaseWorkflow workflow) => GetWorkflowPayload(workflow.Name);
+    public IValueAccess? GetWorkflowPayload(BaseWorkflow workflow) => GetWorkflowPayload(workflow.Name);
     
     /// <summary>
     /// Gets the current workflow status
@@ -293,7 +293,7 @@ public class WorkflowContext: SchemaContext
     /// The workflow node is done with payload
     /// <returns>The fork workflow context if created</returns>
     /// </summary>
-    public WorkflowContext? Done(string name, DataNode? payload = null, bool init = false, Access? access = null)
+    public WorkflowContext? Done(string name, IValueAccess? payload = null, bool init = false, Access? access = null)
     {
         BaseWorkflow workflow = _workflow?.FindByName(name)
             ?? throw new InvalidOperationException($"BaseWorkflow node {name} not found in the context");
@@ -321,7 +321,7 @@ public class WorkflowContext: SchemaContext
                     string[] keys = new  string[workflow.ForkKey.Length];
                     for (int i = 0; i < workflow.ForkKey.Length; i++)
                     {
-                        DataNode? forkKeyNode = (payload as StructNode)?.GetAccessValue(workflow.ForkKey[i]) as DataNode;
+                        var forkKeyNode = (payload as StructNode)?.GetAccessValue(workflow.ForkKey[i]);
                         if (forkKeyNode == null || forkKeyNode.IsEmpty) return null; // skip fork if any fork key not provided
                         keys[i] = forkKeyNode.ToString()!;
                     }
@@ -337,7 +337,7 @@ public class WorkflowContext: SchemaContext
                 {
                     if (workflow.ForkKey!.Length == 1 && workflow.ForkKey[0].Equals(NodeSelf))
                     {
-                        DataNode? forkPayload = workflowContext.GetWorkflowPayload(workflow.Name);
+                        var forkPayload = workflowContext.GetWorkflowPayload(workflow.Name);
                         if (forkPayload == null || forkPayload.IsEmpty || !forkPayload.ToString()!.Equals(forkKey)) continue; 
                     }
                     else
@@ -348,7 +348,7 @@ public class WorkflowContext: SchemaContext
                         string[] keys = new string[workflow.ForkKey!.Length];
                         for (int i = 0; i < workflow.ForkKey.Length; i++)
                         {
-                            DataNode? forkKeyNode = (payload as StructNode)?.GetAccessValue(workflow.ForkKey[i]) as DataNode;
+                            var forkKeyNode = (payload as StructNode)?.GetAccessValue(workflow.ForkKey[i]);
                             if (forkKeyNode == null || forkKeyNode.IsEmpty) break;
                             keys[i] = forkKeyNode.ToString()!;
                         }
@@ -398,7 +398,7 @@ public class WorkflowContext: SchemaContext
     /// <summary>
     /// The workflow node is done with payload
     /// </summary>
-    public void Done(BaseWorkflow workflow, DataNode? payload = null, Access? access = null) => Done(workflow.Name, payload, false, access);
+    public void Done(BaseWorkflow workflow, IValueAccess? payload = null, Access? access = null) => Done(workflow.Name, payload, false, access);
     
     /// <summary>
     /// The workflow node has error
@@ -700,7 +700,7 @@ public class WorkflowContext: SchemaContext
         /// <summary>
         /// The workflow payload
         /// </summary>
-        public DataNode? Payload { get; set; }
+        public IValueAccess? Payload { get; set; }
         
         /// <summary>
         /// The workflow error
@@ -738,7 +738,7 @@ public class WorkflowContext: SchemaContext
                     }
                     else
                     {
-                        DataNode? payload = context.GetWorkflowPayload(arg.Source);
+                        var payload = context.GetWorkflowPayload(arg.Source);
                         args[i + 1] = payload?.GetValue(arg.ValueType?.GetCsharpType() ?? parameters[i + 1].ParameterType);
                     }
                 }
@@ -785,7 +785,7 @@ public class WorkflowContext: SchemaContext
                     }
                     else
                     {
-                        DataNode? payload = context.GetWorkflowPayload(arg.Source);
+                        var payload = context.GetWorkflowPayload(arg.Source);
                         args[i + 2] = payload?.GetValue(arg.ValueType?.GetCsharpType() ?? parameters[i + 2].ParameterType);
                     }
                 }

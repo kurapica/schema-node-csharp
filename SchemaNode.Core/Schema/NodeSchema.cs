@@ -4,13 +4,17 @@ using SchemaNode.Enum;
 using SchemaNode.Function;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
+using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using SchemaNode.Scalar;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
 using System.Text.Json.Serialization;
+using SchemaNode.Property.String;
+using SchemaNode.Property.Struct;
+using SchemaNode.Schema.Provider;
 using static SchemaNode.Utility.Constant;
 using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 using String = SchemaNode.Scalar.String;
@@ -26,6 +30,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaKind>(SCHEMA_KIND_NODE, SCHEMA_KIND_ORDER_NODE)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_NODE}.schema")]
 [Meta<Attach>(SCHEMA_KIND_NODE)]
+[Meta<Append>(typeof(Display))]
 public sealed class NodeSchema: PropertyOwner, IErrorProvider
 {
     /// <summary>
@@ -33,6 +38,7 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
     /// </summary>
     [Meta<PrimaryIndex>(0)]
     [Meta<SchemaType>(typeof(NamespaceType))]
+    [Relation<ReadOnly, Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Name)}")]
     public string? Namespace { get; set; }
     
     /// <summary>
@@ -40,6 +46,7 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
     /// </summary>
     [Meta<PrimaryIndex>(1)]
     [Meta<SchemaType>(typeof(Identifier))]
+    [Meta<Immutable>(true)]
     public string Name { get; set; } = null!;
     
     /// <summary>
@@ -50,11 +57,11 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
     public string FullName => $"{Namespace}.{Name}".Trim('.');
     
     /// <summary>
-    /// The schema kind
+    /// The node kind
     /// </summary>
-    [Meta<SchemaType>(typeof(NodeSchemaKind))]
+    [Meta<SchemaType>(typeof(NodeKind))]
     public string Kind { get; set; } = null!;
-   
+          
     /// <summary>
     /// The sub schemas (for namespace schemas)
     /// </summary>
@@ -64,8 +71,7 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
     /// <summary>
     /// The error status
     /// </summary>
-    [Meta<SchemaType>(typeof(ErrorCode))]
-    [Meta<ReadOnly>(true)]
+    [SchemaIgnore]
     public string? Error { get; set; }
 
     /// <summary>
@@ -119,16 +125,17 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
             Namespace = Namespace,
             Kind = Kind,
             Type = Type,
+            LoadState = LoadState,
         };
         nodeSchema.CombineProperties(this, runtime, SCHEMA_KIND_NODE);
 
-        if (withNamespaces && Kind.Equals(SCHEMA_KIND_NAMESPACE, StringComparison.OrdinalIgnoreCase) && Schemas != null)
+        if (withNamespaces && Kind.Equals(NODE_KIND_NAMESPACE, StringComparison.OrdinalIgnoreCase) && Schemas != null)
             nodeSchema.Schemas = Schemas.Select(x => x.Clone(runtime)).ToArray();
         return nodeSchema;
     }
     
     // Create Node Schema with full name
-    internal static NodeSchema Create(string kind, string name, Type? type = null, string? display = null)
+    internal static NodeSchema Create(ISchemaRuntime runtime, string kind, string name, Type? type = null, string? display = null)
     {
         NodeSchema nodeSchema = new()
         {
@@ -139,14 +146,14 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
         };
         nodeSchema.SetProperty<Display, LocaleString>(display ?? type?.GetSummaryFromXmlDoc() ?? name);
         if (type is not null)
-            foreach (IProperty prop in type.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_NODE))
+            foreach (IProperty prop in type.GetMetaPropertiesForSchema<IProperty>(runtime, SCHEMA_KIND_NODE))
                 nodeSchema.SetProperty(prop);
         return nodeSchema;
     }
 
     // Create Node Schema with split namespace and name
-    internal static NodeSchema Create(string kind, string @namespace, string name, Type? type = null, string? display = null)
-        => Create(kind, $"{@namespace}.{name}".Trim('.'), type, display);
+    internal static NodeSchema Create(ISchemaRuntime runtime, string kind, string @namespace, string name, Type? type = null, string? display = null)
+        => Create(runtime, kind, $"{@namespace}.{name}".Trim('.'), type, display);
 }
 
 /// <summary>
@@ -154,7 +161,7 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_NODE}.type")]
 [Meta<UpLimitString>(PRIMARY_KEY_MAX_LEN)]
-[Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.gettypes)}", NODE_SELF)]
+[Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.gettypeentries)}", NODE_SELF)]
 public class AnyType: String;
 
 /// <summary>

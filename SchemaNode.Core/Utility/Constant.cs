@@ -26,34 +26,48 @@ public static class Constant
 
     #region Relation
 
-    public const string RELATION_OWNER = "$owner";
-    public const string ARRAY_PREVIOUS = "$previous";
-    public const string ARRAY_ELEMENT = "$element";
     public const string NODE_SELF = "$self";
-    public const string NODE_TYPE = "$type";
-    public const string ENTRY_ROOT = "$root";
+    public const string ARRAY_PREVIOUS = "$prev";
+    public const string ARRAY_ELEMENT = "$ele";
+    public const string TYPE_PROVIDER = "$type";
+    public const string FUNC_RETURN = "return";
 
     #endregion
 
     #region Schema Kind
 
     public const string SCHEMA_KIND_NODE = "node";
-    public const string SCHEMA_KIND_NAMESPACE = "namespace";
-    public const string SCHEMA_KIND_OBJECT = "object";
-    public const string SCHEMA_KIND_BOOL = "bool";
-    public const string SCHEMA_KIND_INT = "int";
-    public const string SCHEMA_KIND_DECIMAL = "decimal";
-    public const string SCHEMA_KIND_STRING = "string";
-    public const string SCHEMA_KIND_DATE = "date";
-    public const string SCHEMA_KIND_ENUM = "enum";
-    public const string SCHEMA_KIND_STRUCT = "struct";
-    public const string SCHEMA_KIND_ARRAY = "array";
-    public const string SCHEMA_KIND_FUNCTION = "function";
-    public const string SCHEMA_KIND_PROPERTY = "property";
-    public const string SCHEMA_KIND_STRUCT_FIELD = "structfield";
-    public const string SCHEMA_KIND_RELATION = "relation";
-    public const string SCHEMA_KIND_FUNC_ARG = "functionarg";
-    public const string SCHEMA_KIND_ENTRY = "entry";
+    public const string SCHEMA_KIND_NODE_NAMESPACE = "node.namespace";
+    public const string SCHEMA_KIND_NODE_OBJECT = "node.object";
+    public const string SCHEMA_KIND_NODE_BOOL = "node.bool";
+    public const string SCHEMA_KIND_NODE_BOOL_USAGE = "node.bool.usage";
+    public const string SCHEMA_KIND_NODE_INT = "node.int";
+    public const string SCHEMA_KIND_NODE_INT_DEFINE = "node.int.define";
+    public const string SCHEMA_KIND_NODE_INT_USAGE = "node.int.usage";
+    public const string SCHEMA_KIND_NODE_DECIMAL = "node.decimal";
+    public const string SCHEMA_KIND_NODE_DECIMAL_DEFINE = "node.decimal.define";
+    public const string SCHEMA_KIND_NODE_DECIMAL_USAGE = "node.decimal.usage";
+    public const string SCHEMA_KIND_NODE_STRING = "node.string";
+    public const string SCHEMA_KIND_NODE_STRING_DEFINE = "node.string.define";
+    public const string SCHEMA_KIND_NODE_STRING_USAGE = "node.string.usage";
+    public const string SCHEMA_KIND_NODE_DATE = "node.date";
+    public const string SCHEMA_KIND_NODE_DATE_DEFINE = "node.date.define";
+    public const string SCHEMA_KIND_NODE_DATE_USAGE = "node.date.usage";
+    public const string SCHEMA_KIND_NODE_ENUM = "node.enum";
+    public const string SCHEMA_KIND_NODE_ENUM_DEFINE = "node.enum.define";
+    public const string SCHEMA_KIND_NODE_ENUM_USAGE = "node.enum.usage";
+    public const string SCHEMA_KIND_NODE_STRUCT = "node.struct";
+    public const string SCHEMA_KIND_NODE_STRUCT_DEFINE = "node.struct.define";
+    public const string SCHEMA_KIND_NODE_STRUCT_USAGE = "node.struct.usage";
+    public const string SCHEMA_KIND_NODE_STRUCT_FIELD = "node.struct.field";
+    public const string SCHEMA_KIND_NODE_ARRAY = "node.array";
+    public const string SCHEMA_KIND_NODE_ARRAY_DEFINE = "node.array.define";
+    public const string SCHEMA_KIND_NODE_ARRAY_USAGE = "node.array.usage";
+    public const string SCHEMA_KIND_NODE_FUNCTION = "node.function";
+    public const string SCHEMA_KIND_NODE_PROPERTY = "node.property";
+    public const string SCHEMA_KIND_NODE_RELATION = "node.relation";
+    public const string SCHEMA_KIND_NODE_FUNC_ARG = "node.function.arg";
+    public const string SCHEMA_KIND_NODE_ENTRY = "node.entry";
 
     internal const int SCHEMA_KIND_ORDER_NODE = 0;
     internal const int SCHEMA_KIND_ORDER_NAMESPACE = 1;
@@ -72,6 +86,21 @@ public static class Constant
     internal const int SCHEMA_KIND_ORDER_STRUCT_FIELD = 15;
     internal const int SCHEMA_KIND_ORDER_FUNC_ARG = 16;
     internal const int SCHEMA_KIND_ORDER_ENTRY = 17;
+
+    // Node Kind
+    public const string NODE_KIND_NAMESPACE = "namespace";
+    public const string NODE_KIND_OBJECT = "object";
+    public const string NODE_KIND_BOOL = "bool";
+    public const string NODE_KIND_INT = "int";
+    public const string NODE_KIND_DECIMAL = "decimal";
+    public const string NODE_KIND_STRING = "string";
+    public const string NODE_KIND_DATE = "date";
+    public const string NODE_KIND_ENUM = "enum";
+    public const string NODE_KIND_STRUCT = "struct";
+    public const string NODE_KIND_ARRAY = "array";
+    public const string NODE_KIND_FUNCTION = "function";
+    public const string NODE_KIND_PROPERTY = "property";
+    public const string NODE_KIND_RELATION = "relation";
 
     #endregion
 
@@ -114,6 +143,7 @@ public static class Constant
 
     // entry for white list
     public const string NS_SYSTEM_ENTRY = "system.entry";
+    public const string NS_SYSTEM_ENTRYS = $"{NS_SYSTEM_ENTRY}s";
     public const string NS_SYSTEM_ENTRY_ACCESS = "system.entryaccess";
 
     #endregion
@@ -137,13 +167,22 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_STRUCT_FIELD = $"{NS_SYSTEM_SCHEMA_STRUCT}.field";
     public const string NS_SYSTEM_SCHEMA_ARRAY = $"{NS_SYSTEM_SCHEMA}.array";
     public const string NS_SYSTEM_SCHEMA_FUNC = $"{NS_SYSTEM_SCHEMA}.func";
+    public const string NS_SYSTEM_SCHEMA_FUNC_CALL = $"{NS_SYSTEM_SCHEMA_FUNC}.funccall";
     public const string NS_SYSTEM_SCHEMA_RELATION = $"{NS_SYSTEM_SCHEMA}.relation";
-    public const string NS_SYSTEM_SCHEMA_PROPERTY = $"{NS_SYSTEM_SCHEMA}.prop";
-    public const string NS_SYSTEM_SCHEMA_PROPERTY_CORE = $"{NS_SYSTEM_SCHEMA_PROPERTY}.core";
-    public const string NS_SYSTEM_SCHEMA_PROPERTY_COMMON = $"{NS_SYSTEM_SCHEMA_PROPERTY}.common";
-    public const string NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT = $"{NS_SYSTEM_SCHEMA_PROPERTY}.constraint";
-    public const string NS_SYSTEM_SCHEMA_PROPERTY_FUNC = $"{NS_SYSTEM_SCHEMA_PROPERTY}.func";
-    public const string NS_SYSTEM_SCHEMA_PROPERTY_RELATION = $"{NS_SYSTEM_SCHEMA_PROPERTY}.relation";
+    public const string NS_SYSTEM_SCHEMA_PROP = $"{NS_SYSTEM_SCHEMA}.prop";
+    public const string NS_SYSTEM_SCHEMA_PROP_CORE = $"{NS_SYSTEM_SCHEMA_PROP}.core";
+    public const string NS_SYSTEM_SCHEMA_PROP_COMMON = $"{NS_SYSTEM_SCHEMA_PROP}.common";
+    public const string NS_SYSTEM_SCHEMA_PROP_FUNC = $"{NS_SYSTEM_SCHEMA_PROP}.func";
+    public const string NS_SYSTEM_SCHEMA_PROP_RELATION = $"{NS_SYSTEM_SCHEMA_PROP}.relation";
+    public const string NS_SYSTEM_SCHEMA_PROP_BOOL = $"{NS_SYSTEM_SCHEMA_PROP}.bool";
+    public const string NS_SYSTEM_SCHEMA_PROP_INT = $"{NS_SYSTEM_SCHEMA_PROP}.int";
+    public const string NS_SYSTEM_SCHEMA_PROP_DECIMAL = $"{NS_SYSTEM_SCHEMA_PROP}.decimal";
+    public const string NS_SYSTEM_SCHEMA_PROP_STRING = $"{NS_SYSTEM_SCHEMA_PROP}.string";
+    public const string NS_SYSTEM_SCHEMA_PROP_DATE = $"{NS_SYSTEM_SCHEMA_PROP}.date";
+    public const string NS_SYSTEM_SCHEMA_PROP_ENUM = $"{NS_SYSTEM_SCHEMA_PROP}.enum";
+    public const string NS_SYSTEM_SCHEMA_PROP_STRUCT = $"{NS_SYSTEM_SCHEMA_PROP}.struct";
+    public const string NS_SYSTEM_SCHEMA_PROP_ARRAY = $"{NS_SYSTEM_SCHEMA_PROP}.array";
+    public const string NS_SYSTEM_SCHEMA_PROP_PROPERTY = $"{NS_SYSTEM_SCHEMA_PROP}.property";
 
     public const string NS_SYSTEM_SCHEMA_ERROR = $"{NS_SYSTEM_SCHEMA}.error";
 
@@ -157,19 +196,22 @@ public static class Constant
     public const string NS_SYSTEM_CALENDAR = "system.calendar";
     public const string NS_SYSTEM_COLLECTION = "system.collection";
     public const string NS_SYSTEM_DATA = "system.data";
-    public const string NS_SYSTEM_DATA_ENUM = "system.data.enum";
     public const string NS_SYSTEM_STR = "system.str";
 
     public const string NS_SYSTEM_SCHEMA_REFLECT = $"{NS_SYSTEM_SCHEMA}.reflect";
-    public const string NS_SYSTEM_SCHEMA_REFLECT_FUNC = $"{NS_SYSTEM_SCHEMA}.func";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_TYPE = $"{NS_SYSTEM_SCHEMA_REFLECT}.type";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_FUNC = $"{NS_SYSTEM_SCHEMA_REFLECT}.func";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_ARRAY = $"{NS_SYSTEM_SCHEMA_REFLECT}.array";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_ENUM = $"{NS_SYSTEM_SCHEMA_REFLECT}.enum";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_STRUCT = $"{NS_SYSTEM_SCHEMA_REFLECT}.struct";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_PROPERTY = $"{NS_SYSTEM_SCHEMA_REFLECT}.prop";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND = $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isnodekind)}";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_IS_VALUE_KIND = $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isvaluekind)}";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_IS_ARRAY_ELE = $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.isarrayele)}";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_GET_ACCESS_ENTRIES = $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getaccessentries)}";
 
-    public const string NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND = $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}";
-    public const string NS_SYSTEM_SCHEMA_REFLECT_IS_VALUE_KIND = $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isvaluekind)}";
-    public const string NS_SYSTEM_SCHEMA_REFLECT_IS_ARRAY_ELE = $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isarrayele)}";
-    public const string NS_SYSTEM_SCHEMA_REFLECT_GET_SUB_ENTRIES = $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.getsubentries)}";
-
-    public const string NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN = $"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(SystemReflect.Function.withreturn)}";
-    public const string NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS = $"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(SystemReflect.Function.withargs)}";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN = $"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.withreturn)}";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS = $"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.withargs)}";
 
     public const string NS_SYSTEM_LOGIC_EQ = $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.eq)}";
 

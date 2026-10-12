@@ -5,9 +5,9 @@ using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Function;
+using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
@@ -28,8 +28,6 @@ namespace SchemaNode.Service;
 /// </summary>
 internal sealed class FunctionGenerator : INodeSchemaGenerator
 {
-    private static readonly NullabilityInfoContext _nullabilityContext = new();
-
     /// <summary>
     /// The system func infos
     /// </summary>
@@ -47,7 +45,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
         if (!type.IsAbstract || !type.IsSealed || type.GetMetaProperty<SchemaType>() is not {} schemaType) yield break;
         
         // Save the namespace
-        NodeSchema nsSchema = NodeSchema.Create(SCHEMA_KIND_NAMESPACE,  schemaType.Value ?? $"{@namespace}.{name}".Trim('.'), type);
+        NodeSchema nsSchema = NodeSchema.Create(runtime, NODE_KIND_NAMESPACE,  schemaType.Value ?? $"{@namespace}.{name}".Trim('.'), type);
         yield return nsSchema;
 
         foreach (MethodInfo method in type
@@ -59,17 +57,18 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             // Determine schema name: explicit [Meta<ValueType>] wins, otherwise "<classNs>.<methodName>"
             schemaType = method.GetMetaProperty<SchemaType>();
 
-            yield return BuildFunctionSchema(method,
+            yield return BuildFunctionSchema(runtime, 
+                method,
                 schemaType?.Value?.GetNamespace() ?? nsSchema.FullName,
                 schemaType?.Value?.GetSchemaName() ?? method.Name.ToLowerInvariant(),
                 typeResolver);
         }
     }
     
-    private static NodeSchema BuildFunctionSchema(MethodInfo method, string @namespace, string name, Func<Type, string, Type[]?, string?>? typeResolver = null)
+    private static NodeSchema BuildFunctionSchema(SchemaRuntime runtime, MethodInfo method, string @namespace, string name, Func<Type, string, Type[]?, string?>? typeResolver = null)
     {
         // node schema
-        NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_FUNCTION, @namespace, name, null, method.GetSummaryFromXmlDoc());
+        NodeSchema schema = NodeSchema.Create(runtime, NODE_KIND_FUNCTION, @namespace, name, null, method.GetSummaryFromXmlDoc());
         if (typeResolver == null) return schema;
         
         // function info
@@ -80,6 +79,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
         ParameterInfo[] parameters = method.GetParameters();
         Type[] genericArgs = method.GetGenericArguments();
         TypeDetail[] genInfos = genericArgs.Select(g => g.GetTypeDetail()).ToArray();
+        GenericParameter[]? genericDeclare = method.GetMetaProperty<Generics>()?.Value;
 
         // The schema context must be the first if used
         if (parameters.Length > 0 && parameters[0].ParameterType.IsAssignableTo(typeof(ISchemaContext)))
@@ -95,19 +95,22 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             Args = new FuncArg[parameters.Length],
             Exps = [],
         };
-        foreach (IProperty prop in method.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_FUNCTION))
+        foreach (IProperty prop in method.GetMetaPropertiesForSchema<IProperty>(runtime, SCHEMA_KIND_NODE_FUNCTION))
             funcSchema.SetProperty(prop);
 
         // Generics
-        if (genericArgs.Length > 0)
-            funcSchema.SetProperty<Generics, GenericParameter[]>(
-                genInfos.Select(g => new GenericParameter (
-                        typeResolver(g.CoreType, @namespace, genericArgs)!,
-                        g.Number ? [g.OnlyFloat ? NS_SYSTEM_DOUBLE : NS_SYSTEM_NUMBER] : null
-                    )
-                ).ToArray());
+        if (genericArgs.Length > 0 && genericDeclare is null)
+        {
+            genericDeclare = genInfos.Select(g => new GenericParameter(
+                    typeResolver(g.CoreType, @namespace, genericArgs)!,
+                    g.Number ? (g.OnlyFloat ? [NS_SYSTEM_NUMBER] : [NS_SYSTEM_NUMBER, NS_SYSTEM_INT]) : null
+                )
+            ).ToArray();
+            funcSchema.SetProperty<Generics, GenericParameter[]>(genericDeclare);
+        }
 
         // Parameter types
+        List<RelationSchema> relations = [];
         TypeDetail[] paramInfos = parameters.Select(p => p.ParameterType.GetTypeDetail(true)).ToArray();
         for (int i = 0; i < parameters.Length; i++)
         {
@@ -121,11 +124,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             };
             
             // Require
-            if (pt.Nullable || p.HasDefaultValue ||
-                _nullabilityContext.Create(p).ReadState == NullabilityState.Nullable ||
-                p.GetCustomAttributesData().FirstOrDefault(a =>
-                    a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute") != null ||
-                defaultProp != null || p.IsDefined(typeof(ParamArrayAttribute), false))
+            if (pt.Nullable || p.IsNullable() || defaultProp != null || p.IsDefined(typeof(ParamArrayAttribute), false))
             {
                 pt.Kind |= TypeDetail.ParameterTypeKind.Nullable;
             }
@@ -135,14 +134,14 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             }
 
             // Display
-            arg.SetProperty<Display, LocaleString>(method.GetSummaryFromXmlDoc(p) ??  $"{schema.FullName}.{arg.Name}");
-                    
+            arg.SetProperty<Display, LocaleString>(method.GetSummaryFromXmlDoc(p) ??  arg.Name);
+
             // Default
             if (defaultProp?.Value != null)
                 arg.SetProperty<Default, object>(defaultProp.Value);
                     
             // Extension Properties
-            foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_FUNC_ARG))
+            foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(runtime, SCHEMA_KIND_NODE_FUNC_ARG))
                 arg.SetProperty(property);
             
             funcSchema.Args[i] = arg;
@@ -159,10 +158,57 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             arg.Type =  p.GetMetaProperty<SchemaType>()?.GetValue<string>() 
                         ?? typeResolver(isVariadic ? pt.CoreType : pt.Type, @namespace, genericArgs)
                         ?? throw new Exception($"Can't resolve parameter type for method {method.Name} in {@namespace}");
+           
+           if (!(genericDeclare is { Length: > 0 } &&
+                  genericDeclare.Any(g => g.Name.Equals(arg.Type, StringComparison.OrdinalIgnoreCase))))
+            {
+                NodeSchema? fieldTypeSchema =
+                    !string.IsNullOrWhiteSpace(arg.Type) ? runtime.GetSystemSchema(arg.Type) : null;
+                if (fieldTypeSchema == null)
+                    throw new Exception($"Failed to resolve type for argument {arg.Name} of function {schema.FullName}");
+
+                if (pt.AnyArray && !fieldTypeSchema.Kind.Equals(NODE_KIND_ARRAY))
+                    arg.Type = runtime.GetSystemArraySchema(arg.Type) ??
+                                 throw new Exception($"Failed to resolve array schema for argument {arg.Name} of function {schema.FullName}");
+
+                // Extension Properties
+                foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(runtime, runtime.GetSchemaKindByNodeKind(fieldTypeSchema.Kind)))
+                    arg.SetProperty(property);
+
+                if (fieldTypeSchema.Kind.Equals(NODE_KIND_ARRAY))
+                {
+                    ArraySchema arraySchema = fieldTypeSchema.GetProperty<ArrayProperty>()?.Value
+                                              ?? throw new Exception($"Failed to get array schema for argument {arg.Name} of function {schema.FullName}");
+
+                    string eleName = arraySchema.Element;
+                    if (arraySchema.GetProperty<Generics>()?.Value is { } generics &&
+                        generics.Any(g => g.Name.Equals(eleName, StringComparison.OrdinalIgnoreCase)))
+                        eleName = runtime.GetSystemSchemaGenericArguments(fieldTypeSchema.FullName).FirstOrDefault() ??
+                                  eleName;
+
+                    NodeSchema? element = runtime.GetSystemSchema(eleName);
+                    if (element != null)
+                        foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(runtime, runtime.GetSchemaKindByNodeKind(element.Kind)))
+                            arg.SetProperty(property);
+                }
+            }
+            
+            
+            // Argument Level Relations
+            foreach (IRelationAttribute relation in p.GetCustomAttributes(inherit: false).OfType<IRelationAttribute>())
+                relations.Add(relation.GetRelationSchema(arg.Name));
         }
 
+        // Function level relations
+        foreach (var relation in method.GetCustomAttributes(inherit:false).OfType<IRelationAttribute>())
+            relations.Add((relation.GetRelationSchema(NODE_SELF)));
+        
+        // Set relations
+        if (relations.Count > 0)
+            funcSchema.SetProperty<Relations, RelationSchema[]>(relations.ToArray());
+        
         // Return type
-        TypeDetail retInfo = method.ReturnType.GetTypeDetail();
+        TypeDetail retInfo = method.ReturnType.GetTypeDetail(true);
         if (retInfo.Task) sign |= FunctionFlags.Async;
         if (retInfo.Nullable || new NullabilityInfoContext().Create(method.ReturnParameter).ReadState == NullabilityState.Nullable) 
             sign |= FunctionFlags.NullableRet;
@@ -181,7 +227,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             Return = retInfo
         });
 
-        schema.SetProperty<FuncProperty, FunctionSchema>(funcSchema);
+        schema.SetProperty<FunctionProperty, FunctionSchema>(funcSchema);
         return schema;
     }
 }

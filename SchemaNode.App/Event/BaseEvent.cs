@@ -1,5 +1,6 @@
 using SchemaNode.Attribute;
 using SchemaNode.Node;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.AppConstant;
 // ReSharper disable AccessToModifiedClosure
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -41,7 +42,7 @@ public abstract class BaseEvent
     /// The generic payload data
     /// </summary>
     [SchemaIgnore]
-    public DataNode? Payload { get; set; }
+    public IValueAccess? Payload { get; set; }
 
     /// <summary>
     /// Match the topic with wildcard support

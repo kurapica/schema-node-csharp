@@ -1,9 +1,10 @@
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Function;
-using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Property;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
@@ -16,10 +17,11 @@ using StructType = SchemaNode.Runtime.StructType;
 namespace SchemaNode.Property.App;
 
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(ColAuths)}")]
-[Relation<StringEntries, Relation.Call>($"{nameof(ColAuths)}.{nameof(ColPolicy.Name)}", $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.getsubentries)}", $"@{nameof(AppFieldSchema.Type)}")]
-public class ColAuths : Property<ColPolicy[]>, ILoadableProperty, IErrorProvider
+[Relation<Visible, Call>(nameof(ColAuths), NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, $"@{nameof(AppFieldSchema.Type)}", true, NODE_KIND_STRUCT)]
+[Relation<EntrySource, Assign>($"{nameof(ColAuths)}.{ARRAY_ELEMENT}.{nameof(ColPolicy.Name)}", NS_SYSTEM_SCHEMA_REFLECT_GET_ACCESS_ENTRIES, $"@{nameof(AppFieldSchema.Type)}")]
+public class ColAuths : Property<ColPolicy[]>, ILoadableProperty, IErrorProvider, ITypeRefProperty
 {
     public string? Error { get; set; }
     
@@ -50,6 +52,16 @@ public class ColAuths : Property<ColPolicy[]>, ILoadableProperty, IErrorProvider
                 evaluators.Add(func);
             }
             item.Functions = evaluators.ToArray();
+        }
+    }
+
+    public IEnumerable<string> GetRefTypes()
+    {
+        if (Value == null) yield break;
+        foreach (var item in Value)
+        {
+            foreach (var evaluator in item.Evaluators)
+                yield return evaluator;
         }
     }
 }

@@ -1,12 +1,13 @@
 using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
+using SchemaNode.Enum;
 using SchemaNode.Property.App;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.String;
+using SchemaNode.Schema;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.AppConstant;
 using static SchemaNode.Utility.Constant;
-
 
 namespace SchemaNode.Data.Entity;
 
@@ -17,6 +18,7 @@ public class EnumValueEntity
 {
     [Meta<PrimaryIndex>(0)]
     [Meta<UniqueIndex>("SUB_LIST", 0)]
+    [Meta<SchemaType>(typeof(EnumType))]
     public string Enum { get; set; } = string.Empty;
     
     /// <summary>

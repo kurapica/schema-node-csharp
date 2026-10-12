@@ -4,11 +4,13 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
-using static SchemaNode.Utility.Constant;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Function;
-using StructType = SchemaNode.Runtime.StructType;
+using SchemaNode.Relation;
 using SchemaNode.Runtime;
+using SchemaNode.Schema;
+using static SchemaNode.Utility.Constant;
+using StructType = SchemaNode.Runtime.StructType;
 
 // ReSharper disable InconsistentNaming
 
@@ -20,6 +22,11 @@ namespace SchemaNode.Function;
 [Meta<SchemaType>(NS_SYSTEM_COLLECTION)]
 public static class SystemCollection
 {
+    /// <summary>
+    /// Creates a new array
+    /// </summary>
+    public static T[] newarray<T>(params T[] items) => items;
+
     /// <summary>
     /// Gets the array length
     /// </summary>
@@ -40,16 +47,16 @@ public static class SystemCollection
     /// Whether the list contains the item
     /// </summary>
     [Meta<Logic>(LogicType.Contains)]
-    public static bool contains<T>(ArrayNode array, T value) where T: IComparable
+    public static bool contains<T>(IEnumerable<T> array, T value) where T: IComparable
     {
-        return array.Any(item => EqualityComparer<T>.Default.Equals(item.GetValue<T>(), value));
+        return array.Any(item => EqualityComparer<T>.Default.Equals(item, value));
     }
 
     /// <summary>
     /// Whether the list not contains the item
     /// </summary>
     [Meta<Logic>(LogicType.NotContains)]
-    public static bool notcontains<T>(ArrayNode array, T value) where T: IComparable
+    public static bool notcontains<T>(IEnumerable<T> array, T value) where T: IComparable
     {
         return !contains(array, value);
     }
@@ -57,16 +64,22 @@ public static class SystemCollection
     /// <summary>
     /// Gets the field value from the object
     /// </summary>
-    public static async Task<T?> getfield<T>(SchemaContext context, DataNode obj, string field, T? @default)
+    [Relation<EntrySource, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.getaccessentries)}", $"@{nameof(obj)}.{nameof(CallArg.SourceType)}", NODE_SELF)]
+    public static async Task<T?> getfield<T>(SchemaContext context,
+        IValueAccess obj,
+
+        string field, 
+        
+        T? @default = default(T?))
     {
-        DataNode? result = await GetFieldNode(context, obj, field);
+        IValueAccess? result = await GetFieldNode(context, obj, field);
         return result is { IsEmpty: false } ? result.GetValue<T>() : (@default ?? default);
     }
 
     /// <summary>
     /// Gets fields from the objects in the array to a new array
     /// </summary>
-    public static async Task<ArrayNode> getfields(SchemaContext context, ArrayNode array, string field)
+    public static async Task<List<T>> getfields<T>(SchemaContext context, ArrayNode array, string field)
     {
         if (array.ElementType is not StructType @struct) throw new InvalidOperationException("The array type is invalid");
         
@@ -74,11 +87,11 @@ public static class SystemCollection
         if (f.Type == null) throw new InvalidOperationException($"The field {field} type is null in the struct {@struct.Name}");
         var arrayNode = await context.GetArrayNodeTypeAsync(f.Type) ?? throw new InvalidOperationException($"The field {field} type {f.Type} has no array type");
 
-        ArrayNode resultType = new (arrayNode);
-        foreach (DataNode item in array)
+        List<T> resultType = [];
+        foreach (var item in array)
         {
-            DataNode? fieldNode = await GetFieldNode(context, item, field);
-            if (fieldNode != null && !fieldNode.IsEmpty) resultType.Add(fieldNode);
+            var fieldNode = await GetFieldNode(context, item, field);
+            if (fieldNode is { IsEmpty: false }) resultType.Add(fieldNode.GetValue<T>()!);
         }
         return resultType;
     }
@@ -127,10 +140,102 @@ public static class SystemCollection
         node.AddRange(obj.Take(count));
         return node;
     }
-    
+
+    #region Compare
+
+    /// <summary>
+    /// Check if the field value equals to the given value
+    /// </summary>
+    public static async Task<bool> fieldeq<T>(SchemaContext context,
+        IValueAccess obj,
+        string field,
+        T value) where T: IComparable
+    {
+        IValueAccess? result = await GetFieldNode(context, obj, field);
+        if (result ==  null || result.IsEmpty) return false;
+        return value.CompareTo(result.GetValue<T>()) == 0;
+    }
+
+    /// <summary>
+    /// system.logic.neq
+    /// </summary>
+    [Meta<Logic>(LogicType.NotEqual)]
+    public static async Task<bool> fieldneq<T>(SchemaContext context,
+        IValueAccess obj,
+        string field,
+        T value) where T : IComparable
+    {
+        IValueAccess? result = await GetFieldNode(context, obj, field);
+        if (result == null || result.IsEmpty) return false;
+        return value.CompareTo(result.GetValue<T>()) != 0;
+    }
+
+    /// <summary>
+    /// system.logic.ge
+    /// </summary>
+    [Meta<Logic>(LogicType.GreaterEqual)]
+    public static async Task<bool> fieldge<T>(SchemaContext context,
+        IValueAccess obj,
+        string field,
+        T value) where T : IComparable
+    {
+        IValueAccess? result = await GetFieldNode(context, obj, field);
+        if (result == null || result.IsEmpty) return false;
+        return value.CompareTo(result.GetValue<T>()) >= 0;
+    }
+
+    /// <summary>
+    /// system.logic.gt
+    /// </summary>
+    [Meta<Logic>(LogicType.GreaterThan)]
+    public static async Task<bool> fieldgt<T>(SchemaContext context,
+        IValueAccess obj,
+        string field,
+        T value) where T : IComparable
+    {
+        IValueAccess? result = await GetFieldNode(context, obj, field);
+        if (result == null || result.IsEmpty) return false;
+        return value.CompareTo(result.GetValue<T>()) > 0;
+    }
+
+    /// <summary>
+    /// system.logic.le
+    /// </summary>
+    [Meta<Logic>(LogicType.LessEqual)]
+    public static async Task<bool> fieldle<T>(SchemaContext context,
+        IValueAccess obj,
+        string field,
+        T value) where T : IComparable
+    {
+        IValueAccess? result = await GetFieldNode(context, obj, field);
+        if (result == null || result.IsEmpty) return false;
+        return value.CompareTo(result.GetValue<T>()) <= 0;
+    }
+
+    /// <summary>
+    /// system.logic.lt
+    /// </summary>
+    [Meta<Logic>(LogicType.LessThan)]
+    public static async Task<bool> fieldlt<T>(SchemaContext context,
+        IValueAccess obj,
+        string field,
+        T value) where T : IComparable
+    {
+        IValueAccess? result = await GetFieldNode(context, obj, field);
+        if (result == null || result.IsEmpty) return false;
+        return value.CompareTo(result.GetValue<T>()) < 0;
+    }
+
+    #endregion
+
     /// <summary>
     /// Gets the field node from object
     /// </summary>
-    static async Task<DataNode?> GetFieldNode(SchemaContext context, DataNode? obj, string path)
-        => obj is not StructNode s ? obj?.GetAccessValue(path) as DataNode : await s.GetFieldValueAsync(context, path);
+    static async Task<IValueAccess?> GetFieldNode(SchemaContext context, IValueAccess? obj, string path)
+    {
+        var node = obj?.GetAccessValue(path);
+        if (node is not DataNode n) return node;
+        await n.LoadDefaultAsync(context);
+        return node;
+    }
 }

@@ -14,10 +14,10 @@ namespace SchemaNode.Api.Schema.Info;
 /// <summary>
 /// The LoadSchema api
 /// </summary>
-public class GetSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
+public class GetSchemaApi : SchemaApi<GetSchemaRequest, GetSchemaResponse>
 {
     /// <inheritdoc />
-    protected override async Task<LoadSchemaResponse?> ExecuteAsync(LoadSchemaRequest request,
+    protected override async Task<GetSchemaResponse?> ExecuteAsync(GetSchemaRequest request,
         CancellationToken cancellationToken)
     {
         Logger.LogDebug("[Api]LoadSchema [Request]{request}", request);
@@ -25,19 +25,19 @@ public class GetSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
         NodeSchema root = new NodeSchema
         {
             Name = "",
-            Kind = SCHEMA_KIND_NAMESPACE,
+            Kind = NODE_KIND_NAMESPACE,
             Schemas = []
         };
         HashSet<string> types = [];
 
-        foreach (string t in request.Names)
+        foreach (string t in request.Names) 
         {
             cancellationToken.ThrowIfCancellationRequested();
             NodeType? node = await SchemaContext.GetNodeTypeAsync(t);
             await GetNodeSchemas(node, true);
         }
 
-        return new LoadSchemaResponse
+        return new GetSchemaResponse
         {
             Schemas = root.Schemas
         };
@@ -47,9 +47,9 @@ public class GetSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
             if (node == null) return;
             if (await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead, true) == false) return;
 
-            await SchemaContext.GetNodeSchemasAsync(node, root, types, request.Full ?? false, true, cancellationToken);
+            await SchemaContext.GetNodeSchemasAsync(node, root, types, request.IncludeRefs ?? false, cancellationToken: cancellationToken);
 
-            if (node is NamespaceType ns && first && request.Full != true)
+            if (node is NamespaceType ns && first)
                 foreach (var pair in ns.GetNodeSchemas())
                 {
                     var nodeType = await SchemaContext.GetNodeTypeAsync(pair.FullName);
@@ -63,7 +63,7 @@ public class GetSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
 /// <summary>
 /// The LoadSchema request
 /// </summary>
-public class LoadSchemaRequest : SchemaApiRequest
+public class GetSchemaRequest : SchemaApiRequest
 {
     /// <summary>
     /// The schema names
@@ -73,15 +73,15 @@ public class LoadSchemaRequest : SchemaApiRequest
     public string[] Names { get; set; } = [];
 
     /// <summary>
-    /// Full namespace
+    /// Include references
     /// </summary>
-    public bool? Full { get; set; }
+    public bool? IncludeRefs { get; set; }
 }
 
 /// <summary>
 /// The LoadSchema response
 /// </summary>
-public class LoadSchemaResponse : SchemaApiResponse
+public class GetSchemaResponse : SchemaApiResponse
 {
     /// <summary>
     /// The node schemas

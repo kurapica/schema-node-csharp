@@ -1,7 +1,7 @@
 using SchemaNode.Attribute;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
@@ -21,7 +21,7 @@ internal class PropertyGenerator : INodeSchemaGenerator
         Type? valueType = type.GetGenericBaseType(typeof(Property<>))?.GetGenericArguments().ElementAtOrDefault(0);
         if (valueType == null) yield break;
         
-        NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_PROPERTY, @namespace, name, type);
+        NodeSchema schema = NodeSchema.Create(runtime, NODE_KIND_PROPERTY, @namespace, name, type);
         if (typeResolver == null)
         {
             yield return schema; // take place no details
@@ -38,13 +38,7 @@ internal class PropertyGenerator : INodeSchemaGenerator
                 throw new Exception($"Type '{valueType}' can't be resolved as schema type."),
 
             // ForSchemas
-            ForSchemas = type.GetMetaProperty<ForSchema>()?.GetValue<string[]>() ?? [],
-
-            // Static
-            Static = type.GetMetaProperty<Static>()?.GetValue<bool>(),
-
-            // Stackable
-            Stackable = type.GetMetaProperty<Stackable>()?.GetValue<bool>(),
+            ForSchemas = runtime.GetPropertyForSchemas(type).ToArray() is { Length: > 0 } r ? r :  type.GetMetaProperty<ForSchema>()?.GetValue<string[]>() ?? [],
         };
                 
         // Relations
@@ -62,7 +56,7 @@ internal class PropertyGenerator : INodeSchemaGenerator
             propSchema.SetProperty<Relations, RelationSchema[]>(relations.ToArray());
         
         // Build property schema
-        schema.SetProperty<Schema.PropertyProperty, PropertySchema>(propSchema);
+        schema.SetProperty<PropertyProperty, PropertySchema>(propSchema);
         
         yield return schema;
     }

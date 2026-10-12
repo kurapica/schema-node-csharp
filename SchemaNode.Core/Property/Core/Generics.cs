@@ -2,15 +2,18 @@ using System.Collections.Immutable;
 using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Property;
+using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Property.Core;
 
-[Meta<ForSchema>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ARRAY, SCHEMA_KIND_FUNCTION)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<ReadOnly>(true)] // Can't be set in the designer, can only be generated from core types
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.{nameof(Generics)}")]
+[Meta<Static>(true)]
+[Meta<InVisible>(true)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_CORE}.{nameof(Generics)}")]
 public sealed class Generics : Property<GenericParameter[]>
 {
     public override void SetValue<TValue>(TValue value)
@@ -21,9 +24,10 @@ public sealed class Generics : Property<GenericParameter[]>
         {
             base.SetValue(arr.Select(v => v is GenericParameter gp ? gp : new GenericParameter(v.ToString()!)).ToArray());
         }
-        else if (value is string)
+        else if (value is string str)
         {
-            base.SetValue(new[] { new GenericParameter(value.ToString()!) });
+            string[] splits = str.Split('|', 2);
+            base.SetValue(new[] { new GenericParameter(splits[0], splits.Length > 1 ? splits[1].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToImmutableArray<string>() : null) });
         }
     }
 }
@@ -33,5 +37,5 @@ public sealed class Generics : Property<GenericParameter[]>
 /// </summary>
 /// <param name="Name">The generic parameter name, e.g. "T"</param>
 /// <param name="Compatibles">The compatible types for the generic parameter, nil allow all</param>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.{nameof(GenericParameter)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_CORE}.{nameof(GenericParameter)}")]
 public sealed record GenericParameter(string Name, ImmutableArray<string>? Compatibles = null);

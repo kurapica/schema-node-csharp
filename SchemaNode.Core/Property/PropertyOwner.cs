@@ -5,6 +5,7 @@ using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using SchemaNode.Property.Struct;
 
 namespace SchemaNode.Property;
 
@@ -23,11 +24,11 @@ public abstract class PropertyOwner
     public JsonObject? Extensions { get; internal set; }
 
     /// <summary>
-    /// Gets the schema kind if existed
+    /// Gets the schema kind if attched to the type
     /// </summary>
     [SchemaIgnore]
     [JsonIgnore]
-    public string? SchemaKind => GetType().GetMetaProperty<SchemaKind>()?.GetValue<string>() ??
+    public string? AttachKind => GetType().GetMetaProperty<SchemaKind>()?.GetValue<string>() ??
                                  GetType().GetMetaProperty<Attach>()?.GetValue<string>();
 
     #endregion
@@ -69,6 +70,16 @@ public abstract class PropertyOwner
         IProperty property = Activator.CreateInstance<TK>();
         property.SetValue(value);
         return SetProperty(property);
+    }
+    
+    /// <summary>
+    /// Clear the property value
+    /// </summary>
+    public PropertyOwner ClearProperty<T>() where T : class, IProperty
+    {
+        if (Extensions == null) return this;
+        Extensions.Remove(typeof(T).GetPropertyName());
+        return this;
     }
 
     /// <summary>
@@ -158,7 +169,7 @@ public abstract class PropertyOwner
         if (other?.Extensions is not { Count: > 0 }) return this;
 
         // try fetch the schema kind from the type
-        if (runtime != null) kind ??= SchemaKind;
+        if (runtime != null) kind ??= AttachKind;
         
         if (Extensions == null || Extensions.Count == 0)
         {

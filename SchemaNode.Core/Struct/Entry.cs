@@ -2,8 +2,11 @@
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Property;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Record;
+using SchemaNode.Property.Struct;
+using SchemaNode.Property.Property;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Struct;
@@ -11,9 +14,10 @@ namespace SchemaNode.Struct;
 /// <summary>
 /// The dict entry
 /// </summary>
-[Meta<SchemaKind>(SCHEMA_KIND_ENTRY, SCHEMA_KIND_ORDER_ENTRY)]
+[Meta<SchemaKind>(SCHEMA_KIND_NODE_ENTRY, SCHEMA_KIND_ORDER_ENTRY)]
 [Meta<SchemaType>(NS_SYSTEM_ENTRY)]
-[Meta<Attach>(SCHEMA_KIND_ENTRY)]
+[Meta<Attach>(SCHEMA_KIND_NODE_ENTRY)]
+[Meta<Append>(typeof(Disable), typeof(Display))]
 public class Entry<T>: PropertyOwner where T: notnull
 {
     /// <summary>
@@ -31,7 +35,7 @@ public class Entry<T>: PropertyOwner where T: notnull
     /// The children entries of the entry
     /// </summary>
     [SchemaIgnore]
-    public Entry<T>[]? Children;
+    public Entry<T>[]? Children { get; set; }
 
     #region Runtime info
 
@@ -134,6 +138,7 @@ public class Entry<T>: PropertyOwner where T: notnull
                 }
             }
             root.Children = current.Children;
+            if (root.Children is {  Length: > 0 }) root.HasChildren = true; // update
         }
 
         // update load state

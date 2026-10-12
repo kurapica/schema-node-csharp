@@ -1,22 +1,39 @@
 using SchemaNode.Attribute;
+using SchemaNode.Function;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Decimal;
 using SchemaNode.Property.Record;
+using SchemaNode.Property.Struct;
+using SchemaNode.Property.Property;
+using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 using NodeType = SchemaNode.Property.Core.NodeType;
-using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
+using NodeValueKind = SchemaNode.Property.Record.NodeValueKind;
 
 namespace SchemaNode.Schema;
 
-[Meta<SchemaKind>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_ORDER_DECIMAL)]
-[Meta<NodeSchemaKind>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_ORDER_DECIMAL)]
-[Meta<ValueSchemaKind>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_ORDER_DECIMAL)]
+/// <summary>
+/// The decimal kind
+/// </summary>
+[Meta<SchemaKind>(SCHEMA_KIND_NODE_DECIMAL, SCHEMA_KIND_ORDER_DECIMAL)]
+[Meta<NodeKind>(NODE_KIND_DECIMAL, SCHEMA_KIND_ORDER_DECIMAL)]
+[Meta<NodeValueKind>(NODE_KIND_DECIMAL, SCHEMA_KIND_ORDER_DECIMAL)]
 [Meta<NodeType>(typeof(Runtime.DecimalType))]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_DECIMAL}.schema")]
+[Meta<SchemaUsage>(typeof(DecimalUsage))]
+[Meta<Append>(typeof(EntrySource), typeof(AsSuggest), typeof(Default), typeof(BlackList), typeof(WhiteList), typeof(Unit), typeof(Error), typeof(StackUpLimit), typeof(Valid))]
 [Meta<DecimalValue>]
+public sealed class DecimalKind;
+
+/// <summary>
+/// The decimal definition
+/// </summary>
+[Meta<SchemaKind>(SCHEMA_KIND_NODE_DECIMAL_DEFINE, SCHEMA_KIND_ORDER_DECIMAL)]
+[Meta<Append>(typeof(EntrySource), typeof(Unit), typeof(Error), typeof(Valid))]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_DECIMAL}.schema")]
+[Meta<Attach>(SCHEMA_KIND_NODE_DECIMAL_DEFINE)]
 public sealed class DecimalSchema : ScalarSchema
 {
     /// <summary>
@@ -27,12 +44,24 @@ public sealed class DecimalSchema : ScalarSchema
 }
 
 /// <summary>
+/// The decimal usage
+/// </summary>
+[Meta<SchemaKind>(SCHEMA_KIND_NODE_DECIMAL_USAGE, SCHEMA_KIND_ORDER_DECIMAL)]
+[Meta<Append>(typeof(AsSuggest), typeof(Default), typeof(BlackList), typeof(WhiteList), typeof(Unit), typeof(Error), typeof(StackUpLimit))]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_DECIMAL}.usage")]
+[Meta<Attach>(SCHEMA_KIND_NODE_DECIMAL_USAGE)]
+[Relation<WhiteList, Call>(nameof(Default), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(WhiteList)}")]
+[Relation<BlackList, Call>(nameof(Default), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(BlackList)}")]
+public sealed class DecimalUsage;
+
+/// <summary>
 /// Declare decimal property for node schema
 /// </summary>
+[Meta<Alias>(NODE_KIND_DECIMAL)]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.decimal")]
-[Relation<Visible, Relation.Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_DECIMAL)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_DECIMAL}.{NODE_KIND_DECIMAL}")]
+[Relation<Visible, Call>(NODE_KIND_DECIMAL, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", NODE_KIND_DECIMAL)]
 public sealed class DecimalProperty : Property<DecimalSchema>
 {
     public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)
@@ -44,7 +73,7 @@ public sealed class DecimalProperty : Property<DecimalSchema>
             return true;
         }
 
-        selfSchema.CombineProperties(otherSchema, runtime, SCHEMA_KIND_DECIMAL);
+        selfSchema.CombineProperties(otherSchema, runtime, SCHEMA_KIND_NODE_DECIMAL);
         SetValue(selfSchema);
         return true;
     }
@@ -54,5 +83,5 @@ public sealed class DecimalProperty : Property<DecimalSchema>
 /// Represents the decimal scalar type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_DECIMAL}.type")]
-[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_DECIMAL)]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, NODE_SELF, false, NODE_KIND_DECIMAL)]
 public class DecimalType : ValueType;

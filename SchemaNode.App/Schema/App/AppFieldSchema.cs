@@ -1,19 +1,15 @@
-using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
-using SchemaNode.Data;
-using SchemaNode.Enum;
-using static SchemaNode.Utility.Constant;
-using static SchemaNode.Utility.AppConstant;
-using SchemaKind = SchemaNode.Property.Record.SchemaKind;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Scalar;
 using SchemaNode.Property.Common;
-using SchemaNode.Function;
-using SchemaNode.Node;
 using SchemaNode.Property;
+using SchemaNode.Property.Struct;
 using SchemaNode.Runtime;
-using SchemaNode.Utility;
 using SchemaValueType = SchemaNode.Schema.ValueType;
+using SchemaKind = SchemaNode.Property.Record.SchemaKind;
+using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.AppConstant;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -26,6 +22,9 @@ namespace SchemaNode.Schema;
 [Meta<SchemaKind>(SCHEMA_KIND_APP_FIELD, SCHEMA_KIND_ORDER_APP_FIELD)]
 [Meta<Append>(typeof(Display), typeof(Description), typeof(Disable))]
 [Meta<Attach>(SCHEMA_KIND_APP_FIELD)]
+[Meta<TypeProvider>(nameof(Type))]
+[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.getelementaccessentries)}", $"@{nameof(Type)}", NODE_SELF)]
+[Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.getelementaccessvaluetype)}", $"@{nameof(Type)}", NODE_SELF)]
 public sealed class AppFieldSchema: PropertyOwner, IErrorProvider
 {
     #region Base
@@ -35,6 +34,8 @@ public sealed class AppFieldSchema: PropertyOwner, IErrorProvider
     /// </summary>
     [Meta<PrimaryIndex>(0)]
     [Meta<SchemaType>(typeof(AppType))]
+    [Meta<ReadOnly>(true)]
+    [Meta<InVisible>(true)]
     public string App { get; set; } = string.Empty;
 
     /// <summary>
@@ -42,6 +43,7 @@ public sealed class AppFieldSchema: PropertyOwner, IErrorProvider
     /// </summary>
     [Meta<PrimaryIndex>(1)]
     [Meta<SchemaType>(typeof(Identifier))]
+    [Meta<Immutable>(true)]
     public string Name { get; set; } = default!;
 
     /// <summary>
@@ -66,6 +68,21 @@ public sealed class AppFieldSchema: PropertyOwner, IErrorProvider
     [SchemaIgnore]
     public string? Error { get; set; }
 
+    #endregion
+    
+    #region Method
+
+    /// <summary>
+    /// Combine the field schema
+    /// </summary>
+    public bool Combine(AppFieldSchema? other, ISchemaRuntime? runtime = null)
+    {
+        if (other is null || !other.Name.Equals(Name, StringComparison.OrdinalIgnoreCase)) return false;
+        if (other.Type.Equals(Type, StringComparison.OrdinalIgnoreCase))
+            CombineProperties(other, runtime, SCHEMA_KIND_APP_FIELD);
+        return true;
+    }
+    
     #endregion
 }
 

@@ -4,15 +4,19 @@ using SchemaNode.Attribute;
 using SchemaNode.Data;
 using SchemaNode.Enum;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
 using Application = SchemaNode.Property.App.App;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
 using SchemaNode.Function;
 using SchemaNode.Property.App;
+using SchemaNode.Property.Int;
+using SchemaNode.Property.String;
+using SchemaNode.Property.Struct;
 using SchemaNode.Schema;
 using DataCombine = SchemaNode.Property.App.DataCombine;
+using static SchemaNode.Utility.AppConstant;
+// ReSharper disable InconsistentNaming
 
 namespace SchemaNode.UnitTest.App;
 
@@ -75,7 +79,7 @@ public class AppDataTest : Base.AppTestBase
         /// The place name
         /// </summary>
         [Meta<DisplayOnly>(true)]
-        [Relation<Default, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_DATA}.app.{nameof(SystemAppData.getfield)}", APP_NAME, nameof(Place), nameof(Place.Name), $"@{nameof(PlaceId)}")]
+        [Relation<Default, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_DATA_APP}.{nameof(SystemAppData.getfield)}", APP_NAME, nameof(Place), nameof(Place.Name), $"@{nameof(PlaceId)}")]
         public string? PlaceName { get; set; }
 
         /// <summary>
@@ -87,7 +91,7 @@ public class AppDataTest : Base.AppTestBase
         /// The total attendance of the meeting
         /// </summary>
         [Meta<DisplayOnly>(true)]
-        [Relation<Default, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_DATA}.app.{nameof(SystemAppData.getfield)}", APP_NAME, nameof(MeetingCount), nameof(MeetingCount.Count), $"@{nameof(Id)}")]
+        [Relation<Default, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_DATA_APP}.{nameof(SystemAppData.getfield)}", APP_NAME, nameof(MeetingCount), nameof(MeetingCount.Count), $"@{nameof(Id)}")]
         public long? Count { get; set; }
     }
 
@@ -147,7 +151,7 @@ public class AppDataTest : Base.AppTestBase
         string placeId = Guid.NewGuid().ToString();
         string meetingId = Guid.NewGuid().ToString();
         
-        (bool Result, JsonNode? Error) = await Context.PushAppDataAsync(APP_NAME, target, new Dictionary<string, AppDataFieldPushQuery>
+        (bool ok, _) = await Context.PushAppDataAsync(APP_NAME, target, new Dictionary<string, AppDataFieldPushQuery>
         {
             { nameof(Place), new AppDataFieldPushQuery
                 {
@@ -206,7 +210,7 @@ public class AppDataTest : Base.AppTestBase
             }
         });
         
-        Assert.IsTrue(Result);
+        Assert.IsTrue(ok);
         
         (AppDataResult[] Result, NodeSchema[]? Schemas) result = await Context.BatchQueryAppDataAsync([new AppDataQuery
         {
@@ -216,7 +220,7 @@ public class AppDataTest : Base.AppTestBase
         }]);
         
         Assert.IsTrue(result.Result.Length == 1);
-        JsonArray? data =  result.Result[0].Results?[ToCamelCase(nameof(Meeting))] as  JsonArray;
+        JsonArray? data = result.Result[0].Results?[ToCamelCase(nameof(Meeting))]?.Result as JsonArray;
         Assert.IsNotNull(data);
         Assert.AreEqual(1, data.Count);
         Assert.AreEqual("Meeting 1", data[0]![ToCamelCase(nameof(Meeting.Name))]!.GetValue<string>());

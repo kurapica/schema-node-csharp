@@ -1,5 +1,5 @@
-using SchemaNode.Node;
-using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Int;
+using SchemaNode.Property.String;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Schema.Provider;
@@ -18,7 +18,7 @@ public class CustomScalarTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "age",
-            Kind = SCHEMA_KIND_INT,
+            Kind = NODE_KIND_INT,
         };
         IntSchema ageSchema = new IntSchema
         {
@@ -33,7 +33,7 @@ public class CustomScalarTest : Base.AppTestBase
         IntType? ageType = await Context.GetNodeTypeAsync<IntType>(schema.FullName);
         Assert.IsNotNull(ageType);
 
-        DataNode? node = await ageType.ValidateValueAsync(Context, 250);
+        var node = await ageType.ValidateValueAsync(Context, 250);
         Assert.IsNotNull(node);
         Assert.IsFalse(node.IsValid);
         var violated = node.GetViolatedConstraints().ToArray();
@@ -48,7 +48,7 @@ public class CustomScalarTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "positive_int",
-            Kind = SCHEMA_KIND_INT,
+            Kind = NODE_KIND_INT,
         };
         IntSchema intSchema = new IntSchema
         {
@@ -70,7 +70,7 @@ public class CustomScalarTest : Base.AppTestBase
         // Below low limit — try negative value
         var invalidNode = await type.ValidateValueAsync(Context, -5);
         Assert.IsNotNull(invalidNode);
-        Console.WriteLine($"LowLimit(-5): IsValid={invalidNode.IsValid}, Violated={string.Join(", ", invalidNode.GetViolatedConstraints().Select(v => v.Name) ?? [])}");
+        Console.WriteLine($"LowLimit(-5): IsValid={invalidNode.IsValid}, Violated={string.Join(", ", invalidNode.GetViolatedConstraints().Select(v => v.Name))}");
     }
 
     [TestMethod]
@@ -80,7 +80,7 @@ public class CustomScalarTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "short_name",
-            Kind = SCHEMA_KIND_STRING,
+            Kind = NODE_KIND_STRING,
         };
         StringSchema strSchema = new StringSchema
         {
@@ -111,7 +111,7 @@ public class CustomScalarTest : Base.AppTestBase
         {
             Namespace = "system",
             Name = "todelete_scalar",
-            Kind = SCHEMA_KIND_INT,
+            Kind = NODE_KIND_INT,
         };
         IntSchema intSchema = new IntSchema { Base = NS_SYSTEM_INT };
         schema.SetProperty<IntProperty, IntSchema>(intSchema);

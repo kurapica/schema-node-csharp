@@ -7,7 +7,7 @@ namespace SchemaNode.AI;
 public enum SemanticKind
 {
     /// <summary>
-    /// Full SSP block for a schema entry (backward-compatible; one atom per schema block).
+    /// IncludeRefs SSP block for a schema entry (backward-compatible; one atom per schema block).
     /// </summary>
     Block,
 

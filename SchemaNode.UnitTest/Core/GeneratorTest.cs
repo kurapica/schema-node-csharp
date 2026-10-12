@@ -50,7 +50,7 @@ public class GeneratorTest : Base.CoreTestBase
     {
         var personType = await Context.GetNodeTypeAsync<ValueType>("test.generator.person");
         Assert.IsNotNull(personType, "TestPerson should be registered as a schema type");
-        Assert.AreEqual(SCHEMA_KIND_STRUCT, personType.Kind, "TestPerson should be a struct type");
+        Assert.AreEqual(NODE_KIND_STRUCT, personType.Kind, "TestPerson should be a struct type");
     }
 
     /// <summary>
@@ -61,7 +61,7 @@ public class GeneratorTest : Base.CoreTestBase
     {
         var colorType = await Context.GetNodeTypeAsync<EnumType>("test.generator.color");
         Assert.IsNotNull(colorType, "TestColor should be registered as a schema type");
-        Assert.AreEqual(SCHEMA_KIND_ENUM, colorType.Kind, "TestColor should be an enum type");
+        Assert.AreEqual(NODE_KIND_ENUM, colorType.Kind, "TestColor should be an enum type");
     }
 
     /// <summary>

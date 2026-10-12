@@ -1,9 +1,12 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
+using SchemaNode.Enum;
+using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
@@ -19,8 +22,12 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
     /// <summary>
     /// The function to be used
     /// </summary>
-    [Meta<SchemaType>(typeof(FuncType))]
     public string Func { get; private set; } = null!;
+
+    /// <summary>
+    /// The apply mode
+    /// </summary>
+    public ApplyMode Mode { get; private set; } = ApplyMode.Call;
 
     /// <summary>
     /// The call arguments
@@ -38,7 +45,7 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
     public FunctionType? FuncType { get; private set; }
 
     /// <inheritdoc/>
-    public async Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner)
+    public async Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner, params string?[] kinds)
     {
         FuncCall? call = schema.GetProperty<Call>()?.GetValue<FuncCall>();
         if (call == null)
@@ -46,6 +53,8 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
             Error ??= ErrorCodes.RELATION_FUNC_NOT_EXIST;
             return;
         }
+
+        Mode = call.Mode;
         Func = call.Func;
         Args = call.Args;
         
@@ -65,12 +74,22 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
     public async Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner, IValueAccess? target = null)
     {
         if (FuncType == null) return null;
-        return await FuncType.CallAsync<object?>(context, Args.Select<CallArg, object?>(a =>
+        object?[] args = new object?[Args.Length];
+        for (int i = 0; i < Args.Length; i++)
         {
-            if (string.IsNullOrWhiteSpace(a.Source)) return a.Value;
-            var value = owner.GetAccessValue(a.Source, target);
-            return value;
-        }).ToArray());
+            var a = Args[i];
+            if (string.IsNullOrWhiteSpace(a.Source))
+            {
+                args[i] = a.Value;
+            }
+            else
+            {
+                args[i] = owner.GetAccessValue(a.Source, target ?? owner);
+                if (args[i] is DataNode node)
+                    await node.LoadDefaultAsync(context);
+            }
+        }
+        return await FuncType.CallAsync<object?>(context, args, mode: Mode);
     }
 
     /// <inheritdoc/>
@@ -84,11 +103,21 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
 /// <summary>
 /// Declare relation call field for the relation
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_RELATION)]
-[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_RELATION}.call")]
-[Meta<SchemaNode.Property.Record.RelationKind>("call", 1)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_RELATION)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_RELATION}.call")]
+[Meta<Property.Record.RelationKind>("call", 1)]
 [Meta<RelationProcess>(typeof(CallProcess))]
-[Relation<Visible, Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"@{nameof(RelationSchema.Kind)}", "call")]
-[Relation<EntrySource, Call>($"{nameof(CallProcess.Args)}.{nameof(CallArg.Source)}", NS_SYSTEM_SCHEMA_REFLECT_GET_SUB_ENTRIES, RELATION_OWNER, NODE_SELF)]
-public class Call : FuncCallProperty;
+[Relation<Visible, Call>(nameof(Call), NS_SYSTEM_LOGIC_EQ, $"@{nameof(RelationSchema.Kind)}", "call")]
+[Relation<Default, Call>($"{nameof(Call)}.{nameof(FuncCall.Return)}",$"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(RelationSchema.ValueType)}")]
+[Meta<PropertyValueType>($"{NS_SYSTEM_SCHEMA_FUNC_CALL}<{NS_SYSTEM_SCHEMA_FUNC}.type>")]
+public class Call : FuncCallProperty
+{
+    public override void SetValue<TValue>(TValue value)
+    {
+        if (value is object[] { Length: 2 } objs && objs[0] is Type)
+            base.SetValue(objs[1]);
+        else
+            base.SetValue(value);
+    }
+}
