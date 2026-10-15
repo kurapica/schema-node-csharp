@@ -189,23 +189,25 @@ public static class AppDataTransactionExtension
                                 if (newValue is ArrayNode arr && field.ValueType is ArrayType { Primary.Count: > 0 })
                                 {
                                     foreach (IValueAccess item in arr)
-                                        context.RaiseEvent(new AppFieldDataCreateEvent(field.App, field.Name, target), new AppFieldPayload
+                                        context.RaiseEvent(new AppFieldDataCreateEvent<IValueAccess>(field.App, field.Name, target), 
+                                            new AppFieldPayload<IValueAccess>
+                                            {
+                                                App = field.App,
+                                                Field = field.Name,
+                                                Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
+                                                Data = item
+                                            });
+                                }
+                                else if (newValue != null)
+                                {
+                                    context.RaiseEvent(new AppFieldDataCreateEvent<IValueAccess>(field.App, field.Name, target), 
+                                        new AppFieldPayload<IValueAccess>
                                         {
                                             App = field.App,
                                             Field = field.Name,
                                             Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
-                                            Data = item
+                                            Data = newValue
                                         });
-                                }
-                                else if (newValue != null)
-                                {
-                                    context.RaiseEvent(new AppFieldDataCreateEvent(field.App, field.Name, target), new AppFieldPayload
-                                    {
-                                        App = field.App,
-                                        Field = field.Name,
-                                        Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
-                                        Data = newValue
-                                    });
                                 }
 
                                 break;
@@ -238,24 +240,26 @@ public static class AppDataTransactionExtension
 
                                             if (originMap.Remove(key, out IValueAccess? o))
                                             {
-                                                context.RaiseEvent(new AppFieldDataUpdateEvent(field.App, field.Name, target), new AppFieldUpdatePayload
-                                                {
-                                                    App = field.App,
-                                                    Field = field.Name,
-                                                    Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
-                                                    Data = structNode,
-                                                    Origin = o
-                                                });
+                                                context.RaiseEvent(new AppFieldDataUpdateEvent<IValueAccess>(field.App, field.Name, target), 
+                                                    new AppFieldUpdatePayload<IValueAccess>
+                                                    {
+                                                        App = field.App,
+                                                        Field = field.Name,
+                                                        Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
+                                                        Data = structNode,
+                                                        Origin = o
+                                                    });
                                             }
                                             else
                                             {
-                                                context.RaiseEvent(new AppFieldDataCreateEvent(field.App, field.Name, target), new AppFieldPayload
-                                                {
-                                                    App = field.App,
-                                                    Field = field.Name,
-                                                    Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
-                                                    Data = structNode,
-                                                });
+                                                context.RaiseEvent(new AppFieldDataCreateEvent<IValueAccess>(field.App, field.Name, target), 
+                                                    new AppFieldPayload<IValueAccess>
+                                                    {
+                                                        App = field.App,
+                                                        Field = field.Name,
+                                                        Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
+                                                        Data = structNode,
+                                                    });
                                             }
                                         }
                                     }
@@ -263,34 +267,37 @@ public static class AppDataTransactionExtension
                                     // Raise delete event for remaining origin
                                     foreach (IValueAccess node in originMap.Values)
                                     {
-                                        context.RaiseEvent(new AppFieldDataDeleteEvent(field.App, field.Name, target), new AppFieldPayload
-                                        {
-                                            App = field.App,
-                                            Field = field.Name,
-                                            Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
-                                            Data = node
-                                        });
+                                        context.RaiseEvent(new AppFieldDataDeleteEvent<IValueAccess>(field.App, field.Name, target), 
+                                            new AppFieldPayload<IValueAccess>
+                                            {
+                                                App = field.App,
+                                                Field = field.Name,
+                                                Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
+                                                Data = node
+                                            });
                                     }
                                 }
                                 else if (changeValues != null)
                                 {
                                     if (originValues == null)
-                                        context.RaiseEvent(new AppFieldDataCreateEvent(field.App, field.Name, target), new AppFieldPayload
-                                        {
-                                            App = field.App,
-                                            Field = field.Name,
-                                            Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
-                                            Data = changeValues,
-                                        });
+                                        context.RaiseEvent(new AppFieldDataCreateEvent<IValueAccess>(field.App, field.Name, target),
+                                            new AppFieldPayload<IValueAccess>
+                                            {
+                                                App = field.App,
+                                                Field = field.Name,
+                                                Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
+                                                Data = changeValues,
+                                            });
                                     else
-                                        context.RaiseEvent(new AppFieldDataUpdateEvent(field.App, field.Name, target), new AppFieldUpdatePayload
-                                        {
-                                            App = field.App,
-                                            Field = field.Name,
-                                            Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
-                                            Data = changeValues,
-                                            Origin = originValues
-                                        });
+                                        context.RaiseEvent(new AppFieldDataUpdateEvent<IValueAccess>(field.App, field.Name, target),
+                                            new AppFieldUpdatePayload<IValueAccess>
+                                            {
+                                                App = field.App,
+                                                Field = field.Name,
+                                                Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
+                                                Data = changeValues,
+                                                Origin = originValues
+                                            });
                                 }
                                 break;
                             }
@@ -301,23 +308,25 @@ public static class AppDataTransactionExtension
                                 if (origin is ArrayNode arr && field.ValueType is ArrayType { Primary.Count: > 0 })
                                 {
                                     foreach (IValueAccess item in arr)
-                                        context.RaiseEvent(new AppFieldDataDeleteEvent(field.App, field.Name, target), new AppFieldPayload
+                                        context.RaiseEvent(new AppFieldDataDeleteEvent<IValueAccess>(field.App, field.Name, target), 
+                                            new AppFieldPayload<IValueAccess>
+                                            {
+                                                App = field.App,
+                                                Field = field.Name,
+                                                Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
+                                                Data = item
+                                            });
+                                }
+                                else if (origin != null)
+                                {
+                                    context.RaiseEvent(new AppFieldDataDeleteEvent<IValueAccess>(field.App, field.Name, target),
+                                        new AppFieldPayload<IValueAccess>
                                         {
                                             App = field.App,
                                             Field = field.Name,
                                             Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
-                                            Data = item
+                                            Data = origin
                                         });
-                                }
-                                else if (origin != null)
-                                {
-                                    context.RaiseEvent(new AppFieldDataDeleteEvent(field.App, field.Name, target), new AppFieldPayload
-                                    {
-                                        App = field.App,
-                                        Field = field.Name,
-                                        Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
-                                        Data = origin
-                                    });
                                 }
                                 break;
                             }

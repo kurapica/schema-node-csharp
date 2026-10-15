@@ -99,15 +99,16 @@ public abstract class DataNode : IValueAccess
     public virtual IValueAccess? GetAccessValue(string path, IValueAccess? node = null)
     {
         if (string.IsNullOrEmpty(path)) return this;
-        if (path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return node ?? this;
-        if (path.Equals(TYPE_PROVIDER, StringComparison.OrdinalIgnoreCase))
+        string[] parts = path.Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
+        IEnumerable<IValueAccessPathHandler>? handlers = ((Type as Runtime.ValueType)?.Runtime as SchemaRuntime)?.GetRuntimeItem(typeof(IValueAccessPathHandler)) as IEnumerable<IValueAccessPathHandler>;
+        if (handlers == null) return null;
+        foreach (var handler in handlers)
         {
-            var access = node ?? this;
-            while (access != null && access.PropertyProvider?.GetProperty<TypeProvider>() is not
-                       { HasValue: true })
-                access = access.Parent;
-            if (access?.PropertyProvider?.GetProperty<TypeProvider>() is { HasValue: true } type)
-                return access.GetAccessValue(type.GetValue<string>()!, node);
+            if (handler.Path.Equals(parts[0], StringComparison.OrdinalIgnoreCase))
+            {
+                var type = handler.GetAccessValue(this, node);
+                return parts.Length > 1 ? type?.GetAccessValue(parts[1]) : type;
+            }
         }
         return null;
     }

@@ -58,7 +58,7 @@ public abstract class ScalarType : ValueType
         => Kind.Equals(other.Kind,  StringComparison.OrdinalIgnoreCase) || base.IsAssignableTo(other);
 
     /// <inheritdoc />
-    public override Type? GetCsharpType() => base.GetCsharpType() ?? BaseType?.GetCsharpType();
+    public override Type? GetCsharpType(bool nullable = false) => base.GetCsharpType() ?? BaseType?.GetCsharpType();
     
     #endregion
 

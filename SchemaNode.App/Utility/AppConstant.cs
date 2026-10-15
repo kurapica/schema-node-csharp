@@ -8,6 +8,7 @@ namespace SchemaNode.Utility;
 /// </summary>
 public static class AppConstant
 {
+    public const string APP_PROVIDER = "$app";
     public const string SCHEMA_KIND_APP = "app";
     public const string SCHEMA_KIND_APP_FIELD = "app.field";
     public const string SCHEMA_KIND_APP_WORKFLOW = "app.workflow";
@@ -41,6 +42,7 @@ public static class AppConstant
     public const string NS_SYSTEM_SCHEMA_WORKFLOW = $"{NS_SYSTEM_SCHEMA}.workflow";
     public const string NS_SYSTEM_SCHEMA_REFLECT_APP = $"{NS_SYSTEM_SCHEMA_REFLECT}.app";
     public const string NS_SYSTEM_SCHEMA_REFLECT_WORKFLOW = $"{NS_SYSTEM_SCHEMA_REFLECT}.workflow";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_EVENT = $"{NS_SYSTEM_SCHEMA_REFLECT}.event";
 
     public const string NS_SYSTEM_SCHEMA_PROPERTY_APP = $"{NS_SYSTEM_SCHEMA_PROP}.app";
 

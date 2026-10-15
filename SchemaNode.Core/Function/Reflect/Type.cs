@@ -217,6 +217,19 @@ public static class Type
     }
 
     /// <summary>
+    /// Checks if the type match the given generic type with parameters
+    /// </summary>
+    public static async Task<bool> isgenericmatch(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type, [Meta<SchemaType>(typeof(ValueType))] string genericType, [Meta<SchemaType>(typeof(ValueType))] params string[] genericParams)
+    {
+        var checkType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        if (checkType == null) return false;
+        var genType = !string.IsNullOrWhiteSpace(genericType) ? await context.GetNodeTypeAsync<Runtime.ValueType>(genericType) : null;
+        if (genType == null || !genType.IsGeneric || genericParams.Length != genType.Generics!.Count || genericParams.Any(string.IsNullOrWhiteSpace)) return false;
+        var matchType = await context.GetNodeTypeAsync<Runtime.ValueType>($"{genType.Name}<${string.Join(',', genericParams)}>");
+        return matchType != null && matchType.IsAssignableTo(checkType);
+    }
+
+    /// <summary>
     /// The type is indexable
     /// </summary>
     public static async Task<bool> isindexable(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type)

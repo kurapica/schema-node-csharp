@@ -14,6 +14,7 @@ using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using SchemaNode.Workflow;
+using SchemaNode.Property.App;
 
 namespace SchemaNode.Generator;
 
@@ -49,20 +50,33 @@ public class WorkflowGenerator : INodeSchemaGenerator
         if (string.IsNullOrWhiteSpace(workflowSchema.Kind))
             workflowSchema.Kind = WORKFLOW_KIND_WORKFLOW;
 
-        if (type.GetGenericArguments().Length > 0)
-            throw new Exception($"Workflow type {type.FullName} can't be generic");
+        // Generic info
+        Type[] genericArgs = type.GetGenericArguments();
+        TypeDetail[] genInfos = genericArgs.Select(g => g.GetTypeDetail()).ToArray();
+        GenericParameter[]? genericDeclare = type.GetMetaProperty<Generics>()?.Value;
+
+        // Generics
+        if (genericArgs.Length > 0 && genericDeclare is null)
+        {
+            genericDeclare = genInfos.Select(g => new GenericParameter(
+                    typeResolver(g.CoreType, @namespace, genericArgs)!,
+                    g.Number ? (g.OnlyFloat ? [NS_SYSTEM_NUMBER] : [NS_SYSTEM_NUMBER, NS_SYSTEM_INT]) : null
+                )
+            ).ToArray();
+            workflowSchema.SetProperty<Generics, GenericParameter[]>(genericDeclare);
+        }
 
         // Settings
         Type? settingsType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowSettings<>))?.GetGenericArguments()[0];
-        workflowSchema.Settings = settingsType != null ? typeResolver(settingsType, @namespace, null) : null;
+        workflowSchema.Settings = settingsType != null ? typeResolver(settingsType, @namespace, genericArgs) : null;
         
         // Session
         Type? sessionType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowSession<>))?.GetGenericArguments()[0];
-        workflowSchema.Session = sessionType != null ? typeResolver(sessionType, @namespace, null) : null;
+        workflowSchema.Session = sessionType != null ? typeResolver(sessionType, @namespace, genericArgs) : null;
         
         // Payload
         Type? payloadType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowPayload<>))?.GetGenericArguments()[0];
-        workflowSchema.Payload = payloadType != null ? typeResolver(payloadType, @namespace, null)  : null;
+        workflowSchema.Payload = type.GetMetaProperty<PayloadType>()?.Value ?? (payloadType != null ? typeResolver(payloadType, @namespace, genericArgs)  : null);
         
         // Process args
         MethodInfo processMethod = type.GetMethod(BaseWorkflow.WORKFLOW_PROCESS_METHOD, BindingFlags.Public | BindingFlags.Instance) 
@@ -90,6 +104,7 @@ public class WorkflowGenerator : INodeSchemaGenerator
         parameters = parameters.Skip(sessionType != null ? 2 : 1).ToArray();
         if (parameters.Length > 0)
         {
+            List<RelationSchema> relations = [];
             TypeDetail[] paramInfos = parameters.Select(p => p.ParameterType.GetTypeDetail()).ToArray();
             workflowSchema.Args = new FuncArg[parameters.Length];
             for (int i = 0; i < parameters.Length; i++)
@@ -110,7 +125,7 @@ public class WorkflowGenerator : INodeSchemaGenerator
                     arg.SetProperty<Require, bool>(true);
                 
                 // Display
-                arg.SetProperty<Display, LocaleString>(processMethod.GetSummaryFromXmlDoc(p) ??  $"{schema.FullName}.{arg.Name}");
+                arg.SetProperty<Display, LocaleString>(processMethod.GetSummaryFromXmlDoc(p) ??  arg.Name);
                     
                 // Default
                 if (defaultProp?.Value != null)
@@ -127,11 +142,60 @@ public class WorkflowGenerator : INodeSchemaGenerator
 
                 // Check dynamic type
                 arg.Type =  p.GetMetaProperty<SchemaType>()?.GetValue<string>() 
-                            ?? typeResolver(isVariadic ? pt.CoreType : pt.Type, @namespace, null)
+                            ?? typeResolver(isVariadic ? pt.CoreType : pt.Type, @namespace, genericArgs)
                             ?? throw new Exception($"Can't resolve parameter type for method {processMethod.Name} in {@type.FullName}");
+
+                if (!(genericDeclare is { Length: > 0 } &&
+                       genericDeclare.Any(g => g.Name.Equals(arg.Type, StringComparison.OrdinalIgnoreCase))))
+                {
+                    NodeSchema? fieldTypeSchema =
+                        !string.IsNullOrWhiteSpace(arg.Type) ? runtime.GetSystemSchema(arg.Type) : null;
+                    if (fieldTypeSchema == null)
+                        throw new Exception($"Failed to resolve type for argument {arg.Name} of workflow {schema.FullName}");
+
+                    if (pt.AnyArray && !fieldTypeSchema.Kind.Equals(NODE_KIND_ARRAY))
+                        arg.Type = runtime.GetSystemArraySchema(arg.Type) ??
+                                     throw new Exception($"Failed to resolve array schema for argument {arg.Name} of workflow {schema.FullName}");
+
+                    // Extension Properties
+                    foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(runtime, runtime.GetSchemaKindByNodeKind(fieldTypeSchema.Kind)))
+                        arg.SetProperty(property);
+
+                    if (fieldTypeSchema.Kind.Equals(NODE_KIND_ARRAY))
+                    {
+                        ArraySchema arraySchema = fieldTypeSchema.GetProperty<ArrayProperty>()?.Value
+                                                  ?? throw new Exception($"Failed to get array schema for argument {arg.Name} of workflow {schema.FullName}");
+
+                        string eleName = arraySchema.Element;
+                        if (arraySchema.GetProperty<Generics>()?.Value is { } generics &&
+                            generics.Any(g => g.Name.Equals(eleName, StringComparison.OrdinalIgnoreCase)))
+                            eleName = runtime.GetSystemSchemaGenericArguments(fieldTypeSchema.FullName).FirstOrDefault() ??
+                                      eleName;
+
+                        NodeSchema? element = runtime.GetSystemSchema(eleName);
+                        if (element != null)
+                            foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(runtime, runtime.GetSchemaKindByNodeKind(element.Kind)))
+                                arg.SetProperty(property);
+                    }
+                }
+
+
+                // Argument Level Relations
+                foreach (IRelationAttribute relation in p.GetCustomAttributes(inherit: false).OfType<IRelationAttribute>())
+                    relations.Add(relation.GetRelationSchema(arg.Name));
 
                 workflowSchema.Args[i] = arg;
             }
+            // Function level relations
+            foreach (var relation in processMethod.GetCustomAttributes(inherit: false).OfType<IRelationAttribute>())
+                relations.Add((relation.GetRelationSchema(NODE_SELF)));
+
+            foreach (var relation in type.GetCustomAttributes(inherit: false).OfType<IRelationAttribute>())
+                relations.Add((relation.GetRelationSchema(NODE_SELF)));
+
+            // Set relations
+            if (relations.Count > 0)
+                workflowSchema.SetProperty<Relations, RelationSchema[]>(relations.ToArray());
         }
 
         schema.SetProperty<WorkflowProperty, WorkflowSchema>(workflowSchema);

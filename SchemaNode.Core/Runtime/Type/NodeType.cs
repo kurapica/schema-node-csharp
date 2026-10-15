@@ -133,7 +133,7 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
     /// <summary>
     /// Gets the csharp type
     /// </summary>
-    public virtual Type? GetCsharpType() => Schema?.Type;
+    public virtual Type? GetCsharpType(bool nullable = false) => Schema?.Type;
     
     #endregion
     
@@ -442,7 +442,7 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// <summary>
     /// Gets the csharp type with nullable modifier
     /// </summary>
-    public virtual Type? GetCsharpType(bool nullable = false) => nullable ? Schema?.Type?.GetNullableType() : Schema?.Type;
+    public override Type? GetCsharpType(bool nullable = false) => nullable ? Schema?.Type?.GetNullableType() : Schema?.Type;
 
     /// <summary>
     /// Generate data node from object and validate the value

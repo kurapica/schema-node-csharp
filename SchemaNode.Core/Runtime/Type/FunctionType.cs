@@ -108,7 +108,6 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
     public override async Task LoadAsync(SchemaContext context)
     {
         FunctionSchema? func = GetProperty<FunctionProperty>()?.Value;
-        _relations = null;
         
         // Status
         if (func == null)
@@ -163,31 +162,28 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
         }
 
         // Load Relation
-        if (!IsGeneric)
+        if (!IsGeneric && func.GetProperty<Relations>()?.Value is { Length: > 0 } relations)
         {
-            if (func.GetProperty<Relations>()?.Value is { Length: > 0 } relations)
+            foreach (RelationSchema relation in relations)
             {
-                foreach (RelationSchema relation in relations)
-                {
-                    // Gets the target type
-                    IValueTypeAccess? currentType = GetAccessValueType(relation.Target);
-                    if (currentType == null) continue;
+                // Gets the target type
+                IValueTypeAccess? currentType = GetAccessValueType(relation.Target);
+                if (currentType == null) continue;
 
-                    // Gets the property type
-                    var kind = (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(currentType.Kind);
-                    PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_FUNC_ARG);
-                    if (prop == null) continue;
+                // Gets the property type
+                var kind = (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(currentType.Kind);
+                PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_FUNC_ARG);
+                if (prop == null) continue;
 
-                    // Only work for constraint properties
-                    Type? propType = prop.GetCsharpType();
-                    if (propType == null) continue;
+                // Only work for constraint properties
+                Type? propType = prop.GetCsharpType();
+                if (propType == null) continue;
 
-                    var relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_FUNC_ARG);
-                    Error ??= relationType.Error;
+                var relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_FUNC_ARG);
+                Error ??= relationType.Error;
 
-                    _relations ??= [];
-                    _relations.Add(relationType);
-                }
+                _relations ??= [];
+                _relations.Add(relationType);
             }
         }
     }
@@ -197,6 +193,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
     {
         Args = [];
         Exps = [];
+        _relations = null;
 
         // Clear function info to be re-compiled
         ClearFunctionInfo();
@@ -313,7 +310,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
     }
 
     /// <inheritdoc/>
-    public Type? GetCsharpType(bool nullable = false)
+    public override Type? GetCsharpType(bool nullable = false)
     {
         return null;
     }

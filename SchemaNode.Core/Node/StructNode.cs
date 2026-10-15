@@ -199,7 +199,8 @@ public class StructNode : DataNode
             }
             default:
             {
-                if (value.GetType() == CsharpType)
+                bool isSameType = value.GetType() == CsharpType;
+                if (isSameType || value.GetType().IsGenericType && value.GetType().GetGenericTypeDefinition() == CsharpType?.GetGenericTypeDefinition())
                 {
                     _csharpObject = value;
                     int i = 0;
@@ -210,7 +211,7 @@ public class StructNode : DataNode
                             f.ClearValue();
                         else
                         {
-                            object? v = field.Property.GetValue(_csharpObject);
+                            object? v = (isSameType ? field.Property : value.GetType().GetProperty(field.Property.Name)!).GetValue(_csharpObject);
                             if (v != null)
                             {
                                 if (f is AnyNode && v is IValueAccess vNode)

@@ -219,9 +219,101 @@ The following example demonstrates access permission management, row-level data 
 
 
 
-## Workflow (Not Yet Open)
+## Workflows
 
-SchemaNode App is actually the second version of this system. In the latest third-version refactoring, SchemaNode Core was extracted from it, and then the entire SchemaNode App was redesigned and rebuilt based on Core and the App dialect. However, time is limited, and I do not want the usability provided by workflows at this early stage to obscure what this project actually aims to achieve. Therefore, the workflow part is withheld from being opened and demonstrated for now.
+### Workflow Example
+
+A workflow defines a business process triggered by events, timers, manual invocations, or other triggers. The Activity app includes a sample workflow, which is currently inactive. Click **Edit** to explore its configuration.
+
+![Active](./pic/02_workflow_01.png)
+
+A workflow consists of multiple nodes organized as a directed acyclic graph (DAG). When an upstream node completes, its downstream nodes can be triggered for execution.
+
+The workflow shown here consists of the following nodes:
+
+- `start`: Waits for an application data creation event and captures the event payload for subsequent processing.
+- `totrack`: Transforms the newly created data record into a tracking record.
+- `savetrack`: Saves the tracking record to the database. This node invokes a function designated exclusively for workflow use, which cannot be called externally.
+
+![Nodes](./pic/02_workflow_02.png)
+
+Open the `start` node to inspect its configuration.
+
+![Start](./pic/02_workflow_03.png)
+
+This node uses the **Wait for Event** type, which is generic and requires a payload data type to be specified for the event. You do not need to explore the details of this generic type at this stage.
+
+The selected event is an **Application Data Created** event, which is triggered when a new data record is created.
+
+The key configuration is **Fork**. When the event is triggered, a child workflow context is created for subsequent processing. Since a wait-for-event node can be triggered multiple times, each event must be processed in an independent context. Once the child workflow completes, its context is destroyed.
+
+The next two nodes are both **Function Call** nodes and are relatively straightforward.
+
+![Totrack](./pic/02_workflow_04.png)
+
+The key configuration here is **Previous Nodes**. A node can depend on multiple upstream nodes. The current node is triggered only after all its dependencies have completed. For example, a delay node can be inserted to ensure that all upstream tasks finish before downstream processing begins.
+
+The function calls in subsequent nodes can use data produced by preceding nodes as arguments.
+
+In addition to **Wait for Event** and **Function Call**, workflows support control nodes such as delay, conditional branching, and forced termination. Workflows can also be triggered manually. These features are not covered in detail here.
+
+Once activated, this workflow is triggered when a participant is registered and writes a corresponding record to the database. The resulting execution log is shown below.
+
+![Log](./pic/02_workflow_06.png)
+
+### Declaring Workflow Node Types
+
+Workflow nodes are also semantic types. Unlike ordinary semantic types, however, they are closely coupled with execution and cannot be declared entirely on the frontend.
+
+The following example declares a conditional branching node:
+
+```csharp
+[Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW_CONTROL}.goto")]
+[Meta<OfNodeKind>("node.workflow")]
+public class GotoWorkflow: BaseWorkflow
+{
+    public async Task ProcessAsync(WorkflowContext context, bool flag,
+        [Meta<SchemaType>(typeof(NodeName))] string? trueNode,
+        [Meta<SchemaType>(typeof(NodeName))] string falseNode)
+    {
+        await Task.Yield();
+        context.Goto(this, flag ? trueNode : falseNode);
+    }
+}
+```
+
+All workflow node types are based on the `node.workflow` prototype.
+
+This node evaluates `flag` to select either the true branch or the false branch, directing subsequent workflow execution accordingly.
+
+Third-party libraries can also define their own workflow node types to extend the workflow system. This extensibility is a core capability for implementing complex business processes.
+
+Workflow nodes also support the `Args`, `Settings`, and `Session` configurations, corresponding to workflow execution arguments, global configuration, and session configuration, respectively. These features are documented in detail in the SchemaNode App documentation.
+
+## Events
+
+Event handling is one of the most common event-driven programming patterns. A simple event declaration looks like this:
+
+```csharp
+[Meta<OfNodeKind>("node.event")]
+[Meta<SchemaType>($"{NS_SYSTEM_EVENT}.schema.create")]
+[Meta<PayloadType>(typeof(AnyType))]
+public class SchemaCreateEvent: BaseEvent, IEventPayload<string>;
+```
+
+An event must implement `IEventPayload` to specify its payload data type. In this example, the generic argument `string` does not identify the corresponding semantic type by name, so the additional `PayloadType` metadata is used to specify the payload's semantic type. This information is used by subsequent workflow processing.
+
+The event can be raised as follows:
+
+```csharp
+context.RaiseEvent<SchemaCreateEvent, string>(schema.Name);
+```
+
+Events support `Args`, which can be used to construct a `Topic` for event topic matching.
+
+The project includes two event integration libraries, `SchemaNode.Kafka` and `SchemaNode.RabbitMQ`, for Kafka and RabbitMQ, respectively. Similar to `SchemaCreateEvent`, event types can be declared and automatically registered for use in workflows.
+
+For implementation details, refer to the SchemaNode App documentation.
 
 
 ## Conclusion

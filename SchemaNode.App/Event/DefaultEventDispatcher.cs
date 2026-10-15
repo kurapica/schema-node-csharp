@@ -16,10 +16,11 @@ public class DefaultEventDispatcher : IEventDispatcher<BaseEvent>
     public void DispatchEvent<TE>(TE @event) where TE : BaseEvent
     {
         string? root = !string.IsNullOrEmpty(@event.Topic) ? @event.Topic.Split(['/', '.'])[0] : null;
+        Type eventType = @event.GetType().IsGenericType ? @event.GetType().GetGenericTypeDefinition() : @event.GetType();
 
         // topic subjects
         if (!string.IsNullOrEmpty(root)
-            && _topicEventSubjects.TryGetValue(@event.GetType(), out var topicSubjects)
+            && _topicEventSubjects.TryGetValue(eventType, out var topicSubjects)
             && topicSubjects.TryGetValue(root, out var subject))
         {
             Task.Run(async () =>
@@ -45,6 +46,7 @@ public class DefaultEventDispatcher : IEventDispatcher<BaseEvent>
     /// </summary>
     public IDisposable SubscribeEvent<TE>(Type eventType, Action<TE> onEvent) where TE : BaseEvent
     {
+        eventType = eventType.GetGenericTypeDefinition() ?? eventType;
         var subject = _globalEventSubjects.GetOrAdd(eventType, _ => new Subject<BaseEvent>());
         return subject.SubscribeOn(Scheduler.Default).Subscribe(e => onEvent((TE)e));
     }
@@ -60,6 +62,7 @@ public class DefaultEventDispatcher : IEventDispatcher<BaseEvent>
         if (string.IsNullOrEmpty(root) || root == "*" || root == "#")
             return SubscribeEvent(eventType, onEvent);
 
+        eventType = eventType.GetGenericTypeDefinition() ?? eventType;
         var topicSubjects = _topicEventSubjects.GetOrAdd(eventType, _ => new ConcurrentDictionary<string, Subject<BaseEvent>>());
         var subject = topicSubjects.GetOrAdd(root, _ => new Subject<BaseEvent>());
         return subject.SubscribeOn(Scheduler.Default).Subscribe(e => onEvent((TE)e));

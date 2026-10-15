@@ -219,9 +219,93 @@ App 是建立在公共语义共识之上的一种方言实现，可作为参考�
 
 
 
-## 工作流(暂未开放)
+## 工作流
 
-SchemaNode App 实际是这套系统的第二个版本，在最新的三版重构中，SchemaNode Core是从它里面剥离的，然后再基于Core和App 方言设计重构了整个SchemaNode App, 不过时间有限，而且我并不希望早期因为工作流提供的可用性，影响了这个项目实际想实现的目的。所以，暂缓开放和演示它的工作流部分。
+### 工作流示例
+
+工作流用于定义基于事件，定时器，手动触发等启动的业务流程，活动域内置了一个工作流，目前是非激活状态，点击编辑可以进一步查看：
+
+![Active](./pic/02_workflow_01.png)
+
+工作流由多个节点组成，构成有向无环图，上级节点结束时，会触发下一级节点的执行。
+
+途中节点由
+
+* start，等待应用数据新增事件触发，记录触发的数据供后续节点处理
+* totrack, 将新增数据记录转换为追踪数据
+* savetrack, 将追踪数据保存到数据库中，这个节点调用函数配置为工作流专用，不能被外部调用。
+
+![Nodes](./pic/02_workflow_02.png)
+
+可以打开start节点，查看它的配置：
+
+![Start](./pic/02_workflow_03.png)
+
+这个节点的类型是`等待事件`，它是泛型，需要指定事件的负载数据类型，目前可以不用太深究。下面的事件选择了`应用数据创建事件`，对应数据新增时。
+
+这个节点的核心时配置了`分支(Fork)`,即触发时，创建一个子工作流上下文，用于后续处理，因为等待事件是多次触发，每次都是一个独立的事件，所以需要分支处理。分支处理结束后，会销毁掉子工作流上下文。
+
+后续两个节点都是`函数调用`节点，比较简单。
+
+![Totrack](./pic/02_workflow_04.png)
+
+这个节点的核心是`依赖节点`，一个节点可以依赖多个上级节点，当所有依赖的上级节点执行完成后，才会触发当前节点的执行。例如放一个延时节点，确保所有上级任务执行完成后，统一启动后续处理。
+
+在之后的函数调用中，使用了前置节点的数据作为参数。
+
+除了`等待事件`和`调用`节点外，还有工作流控制节点，例如延时，分支选择，强制结束等等，也由对手动触发工作流的支持，这里不做详细展开。
+
+![Control](./pic/02_workflow_05.png)
+
+这个工作流的启动后，会基于参会人录入启动，并写入一条日志记录。参考下图：
+
+![Log](./pic/02_workflow_06.png)
+
+
+### 工作流节点类型申明
+
+工作流节点也是一种语义类型，但它和普通语义类型不同，它和执行结合的比较紧密，无法在前端进行申明。下面是分支选择节点类型的申明：
+
+```C#
+[Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW_CONTROL}.goto")]
+[Meta<OfNodeKind>("node.workflow")]
+public class GotoWorkflow: BaseWorkflow
+{
+    public async Task ProcessAsync(WorkflowContext context, bool flag, 
+        [Meta<SchemaType>(typeof(NodeName))] string? trueNode, 
+        [Meta<SchemaType>(typeof(NodeName))] string falseNode)
+    {
+        await Task.Yield();
+        context.Goto(this, flag ? trueNode : falseNode);
+    }
+}
+```
+
+所有的工作流节点类型的原型都是`node.workflow`。这个节点类型基于`flag`选择不同的分支节点，完成后续处理。同样第三方库可以自行创建工作流节点类型来扩展工作流系统，它是复杂业务流程处理的核心。
+
+工作流节点还支持`Args`, `Settings`和`Session`配置，分别对应工作流的执行参数，全局配置和会话配置，这些到 SchemaNode App 的文档中做详细说明。
+
+
+## 事件
+
+事件处理中最常见的就是事件处理，一个简单的事件处理类似
+
+```C#
+[Meta<OfNodeKind>("node.event")]
+[Meta<SchemaType>($"{NS_SYSTEM_EVENT}.schema.create")]
+[Meta<PayloadType>(typeof(AnyType))]
+public class SchemaCreateEvent: BaseEvent, IEventPayload<string>;
+```
+
+事件必须通过`IEventPayload`指明自身的负载数据类型，这里因为泛型参数`string`并不能反应负载是语义类型的名称，所以，额外使用了`PayloadType`属性来指定负载数据类型。这是工作流后续处理的依据。
+
+它的发起类似`context.RaiseEvent<SchemaCreateEvent, string>(schema.Name);`。
+
+事件支持`Args`，这样可以构造`Topic`用于事件的主题匹配。
+
+项目中带有 `SchemaNode.Kafka`和`SchemaNode.RabbitMQ`两个事件处理库，分别对应 Kafka 和 RabbitMQ 事件处理，类似`SchemaCreateEvent`，申明即可自动注册，在工作流中使用。
+
+细节在SchemaNode.App的文档中做详细说明。
 
 
 ## 结语

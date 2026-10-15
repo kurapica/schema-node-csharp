@@ -6,6 +6,7 @@ using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using SchemaNode.Workflow;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Context;
 
@@ -21,9 +22,7 @@ public class WorkflowContext: SchemaContext
     private readonly IServiceScope _scope;
     private readonly IWorkflowScheduler _scheduler;
     private readonly ConcurrentDictionary<string, WorkflowState> _states = [];
-
-    private const string NodeSelf = "$self";
-    
+        
     #endregion
     
     #region Constructors
@@ -137,13 +136,11 @@ public class WorkflowContext: SchemaContext
                 {
                     // pass
                     ((dynamic)state).Session = null;
-                    if (node.Fork && state.Status == WorkflowStatus.Running) 
-                        state.Status = WorkflowStatus.Waiting;
                 }
             }
-            // if the node is a fork and can't restore the session, set it to waiting
+            // the session (e.g. subscription) can't survive a restart, re-process the node to re-subscribe
             // normally they use subscription need re-subscribe
-            else if (node.Fork && state.Status == WorkflowStatus.Running) 
+            if (state.HasSession && state.Status == WorkflowStatus.Running) 
                 state.Status = WorkflowStatus.Waiting;
         }
         
@@ -311,7 +308,7 @@ public class WorkflowContext: SchemaContext
             
             if (workflow.ForkKey is { Length: > 0 })
             {
-                if (workflow.ForkKey.Length == 1 && workflow.ForkKey[0].Equals(NodeSelf))
+                if (workflow.ForkKey.Length == 1 && workflow.ForkKey[0].Equals(NODE_SELF))
                 {
                     if (payload == null || payload.IsEmpty) return null;
                     forkKey = payload.ToString()!;
@@ -335,7 +332,7 @@ public class WorkflowContext: SchemaContext
                 // Check existed forks
                 foreach (var (_, workflowContext) in state.ForkContexts)
                 {
-                    if (workflow.ForkKey!.Length == 1 && workflow.ForkKey[0].Equals(NodeSelf))
+                    if (workflow.ForkKey!.Length == 1 && workflow.ForkKey[0].Equals(NODE_SELF))
                     {
                         var forkPayload = workflowContext.GetWorkflowPayload(workflow.Name);
                         if (forkPayload == null || forkPayload.IsEmpty || !forkPayload.ToString()!.Equals(forkKey)) continue; 
@@ -348,7 +345,7 @@ public class WorkflowContext: SchemaContext
                         string[] keys = new string[workflow.ForkKey!.Length];
                         for (int i = 0; i < workflow.ForkKey.Length; i++)
                         {
-                            var forkKeyNode = (payload as StructNode)?.GetAccessValue(workflow.ForkKey[i]);
+                            var forkKeyNode = forkPayload.GetAccessValue(workflow.ForkKey[i]);
                             if (forkKeyNode == null || forkKeyNode.IsEmpty) break;
                             keys[i] = forkKeyNode.ToString()!;
                         }
@@ -824,7 +821,7 @@ public class WorkflowContext: SchemaContext
         {
             // check previous
             if (workflow.Previous != null && 
-                workflow.Previous.Select(prev => _states.GetOrAdd(prev.Name, new WorkflowState()))
+                workflow.Previous.Select(prev => GetOrCreateWorkflowState(prev))
                     .Any(prevState => prevState.Status != WorkflowStatus.Done))
             {
                 return null; // previous not done yet

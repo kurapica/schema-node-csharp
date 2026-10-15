@@ -12,8 +12,6 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
-using EventType = SchemaNode.Schema.EventType;
-using Object = SchemaNode.Scalar.Object;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -23,8 +21,8 @@ namespace SchemaNode.Workflow;
 [Meta<OfNodeKind>(NODE_KIND_WORKFLOW)]
 [Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW}.waitevent")]
 [Meta<Forkable>(true)]
-public class WaitEvent : BaseWorkflow, 
-    IWorkflowPayload<Object>, 
+public class WaitEvent<T> : BaseWorkflow, 
+    IWorkflowPayload<T>, 
     IWorkflowSession<IDisposable>
 {
     private Runtime.EventType? _eventType;
@@ -122,22 +120,5 @@ public class WaitEvent : BaseWorkflow,
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP}.workflow.event")]
 [Relation<Visible, Relation.Call>("event", $"{NS_SYSTEM_SCHEMA_REFLECT}.workflow.{nameof(SystemReflectWorkflow.iskind)}", $"@{nameof(AppWorkflowNodeSchema.Type)}", WORKFLOW_KIND_EVENT)]
+[Relation<Default, Relation.Call>("event.payload", $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(AppWorkflowNodeSchema.Payload)}")]
 public class EventProperty : Property<EventDeclare>;
-
-/// <summary>
-/// The event declare
-/// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_COMMON}.{nameof(EventDeclare)}")]
-public class EventDeclare
-{
-    /// <summary>
-    /// The function name
-    /// </summary>
-    [Meta<SchemaType>(typeof(EventType))]
-    public string Event { get; set; } = string.Empty;
-
-    /// <summary>
-    /// The event arguments
-    /// </summary>
-    public CallArg[] Args { get; set; } = [];
-}

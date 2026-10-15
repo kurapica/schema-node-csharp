@@ -46,7 +46,7 @@ public sealed class EnumType: ValueType
     public LocaleString[]? Cascade => _enumSchema?.Cascade;
 
     /// <inheritdoc/>
-    public override Type? GetCsharpType() => base.GetCsharpType() ?? Type switch
+    public override Type? GetCsharpType(bool nullable = false) => base.GetCsharpType() ?? Type switch
     {
         EnumValueType.String => typeof(string),
         EnumValueType.Int => typeof(long),

@@ -230,7 +230,7 @@ public class FuncCall
 /// The function call arguments
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.{nameof(CallArg)}")]
-[Relation<AccessEntryConsumer, Assign>(nameof(Source), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isassignableto)}", $"@{nameof(Type)}")]
+[Relation<AccessEntryConsumer, Assign>(nameof(Source), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isassignableto)}", false, $"@{nameof(Type)}")]
 public class CallArg: IEquatable<CallArg>
 {
     /// <summary>

@@ -1,18 +1,20 @@
-using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Function;
 using SchemaNode.Property;
+using SchemaNode.Property.App;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Property;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Enum;
+using SchemaNode.Property.Property;
 using SchemaNode.Property.String;
 using SchemaNode.Property.Struct;
 using SchemaNode.Relation;
 using SchemaNode.Runtime;
-using static SchemaNode.Utility.Constant;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using static SchemaNode.Utility.AppConstant;
+using static SchemaNode.Utility.Constant;
 using SchemaKind = SchemaNode.Property.Record.SchemaKind;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -26,6 +28,11 @@ namespace SchemaNode.Schema;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_WORKFLOW}.schema")]
 [Meta<Append>(typeof(Display), typeof(Description))]
 [Meta<Attach>(SCHEMA_KIND_APP_WORKFLOW)]
+[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_WORKFLOW}.{nameof(SystemReflectWorkflow.getaccessentries)}", $"@{nameof(Nodes)}.{ARRAY_PREVIOUS}", $"@{nameof(Nodes)}.{ARRAY_ELEMENT}.{nameof(AppWorkflowNodeSchema.Previous)}", NODE_SELF)]
+[Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_WORKFLOW}.{nameof(SystemReflectWorkflow.getaccessvaluetype)}", $"@{nameof(Nodes)}.{ARRAY_PREVIOUS}", NODE_SELF)]
+[Meta<KindProvider>(SCHEMA_KIND_NODE_FUNC_ARG)]
+[Meta<AppProvider>(nameof(App))]
+[Relation<EntrySource, Assign>($"{nameof(Nodes)}.{ARRAY_ELEMENT}.{nameof(AppWorkflowNodeSchema.Previous)}.{ARRAY_ELEMENT}", $"{NS_SYSTEM_SCHEMA_REFLECT_WORKFLOW}.{nameof(SystemReflectWorkflow.getaccessentries)}", $"@{nameof(Nodes)}.{ARRAY_PREVIOUS}")]
 public sealed class AppWorkflowSchema: PropertyOwner
 {
     /// <summary>
@@ -33,6 +40,8 @@ public sealed class AppWorkflowSchema: PropertyOwner
     /// </summary>
     [Meta<PrimaryIndex>(0)]
     [Meta<SchemaType>(typeof(AppType))]
+    [Meta<ReadOnly>(true)]
+    [Meta<InVisible>(true)]
     public string App { get; set; } = string.Empty;
 
     /// <summary>
@@ -94,6 +103,8 @@ public sealed class AppWorkflowNodeSchema: PropertyOwner, IErrorProvider
     /// The workflow node payload schema type
     /// </summary>
     [Meta<SchemaType>(typeof(ValueType))]
+    [Meta<DisplayOnly>(true)]
+    [Relation<Default, Call>(nameof(Payload), $"{NS_SYSTEM_SCHEMA_REFLECT_WORKFLOW}.{nameof(SystemReflectWorkflow.getpayloadtype)}", $"@{nameof(Type)}")]
     public string Payload { get; set; } = string.Empty;
     
     /// <summary>
@@ -101,15 +112,19 @@ public sealed class AppWorkflowNodeSchema: PropertyOwner, IErrorProvider
     /// </summary>
     [Relation<Visible, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_WORKFLOW}.{nameof(SystemReflectWorkflow.hasargs)}", $"@{nameof(Type)}")]
     public CallArg[]? Args { get; set; }
-    
+
     /// <summary>
     /// THe previous nodes
     /// </summary>
+    [Relation<CascadeDepth, Assign>($"{nameof(Previous)}.{ARRAY_ELEMENT}", 1)]
+    [Relation<BlackList, Call>($"{nameof(Previous)}.{ARRAY_ELEMENT}", $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(Previous)}.{ARRAY_PREVIOUS}")]
     public string[]? Previous { get; set; }
-    
+
     /// <summary>
     /// The workflow state data
     /// </summary>
+    [Relation<OverrideType, Call>(nameof(State), $"{NS_SYSTEM_SCHEMA_REFLECT_WORKFLOW}.{nameof(SystemReflectWorkflow.getstatetype)}", $"@{nameof(Type)}")]
+    [Relation<Visible, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_WORKFLOW}.{nameof(SystemReflectWorkflow.hasstate)}", $"@{nameof(Type)}")]
     public JsonNode? State { get; set; }
 
     /// <summary>
@@ -122,8 +137,8 @@ public sealed class AppWorkflowNodeSchema: PropertyOwner, IErrorProvider
     /// <summary>
     /// The fork key paths in the payload
     /// </summary>
-    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.getaccessentries)}", $"@{nameof(Payload)}")]
-    [Meta<AccessEntryConsumer>(NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, NODE_SELF, false, NODE_KIND_ENUM, NODE_KIND_STRING, NODE_KIND_INT, NODE_KIND_DECIMAL, NODE_KIND_DATE, NODE_KIND_BOOL)]
+    [Relation<AccessEntryConsumer, Assign>($"{nameof(ForkKey)}.{ARRAY_ELEMENT}", NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, NODE_SELF, false, NODE_KIND_ENUM, NODE_KIND_STRING, NODE_KIND_INT, NODE_KIND_DECIMAL, NODE_KIND_DATE, NODE_KIND_BOOL)]
+    [Relation<EntrySource, Assign>($"{nameof(ForkKey)}.{ARRAY_ELEMENT}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getaccessentries)}", $"@{nameof(Payload)}", NODE_SELF)]
     [Relation<Visible, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_WORKFLOW}.{nameof(SystemReflectWorkflow.isforkable)}", $"@{nameof(Type)}")]
     [Relation<InVisible, Call>(NODE_SELF, NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, $"@{nameof(Payload)}", false, NODE_KIND_ARRAY)]
     public string[]? ForkKey { get; set; }
@@ -131,7 +146,7 @@ public sealed class AppWorkflowNodeSchema: PropertyOwner, IErrorProvider
     /// <summary>
     /// The node can't be canceled
     /// </summary>
-    [Relation<InVisible, Call>(NODE_SELF, $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}",  $"@{nameof(Fork)}")]
+    [Relation<Visible, Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.not)}",  $"@{nameof(Fork)}")]
     public bool? UnCancelable { get; set; }
     
     /// <summary>

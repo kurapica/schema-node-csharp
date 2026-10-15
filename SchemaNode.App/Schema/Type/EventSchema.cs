@@ -1,16 +1,18 @@
 using SchemaNode.Attribute;
+using SchemaNode.Function;
 using SchemaNode.Generator;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Record;
 using SchemaNode.Property.Core;
-using SchemaNode.Property.Struct;
 using SchemaNode.Property.Property;
-using static SchemaNode.Utility.Constant;
+using SchemaNode.Property.Record;
+using SchemaNode.Property.Struct;
+using SchemaNode.Relation;
 using static SchemaNode.Utility.AppConstant;
+using static SchemaNode.Utility.Constant;
 using NodeType = SchemaNode.Property.Core.NodeType;
-using SchemaType = SchemaNode.Property.Core.SchemaType;
 using RuntimeEventType = SchemaNode.Runtime.EventType;
+using SchemaType = SchemaNode.Property.Core.SchemaType;
 
 namespace SchemaNode.Schema;
 
@@ -21,6 +23,7 @@ namespace SchemaNode.Schema;
 [Meta<NodeKind>(NODE_KIND_EVENT, SCHEMA_KIND_ORDER_EVENT)]
 [Meta<NodeType>(typeof(RuntimeEventType))]
 [Meta<SchemaGenerator>(typeof(EventGenerator))]
+[Meta<Append>(typeof(Generics), typeof(Relations))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_EVENT}.schema")]
 [Meta<Attach>(SCHEMA_KIND_NODE_EVENT)]
 public sealed class EventSchema: PropertyOwner
@@ -42,7 +45,7 @@ public sealed class EventSchema: PropertyOwner
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_CORE}.event")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_EVENT}.event")]
 [Meta<ReadOnly>(true)] // Only system event schema allowed
 [Relation<Visible, Relation.Call>("event", NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", NODE_KIND_EVENT)]
 public sealed class EventProperty: Property<EventSchema>;
@@ -53,3 +56,32 @@ public sealed class EventProperty: Property<EventSchema>;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_EVENT}.type")]
 [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, NODE_SELF, false, NODE_KIND_EVENT)]
 public class EventType: AnyType;
+
+
+/// <summary>
+/// The event declare
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_EVENT}.declare")]
+public class EventDeclare
+{
+    /// <summary>
+    /// The expected event payload
+    /// </summary>
+    [Meta<SchemaType>(typeof(ValueType))]
+    [Meta<DisplayOnly>(true)]
+    [Meta<InVisible>(true)]
+    public string Payload { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The function name
+    /// </summary>
+    [Meta<SchemaType>(typeof(EventType))]
+    [Relation<Valid, Assign>(nameof(Event), $"{NS_SYSTEM_SCHEMA_REFLECT_EVENT}.{nameof(SystemReflectEvent.withpayload)}", $"@{nameof(Payload)}")]
+    public string Event { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The event arguments
+    /// </summary>
+    [Relation<Visible, Call>(nameof(Args), $"{NS_SYSTEM_SCHEMA_REFLECT_EVENT}.{nameof(SystemReflectEvent.hasargs)}", $"@{nameof(Event)}")]
+    public CallArg[] Args { get; set; } = [];
+}

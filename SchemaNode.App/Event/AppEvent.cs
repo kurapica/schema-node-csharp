@@ -1,11 +1,13 @@
 using SchemaNode.Attribute;
 using SchemaNode.Function;
-using SchemaNode.Node;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
-using SchemaNode.Property.Event;
-using SchemaNode.Runtime;
-using static SchemaNode.Utility.Constant;
+using SchemaNode.Property.String;
+using SchemaNode.Relation;
+using SchemaNode.Scalar;
+using SchemaNode.Schema;
 using static SchemaNode.Utility.AppConstant;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Event;
 
@@ -53,30 +55,49 @@ public abstract class AppFieldEvent(string app, string field, string? target = n
 /// </summary>
 [Meta<OfNodeKind>(NODE_KIND_EVENT)]
 [Meta<SchemaType>($"{NS_SYSTEM_EVENT}.app.data.create")]
-[Meta<PayloadEvaluator>($"{NS_SYSTEM_SCHEMA_REFLECT}.event.{nameof(SystemReflectEvent.getappfieldpayload)}")]
-public class AppFieldDataCreateEvent(string app, string field, string? target = null) 
-    : AppFieldEvent(app, field, target), IEventPayload<AppFieldPayload>;
+[Relation<Default, Call>($"{nameof(app)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", APP_PROVIDER)]
+[Relation<EntrySource, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfields)}", $"@{nameof(app)}.{nameof(CallArg.Value)}")]
+[Relation<AccessValueTypeProvider, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldtype)}", $"@{nameof(app)}.{nameof(CallArg.Value)}", NODE_SELF, true)]
+[Relation<AccessEntryConsumer, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isgenericmatch)}", $"@{FUNC_RETURN}", $"{NS_SYSTEM_EVENT}.app.data.payload",  NODE_SELF)]
+public class AppFieldDataCreateEvent<T>(
+    [Meta<SchemaType>(typeof(AppType))] string app,
+    [Meta<SchemaType>(typeof(Identifier))] string field,
+    string? target = null) 
+    : AppFieldEvent(app, field, target), IEventPayload<AppFieldPayload<T>>;
 
 /// <summary>
 /// Fired when delete the target field data in the application
 /// </summary>
 [Meta<OfNodeKind>(NODE_KIND_EVENT)]
 [Meta<SchemaType>($"{NS_SYSTEM_EVENT}.app.data.delete")]
-[Meta<PayloadEvaluator>($"{NS_SYSTEM_SCHEMA_REFLECT}.event.{nameof(SystemReflectEvent.getappfieldpayload)}")]
-public class AppFieldDataDeleteEvent(string app, string field, string? target = null) 
-    : AppFieldEvent(app, field, target), IEventPayload<AppFieldPayload>;
+[Relation<Default, Call>($"{nameof(app)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", APP_PROVIDER)]
+[Relation<EntrySource, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfields)}", $"@{nameof(app)}.{nameof(CallArg.Value)}")]
+[Relation<AccessValueTypeProvider, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldtype)}", $"@{nameof(app)}.{nameof(CallArg.Value)}", NODE_SELF, true)]
+[Relation<AccessEntryConsumer, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isgenericmatch)}", $"@{FUNC_RETURN}", $"{NS_SYSTEM_EVENT}.app.data.payload", NODE_SELF)]
+public class AppFieldDataDeleteEvent<T>(
+    [Meta<SchemaType>(typeof(AppType))] string app,
+    [Meta<SchemaType>(typeof(Identifier))] string field,
+    string? target = null)
+    : AppFieldEvent(app, field, target), IEventPayload<AppFieldPayload<T>>;
 
 /// <summary>
 /// Fired when update the target field data in the application
 /// </summary>
 [Meta<OfNodeKind>(NODE_KIND_EVENT)]
 [Meta<SchemaType>($"{NS_SYSTEM_EVENT}.app.data.update")]
-[Meta<PayloadEvaluator>($"{NS_SYSTEM_SCHEMA_REFLECT}.event.{nameof(SystemReflectEvent.getappfieldupdatepayload)}")]
-public class AppFieldDataUpdateEvent(string app, string field, string? target = null) 
-    : AppFieldEvent(app, field, target), IEventPayload<AppFieldUpdatePayload>;
+[Relation<Default, Call>($"{nameof(app)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", APP_PROVIDER)]
+[Relation<EntrySource, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfields)}", $"@{nameof(app)}.{nameof(CallArg.Value)}")]
+[Relation<AccessValueTypeProvider, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldtype)}", $"@{nameof(app)}.{nameof(CallArg.Value)}", NODE_SELF, true)]
+[Relation<AccessEntryConsumer, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isgenericmatch)}", $"@{FUNC_RETURN}", $"{NS_SYSTEM_EVENT}.app.data.updatepayload", NODE_SELF)]
+
+public class AppFieldDataUpdateEvent<T>(
+    [Meta<SchemaType>(typeof(AppType))] string app,
+    [Meta<SchemaType>(typeof(Identifier))] string field,
+    string? target = null)
+    : AppFieldEvent(app, field, target), IEventPayload<AppFieldUpdatePayload<T>>;
 
 [Meta<SchemaType>($"{NS_SYSTEM_EVENT}.app.data.payload")]
-public class AppFieldPayload
+public class AppFieldPayload<T>
 {
     /// <summary>
     /// The application triggered the event
@@ -96,12 +117,11 @@ public class AppFieldPayload
     /// <summary>
     /// The event data
     /// </summary>
-    [Meta<SchemaType>(NS_SYSTEM_OBJECT)]
-    public IValueAccess? Data { get; set; }
+    public T? Data { get; set; }
 }
 
 [Meta<SchemaType>($"{NS_SYSTEM_EVENT}.app.data.updatepayload")]
-public class AppFieldUpdatePayload
+public class AppFieldUpdatePayload<T>
 {
     /// <summary>
     /// The application triggered the event
@@ -121,12 +141,10 @@ public class AppFieldUpdatePayload
     /// <summary>
     /// The event data
     /// </summary>
-    [Meta<SchemaType>(NS_SYSTEM_OBJECT)]
-    public IValueAccess? Data { get; set; }
+    public T? Data { get; set; }
     
     /// <summary>
     ///  The origin data
     /// </summary>
-    [Meta<SchemaType>(NS_SYSTEM_OBJECT)]
-    public IValueAccess? Origin { get; set; }
+    public T? Origin { get; set; }
 }

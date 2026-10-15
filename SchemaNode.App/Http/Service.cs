@@ -103,7 +103,7 @@ public static class Service
                     html = html.Replace("</head>", string.Join("", [
                         "<meta name=\"schema-embedded\" content=\"true\">",
                         $"<meta name=\"schema-api-base-url\" content=\"/{prefix}\">",
-                        $"<meta name=\"schema-api-protocol\" content='{apiProtocol.GetProtocolMeta(app.Services).ToJson()}'></head>"
+                        $"</head>"
                     ]));
 
                     context.Response.ContentType = "text/html";

@@ -1,25 +1,26 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Node;
-using SchemaNode.Runtime;
-using System.Text.Json.Nodes;
 using SchemaNode.Data;
 using SchemaNode.Enum;
+using SchemaNode.Node;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Function;
 using SchemaNode.Property.String;
 using SchemaNode.Relation;
+using SchemaNode.Runtime;
 using SchemaNode.Scalar;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
+using System.Text.Json.Nodes;
+using static SchemaNode.Utility.AppConstant;
+using static SchemaNode.Utility.Constant;
 using AppType = SchemaNode.Runtime.AppType;
 using ArrayType = SchemaNode.Runtime.ArrayType;
 using DecimalType = SchemaNode.Runtime.DecimalType;
 using EnumType = SchemaNode.Runtime.EnumType;
 using IntType = SchemaNode.Runtime.IntType;
 using StructType = SchemaNode.Runtime.StructType;
-using static SchemaNode.Utility.Constant;
-using static SchemaNode.Utility.AppConstant;
 
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedMember.Global
@@ -168,6 +169,9 @@ public static class SystemAppData
     /// </summary>
     [Meta<ServerOnly>(true)]
     [Meta<SourceTrack>(true)]
+    [Relation<EntrySource, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfields)}", $"@{nameof(app)}.{nameof(CallArg.Value)}")]
+    [Relation<AccessValueTypeProvider, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldtype)}", $"@{nameof(app)}.{nameof(CallArg.Value)}", NODE_SELF, true)]
+    [Relation<AccessEntryConsumer, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.isassignableto)}", NODE_SELF, false, $"@{FUNC_RETURN}")]
     public static async Task<ArrayNode> getdatasource(
         SchemaContext context,
         [Meta<SchemaType>(typeof(Schema.AppType))] string app,
@@ -194,6 +198,10 @@ public static class SystemAppData
     [Meta<SourceTrack>(true)]
     [Meta<SideEffect>(true)]
     [Meta<WorkflowOnly>(true)]
+    [Relation<Default, Call>($"{nameof(app)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", APP_PROVIDER)]
+    [Relation<EntrySource, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfields)}", $"@{nameof(app)}.{nameof(CallArg.Value)}")]
+    [Relation<AccessValueTypeProvider, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldtype)}", $"@{nameof(app)}.{nameof(CallArg.Value)}", NODE_SELF, true)]
+    [Relation<AccessEntryConsumer, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.isassignableto)}", NODE_SELF, true, $"@{nameof(data)}.{nameof(CallArg.Type)}")]
     public static async Task<JsonNode?> incr<T>(
         SchemaContext context,
         [Meta<SchemaType>(typeof(Schema.AppType))] string app,
@@ -339,6 +347,10 @@ public static class SystemAppData
     [Meta<SourceTrack>(true)]
     [Meta<SideEffect>(true)]
     [Meta<WorkflowOnly>(true)]
+    [Relation<Default, Call>($"{nameof(app)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", APP_PROVIDER)]
+    [Relation<EntrySource, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfields)}", $"@{nameof(app)}.{nameof(CallArg.Value)}")]
+    [Relation<AccessValueTypeProvider, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldtype)}", $"@{nameof(app)}.{nameof(CallArg.Value)}", NODE_SELF, true)]
+    [Relation<AccessEntryConsumer, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.isassignableto)}", NODE_SELF, true, $"@{nameof(data)}.{nameof(CallArg.Type)}")]
     public static async Task<bool> save<T>(
         SchemaContext context,
         [Meta<SchemaType>(typeof(Schema.AppType))] string app,

@@ -1,10 +1,12 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
+using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using AppType = SchemaNode.Runtime.AppType;
 using ValueType = SchemaNode.Runtime.ValueType;
 using static SchemaNode.Utility.AppConstant;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
+using SchemaNode.Property.String;
 
 // ReSharper disable CollectionNeverQueried.Global
 
@@ -94,7 +96,7 @@ public abstract class BaseWorkflow
     /// Sets the payload, the workflow will be marked as done or fork a new workflow context for the next workflow
     /// </summary>
     protected void SetPayload(WorkflowContext context, object? payload = null, Access? access = null)
-        => context.Done(this, payload != null ? PayloadType?.From(payload) : null, access);
+        => context.Done(this, payload == null ? null : PayloadType?.From(payload) ?? payload as IValueAccess, access);
     
     /// <summary>
     /// Find the next workflow by name(include self)
@@ -107,7 +109,7 @@ public abstract class BaseWorkflow
     /// <summary>
     /// Whether it has forks in next nodes
     /// </summary>
-    internal bool HasForksInNextNodes => Next != null && Next.Any(n => n.HasForksInNextNodes);
+    internal bool HasForksInNextNodes => Next != null && Next.Any(n => n.Fork || n.HasForksInNextNodes);
     
     #endregion
 
@@ -158,4 +160,5 @@ public interface IWorkflowPayload<T>;
 /// Represents the node name in the current workspace
 /// </summary>
 [Meta<SchemaType>(NS_SYSTEM_WORKFLOW_NODE)]
+[Meta<EntrySourceConsumer>(true)]
 public class NodeName : Scalar.String;

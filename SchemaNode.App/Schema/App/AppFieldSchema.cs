@@ -10,6 +10,7 @@ using SchemaValueType = SchemaNode.Schema.ValueType;
 using SchemaKind = SchemaNode.Property.Record.SchemaKind;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
+using SchemaNode.Property.App;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -25,6 +26,7 @@ namespace SchemaNode.Schema;
 [Meta<TypeProvider>(nameof(Type))]
 [Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.getelementaccessentries)}", $"@{nameof(Type)}", NODE_SELF)]
 [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.getelementaccessvaluetype)}", $"@{nameof(Type)}", NODE_SELF)]
+[Meta<AppProvider>(nameof(App))]
 public sealed class AppFieldSchema: PropertyOwner, IErrorProvider
 {
     #region Base

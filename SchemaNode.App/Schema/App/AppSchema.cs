@@ -32,6 +32,7 @@ public sealed class AppKind;
 [Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getaccessentries)}", $"@{nameof(Container)}", $"@{nameof(Name)}", NODE_SELF)]
 [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getaccessvaluetype)}",  $"@{nameof(Container)}", $"@{nameof(Name)}", NODE_SELF)]
 [Meta<Attach>(SCHEMA_KIND_APP)]
+[Meta<KindProvider>(SCHEMA_KIND_NODE_STRUCT_FIELD)]
 public sealed class AppSchema: PropertyOwner, IErrorProvider
 {
     /// <summary>

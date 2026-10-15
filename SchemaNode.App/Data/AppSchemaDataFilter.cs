@@ -513,6 +513,7 @@ public static class AppSchemaDataFilterExtensions
                             DecimalType => Compare<decimal>(binary.Type, left, right),
                             StringType => Compare<string>(binary.Type, left, right),
                             DateType => Compare<DateTimeOffset>(binary.Type, left, right),
+                            EnumType => Compare<string>(binary.Type, left, right),
                             _ => throw new NotSupportedException($"The binary expression type not supported: {binary.Type}")
                         });
                     }

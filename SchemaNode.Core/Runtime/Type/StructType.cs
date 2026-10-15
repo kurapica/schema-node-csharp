@@ -46,7 +46,15 @@ public sealed class StructType: ValueType, IRelationProvider, INodeTypeReLoadHan
     }
 
     /// <inheritdoc />
-    public override Type GetCsharpType(bool nullable = false) => base.GetCsharpType() ?? typeof(StructNode);
+    public override Type GetCsharpType(bool nullable = false)
+    {
+        var baseType = base.GetCsharpType();
+
+        if (baseType != null && baseType.IsGenericTypeDefinition && GenericParams is { Count: > 0})
+            baseType = baseType.MakeGenericType(GenericParams.Select(g => g.GetCsharpType()).ToArray()!);
+
+        return baseType ?? typeof(StructNode);
+    }
 
     /// <inheritdoc />
     public override async Task LoadAsync(SchemaContext context)

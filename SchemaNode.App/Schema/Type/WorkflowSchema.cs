@@ -23,9 +23,9 @@ namespace SchemaNode.Schema;
 [Meta<NodeKind>(NODE_KIND_WORKFLOW, SCHEMA_KIND_ORDER_WORKFLOW)]
 [Meta<NodeType>(typeof(RuntimeWorkflowType))]
 [Meta<SchemaGenerator>(typeof(WorkflowGenerator))]
+[Meta<Append>(typeof(Generics), typeof(Relations))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_WORKFLOW}.schema")]
 [Meta<Attach>(SCHEMA_KIND_NODE_WORKFLOW)]
-[Meta<Append>(typeof(Generics))]
 public sealed class WorkflowSchema: PropertyOwner
 {
     /// <summary>
@@ -33,7 +33,7 @@ public sealed class WorkflowSchema: PropertyOwner
     /// </summary>
     [Meta<SchemaType>(typeof(WorkflowKind))]
     public string Kind { get; set; } = null!;
-    
+
     /// <summary>
     /// The workflow result type
     /// </summary>
@@ -51,7 +51,7 @@ public sealed class WorkflowSchema: PropertyOwner
     /// </summary>
     [Meta<SchemaType>(typeof(ValueType))]
     public string? Session { get; set; }
-    
+
     /// <summary>
     /// The workflow arguments
     /// </summary>
@@ -59,17 +59,17 @@ public sealed class WorkflowSchema: PropertyOwner
 }
 
 /// <summary>
-/// Declare event property for node schema
+/// Declare workflow property for node schema
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_CORE}.workflow")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_WORKFLOW}.workflow")]
 [Meta<ReadOnly>(true)] // only system workflow schema allowed
 [Relation<Visible, Relation.Call>("workflow", NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", NODE_KIND_WORKFLOW)]
 public sealed class WorkflowProperty: Property<WorkflowSchema>;
 
 /// <summary>
-/// Represents the event type
+/// Represents the workflow type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_WORKFLOW}.type")]
 [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, NODE_SELF, false, NODE_KIND_WORKFLOW)]

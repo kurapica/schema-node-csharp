@@ -1,37 +1,34 @@
-using SchemaNode.Attribute;
+﻿using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Event;
 using SchemaNode.Property.Core;
-using SchemaNode.Scalar;
-using SchemaNode.Schema;
-using SchemaNode.Utility;
-using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.AppConstant;
 
 namespace SchemaNode.Function;
 
-
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_REFLECT}.event")]
+[Meta<SchemaType>(NS_SYSTEM_SCHEMA_REFLECT_EVENT)]
 public static class SystemReflectEvent
 {
     /// <summary>
-    /// Get app field data change event payload type
+    /// The event type has arguments
     /// </summary>
-    public static async Task<string> getappfieldpayload(SchemaContext context,
-        [Meta<SchemaType>(typeof(AppType))] string? app,
-        [Meta<SchemaType>(typeof(Identifier))] string? field)
+    public static async Task<bool> hasargs(SchemaContext context,
+        [Meta<SchemaType>(typeof(Schema.EventType))] string @event)
     {
-        return await SystemReflectApp.getappfieldtype(context, app!, field!, true) ?? string.Empty;
+        var eventType = !string.IsNullOrWhiteSpace(@event) ? await context.GetNodeTypeAsync<Runtime.EventType>(@event) : null;
+        return eventType != null && eventType?.Args?.Length > 0;
     }
 
     /// <summary>
-    /// Get app field data update event payload type
+    /// Checks if the function type's return type match the given type
     /// </summary>
-    public static async Task<string> getappfieldupdatepayload(SchemaContext context,
-        [Meta<SchemaType>(typeof(AppType))] string? app,
-        [Meta<SchemaType>(typeof(Identifier))] string? field)
+    public static async Task<bool> withpayload(SchemaContext context,
+        [Meta<SchemaType>(typeof(Schema.EventType))] string @event,
+        [Meta<SchemaType>(typeof(Schema.ValueType))] string? type = null)
     {
-        var item = await SystemReflectApp.getappfieldtype(context, app!, field!, true);
-        if (string.IsNullOrWhiteSpace(item)) return string.Empty;
-        return typeof(AppFieldUpdatePayload).GetSchemaType()! + $"<{item}>";
+        var returnType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        if (returnType == null) return true;
+        var nodeType = !string.IsNullOrWhiteSpace(@event) ? await context.GetNodeTypeAsync<Runtime.EventType>(@event) : null;
+        if (nodeType == null) return false;
+        return nodeType?.Payload != null && returnType != null && (nodeType.Payload.IsAssignableTo(returnType));
     }
 }

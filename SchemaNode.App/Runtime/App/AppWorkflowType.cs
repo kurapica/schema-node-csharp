@@ -23,6 +23,8 @@ public sealed class AppWorkflowType: IDisposable
     {
         Application = app;
         _appWorkflowSchema = schema;
+        Nodes = schema.Nodes ?? []; // the runtime node graph source, lost during node parsing refactor
+        Active = schema.Active; // restore the persisted active flag, so the workflow can be re-activated (and restore its context) after restart
     }
 
     #endregion
@@ -108,6 +110,11 @@ public sealed class AppWorkflowType: IDisposable
         // Resolve payload types for all nodes
         foreach (var node in Nodes)
         {
+            var (_subRefTypes, err) = await node.LoadPropertiesAsync(context, node.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_APP_WORKFLOW_NODE)).ToArray());
+            Error ??= err;
+            if (_subRefTypes is { Length: > 0 })
+                _refTypes = _refTypes == null ? _subRefTypes : _refTypes.Concat(_subRefTypes).ToArray();
+
             if (string.IsNullOrWhiteSpace(node.Payload)) continue;
             node.PayloadValueType = await context.GetNodeTypeAsync<ValueType>(node.Payload);
             if (node.PayloadValueType == null)
@@ -212,101 +219,111 @@ public sealed class AppWorkflowType: IDisposable
         List<BaseWorkflow> topNodes = [];
         Dictionary<string, BaseWorkflow> workflows = [];
 
-        foreach (var node in Nodes)
+        try
         {
-            var workflowType = await context.GetNodeTypeAsync(node.Type) as WorkflowType;
-            Type csharpType = workflowType?.GetCsharpType() ?? throw new InvalidOperationException($"BaseWorkflow type {node.Type} not found");
 
-            // All constructors parameters goto state, init directly
-            BaseWorkflow wNode = (BaseWorkflow)Activator.CreateInstance(csharpType)!;
-            wNode.Application = Application;
-            wNode.Name = node.Name;
-            wNode.Fork = node.Fork ?? false;
-            wNode.ForkKey = node.ForkKey?.ToArray();
-            wNode.UnCancelable = node.UnCancelable ?? false;
-            wNode.CancelPre = node.CancelPre ?? false;
-            wNode.SavePayload = node.SavePayload ?? false;
-
-            // payload type
-            if (node.PayloadValueType != null)
-                wNode.PayloadType = node.PayloadValueType;
-
-            // state
-            if (workflowType.State != null && node.State != null && !node.State.IsEmpty())
+            foreach (var node in Nodes)
             {
-                var stateType = workflowType.State?.GetCsharpType();
-                if (stateType != null)
-                    csharpType.GetProperty(nameof(WorkflowType.State), BindingFlags.Public | BindingFlags.Instance)
-                        ?.SetValue(wNode, stateType.TryConvert(node.State, out var result) ? result : null);
-            }
+                var workflowType = await context.GetNodeTypeAsync(node.Type) as WorkflowType;
+                Type csharpType = workflowType?.GetCsharpType() ?? throw new InvalidOperationException($"BaseWorkflow type {node.Type} not found");
 
-            // details
-            await wNode.LoadAsync(context, node);
-            Error ??= node.Error;
+                // All constructors parameters goto state, init directly
+                BaseWorkflow wNode = (BaseWorkflow)Activator.CreateInstance(csharpType)!;
+                wNode.Application = Application;
+                wNode.Name = node.Name;
+                wNode.Fork = node.Fork ?? false;
+                wNode.ForkKey = node.ForkKey?.ToArray();
+                wNode.UnCancelable = node.UnCancelable ?? false;
+                wNode.CancelPre = node.CancelPre ?? false;
+                wNode.SavePayload = node.SavePayload ?? false;
 
-            // args
-            if (workflowType.Args is { Length: > 0 })
-            {
-                wNode.Args = new CallArg[workflowType.Args.Length];
-                if (node.Args == null || node.Args.Length != workflowType.Args.Length)
-                    throw new InvalidOperationException($"BaseWorkflow node {node.Name} arguments count mismatch, expected {workflowType.Args.Length} but got {node.Args?.Length ?? 0}");
-                for (int i = 0; i < workflowType.Args.Length; i++)
+                // payload type
+                if (node.PayloadValueType != null)
+                    wNode.PayloadType = node.PayloadValueType;
+
+                // state
+                if (workflowType.State != null && node.State != null && !node.State.IsEmpty())
                 {
-                    var argDef = workflowType.Args[i];
-                    var argNode = node.Args[i];
-                    wNode.Args[i] = new CallArg
+                    var stateType = workflowType.State?.GetCsharpType();
+                    if (stateType != null)
+                        csharpType.GetProperty(nameof(WorkflowType.State), BindingFlags.Public | BindingFlags.Instance)
+                            ?.SetValue(wNode, stateType.TryConvert(node.State, out var result) ? result : null);
+                }
+
+                // details
+                await wNode.LoadAsync(context, node);
+                Error ??= node.Error;
+
+                // args
+                if (workflowType.Args is { Length: > 0 })
+                {
+                    wNode.Args = new CallArg[workflowType.Args.Length];
+                    if (node.Args == null || node.Args.Length != workflowType.Args.Length)
+                        throw new InvalidOperationException($"BaseWorkflow node {node.Name} arguments count mismatch, expected {workflowType.Args.Length} but got {node.Args?.Length ?? 0}");
+                    for (int i = 0; i < workflowType.Args.Length; i++)
                     {
-                        Source = argNode.Source,
-                        Value = argNode.Value,
-                        ValueType = await context.GetNodeTypeAsync<ValueType>(argDef.Type),
-                    };
+                        var argDef = workflowType.Args[i];
+                        var argNode = node.Args[i];
+                        wNode.Args[i] = new CallArg
+                        {
+                            Source = argNode.Source,
+                            Value = argNode.Value,
+                            ValueType = await context.GetNodeTypeAsync<ValueType>(argDef.Type),
+                        };
+                    }
                 }
-            }
-            
-            workflows.Add(wNode.Name, wNode);
 
-            // Relations
-            if (node.Previous is { Length: > 0 })
-            {
-                wNode.Previous = new BaseWorkflow[node.Previous.Length];
-                for (int j = 0; j < node.Previous.Length; j++)
+                workflows.Add(wNode.Name, wNode);
+
+                // Relations
+                if (node.Previous is { Length: > 0 })
                 {
-                    var prevNode = workflows[node.Previous[j]] 
-                                   ?? throw new InvalidOperationException($"Previous workflow node {node.Previous[j]} not found for node {node.Name}");
-                    wNode.Previous[j] = prevNode;
-                    prevNode.Next ??= [];
-                    prevNode.Next = prevNode.Next.Append(wNode).ToArray();
+                    wNode.Previous = new BaseWorkflow[node.Previous.Length];
+                    for (int j = 0; j < node.Previous.Length; j++)
+                    {
+                        var prevNode = workflows[node.Previous[j]]
+                                       ?? throw new InvalidOperationException($"Previous workflow node {node.Previous[j]} not found for node {node.Name}");
+                        wNode.Previous[j] = prevNode;
+                        prevNode.Next ??= [];
+                        prevNode.Next = prevNode.Next.Append(wNode).ToArray();
+                    }
+                }
+                else
+                {
+                    topNodes.Add(wNode);
                 }
             }
-            else
-            {
-                topNodes.Add(wNode);
-            }
-        }
-        
-        // should have only one entry node
-        if (topNodes.Count != 1)
-            throw new InvalidOperationException($"BaseWorkflow schema {Name} should have exactly one entry node, but found {topNodes.Count}");
 
-        _workflowContext?.Dispose();
-        _workflowContext = ActivatorUtilities.CreateInstance<WorkflowContext>(context.Services);
-        _workflowContext.CopySchemaContextItem(context); // copy context items
-        
-        // restore
-        BaseWorkflow first = topNodes.First();
-        IWorkflowContextPersistence? persistence = context.GetService<IWorkflowContextPersistence>();
-        if (persistence != null)
-        {
-            var result = await persistence.ListAsync(App, Name, null, WorkflowStatus.Running);
-            if (result.Item2 > 0)
+            // should have only one entry node
+            if (topNodes.Count != 1)
+                throw new InvalidOperationException($"BaseWorkflow schema {Name} should have exactly one entry node, but found {topNodes.Count}");
+
+            _workflowContext?.Dispose();
+            _workflowContext = ActivatorUtilities.CreateInstance<WorkflowContext>(context.Services);
+            _workflowContext.CopySchemaContextItem(context); // copy context items
+
+            // restore
+            BaseWorkflow first = topNodes.First();
+            IWorkflowContextPersistence? persistence = context.GetService<IWorkflowContextPersistence>();
+            if (persistence != null)
             {
-                // only should have one running context
-                var snapshot = result.Item1.OrderBy(s => s.Id).First();
-                _workflowContext.Initialize(this, first, null, snapshot);
-                return;
+                var result = await persistence.ListAsync(App, Name, null, WorkflowStatus.Running);
+                if (result.Item2 > 0)
+                {
+                    // only should have one running context
+                    var snapshot = result.Item1.OrderBy(s => s.Id).First();
+                    _workflowContext.Initialize(this, first, null, snapshot);
+                    return;
+                }
             }
+            _workflowContext.Initialize(this, first);
         }
-        _workflowContext.Initialize(this, first);
+        catch(Exception ex)
+        {
+            Interlocked.CompareExchange(ref _activated, 0, 1);
+            context.LogError(ex, "The active workflow failed");
+            throw;
+        }
     }
 
     /// <summary>
