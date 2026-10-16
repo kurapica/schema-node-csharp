@@ -54,12 +54,12 @@ These implementations are used to validate the actual capabilities of the semant
 
 The architecture documentation systematically introduces SchemaNode's design motivations, semantic primitives, definition domain, semantic types, semantic dialects, and public semantic consensus.
 
-- 📖 [01. Semantic Drift and Execution Projections: Why We Need Executable Structured Semantics](./architecture/01-why.md)
-- 📖 [02. How to Construct the Multi-Dimensional Semantic Space](./architecture/02-how.md)
-- 📖 [03. Semantic Prototypes: The Minimal Contract with the Execution Layer](./architecture/03-prototype.md)
-- 📖 [04. The Definition Domain and Public Semantic Consensus](./architecture/04-definition.md)
-- 📖 [05. Semantic Dialects](./architecture/05-dialect.md)
-- 🧪 [Online Demo and Execution Validation](./tryit/01-type.md)
+- 📖 [01. Semantic Drift and Execution Projections: Why We Need Executable Structured Semantics](https://github.com/kurapica/schema-node-csharp/blob/main/Doc/en/architecture/01-why.md)
+- 📖 [02. How to Construct the Multi-Dimensional Semantic Space](https://github.com/kurapica/schema-node-csharp/blob/main/Doc/en/architecture/02-how.md)
+- 📖 [03. Semantic Prototypes: The Minimal Contract with the Execution Layer](https://github.com/kurapica/schema-node-csharp/blob/main/Doc/en/architecture/03-prototype.md)
+- 📖 [04. The Definition Domain and Public Semantic Consensus](https://github.com/kurapica/schema-node-csharp/blob/main/Doc/en/architecture/04-definition.md)
+- 📖 [05. Semantic Dialects](https://github.com/kurapica/schema-node-csharp/blob/main/Doc/en/architecture/05-dialect.md)
+- 🧪 [Online Demo and Execution Validation](https://github.com/kurapica/schema-node-csharp/blob/main/Doc/en/tryit/01-type.md)
 - 💻 [Source Code and Contributions](https://github.com/kurapica/schema-node-csharp)
 
 **We have only opened up a small part of the multi-dimensional semantic space. The true multi-dimensional semantic space still awaits further exploration.**
