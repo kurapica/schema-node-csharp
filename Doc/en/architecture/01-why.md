@@ -713,7 +713,7 @@ The next question to discuss is how this structure changes the way AI works, whi
 
 ## 13. The Layered Participation of AI in the Semantic Space
 
-Once semantics is fully decoupled from the execution layer, the way AI participates in software development changes accordingly.
+Once semantics and execution are decoupled through the prototype contract, the way AI participates in software development changes accordingly.
 
 In traditional development, AI typically generates code from requirements. But code often contains data structures, business rules, execution logic, and interaction behavior all at once. To correctly modify any one part, AI still needs to understand a large amount of implicit context and constraints between different modules.
 
