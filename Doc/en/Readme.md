@@ -30,9 +30,11 @@ SchemaNode does not attempt to cover all domains. What it explores is a common f
 
 ## Practice from a Real-World System
 
-In an agricultural carbon-sink certification system, complex data associations, computation constraints, result traceability, and continuously updated certification standards required both the frontend and backend to jointly handle a large amount of interrelated business semantics.
+An agricultural carbon-sink certification system with 700+ data tables for the first phase, involving extremely complex data associations, computation constraints, result traceability, and dynamic standards.
 
-A 4-person team completed the first phase of the system in 3 months with more than 700 data tables. This practice drove us to think further: when data structures, constraints, associations, and computation rules can all be described by a unified structured semantics, do they still need to be implemented and maintained separately in the database, backend, APIs, and frontend?
+This was a real project completed in an era without AI assistance. Post-hoc evaluation shows that traditional development paradigms would require 120+ person-months, and due to the extremely high business complexity, smooth delivery was almost impossible in reality.
+
+But under the design of "semantics and execution separation," a 4-person team completed the first phase of construction in 3 months — no overtime throughout and an extremely low bug rate. This drove us to think further: when data, constraints, associations, and rules are all described by a unified structured semantics, do they still need to be painfully re-implemented in the database, backend, APIs, and frontend?
 
 SchemaNode continues to develop along this line of thinking.
 
