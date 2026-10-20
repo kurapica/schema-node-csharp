@@ -47,15 +47,15 @@ builder.Services
     .AddSchemaStorageProvider<DynamicAppEntryStorageProvider>() // save schema as application data
 
     // Mysql
-    //.AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!)
-    //.AddAppDataProvider<AppDataMySqlProvider>() // Mysql application data provider
+    .AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!)
+    .AddAppDataProvider<AppDataMySqlProvider>() // Mysql application data provider
 
     // PostgreSQL
     //.AddNpgsqlDataSource(builder.Configuration.GetConnectionString("PostgreSql")!)
     //.AddAppDataProvider<AppDataPostgreSqlProvider>() // PostgreSQL application data provider
 
     // For test only
-    .AddAppDataProvider<InMemoryAppDataProvider>() // Memory application data provider - for test
+    //.AddAppDataProvider<InMemoryAppDataProvider>() // Memory application data provider - for test
 
     // Mcp
     //.AddSchemaMcp()
