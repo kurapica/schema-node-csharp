@@ -1,12 +1,12 @@
 # 02. SchemaNode.Core 与 node 原型族
 
-SchemaNode 最初的版本名为 `DataNode`，主要用于处理语义数据节点。随着实践深入，我们逐渐发现，将语义与执行分离后，可以让业务本身的本质复杂度与具体技术实现带来的偶然复杂度分别演进。
+SchemaNode 最初的版本名为 `DataNode`，主要用于处理复杂数据节点。随着实践深入，我们逐渐发现，将语义与执行分离后，可以让业务本身的本质复杂度与具体技术实现带来的偶然复杂度的耦合降到最低，实现相对独立的并行开发。
 
-在原有实践中，这一转变带来了 10 倍以上的开发效率提升。随着语义积累，功能迭代也变得越来越快。这不仅改善了开发效率，也在一定程度上摆脱了传统开发模式中技术债不断累积的问题。
+在原有实践中，这一转变带来无AI辅助下了 10 倍以上的开发效率提升。随着语义积累，功能迭代也变得越来越快。这不仅改善了开发效率，也在一定程度上摆脱了传统开发模式中技术债不断累积的问题。
 
 这正是我开始转向语义编程的初衷，也是最终将 SchemaNode.Core 的基础原型族命名为 `node` 的原因。
 
-正如上一章所述，原型名称主要用于执行层识别原型，并不需要出现在语义类型声明中。因此，`node` 只是 SchemaNode.Core 采用的一套原型标识，并不意味着语义层必须依赖某种特定的节点实现。
+正如上一章所述，原型名称主要用于执行层识别原型，并不需要出现在语义类型声明中。因此，`node` 只是 SchemaNode.Core 采用的一套原型标识，并不意味着执行层必须依赖某种特定的实现。
 
 SchemaNode.Core 用于提供公共语义空间。它既不是 Web 框架，也不是数据库框架，而是一个语义框架。无论是 Web 应用、数据库应用还是桌面程序，都可以基于它构建各自的语义模型与执行能力。
 
@@ -22,12 +22,11 @@ SchemaNode.Core 用于提供公共语义空间。它既不是 Web 框架，也�
 
 现在，有两个关键问题：
 
-为什么选了“整数”分类（Kind）后，界面会自动出现 lowlimit 和 uplimit？（而不是出现字符串专用的长度限制？）
+为什么选了“整数”分类（Kind）后，界面会自动出现整数上限和整数下限？（而不是出现字符串专用的长度限制？）
 
 是谁规定了定义“整数”时，必须配置这些属性？
 
-答案不在这个前端界面的代码里。这个配置界面本身，并没有针对“整数”写死任何特殊逻辑。它只是一个通用的渲染器，忠实地把后端 Schema 引擎传递过来的“属性列表”平铺了出来。
-
+答案不在这个前端界面的代码里。这个配置界面本身，并没有针对“整数”写任何特殊逻辑。它只是一个通用的渲染器，忠实地把后端 Schema 引擎传递过来的“属性列表”平铺了出来。
 
 ---
 
@@ -35,7 +34,9 @@ SchemaNode.Core 用于提供公共语义空间。它既不是 Web 框架，也�
 
 SchemaNode.Core 的原型定义位于项目的 `Schema` 目录下，每个原型都有对应的声明文件。例如，`node` 原型的声明位于 `NodeSchema.cs`。
 
-在实际的 C# 代码中，我们采用了“代码即 Schema”的声明模式。这意味你看到的这些 C# 类，既是编译期的强类型定义，也是运行期注入到语义空间的元数据。不需要额外维护一套 JSON/YAML 配置文件，代码本身就是定义域的唯一真相。
+在实际的 C# 代码中，我们采用了“代码即 Schema”的声明模式。这意味你看到的这些 C# 类，既是编译期的强类型定义，也是运行期注入到语义空间的元数据。
+
+虽然因为存在大量元数据描述，导致看起来有些复杂，但这是确保所有定义用语义都能被正确且集中配置的关键。不需要额外维护一套 JSON/YAML 配置文件，代码本身就是语义申明，这是避免基于配置导致的语义漂移的实践。
 
 下面摘取 `NodeSchema.cs` 中的部分代码：
 
@@ -92,7 +93,7 @@ public sealed class NodeSchema : PropertyOwner, IErrorProvider
 
 `Append` 用于声明原型支持的语义属性。这里为 `node` 添加了 `Display` 属性，它提供用于展示的本地化信息，也可以为人和 AI 提供类型的可读说明。
 
-一个原型可以支持多个语义属性。属性的具体定义由相应的属性类型负责，原型只需要声明自己支持哪些属性。
+一个原型可以支持多个语义属性。属性类型负责定义相应的语义，而原型通过声明支持的属性，确定其派生类型可以采用哪些语义约定。执行层则根据自身支持的能力，解释并消费这些属性。
 
 通常，语义属性会通过自身的元数据声明适用的原型，因此显式使用 `Append` 的情况并不多。但在理解原型声明时，它是一个重要的入口。
 
@@ -104,15 +105,15 @@ public sealed class NodeSchema : PropertyOwner, IErrorProvider
 public sealed class NodeKind;
 ```
 
-这里的 `NodeKind` 只是一个用于声明原型的 C# 类型，并不是 `node` 语义类型的数据结构。
+这里的 `NodeKind` 只是一个用于声明原型名称的 C# 类型，并不是 `node` 语义类型的数据结构(Meta)。
 
-实际项目中，原型声明与其对应的语义类型结构可以放在同一个 C# 类型上，以便统一管理。只有在存在特殊需求时，才需要将两者分开。后面会看到，原型族内部确实存在需要分别声明的情况。
+实际项目中，原型声明(Kind)与其语义类型结构(Meta)可以放在同一个 C# 类型上，以便统一管理。只有在存在属性定义给原型时，才需要将两者分开，原型属性作用于原型派生出的所有语义类型，而为结构申明定于属性则只作用于该结构体语义类型本身。
 
 ---
 
 ## 原型对应的语义类型结构
 
-剥离原型声明后，剩余部分就是以 `node` 为原型的语义类型结构。
+剥离原型声明后，剩余部分就是以 `node` 为原型的语义类型结构(Meta)。
 
 ```csharp
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_NODE}.schema")]
@@ -141,9 +142,9 @@ public sealed class NodeSchema : PropertyOwner, IErrorProvider
 }
 ```
 
-`SchemaType` 元数据声明了这个 C# 类型对应的语义类型名称。系统据此将它注册为一个结构体语义类型。
+`SchemaType` 元数据声明了这个 C# 类型对应的语义类型名称。因为没有使用`OfNodeType`描述，所以系统默认将它以给定的命名空间名称注册为一个结构体(struct)语义类型。
 
-`Attach` 则声明这个结构体语义类型需要附着 `node` 原型关联的语义属性。它并不是在声明这个 C# 类型本身就是原型，而是在说明：基于该结构体类型构造的语义类型，还可以配置 `node` 原型所支持的属性。
+`Attach` 则声明这个结构体语义类型需要附着 `node` 原型关联的语义属性。它并不是在声明这个 C# 类型本身就是原型，而是在说明：基于该结构体类型申明的语义类型，还需要额外附着 `node` 原型所支持的属性。在开始的类型定义图中看到的`显示(Display)`属性，就来源`node`原型。
 
 这里需要区分两个机制：
 
@@ -160,7 +161,7 @@ public sealed class NodeSchema : PropertyOwner, IErrorProvider
 
 `PrimaryIndex` 用于声明主键。具有主键声明的结构体类型可以自动构建对应的数组类型。当某处使用 `NodeSchema[]` 或 `List<NodeSchema>` 时，解析器会将其映射到相应的数组语义类型。
 
-`SchemaType` 用于指定字段的语义类型。例如，`Namespace` 的 C# 类型是 `string?`，但它在语义上需要使用 `NamespaceType`，而不是普通字符串类型。
+这里`SchemaType` 用于指定字段的语义类型。例如，`Namespace` 的 C# 类型是 `string?`，但它在语义上需要使用 `NamespaceType`，而不是普通字符串类型。
 
 这说明，**宿主语言中的类型只是语义类型的一个来源，并不必然等于最终采用的语义类型。** 必要时，可以通过元数据显式指定语义类型。
 
@@ -168,13 +169,13 @@ public sealed class NodeSchema : PropertyOwner, IErrorProvider
 
 `SchemaIgnore` 则用于排除不参与语义类型解析的成员。`FullName` 是根据 `Namespace` 和 `Name` 计算得到的辅助属性，因此不属于该语义类型的数据结构。
 
-由此，以上 C# 类型可以描述如下的结构化数据：
+由此，以上 C# 类型可以描述如下的结构化数据(默认采用驼峰命名法)：
 
 ```json
 {
-    "Namespace": "system",
-    "Name": "int",
-    "Kind": "int"
+    "namespace": "system",
+    "name": "int",
+    "kind": "int"
 }
 ```
 
@@ -187,6 +188,11 @@ public sealed class NodeSchema : PropertyOwner, IErrorProvider
 > 需要注意，语义属性表达的是意图，而非特定的执行方式。虽然 `ReadOnly` 看起来是一个主要用于前端的属性，但它表达的只读意图并不局限于前端。具体如何解释和执行，由执行层根据自身职责决定。
 
 > 这也是公共语义空间存在的必要性之一。像 `ReadOnly`、`Immutable` 这样的属性，其表达的意图可以形成公共共识，因此值得纳入公共语义空间。公共语义空间只需要覆盖数据类型及其处理所需的通用语义属性，而不必囊括所有领域特有的需求。其他特殊属性可以由语义方言追加，并由支持相应方言的执行层负责解释和执行。
+
+> `node`定义体的实际语义类型是`system.schema.node.schema`。 `system.schema`中的语义类型均是用于语义类型构造的辅助类型，是特定执行层提供的实现，在不同的定义用执行层中可以不同，所以，它们并不属于公共语义。
+
+> `system`中非`system.schema`的语义类型，则是公共语义类型，例如`system.string`等，这些类型与公共原型共同构成公共语义空间。执行层需要遵循相应的公共语义约定，并能够消费其声明所涉及且自身承诺支持的语义能力。
+
 
 ---
 
@@ -219,7 +225,7 @@ public sealed class NodeSchema : PropertyOwner, IErrorProvider
 public sealed class IntKind;
 ```
 
-`IntKind` 通过多种元数据，将 `node.int` 的原型声明与相关机制联系起来。
+`IntKind` 通过多种元数据，将 `node.int` 的原型名与相关机制联系起来。
 
 这些元数据承担不同职责：
 
@@ -227,11 +233,11 @@ public sealed class IntKind;
 |---|---|
 | `SchemaKind` | 声明 `node.int` 原型及其排序信息 |
 | `NodeKind` | 将 `int` 注册为 `node` 的一种分类 |
-| `NodeValueKind` | 声明对应的值类型分类 |
+| `NodeValueKind` | 声明`int`为值类型分类 |
 | `NodeType` | 注册用于加载和处理该类语义类型的运行时类型 |
 | `SchemaUsage` | 指定该原型的使用形式对应的定义 |
 | `Append` | 声明该原型支持的语义属性 |
-| `IntValue` | 将 `IntValue` 约束属性纳入原型声明 |
+| `IntValue` | 将 `Int` 约束属性纳入原型声明，即原型关联的约束属性 |
 
 这些声明将原型标识、分类、运行时处理和属性支持关联起来，使一个新原型能够接入现有的语义类型系统，而不需要为其重新设计一套独立机制。
 
@@ -256,7 +262,7 @@ public sealed class IntKind;
 public string Kind { get; set; } = null!;
 ```
 
-`NodeSchema` 的 `Kind` 字段使用 `NodeKind` 作为语义类型。通过元数据注册，`int` 可以成为相应枚举类型中的一个合法值。
+`NodeSchema` 的 `Kind` 字段使用 `NodeKind` 作为语义类型。通过元数据注册，`int` 可以成为相应枚举类型中的一个合法值。所以，图中类型分类可以选择到`int`整型分类。
 
 因此，扩展新的 `node` 分类时，可以通过新增分类声明完成扩展，而不必修改 `node` 的基础数据结构。
 
@@ -281,11 +287,11 @@ public class IntValue : Property<bool>, IConstraintProperty;
 
 `IntValue` 是为 `node.int` 原型声明的约束属性。它通过 `ForSchema` 指定适用的原型，并通过 `SchemaType` 指定自身的语义类型。
 
-注意，IntValue 不是绑定在某个具体的业务整数类型上（比如 age 或 year），它是挂载在 node.int 这个原型层的。这意味着，一旦声明了某个类型属于 int 原型，它就自动继承了 IntValue 的约束能力。这正是原型自带属性复用能力的体现。
+注意，IntValue 不是绑定在某个具体的业务整数类型上（比如 age 或 year），它是挂载在 node.int 这个原型上的。这意味着，一旦声明了某个类型属于该原型，它就自动继承了 IntValue 的约束能力。这正是原型自带属性复用能力的体现。
 
-`IConstraintProperty` 表明该属性承担约束职责，用于描述整数值的校验要求。
+`IConstraintProperty` 表明该属性承担约束职责，用于描述整数值的校验要求。该类型没有实现是因为C#执行层中，整数校验在数据加载为实体时已经完成了，所以，这里更多是作为一个申明。
 
-需要区分的是，C# 的强类型机制可以在宿主代码中约束部分值类型，但它并不能替代所有语义校验。语义约束仍然需要由相应执行层解释和处理。例如，`schema-node-core` 的前端内核可以提供对应的校验逻辑。
+例如，`schema-node-core` 的前端内核可以提供该属性对应的校验逻辑。不同的执行层基于自身的需求，可以提供不同的校验逻辑。
 
 这也体现了语义与执行分离后的一个特点：属性负责声明约束，执行层负责以自身适用的方式消费约束。
 
@@ -311,11 +317,11 @@ public class IntValue : Property<bool>, IConstraintProperty;
 
 定义一个语义类型，与在其他语义类型中使用它，并不一定需要相同的属性集合。
 
-例如，定义 `node.int` 类型时，通常不需要配置黑白名单等使用约束；但当整数类型被用作结构体字段时，就可能需要这些属性。
+例如，定义 `node.int` 类型时，通常不需要配置黑白名单等使用约束；但当整数类型被用作结构体字段使用时，就可能需要这些属性，同样存在定义时可以配置，使用时不可以的情况。
 
-然而，这些属性仍然属于 `node.int` 原型所支持的语义属性。它们的区别在于适用场景，而不是归属于完全不同的语义体系。
+不过，这些属性仍然属于 `node.int` 原型所支持的语义属性。它们的区别在于适用场景。
 
-为此，SchemaNode.Core 可以通过 `node.int.define` 和 `node.int.usage` 等附着原型，为定义和使用场景分别配置属性。
+为此，SchemaNode.Core 可以通过 `node.int.define` 和 `node.int.usage` 等子原型，为定义和使用场景分别配置属性。
 
 这两类原型不会因此成为独立的整数值类型。它们主要通过 `Attach` 机制，为不同场景下的语义声明提供不同的属性集合。
 
@@ -336,7 +342,7 @@ public class IntValue : Property<bool>, IConstraintProperty;
 public sealed class IntSchema : ScalarSchema
 {
     /// <summary>
-    /// The base int schema to inherit from
+    /// The base int type to inherit from
     /// </summary>
     [Meta<SchemaType>(typeof(IntType))]
     public override string? Base { get; set; }
@@ -345,13 +351,12 @@ public sealed class IntSchema : ScalarSchema
 /// <summary>
 /// Attach int to the node
 /// </summary>
-[Meta<Alias>(NODE_KIND_INT)]
+[Meta<Alias>("int")]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
-[Meta<SchemaType>(
-    $"{NS_SYSTEM_SCHEMA_PROP_INT}.{NODE_KIND_INT}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_INT}.int")]
 [Relation<Visible, Call>(
-    NODE_KIND_INT,
+    "int",
     NS_SYSTEM_LOGIC_EQ,
     $"@{nameof(NodeSchema.Kind)}",
     NODE_KIND_INT)]
@@ -360,9 +365,9 @@ public sealed class IntProperty : Property<IntSchema>;
 
 这里的 `IntSchema` 是整数语义类型的定义体。它采用 `node.int.define` 对应的属性集合，只暴露定义整数类型所需要的属性。
 
-`IntProperty` 则声明了一个附着在 `node` 原型上的语义属性，用于承载整数语义类型的定义。
+`IntProperty` 则声明了一个附着在 `node` 原型上的语义属性，用于表达整数类型定义的语义属性。
 
-例如，一个整数类型可以声明为：
+因此，一个整数类型可以声明为：
 
 ```json
 {
@@ -388,7 +393,7 @@ public sealed class IntProperty : Property<IntSchema>;
 
 ```csharp
 [Relation<Visible, Call>(
-    NODE_KIND_INT,
+    "int",
     NS_SYSTEM_LOGIC_EQ,
     $"@{nameof(NodeSchema.Kind)}",
     NODE_KIND_INT)]
@@ -400,7 +405,7 @@ public sealed class IntProperty : Property<IntSchema>;
 int.visible = (kind == "int")
 ```
 
-也就是说，只有当 `node` 的 `kind` 为 `int` 时，整数类型的配置才应显示。
+也就是说，只有当 `node` 的 `kind` 为 `int` 时，整数类型的配置才应显示。这点图中也展示了。
 
 这里的关键不在于前端如何实现显示与隐藏，而在于**可见性规则已经成为语义声明的一部分**。定义域的执行层只需要解释这一关联，就可以决定如何呈现配置界面，无须专门认识 `node.int` 的内部实现。
 
@@ -410,46 +415,36 @@ int.visible = (kind == "int")
 
 ---
 
-## node 原型族与定义域语义类型
+## node 原型族与语义契约
 
 通过 `NodeSchema` 和 `IntKind`，我们已经看到 `node` 原型族的基本工作方式：
 
 - 原型声明确定类型分类及其支持的语义属性。
 - 语义类型结构描述类型的基本数据结构。
-- `Append` 与 `Attach` 配合，为不同类型和使用场景提供属性。
+- `Append` 与 `Attach` 配合，为原型及其派生类型提供相应的属性。
 - 运行时类型为语义声明提供加载和处理能力。
-- 语义属性及其关联进一步描述约束、可见性等行为。
+- 语义属性及其关联进一步表达约束、可见性等语义意图。
 
-这些机制共同构成了基于命名空间管理的语义类型系统。通过不断增加语义属性和原型，系统可以扩展可定义的语义类型，而不必持续修改基础结构。
+这些机制共同构成了基于命名空间管理的语义类型系统。通过增加原型和语义属性，系统可以扩展可定义的语义类型，而不必持续修改基础结构。
 
-不过，构造 `node` 原型族本身，还需要一套描述语义类型如何定义的机制。
+需要注意的是，语义与执行并不是完全隔离的。原型及其关联的语义属性构成了两者之间的契约：语义层负责表达意图，执行层则需要能够识别并消费相应的语义声明。公共语义空间提供通用的语义约定，语义方言则可以在此基础上扩展领域特有的原型与属性。
 
-为此，SchemaNode.Core 提供了大量位于 `system.schema` 命名空间下的定义域语义类型。例如，`Attach` 对应的属性定义可以使用 `system.schema.prop.struct.attach` 这样的语义类型。
+另一方面，`system.schema` 命名空间下的类型用于描述语义类型如何定义、配置和构造。这些定义域语义类型属于构造机制的一部分，其具体实现可以随定义工具和执行层演进，而不必因此改变已有的公共语义约定。
 
-这些类型与业务语义类型承担不同的职责。
+通过这种方式，SchemaNode 不仅能够描述语义类型，也能够将语义类型的定义机制本身纳入语义体系。后续章节将从具体原型出发，进一步介绍这个语义空间的构成。
 
----
 
-### 定义域语义类型的特点
+## Namespace：命名空间原型
 
-**第一，定义域语义类型与具体执行层有关。**
+虽然 `node` 本身的结构已经可以用于管理命名空间，但它本身并不是命名空间原型，而是整个原型族的起点。专门的命名空间原型声明则比较简单：
 
-它们用于描述语义类型的声明方式、属性配置及其约束，通常由执行层提供。随着定义工具和执行能力的演进，这些类型的实现可以不断优化，必要时也可以被替换。
+```csharp
+[Meta<SchemaKind>(SCHEMA_KIND_NODE_NAMESPACE, SCHEMA_KIND_ORDER_NAMESPACE)]
+[Meta<NodeKind>(NODE_KIND_NAMESPACE, SCHEMA_KIND_ORDER_NAMESPACE)]
+[Meta<NodeType>(typeof(RuntimeNamespaceType))]
+public sealed class NamespaceKind;
+```
 
-**第二，公共语义定义域必须遵循公共语义约定。**
+这个声明只注册了原型标识、类型分类和对应的运行时类型，没有额外声明语义属性。`RuntimeNamespaceType` 负责处理命名空间类型的运行时行为。
 
-虽然定义域的实现可以变化，但它生成和维护的公共语义类型，必须符合通用语义原型及其兼容约定。否则，不同执行层之间就无法可靠地交换和解释这些语义声明。
-
-**第三，方言的定义域可以根据自身需求扩展。**
-
-针对特定领域的语义方言，可以设计与其原型及功能相适应的定义域语义类型。它们不必全部纳入公共语义空间，只要遵循所需的公共约定，就可以与公共语义基础协作。
-
-这一设计使定义域与被定义的语义类型保持相对独立：定义域可以持续演进，而语义类型的公共声明不必因此改变。
-
-因此，未来即使出现更好的公共语义定义域实现，也不必推翻 `node` 原型族本身。只要新的定义域能够生成兼容的语义声明，就可以替换原有实现。
-
-这正是 SchemaNode.Core 希望建立的基础：**语义约定保持稳定，定义与执行的实现可以独立演进。**
-
-正因如此，node 原型族本身并不是一个静态的封闭系统。它通过 `system.schema` 定义域，把“如何定义语义”这件事也变成了语义。这种自举（Bootstrapping）能力，使得 node 可以不断生长出新的方言，而无需修改核心执行代码。
-
-下一章开始，我们将正式进入具体的语义原型，看看它们是如何一步步搭建起这个多维语义空间的。
+命名空间类型本身主要作为其他语义类型的容器。具体实现可以查看 `RuntimeNamespaceType`，也可以通过语义编辑器添加一个命名空间，观察它的实际表现。

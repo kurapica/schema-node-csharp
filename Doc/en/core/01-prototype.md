@@ -1,6 +1,6 @@
 # 01. Semantic Prototypes and the Definition Domain
 
-Before starting this series, it is recommended to first read the [architecture chapters](../architecture/01-why.md).
+Before starting this series, it is recommended to first read the [architecture chapters](../architecture/01-why.md). If you only need to use the system and are not concerned with prototype implementation, you can also skip the Core articles and go directly to the App-related chapters.
 
 This chapter starts from practice, introducing semantic entities, semantic types, and semantic prototypes in turn, and then further explains the relationship between the definition domain and the public semantic space, laying the foundation for the next chapter's introduction of SchemaNode.Core's `node` prototype family.
 
@@ -153,6 +153,12 @@ There is another important characteristic here: **the definition of a semantic p
 This means we do not need to design a completely independent definition system for semantic prototypes, nor hard-code a special metalanguage in the code. A prototype can be described by the semantic types it supports, and those semantic types can in turn be constructed based on prototypes, thus forming a bootstrapping structure.
 
 The next chapter will specifically introduce how SchemaNode.Core implements this mechanism through the `node` prototype family.
+
+> Note that although in the data processing domain each semantic type is based on only one prototype, the design does not actively limit the number of prototypes a semantic type can have. In a sense, a prototype can be viewed as an interface, and a semantic type can actually implement multiple interfaces. If we bring entities from the physical world into this model — for example, a cup — it can simultaneously have multiple prototypes such as `container` and `fragile`, where the `fragile` prototype can provide properties such as maximum load-bearing pressure.
+
+> In practice, the struct fields encountered later are also interpreted through multiple prototypes. For example, a field first has the properties designed around fields, such as `visible` and `require`; based on the field's type, it can also carry the properties of the prototype corresponding to that type. For instance, if the field uses an enum value, then properties such as `root` and `cascade` can be applied to the field.
+
+> In this design, prototypes are more of an attachment point for properties. They represent how property values are parsed and consumed.
 
 ---
 
