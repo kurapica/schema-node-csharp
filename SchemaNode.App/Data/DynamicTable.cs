@@ -580,12 +580,11 @@ public class DynamicTableSchema
         {
             if (isview && isTarget)
             {
-                if (AppField.View?.AppType?.ScopeType == AppScopeType.SystemLevel) continue; // no target
-
                 // change the view target to the foreign field
                 var sourceField = AppField.View?.AppType?.GetField(AppField.View?.Field ?? "") ?? throw new Exception($"Invalid view source field: {AppField.View?.App}.{AppField.View?.Field}");
-                var foreign = sourceField.Foreigns?.FirstOrDefault(f => f.App.Equals(AppField.App, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception($"Invalid view source field: {AppField.View?.App}.{AppField.View?.Field}");
-                yield return (foreign.Field, value);
+                var foreign = sourceField.Foreigns?.FirstOrDefault(f => f.App.Equals(AppField.App, StringComparison.OrdinalIgnoreCase));
+                if (foreign is not null)
+                    yield return (foreign.Field, value);
             }
             else
                 yield return (item, value);

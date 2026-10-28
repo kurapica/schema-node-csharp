@@ -6,6 +6,7 @@ using SchemaNode.Context;
 using SchemaNode.Data;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using Microsoft.OpenApi.Reader;
 
 // ReSharper disable NotAccessedPositionalProperty.Global
 
@@ -39,7 +40,7 @@ public class DataSourceExpVisitor : IExpVisitor
         if (exp is not FuncCallExp { ApplyMode: ApplyMode.Call } callExp) return null;
 
         // Data source check
-        if (callExp.Function.Name != $"{NS_SYSTEM_DATA}.{nameof(SystemAppData.getdatasource)}") return null;
+        if (callExp.Function.Name != $"{NS_SYSTEM_DATA}.app.{nameof(SystemAppData.getdatasource)}") return null;
         string? app = callExp.Args.ElementAtOrDefault(0) is ConstantExp appExp ? appExp.Value.GetValue<string>() :  null;
         string? field = callExp.Args.ElementAtOrDefault(1) is ConstantExp fldExp ? fldExp.Value.GetValue<string>() :  null;
 
@@ -220,8 +221,7 @@ public class DataSourceExpVisitor : IExpVisitor
         {
             FieldAccessExp fieldExp => ReplaceExp(fieldExp.Owner) is CollectionItemExp 
                 ? Expression.New(typeof(AppSchemaDataFilterField).GetConstructors()[0], Expression.Constant(fieldExp.FieldName))
-                : Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], 
-                    await context.CompileSchemaExpAsync(new FieldAccessExp(ReplaceExp(fieldExp.Owner), fieldExp.FieldName, fieldExp.ValueType))),
+                : Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], await context.CompileSchemaExpAsync(new FieldAccessExp(ReplaceExp(fieldExp.Owner), fieldExp.FieldName, fieldExp.ValueType), typeof(object))),
             VariableExp varExp => await CompileDataSourceFilter(context, varExp.Value, expReplace),
             DefaultExp dftExp => await CompileDataSourceFilter(context, dftExp.Inner, expReplace), // unpack the default
             UnaryLogicExp unaryExp => Expression.New(typeof(AppSchemaDataFilterUnary).GetConstructors()[0], Expression.Constant(unaryExp.Type), await CompileDataSourceFilter(context, unaryExp.Inner, expReplace)),

@@ -36,7 +36,7 @@ public sealed class FunctionKind;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.schema")]
 [Meta<Attach>(SCHEMA_KIND_NODE_FUNCTION)]
-[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getaccessentries)}", $"@{nameof(Args)}", $"@{nameof(Exps)}.{ARRAY_PREVIOUS}", NODE_SELF)]
+[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getaccessentries)}", $"@{nameof(Args)}", $"@{nameof(Exps)}.{ARRAY_PREVIOUS}", false, NODE_SELF)]
 [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getaccessvaluetype)}", $"@{nameof(Args)}", $"@{nameof(Exps)}.{ARRAY_PREVIOUS}", NODE_SELF)]
 [Meta<KindProvider>(SCHEMA_KIND_NODE_FUNC_ARG)]
 [Relation<EntrySource, Assign>($"{nameof(Exps)}.{ARRAY_ELEMENT}.{nameof(FuncExp.Name)}", $"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getreturnfields)}", $"@{nameof(Return)}", $"@{nameof(Args)}", $"@{nameof(Exps)}.{ARRAY_PREVIOUS}")]

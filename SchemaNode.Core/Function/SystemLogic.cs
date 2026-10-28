@@ -112,13 +112,13 @@ public static class SystemLogic
     /// system.logic.eq
     /// </summary>
     [Meta<Logic>(LogicType.Equal)]
-    public static bool eq<T>(T? a, T? b) where T: IComparable => a == null && b == null || a != null && a.Equals(b);
+    public static bool eq<T>(T? a, T? b) where T: IComparable => a != null && b != null && a.Equals(b);
 
     /// <summary>
     /// system.logic.neq
     /// </summary>
     [Meta<Logic>(LogicType.NotEqual)]
-    public static bool neq<T>(T? a, T? b) where T : IComparable => !eq(a, b);
+    public static bool neq<T>(T? a, T? b) where T : IComparable => a != null && b != null && !a.Equals(b);
 
     /// <summary>
     /// system.logic.ge

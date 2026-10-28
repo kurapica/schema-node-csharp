@@ -170,7 +170,7 @@ public static class SystemAppData
     [Meta<ServerOnly>(true)]
     [Meta<SourceTrack>(true)]
     [Relation<EntrySource, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfields)}", $"@{nameof(app)}.{nameof(CallArg.Value)}")]
-    [Relation<AccessValueTypeProvider, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldtype)}", $"@{nameof(app)}.{nameof(CallArg.Value)}", NODE_SELF, true)]
+    [Relation<AccessValueTypeProvider, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldtype)}", $"@{nameof(app)}.{nameof(CallArg.Value)}", NODE_SELF)]
     [Relation<AccessEntryConsumer, Assign>($"{nameof(field)}.{nameof(CallArg.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.isassignableto)}", NODE_SELF, false, $"@{FUNC_RETURN}")]
     public static async Task<ArrayNode> getdatasource(
         SchemaContext context,

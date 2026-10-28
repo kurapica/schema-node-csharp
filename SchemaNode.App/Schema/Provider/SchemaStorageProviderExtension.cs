@@ -241,7 +241,7 @@ public static class SchemaStorageProviderExtension
             parent = await context.GetAppTypeAsync(app.FullName.GetNamespace());
             parent?.SaveAppSchema(app);
         }
-        await context.GetAppTypeAsync(app.Name, reload: true); // force reload
+        await context.GetAppTypeAsync(app.FullName, reload: true); // force reload
 
         // Save fields in order if provided
         if (app.Fields is { Length: > 0 })

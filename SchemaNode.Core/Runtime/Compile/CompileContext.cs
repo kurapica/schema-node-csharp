@@ -3,6 +3,7 @@ using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Service;
 using SchemaNode.Utility;
+using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -963,7 +964,8 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 else if (callArgs[j].Type != paramType)
                     callArgs[j] = ConvertExp(paramType, callArgs[j]);
             }
-            return GenMethodCallExp(callFuncInfo, callMethod, callArgs, expRetElement);
+            var callExp = GenMethodCallExp(callFuncInfo, callMethod, callArgs, expRetElement);
+            return expectedType != null ? ConvertExp(expectedType, callExp) : callExp;
         }
         return Expression.Empty();
     }

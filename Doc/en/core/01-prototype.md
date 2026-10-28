@@ -1,6 +1,6 @@
 # 01. Semantic Prototypes and the Definition Domain
 
-Before starting this series, it is recommended to first read the [architecture chapters](../architecture/01-why.md). If you only need to use the system and are not concerned with prototype implementation, you can also skip the Core articles and go directly to the App-related chapters.
+Before starting this series, it is recommended to first read the [architecture chapters](../architecture/01-why.md). If you only need to use the system and are not concerned with prototype implementation, you can also skip the Core articles and go directly to the UseIt chapters.
 
 This chapter starts from practice, introducing semantic entities, semantic types, and semantic prototypes in turn, and then further explains the relationship between the definition domain and the public semantic space, laying the foundation for the next chapter's introduction of SchemaNode.Core's `node` prototype family.
 

@@ -338,10 +338,9 @@ public sealed class AppFieldType
             if (structType == null || string.IsNullOrWhiteSpace(View?.App) || string.IsNullOrWhiteSpace(View?.Field) ||
                 await context.GetAppTypeAsync(View.App) is not { } sourceApp ||
                 sourceApp.GetField(View.Field) is not { } sourceField ||
-                sourceApp.ScopeType != AppScopeType.SystemLevel && (
-                sourceField.Foreigns == null || sourceField.Foreigns.Length == 0 || 
-                sourceField.Foreigns.All(f => !f.App.Equals(Name, StringComparison.OrdinalIgnoreCase)) ||
-                !string.IsNullOrWhiteSpace(View.Map) && structType.GetField(View.Map) == null))
+                sourceApp.ScopeType != AppScopeType.SystemLevel && sourceField.Foreigns is not { Length:> 0 } ||
+                sourceField.Foreigns is { Length: > 0 } && sourceField.Foreigns.All(f => !f.App.Equals(Application.Name, StringComparison.OrdinalIgnoreCase)) ||
+                !string.IsNullOrWhiteSpace(View.Map) && structType.GetField(View.Map) == null)
             {
                 Error ??= AppErrorCodes.APP_FIELD_VIEW_NOT_VALID;
             }
