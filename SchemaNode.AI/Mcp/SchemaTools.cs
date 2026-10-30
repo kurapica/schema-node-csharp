@@ -10,6 +10,7 @@ using SchemaNode.Enum;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Schema.Provider;
+using SchemaNode.Schema.Validation;
 using SchemaNode.Struct;
 using AppType = SchemaNode.Runtime.AppType;
 using EnumType = SchemaNode.Runtime.EnumType;
@@ -40,6 +41,29 @@ public class SchemaTools
         return await context.GetNodeSchemasAsync(schemaType);
     }
     
+    [McpServerTool, Description(
+         "Validate a candidate schema node definition without saving it. " +
+         "Use this tool before proposing a schema change to the user. " +
+         "The candidate must be a JSON object in the format of schema type: system.schema.node.schema. " +
+         "The tool checks the node kind, the kind specific definition (struct/enum/array/func), " +
+         "the referenced value types, the schema name and namespace, and the existing create/update authorization rules. " +
+         "It does not persist anything and does not modify the schema runtime. " +
+         "Returns the blocking errors and non blocking warnings for the candidate."
+     )]
+    public static async Task<SchemaValidationResult> ValidateSchema(
+        SchemaContext context,
+        [Description(
+            "Candidate schema node definition as a JSON object. " +
+            "Same shape as the node schema returned by the get schema tool."
+        )] JsonNode schema,
+        [Description(
+            "Optional full name of the schema currently edited, e.g. 'demo.address'. " +
+            "When provided, the candidate must keep the same namespace and name."
+        )] string? targetName = null)
+    {
+        return await context.ValidateNodeSchemaAsync(schema, targetName);
+    }
+
     [McpServerTool, Description(
          "Invoke a function defined in the schema type system. " +
          "The function is identified by its schema type name and represents an executable semantic unit. " +
