@@ -10,7 +10,18 @@ SchemaNode 不是低代码平台、表单引擎、ORM 或 API 文档工具。
 
 🚀 **[5 分钟快速体验 Demo](./tryit/01-type.md)**
 
+📖 **快速上手**
+    - [语义类型配置](./useit/01-types.md)
+    - [应用配置](./useit/02-apps.md)
+    - [工作流配置](./useit/03-workflow.md)
+    - [嵌入已有微服务](./useit/04-integration.md)
+    - [前端视图定制和使用](./useit/05-views.md)
+
 📖 **[架构文档](./architecture/01-why.md)**
+
+📖 **[内核导读](./core/01-prototype.md)**
+
+📖 **[App 方言导读](./app/01-overview.md)**
 
 💬 **[设计讨论](https://github.com/kurapica/schema-node-csharp/discussions)**
 

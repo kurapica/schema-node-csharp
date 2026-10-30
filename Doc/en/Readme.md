@@ -10,7 +10,18 @@ It attempts to decouple semantic definitions from concrete execution, so that se
 
 🚀 **[5-Minute Quick Demo](./tryit/01-type.md)**
 
+📖 **Quick Start Guide**
+    - [Semantic Type Configuration](./useit/01-types.md)
+    - [Application Configuration](./useit/02-apps.md)
+    - [Workflow Configuration](./useit/03-workflow.md)
+    - [Integration](./useit/04-integration.md)
+    - [Frontend View Customization and Usage](./useit/05-views.md)
+
 📖 **[Architecture Documentation](./architecture/01-why.md)**
+
+📖 **[Kernel Introduction](./core/01-prototype.md)**
+
+📖 **[App Dialect Introduction](./app/01-overview.md)**
 
 💬 **[Design Discussions](https://github.com/kurapica/schema-node-csharp/discussions)**
 

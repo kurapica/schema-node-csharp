@@ -12,7 +12,18 @@ It attempts to decouple semantic definitions from concrete execution, so that se
 
 🚀 **[5-Minute Quick Demo](https://github.com/kurapica/schema-node-csharp/blob/main/Doc/en/tryit/01-type.md)**
 
+📖 **Quick Start Guide**
+    - [Semantic Type Configuration](https://github.com/kurapica/schema-node-csharp/blob/main/Doc/en/useit/01-types.md)
+    - [Application Configuration](https://github.com/kurapica/schema-node-csharp/blob/main/Doc/en/useit/02-apps.md)
+    - [Workflow Configuration](https://github.com/kurapica/schema-node-csharp/blob/main/Doc/en/useit/03-workflow.md)
+    - [Integration](https://github.com/kurapica/schema-node-csharp/blob/main/Doc/en/useit/04-integration.md)
+    - [Frontend View Customization and Usage](https://github.com/kurapica/schema-node-csharp/blob/main/Doc/en/useit/05-views.md)
+
 📖 **[Architecture Documentation](https://github.com/kurapica/schema-node-csharp/blob/main/Doc/en/architecture/01-why.md)**
+
+📖 **[Kernel Introduction](https://github.com/kurapica/schema-node-csharp/blob/main/Doc/en/core/01-prototype.md)**
+
+📖 **[App Dialect Introduction](https://github.com/kurapica/schema-node-csharp/blob/main/Doc/en/app/01-overview.md)**
 
 💬 **[Design Discussions](https://github.com/kurapica/schema-node-csharp/discussions)**
 
