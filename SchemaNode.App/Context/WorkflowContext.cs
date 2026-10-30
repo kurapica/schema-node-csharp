@@ -125,7 +125,7 @@ public class WorkflowContext: SchemaContext
             WorkflowState state = GetOrCreateWorkflowState(nodeSnapshot.Name);
             state.Status = nodeSnapshot.Status;
             state.Error = nodeSnapshot.Error;
-            state.Payload = node.PayloadType?.From(nodeSnapshot.Payload);
+            state.Payload = node.PayloadType?.From(this, nodeSnapshot.Payload);
             if (state.HasSession && nodeSnapshot.Session != null)
             {
                 try

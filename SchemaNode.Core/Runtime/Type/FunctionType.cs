@@ -14,8 +14,6 @@ using SchemaNode.Property.Function;
 using SchemaNode.Schema.Provider;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
-using System.Reflection.Metadata.Ecma335;
-using System.Security.Cryptography;
 
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedMember.Local
@@ -298,13 +296,13 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
     public bool HasAccessEntries => true;
     
     /// <inheritdoc/>
-    public IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
+    public IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
     {
         throw new NotImplementedException();
     }
 
     /// <inheritdoc/>
-    public IValueAccess From(object? value, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
+    public IValueAccess From(ISchemaContext context, object? value, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
     {
         throw new NotImplementedException();
     }
@@ -583,7 +581,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                         GetArgType(arg, eleType);
                         if (argInfo.ValueType != null && argInfo.ValueType is not GenericType)
                         {
-                            var node = argInfo.ValueType.Create();
+                            var node = argInfo.ValueType.Create(context);
                             if (!node.TrySetValue(argJson)) throw new Exception($"The {i + 1} argument must be provided and valid");
                             callArgs[i] = node;
                         }
@@ -632,7 +630,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                         {
                             if (schemaType != null && schemaType is not GenericType)
                             {
-                                var node = schemaType.Create();
+                                var node = schemaType.Create(context);
                                 if (!node.TrySetValue(argJson)) throw new Exception($"The {j + 1} argument not valid");
                                 argObj = node;
                             }
@@ -772,7 +770,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                         {
                             if (eleType.IsAssignableTo(typeof(IValueAccess)))
                             {
-                                var node = arg.ValueType.Create();
+                                var node = arg.ValueType.Create(context);
                                 if (!node.TrySetValue(value))
                                     throw new Exception($"The {i + 1} argument must be provided and valid");
                                 maps[index++] = node;
@@ -809,7 +807,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                 {
                     if (eleType.IsAssignableTo(typeof(IValueAccess)))
                     {
-                        var node = arg.ValueType.Create();
+                        var node = arg.ValueType.Create(context);
                         if (!node.TrySetValue(argObj))
                             throw new Exception($"The {i + 1} argument must be provided and valid");
                         callArgs[i] = node;
@@ -897,7 +895,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                                 if (results[0] is IValueAccess n)
                                 {
                                     var arrayNode =
-                                        ((await context.GetArrayNodeTypeAsync(n.Type))!.Create() as ArrayNode)!;
+                                        ((await context.GetArrayNodeTypeAsync(n.Type))!.Create(context) as ArrayNode)!;
                                     arrayNode.AddRange(results);
                                     result = arrayNode;
                                 }
@@ -931,7 +929,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                                 if (results[0] is IValueAccess n)
                                 {
                                     var arrayNode =
-                                        ((await context.GetArrayNodeTypeAsync(n.Type))!.Create() as ArrayNode)!;
+                                        ((await context.GetArrayNodeTypeAsync(n.Type))!.Create(context) as ArrayNode)!;
                                     arrayNode.AddRange(results);
                                     result = arrayNode;
                                 }

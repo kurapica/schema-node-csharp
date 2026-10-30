@@ -47,12 +47,12 @@ public interface IValueTypeAccess : IPropertyProvider
     /// <param name="parent"></param>
     /// <param name="propertyProvider"></param>
     /// <returns></returns>
-    IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null);
+    IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders);
 
     /// <summary>
     /// Generate the data node with given value
     /// </summary>
-    IValueAccess From(object? value, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null);
+    IValueAccess From(ISchemaContext context, object? value, IValueAccess? parent = null, params IPropertyProvider[] propertyProvider);
 
     /// <summary>
     /// Gets the match C# type
@@ -129,11 +129,6 @@ public interface IValueAccess
     IValueAccess? Parent { get; }
     
     /// <summary>
-    /// The property provider
-    /// </summary>
-    IPropertyProvider? PropertyProvider { get; }
-
-    /// <summary>
     /// Record the constraint result
     /// </summary>
     void RecordConstraint(IConstraintProperty constraint, bool result);
@@ -157,6 +152,20 @@ public interface IValueAccess
     /// The violated data
     /// </summary>
     JsonNode? Violated { get; }
+
+    #region Property Access
+
+    /// <summary>
+    /// The property provider
+    /// </summary>
+    IReadOnlyList<IPropertyProvider> PropertyProviders { get; }
+
+    /// <summary>
+    /// Gets the property by type
+    /// </summary>
+    T? GetProperty<T>() where T : class, IProperty;
+
+    #endregion
 }
 
 /// <summary>

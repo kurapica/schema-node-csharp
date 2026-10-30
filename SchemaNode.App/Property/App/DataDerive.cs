@@ -16,6 +16,7 @@ using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using SchemaValueType = SchemaNode.Schema.ValueType;
 using SchemaNode.Relation;
+using SchemaNode.Context;
 
 namespace SchemaNode.Property.App;
 
@@ -166,14 +167,14 @@ internal static class DataDeriveExtensions
     /// <summary>
     /// Join to scalar
     /// </summary>
-    internal static IValueAccess? GroupJoin(this ScalarType type, IValueAccess? value, DataCombineType method)
+    internal static IValueAccess? GroupJoin(this ScalarType type, ISchemaContext context, IValueAccess? value, DataCombineType method)
     {
         return method switch
         {
             DataCombineType.Newest => value is ArrayNode arr ? arr.LastOrDefault() : value,
             DataCombineType.Oldest => value is ArrayNode arr ? arr.FirstOrDefault() : value,
-            DataCombineType.Sum => type.From(value is ArrayNode arr ? arr.Sum(a => a.TryGetValue<decimal>(out var d) ? d : 0) : value != null && value.TryGetValue<decimal>(out var s) ? s : 0m),
-            DataCombineType.Count => type.From(value is ArrayNode arr ? arr.Count : 0),
+            DataCombineType.Sum => type.From(context, value is ArrayNode arr ? arr.Sum(a => a.TryGetValue<decimal>(out var d) ? d : 0) : value != null && value.TryGetValue<decimal>(out var s) ? s : 0m),
+            DataCombineType.Count => type.From(context, value is ArrayNode arr ? arr.Count : 0),
             _ => throw new NotImplementedException(),
         };
     }
@@ -181,7 +182,7 @@ internal static class DataDeriveExtensions
     /// <summary>
     /// Join to struct
     /// </summary>
-    internal static IValueAccess? GroupJoin(this Runtime.StructType type, IValueAccess? value, IReadOnlyDictionary<string, DataCombineType> joinMethodMap)
+    internal static IValueAccess? GroupJoin(this Runtime.StructType type, ISchemaContext context, IValueAccess? value, IReadOnlyDictionary<string, DataCombineType> joinMethodMap)
     {
         if (value == null || value.IsEmpty) return null;
         switch (value)
@@ -199,7 +200,7 @@ internal static class DataDeriveExtensions
             case ArrayNode { Count: > 0 } array:
                 {
                     // Join
-                    StructNode result = new(type);
+                    StructNode result = new(context, type);
                     foreach (StructFieldType field in type.GetFields())
                     {
                         switch (joinMethodMap.GetValueOrDefault(field.Name, DataCombineType.Newest))
@@ -344,7 +345,7 @@ internal static class DataDeriveExtensions
     /// <summary>
     /// Join to array
     /// </summary>
-    internal static ArrayNode? GroupJoin(this Runtime.ArrayType type, IValueAccess? value, Dictionary<string, DataCombineType> joinMethodMap)
+    internal static ArrayNode? GroupJoin(this Runtime.ArrayType type, ISchemaContext context, IValueAccess? value, Dictionary<string, DataCombineType> joinMethodMap)
     {
         if (type.Element is not Runtime.StructType structNode || type.Primary == null) return null;
         Dictionary<string, Runtime.ValueType?> primaryNodes = structNode.GetFields().Where(fieldType => type.Primary.Contains(fieldType.Name)).ToDictionary(fieldType => fieldType.Name, fieldType => fieldType.Type);
@@ -390,7 +391,7 @@ internal static class DataDeriveExtensions
             }
             return 0;
         });
-        return new ArrayNode(type, joinObjs);
+        return new ArrayNode(context, type, joinObjs);
     }
 
     #endregion

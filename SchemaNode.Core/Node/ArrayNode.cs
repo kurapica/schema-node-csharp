@@ -1,13 +1,14 @@
-﻿using System.Collections;
+﻿using SchemaNode.Context;
+using SchemaNode.Runtime;
+using System.Collections;
 using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using SchemaNode.Runtime;
+using static SchemaNode.Utility.Constant;
 using ArrayType = SchemaNode.Runtime.ArrayType;
 using StructFieldType = SchemaNode.Runtime.StructFieldType;
 using StructType = SchemaNode.Runtime.StructType;
 using ValueType = SchemaNode.Runtime.ValueType;
-using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Node;
 
@@ -15,22 +16,21 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
 {
     #region Constructors
     
-    public ArrayNode(IValueTypeAccess type, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
+    public ArrayNode(ISchemaContext context, IValueTypeAccess type, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) :base(context, propertyProviders)
     {
         Type = (type as ValueType)?.ArrayType ?? type;
         Parent = parent;
         ElementType = (type is ArrayType arr ? arr.Element : type) ??
                       throw new Exception($"The type '{type.Name}' is not a valid array type.");
-        PropertyProvider = propertyProvider ?? Type as IPropertyProvider;
     }
 
-    public ArrayNode(IValueTypeAccess type, object value, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null): this(type, parent, propertyProvider)
+    public ArrayNode(ISchemaContext context, IValueTypeAccess type, object value, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) : this(context, type, parent, propertyProviders)
     {
         if (!TrySetValue(value))
             throw new InvalidCastException($"Failed to set value to schema type {type.Name}.");
     }
 
-    private ArrayNode(ArrayNode array, int count): this(array.Type, array.Parent)
+    private ArrayNode(ISchemaContext context, ArrayNode array, int count): this(context, array.Type, array.Parent)
     {
         // only used for relation calc, no parent change
         _elements = array._elements.Take(count).ToList();
@@ -215,7 +215,7 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
         
         // previous array
         if (paths[0].Equals(ARRAY_PREVIOUS, StringComparison.OrdinalIgnoreCase)) 
-            return eleIndex >= 0 ? new ArrayNode(this, eleIndex) : node is null ? this : null;
+            return eleIndex >= 0 ? new ArrayNode(Context, this, eleIndex) : node is null ? this : null;
         if (!paths[0].Equals(ARRAY_ELEMENT, StringComparison.OrdinalIgnoreCase)) return null;
         
         // deep access
@@ -232,7 +232,7 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
     /// <inheritdoc/>
     public override IValueAccess Clone()
     {
-        ArrayNode node = new ArrayNode(ElementType);
+        ArrayNode node = new ArrayNode(Context, ElementType);
         foreach (var element in _elements)
             node.Add(element.Clone());
         return node;
@@ -278,7 +278,7 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
 
         if (fields.Length != primaryKeys.Count) return this;
 
-        return new ArrayNode(@struct)
+        return new ArrayNode(Context, @struct)
         {
             _elements = _elements.Where(element =>
                     element is StructNode structNode &&
@@ -343,7 +343,7 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
             return true;
         }
 
-        node = ElementType.Create(this);
+        node = ElementType.Create(Context, this);
         return node.TrySetValue(value);
     }
 

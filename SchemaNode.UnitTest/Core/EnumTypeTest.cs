@@ -38,7 +38,7 @@ public class EnumTypeTest : Base.CoreTestBase
     {
         var colorType = await Context.GetNodeTypeAsync<EnumType>("test.enum.color");
         Assert.IsNotNull(colorType);
-        var node = colorType.Create();
+        var node = colorType.Create(Context);
         Assert.IsNotNull(node);
         Assert.IsTrue(node.IsEmpty);
     }

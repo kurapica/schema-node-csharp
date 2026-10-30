@@ -622,12 +622,12 @@ public class DynamicTableSchema
     /// <summary>
     /// Gets the field data pack from the reader
     /// </summary>
-    public IValueAccess GetFieldPack(DbDataReader reader, int offset = 0, bool queryOnly = false)
+    public IValueAccess GetFieldPack(ISchemaContext context, DbDataReader reader, int offset = 0, bool queryOnly = false)
     {
-        StructNode result = new StructNode((StructType)(ValueType is ArrayType arr ? arr.Element : ValueType)!);
+        StructNode result = new StructNode(context, (StructType)(ValueType is ArrayType arr ? arr.Element : ValueType)!);
         foreach (DynamicTableField field in queryOnly ? QueryFields : NonScopeFields)
         {
-            IValueAccess? val = field.FromReader(reader, offset++);
+            IValueAccess? val = field.FromReader(context, reader, offset++);
 
             if (field.Target)
             {
@@ -644,7 +644,7 @@ public class DynamicTableSchema
             if (val == null)
             {
                 if (field is { IsJoinField: true, ValueType: DecimalType or IntType})
-                    val = field.ValueType.From(0);
+                    val = field.ValueType.From(context, 0);
                 else
                     continue;
             }
@@ -657,7 +657,7 @@ public class DynamicTableSchema
                 var main = result.GetAccessValue(field.Complex.Main);
                 if (main == null)
                 {
-                    main = new StructNode((StructType)((StructType)ValueType).GetField(field.Complex.Main)!.Type!);
+                    main = new StructNode(context, (StructType)((StructType)ValueType).GetField(field.Complex.Main)!.Type!);
                     result[field.Complex.Main] = main;
                 }
                 (main as StructNode)![field.Complex.Field] = val;
@@ -670,7 +670,7 @@ public class DynamicTableSchema
     /// <summary>
     /// Gets the field data pack from the reader by field name
     /// </summary>
-    public IValueAccess? GetFieldPack(DbDataReader reader, string fieldName, bool queryOnly = false)
+    public IValueAccess? GetFieldPack(ISchemaContext context, DbDataReader reader, string fieldName, bool queryOnly = false)
     {
         int offset = 0;
         StructNode? complexResult = null;
@@ -678,12 +678,12 @@ public class DynamicTableSchema
         {
             if (field.Complex == null && field.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
             {
-                return field.FromReader(reader, offset);
+                return field.FromReader(context, reader, offset);
             }
             else if (field.Complex != null && field.Complex.Field.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
             {
-                complexResult ??= new StructNode((StructType)((StructType)ValueType).GetField(field.Complex.Main)!.Type!);
-                var val = field.FromReader(reader, offset);
+                complexResult ??= new StructNode(context, (StructType)((StructType)ValueType).GetField(field.Complex.Main)!.Type!);
+                var val = field.FromReader(context, reader, offset);
                 if (val != null)
                     complexResult[field.Complex.Field] = val;
             }

@@ -182,7 +182,7 @@ public sealed class StructType: ValueType, IRelationProvider, INodeTypeReLoadHan
     }
 
     /// <inheritdoc />
-    public override IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new StructNode(this, parent, propertyProvider);
+    public override IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) => new StructNode(context, this, parent, propertyProviders);
 
     /// <inheritdoc />
     public override IEnumerable<Entry<string>> GetAccessEntries()

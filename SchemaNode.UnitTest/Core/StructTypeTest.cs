@@ -21,7 +21,7 @@ public class StructTypeTest : Base.CoreTestBase
         var contextType = await Context.GetNodeTypeAsync<StructType>(NS_SYSTEM_CONTEXT);
         Assert.IsNotNull(contextType);
 
-        var node = contextType.Create() as StructNode;
+        var node = contextType.Create(Context) as StructNode;
         Assert.IsNotNull(node);
         Assert.IsTrue(node.IsEmpty);
     }
@@ -40,7 +40,7 @@ public class StructTypeTest : Base.CoreTestBase
         var personType = await Context.GetNodeTypeAsync<StructType>("test.generator.person");
         Assert.IsNotNull(personType);
 
-        var node = personType.Create() as StructNode;
+        var node = personType.Create(Context) as StructNode;
         Assert.IsNotNull(node);
 
         var nameField = node.GetAccessValue("Name");
@@ -53,7 +53,7 @@ public class StructTypeTest : Base.CoreTestBase
         var personType = await Context.GetNodeTypeAsync<StructType>("test.generator.person");
         Assert.IsNotNull(personType);
 
-        var node = personType.Create() as StructNode;
+        var node = personType.Create(Context) as StructNode;
         Assert.IsNotNull(node);
 
         node["Name"] = "Alice";
@@ -83,7 +83,7 @@ public class StructTypeTest : Base.CoreTestBase
         var personType = await Context.GetNodeTypeAsync<StructType>("test.generator.person");
         Assert.IsNotNull(personType);
 
-        var node = personType.Create() as StructNode;
+        var node = personType.Create(Context) as StructNode;
         Assert.IsNotNull(node);
         node!["Name"] = "Charlie";
 
@@ -98,7 +98,7 @@ public class StructTypeTest : Base.CoreTestBase
         var personType = await Context.GetNodeTypeAsync<StructType>("test.generator.person");
         Assert.IsNotNull(personType);
 
-        var original = personType.Create() as StructNode;
+        var original = personType.Create(Context) as StructNode;
         Assert.IsNotNull(original);
         original!["Name"] = "Diana";
         original["Age"] = 25;
@@ -116,7 +116,7 @@ public class StructTypeTest : Base.CoreTestBase
         var personType = await Context.GetNodeTypeAsync<StructType>("test.generator.person");
         Assert.IsNotNull(personType);
 
-        var node = personType.Create() as StructNode;
+        var node = personType.Create(Context) as StructNode;
         Assert.IsNotNull(node);
 
         // Set multiple fields
@@ -135,7 +135,7 @@ public class StructTypeTest : Base.CoreTestBase
         var contextType = await Context.GetNodeTypeAsync<StructType>(NS_SYSTEM_CONTEXT);
         Assert.IsNotNull(contextType);
 
-        var node = contextType.Create() as StructNode;
+        var node = contextType.Create(Context) as StructNode;
         Assert.IsNotNull(node);
 
         // system.context has fields like Target, Items etc.

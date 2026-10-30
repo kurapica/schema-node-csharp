@@ -213,6 +213,7 @@ public class SchemaChatServiceTest : Base.AppTestBase
         Assert.IsTrue(response.Change.Errors.Any(e => e.Code == SchemaValidationErrorCodes.UnknownType));
 
         var loaded = (await Context.GetNodeTypeAsync("ai_chat_customer"))!.GetNodeSchema();
+        Assert.IsNotNull(loaded);
         var fields = loaded.GetProperty<StructProperty>()!.Value!.Fields;
         Assert.AreEqual(2, fields.Length);
         Assert.AreEqual(NS_SYSTEM_INT, fields[1].Type);

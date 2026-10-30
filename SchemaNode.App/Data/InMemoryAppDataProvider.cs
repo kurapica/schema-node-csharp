@@ -67,13 +67,13 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
 
             return type switch
             {
-                AppSchemaDataResult.Count => (schemaContext.System.Int.From(total), total),
-                AppSchemaDataResult.Exist => (schemaContext.System.Bool.From(total > 0), total),
+                AppSchemaDataResult.Count => (schemaContext.System.Int.From(context, total), total),
+                AppSchemaDataResult.Exist => (schemaContext.System.Bool.From(context, total > 0), total),
                 AppSchemaDataResult.First => (origins.Count > 0 ? origins[0].Clone() : null, total),
                 AppSchemaDataResult.Last => (origins.Count > 0 ? origins[^1].Clone() : null, total),
-                AppSchemaDataResult.Field => (new ArrayNode(((schema.ValueType as ArrayType)!.Element as StructType)!.GetField(dataField!)!.Type!, 
+                AppSchemaDataResult.Field => (new ArrayNode(context, ((schema.ValueType as ArrayType)!.Element as StructType)!.GetField(dataField!)!.Type!, 
                     origins.Select(o => o is StructNode sn ? sn.GetAccessValue(dataField!) : null).Where(x => x is { IsEmpty: false }).Select(x => x!).ToArray()), total),
-                _ => (new ArrayNode(schema.ValueType, origins.Select(o => o.Clone()).ToArray()), total)
+                _ => (new ArrayNode(context, schema.ValueType, origins.Select(o => o.Clone()).ToArray()), total)
             };
         }
         else
@@ -124,7 +124,7 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
                             throw new UnauthorizedAccessException();
                         }
                     }
-                    return (true, new ArrayNode(schema.ValueType, updates), new ArrayNode(schema.ValueType, origins));
+                    return (true, new ArrayNode(context, schema.ValueType, updates), new ArrayNode(context, schema.ValueType, origins));
                 }
                 case StructNode structNode:
                 {
@@ -135,12 +135,12 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
                         if (onlyAdd) return (false, null, null); // no update
                         IValueAccess origin = list[index];
                         list[index] = structNode;
-                        return (true, new ArrayNode(schema.ValueType, structNode), new ArrayNode(schema.ValueType, origin));
+                        return (true, new ArrayNode(context, schema.ValueType, structNode), new ArrayNode(context, schema.ValueType, origin));
                     }
                     else if (canAdd)
                     {
                         list.Add(structNode);
-                        return (true, new ArrayNode(schema.ValueType, structNode), null);
+                        return (true, new ArrayNode(context, schema.ValueType, structNode), null);
                     }
                     else
                     {
@@ -170,7 +170,7 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
         ConcurrentDictionary<string, List<IValueAccess>> table = _dynamicTables.GetOrAdd(schema.AppField.DynamicTableName, _ => []);
         if (table.TryRemove(compositeKey, out List<IValueAccess>? list))
         {
-            return (true, new ArrayNode(schema.ValueType, list));
+            return (true, new ArrayNode(context, schema.ValueType, list));
         }
 
         return (false, null);
@@ -199,7 +199,7 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
             }
 
             table[compositeKey] = remains;
-            return (true, new ArrayNode(schema.ValueType, origins));
+            return (true, new ArrayNode(context, schema.ValueType, origins));
         }
         else
         {

@@ -1,11 +1,12 @@
-﻿using SchemaNode.Runtime;
+﻿using SchemaNode.Context;
+using SchemaNode.Runtime;
 using SchemaNode.Utility;
 
 namespace SchemaNode.Node;
 
-public abstract class ScalarNode : DataNode;
+public abstract class ScalarNode(ISchemaContext context, params IPropertyProvider[] propertyProviders) : DataNode(context, propertyProviders);
 
-public abstract class ScalarNode<T> : ScalarNode where T: struct
+public abstract class ScalarNode<T>(ISchemaContext context, params IPropertyProvider[] propertyProviders) : ScalarNode(context, propertyProviders) where T: struct
 {
     protected T? Value;
     
@@ -52,7 +53,7 @@ public abstract class ScalarNode<T> : ScalarNode where T: struct
                                                         other is EnumNode enumNode && enumNode.TryGetValue(out T? val) && Equals(Value, val);
 }
 
-public abstract class RefScalarNode<T> : ScalarNode where T : class
+public abstract class RefScalarNode<T>(ISchemaContext context, params IPropertyProvider[] propertyProviders) : ScalarNode(context, propertyProviders) where T : class
 {
     protected T? Value;
 
@@ -102,11 +103,11 @@ public abstract class RefScalarNode<T> : ScalarNode where T : class
 /// <summary>
 /// Object data node
 /// </summary>
-public class AnyNode : RefScalarNode<object>
+public class AnyNode(ISchemaContext context, params IPropertyProvider[] propertyProviders) : RefScalarNode<object>(context, propertyProviders)
 {
     public override IValueAccess Clone()
     {
-        return new AnyNode
+        return new AnyNode(Context, PropertyProviders.ToArray())
         {
             Type = Type,
             Value = Value
@@ -117,13 +118,13 @@ public class AnyNode : RefScalarNode<object>
 /// <summary>
 ///  Bool data node
 /// </summary>
-public class BoolNode : ScalarNode<bool>
+public class BoolNode(ISchemaContext context, params IPropertyProvider[] propertyProviders) : ScalarNode<bool>(context, propertyProviders)
 {
     public override bool IsEmpty => Value is null;
 
     public override IValueAccess Clone()
     {
-        return new BoolNode()
+        return new BoolNode(Context, PropertyProviders.ToArray())
         {
             Type = Type,
             Value = Value
@@ -134,11 +135,11 @@ public class BoolNode : ScalarNode<bool>
 /// <summary>
 ///  String data node
 /// </summary>
-public class StringNode : RefScalarNode<string>
+public class StringNode(ISchemaContext context, params IPropertyProvider[] propertyProviders) : RefScalarNode<string>(context, propertyProviders)
 {
     public override IValueAccess Clone()
     {
-        return new StringNode
+        return new StringNode(Context, PropertyProviders.ToArray())
         {
             Type = Type,
             Value = Value
@@ -149,11 +150,11 @@ public class StringNode : RefScalarNode<string>
 /// <summary>
 ///  Numeric data node
 /// </summary>
-public class DecimalNode : ScalarNode<decimal>
+public class DecimalNode(ISchemaContext context, params IPropertyProvider[] propertyProviders) : ScalarNode<decimal>(context, propertyProviders)
 {
     public override IValueAccess Clone()
     {
-        return new DecimalNode
+        return new DecimalNode(Context, PropertyProviders.ToArray())
         {
             Type = Type,
             Value = Value
@@ -164,11 +165,11 @@ public class DecimalNode : ScalarNode<decimal>
 /// <summary>
 /// Int data node
 /// </summary>
-public class IntNode : ScalarNode<long>
+public class IntNode(ISchemaContext context, params IPropertyProvider[] propertyProviders) : ScalarNode<long>(context, propertyProviders)
 {
     public override IValueAccess Clone()
     {
-        return new IntNode
+        return new IntNode(Context, PropertyProviders.ToArray())
         {
             Type = Type,
             Value = Value
@@ -179,11 +180,11 @@ public class IntNode : ScalarNode<long>
 /// <summary>
 /// DateTime data node
 /// </summary>
-public class DateNode : ScalarNode<DateTimeOffset>
+public class DateNode(ISchemaContext context, params IPropertyProvider[] propertyProviders) : ScalarNode<DateTimeOffset>(context, propertyProviders)
 {
     public override IValueAccess Clone()
     {
-        return new DateNode
+        return new DateNode(Context, PropertyProviders.ToArray())
         {
             Type = Type,
             Value = Value

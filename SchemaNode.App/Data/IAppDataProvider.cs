@@ -1,3 +1,4 @@
+using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
@@ -68,7 +69,7 @@ public static class AppDataProviderExtension
     /// <summary>
     /// Gets the data with the given nodes
     /// </summary>
-    public static async Task<IValueAccess?> QueryOriginNodesAsync(this IAppDataProvider dataProvider, DynamicTableSchema schema, IEnumerable<StructNode> nodes, bool forUpdate = false)
+    public static async Task<IValueAccess?> QueryOriginNodesAsync(this IAppDataProvider dataProvider, ISchemaContext context, DynamicTableSchema schema, IEnumerable<StructNode> nodes, bool forUpdate = false)
     {
         if (schema.Single) return null; // not supported for single record tables
         
@@ -81,7 +82,7 @@ public static class AppDataProviderExtension
         {
             // 1. Collect keys and prepare IN lists
             HashSet<string> keys = [];
-            Dictionary<string, ArrayNode> keyData = arrType.Primary!.ToDictionary(k => k, k => new ArrayNode(structType.GetField(k)!.Type!));
+            Dictionary<string, ArrayNode> keyData = arrType.Primary!.ToDictionary(k => k, k => new ArrayNode(context, structType.GetField(k)!.Type!));
 
             foreach (StructNode node in queryNodes)
             {
@@ -110,7 +111,7 @@ public static class AppDataProviderExtension
             if (res is ArrayNode resultArray)
             {
                 // Filter in memory
-                var filtered = new ArrayNode(structType);
+                var filtered = new ArrayNode(context, structType);
                 foreach (StructNode node in resultArray.OfType<StructNode>())
                 {
                     string? key = arrType.GetPrimaryKey(node);
@@ -144,7 +145,7 @@ public static class AppDataProviderExtension
     /// <summary>
     /// Delete the dynamic table data with the filter
     /// </summary>
-    public static async Task<(bool result, IValueAccess? origin)> DeleteSchemaNodeAsync(this IAppDataProvider dataProvider, DynamicTableSchema schema, IValueAccess node)
+    public static async Task<(bool result, IValueAccess? origin)> DeleteSchemaNodeAsync(this IAppDataProvider dataProvider, ISchemaContext context, DynamicTableSchema schema, IValueAccess node)
     {
         if (schema.Single)
             return await dataProvider.ClearDynamicTableDataAsync(schema);
@@ -164,7 +165,7 @@ public static class AppDataProviderExtension
             case ArrayNode arrNode:
             {
                 var count = 0;
-                var origin = new ArrayNode(arrNode.ElementType as StructType ?? throw new InvalidOperationException("Invalid element type"));
+                var origin = new ArrayNode(context, arrNode.ElementType as StructType ?? throw new InvalidOperationException("Invalid element type"));
                 for (int i = 0; i < arrNode.Count; i += MAX_COMBINE_CASE_COUNT)
                 {
                     StructNode[] batch = arrNode.Skip(i).Take(MAX_COMBINE_CASE_COUNT).OfType<StructNode>().ToArray();

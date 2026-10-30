@@ -2,7 +2,6 @@
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
-using System.Xml.Linq;
 using StructType = SchemaNode.Runtime.StructType;
 
 namespace SchemaNode.Node;
@@ -14,17 +13,16 @@ public class StructNode : DataNode
 
     #region Constructor
 
-    public StructNode(StructType type, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
+    public StructNode(ISchemaContext context, StructType type, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) :base(context, propertyProviders)
     {
         Type = type;
         Parent = parent;
-        PropertyProvider = propertyProvider ?? type;
         
         // init fields
-        _fields = type.GetFields().Select(p => p.Type?.Create(this, p) ?? throw new Exception($"The struct {type.Name}'s field {p.Name} has not valid value type")).ToArray();
+        _fields = type.GetFields().Select(p => p.Type?.Create(context, this, p) ?? throw new Exception($"The struct {type.Name}'s field {p.Name} has not valid value type")).ToArray();
     }
 
-    public StructNode(StructType type, object value, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null): this(type, parent, propertyProvider)
+    public StructNode(ISchemaContext context, StructType type, object value, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) : this(context, type, parent, propertyProviders)
     {
         if (!TrySetValue(value))
             throw new InvalidCastException($"Failed to set value to schema type {type.Name}.");
@@ -139,7 +137,7 @@ public class StructNode : DataNode
             if (IsValid) return null;
             JsonObject result = [];
             foreach (var f in _fields.Where(f => !f.IsValid))
-                result[(f.PropertyProvider as StructFieldType)!.Name] = f.Violated;
+                result[f.PropertyProviders.OfType<StructFieldType>().First().Name] = f.Violated;
             return result;
         }
     }
@@ -305,7 +303,7 @@ public class StructNode : DataNode
     /// <inheritdoc/>
     public override IValueAccess Clone()
     {
-        StructNode clone = new((StructType)Type);
+        StructNode clone = new(Context, (StructType)Type);
         int i = 0;
         foreach (var _ in (Type as StructType)!.GetFields())
         {

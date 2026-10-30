@@ -116,7 +116,7 @@ public sealed class EnumType: ValueType
     }
 
     /// <inheritdoc />
-    public override IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new EnumNode(this,  parent, propertyProvider);
+    public override IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) => new EnumNode(context, this,  parent, propertyProviders);
 
     /// <inheritdoc />
     public override bool IsIndexable => true;

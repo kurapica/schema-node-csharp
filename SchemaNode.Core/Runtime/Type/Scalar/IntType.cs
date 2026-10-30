@@ -1,3 +1,4 @@
+using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Schema;
 
@@ -13,7 +14,7 @@ public sealed class IntType : ScalarType
     public override bool IsIndexable => true;
 
     /// <inheritdoc/>
-    public override IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new IntNode { Type = this, Parent = parent, PropertyProvider = propertyProvider ?? this };
+    public override IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) => new IntNode(context, propertyProviders) { Type = this, Parent = parent };
     
     /// <inheritdoc />
     protected override ScalarSchema? GetScalarSchema() => GetProperty<IntProperty>()?.Value;

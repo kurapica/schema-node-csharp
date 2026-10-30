@@ -73,7 +73,7 @@ public class GeneratorTest : Base.CoreTestBase
         var personType = await Context.GetNodeTypeAsync<StructType>("test.generator.person");
         Assert.IsNotNull(personType);
 
-        var node = personType.Create();
+        var node = personType.Create(Context);
         Assert.IsNotNull(node, "Generated struct type should be able to create a StructNode");
     }
 

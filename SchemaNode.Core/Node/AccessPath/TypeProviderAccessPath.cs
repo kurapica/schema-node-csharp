@@ -36,7 +36,7 @@ public class TypeProviderAccessPath: IValueAccessPathHandler
         TypeProvider? typeProvider = null;
         while (access != null)
         {
-            typeProvider = access.PropertyProvider?.GetProperty<TypeProvider>();
+            typeProvider = access.GetProperty<TypeProvider>();
             if (typeProvider is { HasValue: true }) break;
             access = access.Parent;
         }

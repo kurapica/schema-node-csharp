@@ -47,7 +47,7 @@ public class AppProviderAccessPath : IValueAccessPathHandler
         AppProvider? appProvider = null;
         while (access != null)
         {
-            appProvider = access.PropertyProvider?.GetProperty<AppProvider>();
+            appProvider = access.GetProperty<AppProvider>();
             if (appProvider is { HasValue: true }) break;
             access = access.Parent;
         }

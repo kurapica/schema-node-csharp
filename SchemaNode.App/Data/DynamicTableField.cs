@@ -1,4 +1,4 @@
-﻿using SchemaNode.Node;
+﻿using SchemaNode.Context;
 using SchemaNode.Runtime;
 using System.Data.Common;
 using System.Text.Json.Nodes;
@@ -96,7 +96,7 @@ public class DynamicTableField
     /// <summary>
     /// Get JToken from reader
     /// </summary>
-    public IValueAccess? FromReader(DbDataReader reader, int col = 0)
+    public IValueAccess? FromReader(ISchemaContext context, DbDataReader reader, int col = 0)
     {
         if (reader.IsDBNull(col)) return null;
         object? data;
@@ -133,7 +133,7 @@ public class DynamicTableField
             });
         }
 
-        return ValueType.From(data);
+        return ValueType.From(context, data);
     }
 
     /// <summary>

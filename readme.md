@@ -27,6 +27,12 @@ It attempts to decouple semantic definitions from concrete execution, so that se
 
 💬 **[Design Discussions](https://github.com/kurapica/schema-node-csharp/discussions)**
 
+Recommendation Suggestions:
+
+* For concept readers: first read [Architecture Documentation](./architecture/01-why.md) + [Kernel Introduction](./core/01-prototype.md)
+* For frontend/config readers: first read [5-Minute Quick Demo](./tryit/01-type.md) + Quick Start Guide
+* For business developers: first read Quick Start Guide + [App Dialect Introduction](./app/01-overview.md), then go back to [Kernel Introduction](./core/01-prototype.md) to understand the underlying design
+
 ---
 
 ## Core Idea

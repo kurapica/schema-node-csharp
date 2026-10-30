@@ -148,7 +148,7 @@ public sealed class ArrayType: ValueType, IRelationProvider, INodeTypeReLoadHand
     }
 
     /// <inheritdoc />
-    public override IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new ArrayNode(this, parent, propertyProvider);
+    public override IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) => new ArrayNode(context, this, parent, propertyProviders);
 
     /// <inheritdoc />
     public override IEnumerable<RelationType> GetRelations() => _relations ?? [];

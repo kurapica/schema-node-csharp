@@ -484,7 +484,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 }
 
                 // Const expression
-                await SetArgExp(i, arg?.Value == null ? null : new ConstantExp(arg.ValueType!.From(arg.Value)));
+                await SetArgExp(i, arg?.Value == null ? null : new ConstantExp(arg.ValueType!.From(Context, arg.Value)));
             }
 
             // For params
@@ -528,7 +528,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                                 exp.Status = ErrorCodes.FUNC_ARG_WRONG_TYPE;
                                 throw new FunctionVisitException(ErrorCodes.FUNC_ARG_WRONG_TYPE);
                             }
-                            await SetArgExp(j, new ConstantExp(arg.ValueType.From(arg.Value)));
+                            await SetArgExp(j, new ConstantExp(arg.ValueType.From(Context, arg.Value)));
                         }
                     }
                 }
@@ -616,11 +616,11 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 {
                     if (argExp == null)
                     {
-                        argExp = new ConstantExp(argType.From(argDef.Default));
+                        argExp = new ConstantExp(argType.From(Context, argDef.Default));
                     }
                     else
                     {
-                        argExp = new DefaultExp(argExp, argType.From(argDef.Default));
+                        argExp = new DefaultExp(argExp, argType.From(Context, argDef.Default));
                     }
                 }
                                 

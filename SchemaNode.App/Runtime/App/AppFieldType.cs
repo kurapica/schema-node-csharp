@@ -533,7 +533,7 @@ public sealed class AppFieldType
             // skip validation if node can't set value
             if (result == null)
             {
-                result = ValueType!.Create();
+                result = ValueType!.Create(context);
                 if (value != null && !result.TrySetValue(value))
                     return null;
             }

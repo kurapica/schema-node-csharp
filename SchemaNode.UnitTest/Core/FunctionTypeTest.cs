@@ -431,7 +431,7 @@ public class FunctionTypeTest : Base.CoreTestBase
     {
         var arrType = await Context.GetNodeTypeAsync<ArrayType>("system.array");
         Assert.IsNotNull(arrType);
-        var arrNode = arrType.Create() as ArrayNode;
+        var arrNode = arrType.Create(Context) as ArrayNode;
         Assert.IsNotNull(arrNode);
         arrNode!.Add("a");
         arrNode.Add("b");
@@ -447,7 +447,7 @@ public class FunctionTypeTest : Base.CoreTestBase
     {
         var arrType = await Context.GetNodeTypeAsync<ArrayType>("system.list<system.int>");
         Assert.IsNotNull(arrType);
-        var arrNode = arrType.Create() as ArrayNode;
+        var arrNode = arrType.Create(Context) as ArrayNode;
         Assert.IsNotNull(arrNode);
         arrNode!.Add(10L);
         arrNode.Add(20L);

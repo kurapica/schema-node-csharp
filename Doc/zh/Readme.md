@@ -25,6 +25,12 @@ SchemaNode 不是低代码平台、表单引擎、ORM 或 API 文档工具。
 
 💬 **[设计讨论](https://github.com/kurapica/schema-node-csharp/discussions)**
 
+推荐建议：
+
+* 对于架构和概念型读者：先看 [架构文档](./architecture/01-why.md) + [内核导读](./core/01-prototype.md)
+* 对于前端/配置型读者：先看 [5 分钟快速体验 Demo](./tryit/01-type.md) + 快速上手
+* 对于业务开发者：先看 快速上手 + [App 方言导读](./app/01-overview.md)，再回到 [内核导读](./core/01-prototype.md) 理解底层设计
+
 ---
 
 ## 核心思想

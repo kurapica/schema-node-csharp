@@ -99,7 +99,7 @@ public static class SystemCollection
     /// <summary>
     /// order by the given field
     /// </summary>
-    public static ArrayNode orderby(ArrayNode obj, string field, bool descending)
+    public static ArrayNode orderby(SchemaContext context, ArrayNode obj, string field, bool descending)
     {
         var list = new List<IValueAccess>(obj);
         list.Sort((a, b) =>
@@ -114,7 +114,7 @@ public static class SystemCollection
                 return descending ? cb.CompareTo(ca) : ca.CompareTo(cb);
             return 0;
         });
-        var node = new ArrayNode(obj.Type);
+        var node = new ArrayNode(context, obj.Type);
         node.AddRange(list);
         return node;
     }
@@ -122,10 +122,10 @@ public static class SystemCollection
     /// <summary>
     /// Skip the given count items
     /// </summary>
-    public static ArrayNode skip(ArrayNode obj, int count)
+    public static ArrayNode skip(SchemaContext context, ArrayNode obj, int count)
     {
         if (count <= 0) return obj;
-        var node = new ArrayNode(obj.Type);
+        var node = new ArrayNode(context, obj.Type);
         node.AddRange(obj.Skip(count));
         return node;
     }
@@ -133,10 +133,10 @@ public static class SystemCollection
     /// <summary>
     /// Take the given count items
     /// </summary>
-    public static ArrayNode take(ArrayNode obj, int count)
+    public static ArrayNode take(SchemaContext context, ArrayNode obj, int count)
     {
         if (count >= obj.Count) return obj;
-        var node = new ArrayNode(obj.Type);
+        var node = new ArrayNode(context, obj.Type);
         node.AddRange(obj.Take(count));
         return node;
     }

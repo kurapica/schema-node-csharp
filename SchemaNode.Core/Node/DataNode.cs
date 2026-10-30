@@ -1,6 +1,4 @@
-﻿using static SchemaNode.Utility.Constant;
-using SchemaNode.Property;
-using SchemaNode.Property.Core;
+﻿using SchemaNode.Property;
 using SchemaNode.Runtime;
 using System.Text.Json.Nodes;
 using SchemaNode.Context;
@@ -16,8 +14,37 @@ namespace SchemaNode.Node;
 /// <summary>
 /// The data node interface, which represents a node in the data structure. It can be a value node, an array node, or a struct node.
 /// </summary>
-public abstract class DataNode : IValueAccess
+public abstract class DataNode(ISchemaContext context, params IPropertyProvider[] propertyProviders) : IValueAccess
 {
+    #region Properties
+
+    /// <summary>
+    /// The schema context
+    /// </summary>
+    public ISchemaContext Context { get; } = context;
+
+    /// <summary>
+    /// The value type
+    /// </summary>
+    public IValueTypeAccess Type { get; init; } = null!;
+
+    /// <summary>
+    /// The parent
+    /// </summary>
+    public IValueAccess? Parent { get; init; }
+
+    /// <summary>
+    /// The property provider
+    /// </summary>
+    public IReadOnlyList<IPropertyProvider> PropertyProviders { get; } = propertyProviders;
+
+    /// <summary>
+    /// Violated Constraints
+    /// </summary>
+    private List<IConstraintProperty>? _violated;
+    
+    #endregion
+
     #region Relation
 
     /// <summary>
@@ -49,7 +76,7 @@ public abstract class DataNode : IValueAccess
     public async Task LoadDefaultAsync(SchemaContext context)
     {
         // For now only load default value for displayonly field
-        if (!this.IsEmpty || this.PropertyProvider?.GetProperty<DisplayOnly>()?.Value != true) return;
+        if (!this.IsEmpty || this.GetProperty<DisplayOnly>()?.Value != true) return;
         var r = this.GetRelation<Default>();
         if (r is null) return;
         var d = await r.Value.Relation.ProcessAsync(context, r.Value.Owner, this);
@@ -61,36 +88,12 @@ public abstract class DataNode : IValueAccess
     /// Clear displayOnly node to avoid un-valid data
     /// </summary>
     public virtual void ClearDisplayOnlyNode() {
-        if (this.PropertyProvider?.GetProperty<DisplayOnly>()?.Value == true)
+        if (this.GetProperty<DisplayOnly>()?.Value == true)
             this.ClearValue();
     }
 
     #endregion
-
-    #region Properties
-
-    /// <summary>
-    /// The value type
-    /// </summary>
-    public IValueTypeAccess Type { get; init; } = null!;
-
-    /// <summary>
-    /// The parent
-    /// </summary>
-    public IValueAccess? Parent { get; init; }
-    
-    /// <summary>
-    /// The property provider
-    /// </summary>
-    public IPropertyProvider? PropertyProvider { get; init; }
-
-    /// <summary>
-    /// Violated Constraints
-    /// </summary>
-    private List<IConstraintProperty>? _violated;
-    
-    #endregion
-    
+        
     #region Implementation
 
     /// <summary>
@@ -227,6 +230,23 @@ public abstract class DataNode : IValueAccess
 
     /// <inheritdoc/>
     public override string? ToString() => GetValue<string>();
-    
+
+    #endregion
+
+    #region Property Access
+
+    /// <summary>
+    /// Gets the property by type
+    /// </summary>
+    public T? GetProperty<T>() where T : class, IProperty
+    {
+        foreach(var provider in this.PropertyProviders)
+        {
+            var prop = provider.GetProperty<T>();
+            if (prop != null) return prop;
+        }
+        return null;
+    }
+
     #endregion
 }

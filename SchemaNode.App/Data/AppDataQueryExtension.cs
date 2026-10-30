@@ -79,7 +79,7 @@ public static class AppDataQueryExtension
                 }
                 else if (nodes is ArrayNode { Count: > 0 } arrNodes)
                 {
-                    result = await dataProvider.QueryOriginNodesAsync(schema, arrNodes.OfType<StructNode>(),
+                    result = await dataProvider.QueryOriginNodesAsync(context, schema, arrNodes.OfType<StructNode>(),
                         forUpdate);
                 }
             }
@@ -121,7 +121,7 @@ public static class AppDataQueryExtension
             IValueAccess? result = null;
 
             if (field.ValueType is ArrayType { Primary: { Count: > 0 } })
-                result = await dataProvider.QueryOriginNodesAsync(schema, nodes, forUpdate);
+                result = await dataProvider.QueryOriginNodesAsync(context, schema, nodes, forUpdate);
 
             // Generate display only fields
             if (genDisplayOnly)
@@ -164,12 +164,12 @@ public static class AppDataQueryExtension
         
         if (!isValidFilter || string.IsNullOrEmpty(target) && appType?.ScopeType != AppScopeType.SystemLevel) return type switch
         {
-            AppSchemaDataResult.Count => context.System.Int.From(0),
-            AppSchemaDataResult.Exist => context.System.Bool.From(false),
+            AppSchemaDataResult.Count => context.System.Int.From(context, 0),
+            AppSchemaDataResult.Exist => context.System.Bool.From(context, false),
             AppSchemaDataResult.First => null,
             AppSchemaDataResult.Last => null,
-            AppSchemaDataResult.Field => new ArrayNode(((appField.ValueType as ArrayType)!.Element as StructType)!.GetField(dataField!)!.Type!),
-            _ => new ArrayNode(appField.ValueType!)
+            AppSchemaDataResult.Field => new ArrayNode(context, ((appField.ValueType as ArrayType)!.Element as StructType)!.GetField(dataField!)!.Type!),
+            _ => new ArrayNode(context, appField.ValueType!)
         };
         
         using var stack = context.StackAccess(app, target);

@@ -1,5 +1,6 @@
 using SchemaNode.Node;
 using SchemaNode.Runtime;
+using static SchemaNode.Function.SystemStr;
 using static SchemaNode.Utility.Constant;
 using ValueType = SchemaNode.Runtime.ValueType;
 
@@ -31,7 +32,7 @@ public class ArrayTypeTest : Base.CoreTestBase
     {
         var arrayType = await Context.GetNodeTypeAsync<ArrayType>(NS_SYSTEM_ARRAY);
         Assert.IsNotNull(arrayType);
-        var node = arrayType.Create() as ArrayNode;
+        var node = arrayType.Create(Context) as ArrayNode;
         Assert.IsNotNull(node);
         Assert.AreEqual(NODE_KIND_ARRAY, node.Type.Kind);
     }
@@ -43,7 +44,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         Assert.IsNotNull(objType);
         var arrayType = await Context.GetArrayNodeTypeAsync(objType);
         Assert.IsNotNull(arrayType);
-        var node = arrayType.Create() as ArrayNode;
+        var node = arrayType.Create(Context) as ArrayNode;
         Assert.IsNotNull(node);
         node.Add(42L);
         node.Add("hello");
@@ -57,7 +58,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         Assert.IsNotNull(objType);
         var arrayType = await Context.GetArrayNodeTypeAsync(objType);
         Assert.IsNotNull(arrayType);
-        var node = arrayType.Create() as ArrayNode;
+        var node = arrayType.Create(Context) as ArrayNode;
         Assert.IsNotNull(node);
         node.Add(10);
         node.Add(20);
@@ -75,7 +76,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         Assert.IsNotNull(objType);
         var arrayType = await Context.GetArrayNodeTypeAsync(objType);
         Assert.IsNotNull(arrayType);
-        var node = arrayType.Create() as ArrayNode;
+        var node = arrayType.Create(Context) as ArrayNode;
         Assert.IsNotNull(node);
 
         node!.AddRange(new object[] { 1, 2, 3, 4, 5 });
@@ -89,7 +90,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         Assert.IsNotNull(objType);
         var arrayType = await Context.GetArrayNodeTypeAsync(objType);
         Assert.IsNotNull(arrayType);
-        var node = arrayType.Create() as ArrayNode;
+        var node = arrayType.Create(Context) as ArrayNode;
         Assert.IsNotNull(node);
 
         node!.Add(42L);
@@ -105,7 +106,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         Assert.IsNotNull(objType);
         var arrayType = await Context.GetArrayNodeTypeAsync(objType);
         Assert.IsNotNull(arrayType);
-        var node = arrayType.Create() as ArrayNode;
+        var node = arrayType.Create(Context) as ArrayNode;
         Assert.IsNotNull(node);
 
         node!.Add(10L);
@@ -123,7 +124,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         var arrayType = await Context.GetNodeTypeAsync<ArrayType>(NS_SYSTEM_ARRAY);
         Assert.IsNotNull(arrayType);
 
-        var node = arrayType.Create() as ArrayNode;
+        var node = arrayType.Create(Context) as ArrayNode;
         Assert.IsNotNull(node);
         Assert.IsTrue(node!.IsEmpty);
     }
@@ -135,7 +136,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         Assert.IsNotNull(objType);
         var arrayType = await Context.GetArrayNodeTypeAsync(objType);
         Assert.IsNotNull(arrayType);
-        var node = arrayType.Create() as ArrayNode;
+        var node = arrayType.Create(Context) as ArrayNode;
         Assert.IsNotNull(node);
 
         node!.Add("first");
@@ -160,7 +161,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         var arrayType = await Context.GetArrayNodeTypeAsync(objType);
         Assert.IsNotNull(arrayType);
 
-        var node = arrayType.Create() as ArrayNode;
+        var node = arrayType.Create(Context) as ArrayNode;
         Assert.IsNotNull(node);
         Assert.IsNotNull(node!.ElementType);
     }

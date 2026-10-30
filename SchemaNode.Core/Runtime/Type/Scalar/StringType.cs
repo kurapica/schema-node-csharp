@@ -1,3 +1,4 @@
+using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Property.String;
 using SchemaNode.Schema;
@@ -14,7 +15,7 @@ public sealed class StringType : ScalarType
     public override bool IsIndexable => GetProperty<UpLimitString>()?.GetValue<long>() < ENTITY_PRIMARY_KEY_MAX_LEN;
 
     /// <inheritdoc/>
-    public override IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new StringNode { Type = this, Parent = parent, PropertyProvider = propertyProvider ?? this };
+    public override IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) => new StringNode(context, propertyProviders) { Type = this, Parent = parent };
     
     /// <inheritdoc />
     protected override ScalarSchema? GetScalarSchema() => GetProperty<StringProperty>()?.Value;

@@ -381,7 +381,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                     if (reader.HasRows)
                     {
                         await reader.ReadAsync();
-                        value = schema.Fields.Last().FromReader(reader);
+                        value = schema.Fields.Last().FromReader(_context, reader);
                     }
                 }
                 finally
@@ -499,7 +499,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                     if (reader.HasRows)
                     {
                         await reader.ReadAsync();
-                        value = schema.GetFieldPack(reader, queryOnly: !forUpdate);
+                        value = schema.GetFieldPack(_context, reader, queryOnly: !forUpdate);
                     }
                 }
                 finally
@@ -614,9 +614,9 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                     switch (type)
                     {
                         case AppSchemaDataResult.Exist:
-                            return (_context.System.Bool.From(total > 0), total);
+                            return (_context.System.Bool.From(_context, total > 0), total);
                         case AppSchemaDataResult.Count:
-                            return (_context.System.Int.From(total), total);
+                            return (_context.System.Int.From(_context, total), total);
                     }
 
                     if (total == 0)
@@ -730,11 +730,11 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                     while (await reader.ReadAsync())
                     {
                         IValueAccess? pack = type == AppSchemaDataResult.Field
-                            ? schema.GetFieldPack(reader, dataField ?? "", !forUpdate)
-                            : schema.GetFieldPack(reader, queryOnly: !forUpdate);
+                            ? schema.GetFieldPack(_context, reader, dataField ?? "", !forUpdate)
+                            : schema.GetFieldPack(_context, reader, queryOnly: !forUpdate);
                         if (pack != null)
                         {
-                            value ??= new ArrayNode(pack.Type);
+                            value ??= new ArrayNode(_context, pack.Type);
                             value.Add(pack);
                         }
                     }
@@ -814,7 +814,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                         IEnumerable<StructNode> nodes = value.Cast<StructNode>();
                         foreach (DynamicTableField tableField in schema.Fields.Where(p => p.Primary))
                         {
-                            IValueAccess? val = tableField.FromReader(reader, offset++);
+                            IValueAccess? val = tableField.FromReader(_context, reader, offset++);
                             if (val == null || val.IsEmpty) break;
                             nodes = nodes.Where(n => val.Equals(n.GetAccessValue(tableField.Name)!));
                         }
@@ -1076,7 +1076,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                     return (false, null, null);
             }
 
-            IValueAccess? origin = await this.QueryOriginNodesAsync(schema, packs, forUpdate: true);
+            IValueAccess? origin = await this.QueryOriginNodesAsync(_context, schema, packs, forUpdate: true);
             ArrayNode? oArr = origin as ArrayNode;
             if (!canAdd && (oArr == null || oArr.Count < packs.Length))
                 throw new UnauthorizedAccessException();
@@ -1151,7 +1151,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                 {
                     if (originPack == null)
                     {
-                        origin = await this.QueryOriginNodesAsync(schema, [pack], forUpdate: true);
+                        origin = await this.QueryOriginNodesAsync(_context, schema, [pack], forUpdate: true);
                         if (origin is ArrayNode { Count: 1 } arr)
                             originPack = arr[0] as StructNode;
                     }
@@ -1209,7 +1209,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                     }
                 }
             }
-            return (true, new ArrayNode(schema.ValueType, updatedPacks), (onlyAdd && (overrides == null || overrides.Length == 0)) ? null : new ArrayNode(schema.ValueType, originPacks));
+            return (true, new ArrayNode(_context, schema.ValueType, updatedPacks), (onlyAdd && (overrides == null || overrides.Length == 0)) ? null : new ArrayNode(_context, schema.ValueType, originPacks));
         }
     }
 
@@ -1578,7 +1578,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
             }
 
             // For one field value
-            IValueAccess? node = r != null ? type.From(r) : null;
+            IValueAccess? node = r != null ? type.From(_context, r) : null;
             if (node is { IsEmpty: false })
             {
                 IValueAccess? intNode = null;

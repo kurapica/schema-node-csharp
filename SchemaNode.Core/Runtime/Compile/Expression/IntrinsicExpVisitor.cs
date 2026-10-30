@@ -83,7 +83,7 @@ public class IntrinsicExpVisitor : IExpVisitor
         
         // Constant expression
         if (callExp.Function.MethodInfo.GetMetaProperty<Property.Function.Constant>() is { } constAttr)
-            return new ConstantExp(callExp.ValueType.From(constAttr.Value));
+            return new ConstantExp(callExp.ValueType.From(context.Context, constAttr.Value));
         
         switch (callExp.Function.BaseName)
         {
@@ -217,12 +217,12 @@ public class IntrinsicExpVisitor : IExpVisitor
                 return fldAccess.Default != null
                     ? await context.CompileSchemaExpAsync(new FuncCallExp(
                         (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}"))!,
-                        [fldAccess.Owner, new ConstantExp(context.System.String.From(fldAccess.FieldName)), fldAccess.Default],
+                        [fldAccess.Owner, new ConstantExp(context.System.String.From(context.Context, fldAccess.FieldName)), fldAccess.Default],
                         fldAccess.ValueType
                     ), expectedType)
                     : await context.CompileSchemaExpAsync(new FuncCallExp(
                         (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}"))!,
-                        [fldAccess.Owner, new ConstantExp(context.System.String.From(fldAccess.FieldName))],
+                        [fldAccess.Owner, new ConstantExp(context.System.String.From(context.Context, fldAccess.FieldName))],
                         fldAccess.ValueType
                     ), expectedType);
             }

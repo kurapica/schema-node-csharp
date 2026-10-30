@@ -1,5 +1,3 @@
-using System.Numerics;
-using System.Text.Json.Nodes;
 using SchemaNode.Context;
 using SchemaNode.Data.Sql;
 using SchemaNode.Enum;
@@ -8,6 +6,9 @@ using SchemaNode.Node;
 using SchemaNode.Property.App;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
+using System.Numerics;
+using System.Text.Json.Nodes;
+using static SchemaNode.Function.SystemStr;
 using static SchemaNode.Utility.Constant;
 using EnumType = SchemaNode.Runtime.EnumType;
 using StructType = SchemaNode.Runtime.StructType;
@@ -266,7 +267,7 @@ public static class AppSchemaDataFilterExtensions
             var filterExp = value switch
             {
                 JsonArray arr => new AppSchemaDataFilterBinary(LogicType.Contains,
-                        new AppSchemaDataFilterValue(new ArrayNode(field.Type, arr)),
+                        new AppSchemaDataFilterValue(new ArrayNode(context, field.Type, arr)),
                         new AppSchemaDataFilterField(key)),
                 JsonValue val => new AppSchemaDataFilterBinary(filterMode switch
                         {
@@ -277,7 +278,7 @@ public static class AppSchemaDataFilterExtensions
                             _ => LogicType.Equal
                         }, 
                         new AppSchemaDataFilterField(key),
-                        new AppSchemaDataFilterValue(valueType.From(val))),
+                        new AppSchemaDataFilterValue(valueType.From(context, val))),
                 _ => null
             };
             
@@ -460,10 +461,10 @@ public static class AppSchemaDataFilterExtensions
                 {
                     case LogicType.IsNull:
                     case LogicType.IsEmpty:
-                        return context.System.Bool.From(result.IsEmpty);
+                        return context.System.Bool.From(context, result.IsEmpty);
                     case LogicType.NotNull:
                     case LogicType.NotEmpty:
-                        return context.System.Bool.From(!result.IsEmpty);
+                        return context.System.Bool.From(context, !result.IsEmpty);
                     default:
                         throw new NotSupportedException($"The unary expression type not supported: {unary.Type}");
                 }
@@ -480,8 +481,8 @@ public static class AppSchemaDataFilterExtensions
                         IValueAccess right = binary.Right.Test(context, structNode, context.System.Bool);
                         return binary.Type switch
                         {
-                            LogicType.AndAlso => context.System.Bool.From(left.GetValue<bool>() && right.GetValue<bool>()),
-                            _ => context.System.Bool.From(left.GetValue<bool>() || right.GetValue<bool>())
+                            LogicType.AndAlso => context.System.Bool.From(context, left.GetValue<bool>() && right.GetValue<bool>()),
+                            _ => context.System.Bool.From(context, left.GetValue<bool>() || right.GetValue<bool>())
                         };
                     }
 
@@ -507,7 +508,7 @@ public static class AppSchemaDataFilterExtensions
                             right = binary.Right.Test(context, structNode, left.Type);
                         }
 
-                        return context.System.Bool.From(left.Type switch
+                        return context.System.Bool.From(context, left.Type switch
                         {
                             IntType => Compare<long>(binary.Type, left, right),
                             DecimalType => Compare<decimal>(binary.Type, left, right),
@@ -524,13 +525,13 @@ public static class AppSchemaDataFilterExtensions
                     {
                         IValueAccess val = binary.Right.Test(context, structNode);
                         AppSchemaDataFilterValue? container = binary.Left as AppSchemaDataFilterValue;
-                        if (container == null || container.Value is not IEnumerable<object> enums || val.IsEmpty || !val.GetType().IsAssignableTo(typeof(ScalarNode))) return context.System.Bool.From(false);
+                        if (container == null || container.Value is not IEnumerable<object> enums || val.IsEmpty || !val.GetType().IsAssignableTo(typeof(ScalarNode))) return context.System.Bool.From(context, false);
                         
                         bool exist = enums.Any(e => e.ToString() == val.ToString());
                         return binary.Type switch
                         {
-                            LogicType.Contains => context.System.Bool.From(exist),
-                            _ => context.System.Bool.From(!exist),
+                            LogicType.Contains => context.System.Bool.From(context, exist),
+                            _ => context.System.Bool.From(context, !exist),
                         };
                     }
 
@@ -545,8 +546,8 @@ public static class AppSchemaDataFilterExtensions
                         string? left = binary.Left.Test(context, structNode, context.System.String).GetValue<string>();
                         string? right = binary.Right.Test(context, structNode, context.System.String).GetValue<string>();
 
-                        if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right)) return context.System.Bool.From(false);
-                        return context.System.Bool.From(binary.Type switch
+                        if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right)) return context.System.Bool.From(context, false);
+                        return context.System.Bool.From(context, binary.Type switch
                         {
                             LogicType.StartsWith => left.StartsWith(right),
                             LogicType.NotStartsWith => !left.StartsWith(right),
@@ -581,9 +582,9 @@ public static class AppSchemaDataFilterExtensions
                 switch (left.Type)
                 {
                     case IntType:
-                        return CalcArith<long>(arith.Type, left, right);
+                        return CalcArith<long>(context, arith.Type, left, right);
                     case DecimalType:
-                        return CalcArith<decimal>(arith.Type, left, right);
+                        return CalcArith<decimal>(context, arith.Type, left, right);
                 }
                 break;
             }
@@ -591,19 +592,19 @@ public static class AppSchemaDataFilterExtensions
             case AppSchemaDataFilterValue value:
             {
                 if (value.Value is IValueAccess n) return n;
-                if (expectType != null) return expectType.From(value.Value) ?? throw new NotSupportedException($"The filter value is not valid as {expectType.Name}");
-                return context.System.String.From(value.Value.ToString() ?? "");
+                if (expectType != null) return expectType.From(context, value.Value) ?? throw new NotSupportedException($"The filter value is not valid as {expectType.Name}");
+                return context.System.String.From(context, value.Value.ToString() ?? "");
             }
         }
 
         throw new NotSupportedException("The expression type not supported");
     }
 
-    static IValueAccess CalcArith<T>(ArithmeticType type, IValueAccess left, IValueAccess right) where T : INumber<T>
+    static IValueAccess CalcArith<T>(ISchemaContext context, ArithmeticType type, IValueAccess left, IValueAccess right) where T : INumber<T>
     {
         T leftVal = (left.IsEmpty ? default(T) : left.GetValue<T>())!;
         T rightVal = (right.IsEmpty ? default(T) : right.GetValue<T>())!;
-        return left.Type.From(type switch
+        return left.Type.From(context, type switch
         {
             ArithmeticType.Add => leftVal + rightVal,
             ArithmeticType.Subtract => leftVal - rightVal,

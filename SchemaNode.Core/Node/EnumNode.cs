@@ -1,4 +1,5 @@
-﻿using SchemaNode.Enum;
+﻿using SchemaNode.Context;
+using SchemaNode.Enum;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
 
@@ -12,15 +13,14 @@ public class EnumNode : DataNode
 
     #region Constructors
     
-    public EnumNode(EnumType type, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
+    public EnumNode(ISchemaContext context, EnumType type, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) : base(context, propertyProviders)
     {
         Type = type;
         Parent = parent;
         _isString = type.Type == EnumValueType.String;
-        PropertyProvider = propertyProvider ?? type;
     }
     
-    public EnumNode(EnumType type, object value, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null): this(type, parent, propertyProvider)
+    public EnumNode(ISchemaContext context, EnumType type, object value, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) : this(context, type, parent, propertyProviders)
     {
         if (!TrySetValue(value))
             throw new InvalidCastException($"Failed to set value to schema type {type.Name}.");
@@ -124,7 +124,7 @@ public class EnumNode : DataNode
     /// <inheritdoc/>
     public override IValueAccess Clone()
     {
-        return new EnumNode((Type as EnumType)!)
+        return new EnumNode(Context, (Type as EnumType)!)
         {
             _longValue = _longValue,
             _strValue = _strValue

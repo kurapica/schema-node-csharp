@@ -27,7 +27,7 @@ public static class AppDataTransactionExtension
     /// Save field data
     /// </summary>
     public static Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, JsonNode? value = null)
-        => context.SaveFieldDataAsync(field, field.ValueType!.From(value) ?? throw new NotSupportedException());
+        => context.SaveFieldDataAsync(field, field.ValueType!.From(context, value) ?? throw new NotSupportedException());
 
     /// <summary>
     /// Save the field data by data
@@ -101,7 +101,7 @@ public static class AppDataTransactionExtension
         try
         {
             if (nodes is ArrayNode { Count: 0 }) return false; // pass if no node to delete
-            (bool result, IValueAccess? origin) = await dataProvider.DeleteSchemaNodeAsync(schema, nodes);
+            (bool result, IValueAccess? origin) = await dataProvider.DeleteSchemaNodeAsync(context, schema, nodes);
             if (result) OnFieldDataChanged(context, field, TransactionChangeOperation.Delete, null, origin);
         }
         catch (Exception ex)
@@ -604,7 +604,7 @@ public static class AppDataTransactionExtension
                 // Calc data push
                 async Task<ArrayNode> CalcPushData(List<IValueAccess?[]> pushData)
                 {
-                    ArrayNode result = new ArrayNode(field.ValueType!);
+                    ArrayNode result = new ArrayNode(context, field.ValueType!);
                     foreach (object?[] args in pushData)
                     {
                         IValueAccess? ret = await field.PushFunc!.CallAsync<IValueAccess, DataDeriveCompileContext>(context, args);
@@ -683,7 +683,7 @@ public static class AppDataTransactionExtension
                                     ArrayNode? keysNode = null;
                                     foreach (var item in loadingMap.Values)
                                     {
-                                        keysNode ??= new ArrayNode(item.Item1[k].Type);
+                                        keysNode ??= new ArrayNode(context, item.Item1[k].Type);
                                         keysNode.Add(item.Item1[k]);
                                     }
                                     if (keysNode == null) continue;
@@ -775,7 +775,7 @@ public static class AppDataTransactionExtension
                             var keyStr = key.GetValue<string>() ?? string.Empty;
                             if (!string.IsNullOrEmpty(keyStr) && keys.Add(keyStr))
                             {
-                                keysNode ??= new ArrayNode(key.Type);
+                                keysNode ??= new ArrayNode(context, key.Type);
                                 keysNode.Add(key);
                             }
                         }
@@ -944,8 +944,8 @@ public static class AppDataTransactionExtension
 
                     // Part
                     (IValueAccess? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List);
-                    IValueAccess? old = scalar.GroupJoin(oldResult, method);
-                    IValueAccess? now = scalar.GroupJoin(newResult, method);
+                    IValueAccess? old = scalar.GroupJoin(context, oldResult, method);
+                    IValueAccess? now = scalar.GroupJoin(context, newResult, method);
 
                     // Update with join method
                     switch (method)
@@ -963,7 +963,7 @@ public static class AppDataTransactionExtension
                         case DataCombineType.Sum:
                         case DataCombineType.Count:
                             {
-                                result = field.ValueType.From(
+                                result = field.ValueType.From(context,
                                     (origin is { IsEmpty: false } ? origin.GetValue<decimal>() : 0m) +
                                     (now is { IsEmpty: false } ? now.GetValue<decimal>() : 0m) -
                                     (old is { IsEmpty: false } ? old.GetValue<decimal>() : 0m)
@@ -990,8 +990,8 @@ public static class AppDataTransactionExtension
 
                     // Gets the result
                     (IValueAccess? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List);
-                    IValueAccess? old = @struct.GroupJoin(oldResult, joinMethodMap);
-                    IValueAccess? now = @struct.GroupJoin(newResult, joinMethodMap);
+                    IValueAccess? old = @struct.GroupJoin(context, oldResult, joinMethodMap);
+                    IValueAccess? now = @struct.GroupJoin(context, newResult, joinMethodMap);
 
                     // Update with join method
                     if ((origin == null || origin.IsEmpty) && (old == null || old.IsEmpty))
@@ -1000,7 +1000,7 @@ public static class AppDataTransactionExtension
                     }
                     else
                     {
-                        StructNode final = new StructNode(@struct);
+                        StructNode final = new StructNode(context, @struct);
                         foreach (var nodeField in @struct.GetFields())
                         {
                             IValueAccess? originFld = origin is StructNode os ? os.GetAccessValue(nodeField.Name) as IValueAccess : null;
@@ -1022,7 +1022,7 @@ public static class AppDataTransactionExtension
                                 case DataCombineType.Sum when nodeField.Type is IntType or  DecimalType:
                                 case DataCombineType.Count when nodeField.Type is IntType:
                                     {
-                                        final[nodeField.Name] = nodeField.Type.From(
+                                        final[nodeField.Name] = nodeField.Type.From(context,
                                             (originFld is { IsEmpty: false } ? originFld.GetValue<decimal>() : 0m) +
                                             (nowFld is { IsEmpty: false } ? nowFld.GetValue<decimal>() : 0m) -
                                             (oldFld is { IsEmpty: false } ? oldFld.GetValue<decimal>() : 0m)
@@ -1216,7 +1216,7 @@ public static class AppDataTransactionExtension
                     });
 
                     // Save to result
-                    result = field.ValueType.From(joinObjs);
+                    result = field.ValueType.From(context, joinObjs);
                     break;
                 }
         }

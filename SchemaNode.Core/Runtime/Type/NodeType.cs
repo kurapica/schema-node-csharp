@@ -463,7 +463,7 @@ public abstract class ValueType : NodeType, IValueTypeAccess
         // skip validation if node can't set value
         if (result == null)
         {
-            result = Create();
+            result = Create(ctx);
             if (value != null && !result.TrySetValue(value))
                 return null;
         }
@@ -488,14 +488,14 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// <summary>
     /// Generate the data node from the node type
     /// </summary>
-    public abstract IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null);
+    public abstract IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders);
 
     /// <summary>
     /// Generate the data node with given value
     /// </summary>
-    public IValueAccess From(object? value, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
+    public IValueAccess From(ISchemaContext context, object? value, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
     {
-        var node = Create(parent, propertyProvider);
+        var node = Create(context, parent, propertyProviders);
         node.TrySetValue(value);
         return node;
     }
