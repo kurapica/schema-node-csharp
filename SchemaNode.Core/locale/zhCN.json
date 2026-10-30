@@ -233,6 +233,7 @@
   "system.schema.func.arg": "函数参数",
   "system.schema.func.arg.name": "名称",
   "system.schema.func.arg.type": "类型",
+  "system.schema.func.arg.argdefine": "参数定义",
   "system.schema.func.callarg": "函数调用参数",
   "system.schema.func.callarg.name": "名称",
   "system.schema.func.callarg.type": "类型",

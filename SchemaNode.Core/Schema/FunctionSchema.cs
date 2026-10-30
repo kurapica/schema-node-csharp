@@ -259,6 +259,7 @@ public class CallArg: IEquatable<CallArg>
     /// The const value, no complex struct value
     /// </summary>
     [Meta<SchemaType>(typeof(Object))]
+    [Relation<Require, Assign>(NODE_SELF, false)]
     [Relation<OverrideType, Call>(NODE_SELF, $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $@"{nameof(Type)}")]
     [Relation<InVisible, Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Source)}")]
     [Relation<Visible, Call>(NODE_SELF, NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, "@type", true, NODE_KIND_INT, NODE_KIND_STRING, NODE_KIND_DATE, NODE_KIND_BOOL, NODE_KIND_ENUM)]

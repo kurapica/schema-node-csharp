@@ -233,6 +233,7 @@
   "system.schema.func.arg": "Function Argument",
   "system.schema.func.arg.name": "Name",
   "system.schema.func.arg.type": "Type",
+  "system.schema.func.arg.argdefine": "Argument Definition",
   "system.schema.func.callarg": "Function Call Argument",
   "system.schema.func.callarg.name": "Name",
   "system.schema.func.callarg.type": "Type",

@@ -544,13 +544,12 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// The value type is assignable to other value type
     /// </summary>
     public virtual bool IsAssignableTo(IValueTypeAccess other)
-        => this == other || Name.Equals(other.Name) || 
+        => this == other || 
            other is GenericType ||
            Kind.Equals(NODE_KIND_OBJECT)  || 
            other.Kind.Equals(NODE_KIND_OBJECT) ||
            _isAssignableTo != null && 
-           (_isAssignableTo.ContainsKey(other) || 
-            _isAssignableTo.Keys.Any(k => k.IsAssignableTo(other)));
+           (_isAssignableTo.ContainsKey(other));
 
     #endregion
 }
