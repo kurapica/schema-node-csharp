@@ -54,7 +54,12 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <summary>
     /// The context works in full mode, all relations will be applied to data node
     /// </summary>
-    public bool FullMode { get; internal set; }
+    public bool FullMode { get; set; }
+
+    /// <summary>
+    /// The locale settings
+    /// </summary>
+    public string? Locale { get; set; }
 
     /// <summary>
     /// Gets the logger

@@ -1,9 +1,15 @@
-﻿using SchemaNode.Property;
-using SchemaNode.Runtime;
-using System.Text.Json.Nodes;
+﻿using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Context;
-using SchemaNode.Property.Struct;
+using SchemaNode.Property;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Core;
+using SchemaNode.Property.Struct;
+using SchemaNode.Runtime;
+using SchemaNode.Struct;
+using System.Collections.Concurrent;
+using System.Reactive;
+using System.Reactive.Subjects;
+using System.Text.Json.Nodes;
 
 // ReSharper disable InconsistentNaming
 // ReSharper disable VirtualMemberCallInConstructor
@@ -14,41 +20,672 @@ namespace SchemaNode.Node;
 /// <summary>
 /// The data node interface, which represents a node in the data structure. It can be a value node, an array node, or a struct node.
 /// </summary>
-public abstract class DataNode(ISchemaContext context, params IPropertyProvider[] propertyProviders) : IValueAccess
+public abstract class DataNode : IValueAccess, IDisposable
 {
-    #region Properties
+    #region Fields
 
     /// <summary>
     /// The schema context
     /// </summary>
-    public ISchemaContext Context { get; } = context;
+    public ISchemaContext Context { get; init; }
+
 
     /// <summary>
-    /// The value type
+    /// Whether enable full data node mode
     /// </summary>
+    public bool FullMode => Context is SchemaContext ctx && ctx.FullMode;
+
+    /// <inheritdoc/>
+    public Guid Id { get; } = Guid.CreateVersion7();
+
+    /// <inheritdoc/>
     public IValueTypeAccess Type { get; init; } = null!;
-
-    /// <summary>
-    /// The parent
-    /// </summary>
-    public IValueAccess? Parent { get; init; }
 
     /// <summary>
     /// The property provider
     /// </summary>
-    public IReadOnlyList<IPropertyProvider> PropertyProviders { get; } = propertyProviders;
+    private IReadOnlyList<IPropertyProvider> _propertyProviders { get; }
 
     /// <summary>
     /// Violated Constraints
     /// </summary>
     private List<IConstraintProperty>? _violated;
-    
+
+    /// <summary>
+    /// Avoid double validation
+    /// </summary>
+    private CancellationTokenSource? _validated;
+
+    /// <summary>
+    /// The override properties
+    /// </summary>
+    private ConcurrentDictionary<Type, List<PropertyRecord>>? _props;
+
+    /// <summary>
+    /// The data observable
+    /// </summary>
+    private Subject<(IValueAccess, object?)>? _dataOb;
+
+    /// <summary>
+    /// The violated observable
+    /// </summary>
+    private Subject<(IValueAccess, bool)>? _violatedOb;
+
+    /// <summary>
+    /// The self property observable
+    /// </summary>
+    private ConcurrentDictionary<Type, Subject<object>>? _selfPropObs;
+
+    /// <summary>
+    /// The property observable
+    /// </summary>
+    private ConcurrentDictionary<Type, Subject<object>>? _propObs;
+
+    /// <summary>
+    /// The move observable
+    /// </summary>
+    private Subject<IValueAccess>? _moveObs;
+
+    /// <summary>
+    /// The record subscriptions
+    /// </summary>
+    private ConcurrentDictionary<object, ConcurrentBag<IDisposable>>? _subs;
+
     #endregion
+
+    #region Constructor
+
+    public DataNode(ISchemaContext context, IValueTypeAccess type, object? value, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    {
+        Context = context;
+        Type = type;
+        Parent = parent;
+        _propertyProviders = propertyProviders;
+
+        if (value is not null)
+        {
+            TrySetValue(value);
+            if (FullMode)
+                Confirm();
+        }
+
+        // init properties effect, chilren node should be applied by its parent after confirmed
+        if (FullMode && parent == null)
+            ApplyPropertyEffects();
+    }
+
+    public void Dispose()
+    {
+        // clear property effect
+        foreach (var prop in GetProperties<IProperty>())
+            prop.Clear(this);
+
+        _validated?.Cancel();
+
+        _dataOb?.Dispose();
+        _dataOb = null;
+
+        _violatedOb?.Dispose();
+        _violatedOb = null;
+
+        _moveObs?.Dispose();
+        _moveObs = null;
+
+        if (_subs is not null)
+        {
+            foreach (var s in _subs.Values)
+                foreach (var d in s)
+                    d.Dispose();
+            _subs.Clear();
+            _subs = null;
+        }
+
+        if (_selfPropObs is not null)
+        {
+            foreach (var s in _selfPropObs.Values)
+                s.Dispose();
+            _selfPropObs.Clear();
+            _selfPropObs = null;
+        }
+
+        if (_propObs is not null)
+        {
+            foreach (var s in _propObs.Values)
+                s.Dispose();
+            _propObs.Clear();
+            _propObs = null;
+        }
+    }
+
+    #endregion
+
+    #region ShortCuts
+
+    /// <summary>
+    /// The data node is required
+    /// </summary>
+    public bool Require => GetPropertyValue<Require, bool>();
+
+    /// <summary>
+    /// The data node is visible
+    /// </summary>
+    public bool Visible => !GetPropertyValue<InVisible, bool>() && GetProperty<Visible>()?.Value != false;
+
+    /// <summary>
+    /// Whether the node is display-only
+    /// </summary>
+    public bool DisplayOnly => GetPropertyValue<DisplayOnly, bool>();
+
+    /// <summary>
+    /// Whether the node diable constraint
+    /// </summary>
+    public bool DisableConstraint => GetPropertyValue<DisableConstraint, bool>() || Parent is DataNode p && p.DisableConstraint;
+
+    #endregion
+
+    #region Value Access
+
+    /// <inheritdoc/>
+    public abstract bool IsEmpty { get; }
+
+    /// <inheritdoc/>
+    public abstract bool TryGetOriginal(Type type, out object? value);
+
+    /// <inheritdoc/>
+    public virtual bool TryGetOriginal<T>(out T? value)
+    {
+        bool isEmpty = IsEmpty;
+        if (isEmpty || !TryGetOriginal(typeof(T), out object? obj))
+        {
+            value = default(T?);
+            return isEmpty;
+        }
+        value = (T?)obj;
+        return true;
+    }
+
+    /// <inheritdoc/>
+    public abstract bool TrySetValue<T>(T? value);
+
+    /// <inheritdoc/>
+    public abstract bool TryGetValue(Type type, out object? value);
+
+    /// <inheritdoc/>
+    public virtual void ClearValue() => TrySetValue<object>(null);
+
+    /// <inheritdoc/>
+    public virtual bool TryGetValue<T>(out T? value)
+    {
+        bool isEmpty = IsEmpty;
+        if (isEmpty || !TryGetValue(typeof(T), out object? obj))
+        {
+            value = default(T?);
+            return isEmpty;
+        }
+        value = (T?)obj;
+        return true;
+    }
+
+    /// <inheritdoc/>
+    public T? GetOriginal<T>() => TryGetOriginal<T>(out T? value) ? value : default(T?);
+
+    /// <inheritdoc/>
+    public object? GetOriginal(Type type) => TryGetOriginal(type, out object? value) ? value : null;
+
+    /// <inheritdoc/>
+    public T? GetValue<T>() => TryGetValue(out T? value) ? value : default(T?);
+
+    /// <inheritdoc/>
+    public object? GetValue(Type type) => TryGetValue(type, out object? value) ? value : null;
+
+    /// <inheritdoc/>
+    public abstract IValueAccess Clone();
+
+    /// <summary>
+    /// Whether the data changed
+    /// </summary>
+    public abstract bool Changed { get;  }
+
+    /// <summary>
+    /// Confirm the changes and save to original
+    /// </summary>
+    public abstract void Confirm();
+
+    /// <summary>
+    /// Reset the value from original
+    /// </summary>
+    public abstract void Reset();
+
+    /// <summary>
+    /// Init th data node value, should only be called by parent, like array add new row
+    /// </summary>
+    public virtual async Task InitAsync()
+    {
+        var init = GetProperty<Init>();
+        if (init is null || init.Value?.Func is null || Context is not SchemaContext ctx) return;
+        var func = await ctx.GetNodeTypeAsync<FunctionType>(init.Value.Func);
+        if (func is null) return;
+        try
+        {
+            var source = init.Source ?? this;
+            var value = await func.CallAsync<object>(ctx, init.Value.Args.Select(a =>
+            {
+                if (string.IsNullOrWhiteSpace(a.Source)) return a.Value;
+                return source.GetAccessValue(a.Source)?.GetValue<object>();
+            }).ToArray(), null, init.Value.Mode);
+            if (value is not null)
+                TrySetValue(value);
+        }
+        catch(Exception ex)
+        {
+            ctx.LogError(ex, "Init data node of {0} failed with func {1}", Type.Name, init.Value.Func);
+        }
+    }
+
+    #endregion
+
+    #region Property Access
+
+    /// <summary>
+    /// Apply property effects
+    /// </summary>
+    public void ApplyPropertyEffects()
+    {
+        foreach (var p in GetProperties<IProperty>())
+            p.Effect(this);
+    }
+
+    /// <summary>
+    /// Join several property providers
+    /// </summary>
+    protected IEnumerable<T> JoinProperties<T>(params IEnumerable<T>[] providers) where T : IProperty
+    {
+        var types = new HashSet<Type>();
+        foreach(var provider in providers)
+        {
+            foreach(var prop in provider)
+            {
+                if (prop.Stackable)
+                    yield return prop;
+                else
+                {
+                    if (types.Add(prop.GetType()))
+                        yield return prop;
+                }
+            }
+        }
+    }
+
+    /// <inheritdoc/>
+    public T? GetProperty<T>() where T : class, IProperty
+    {
+        if (_props != null && _props.TryGetValue(typeof(T), out var props) && props.Count > 0)
+            return props.First().Property as T;
+
+        foreach (var provider in this._propertyProviders)
+        {
+            var prop = provider.GetProperty<T>();
+            if (prop != null && prop.HasValue) return prop;
+        }
+        return Type?.GetProperty<T>();
+    }
+
+    /// <inheritdoc/>
+    public IEnumerable<T> GetProperties<T>() where T : IProperty
+    {
+        return JoinProperties(_FilterProperties<T>(), _propertyProviders.SelectMany(p => p.GetProperties<T>()), Type?.GetProperties<T>() ?? []);
+    }
+
+    /// <summary>
+    /// Gets the property value type by property
+    /// </summary>
+    public T? GetPropertyValue<P, T>() where P : Property<T> => GetProperty<P>() is { } p ? p.Value : default(T?);
+
+    /// <summary>
+    /// Gets all the property values by type
+    /// </summary>
+    public IEnumerable<T> GetPropertyValues<P, T>() where P : Property<T>
+    {
+        foreach (var p in GetProperties<P>())
+        {
+            if (p.HasValue && p.Value != null)
+                yield return p.Value;
+        }
+    }
+
+    /// <inheritdoc/>
+    public void SetPropertyValue<P, T>(T? value, IValueAccess? source, IRelation? relation) where P : Property<T>
+    {
+        source ??= this;
+        var isClear = value is null;
+        var props = _props?.GetValueOrDefault(typeof(P));
+        var record = props?.FirstOrDefault(p => p.Source == source && (relation != null ? p.Relation == relation : p.Relation is null));
+        var oldValue = record?.Property.GetValue<object>();
+        IProperty? topProp = null;
+
+        // clear
+        if (isClear)
+        {
+            if (record == null) return;
+            record.Property.SetValue(value);
+            props!.Remove(record);
+            _props![typeof(P)] = props;
+        }
+        // update
+        else if(record is not null)
+        {
+            if (object.Equals(oldValue, value)) return;
+            record.Property.SetValue(value);
+            topProp = props!.First().Property;
+        }
+        // insert
+        else
+        {
+            topProp = GetProperty<P>();
+
+            // add new property
+            _props ??= [];
+            record = new PropertyRecord { 
+                Source = source, 
+                Relation = relation, 
+                Level = CalcLevel(source),
+                Property = ActivatorUtilities.CreateInstance<P>(Context.Services, source) 
+            };
+            record.Property.SetValue(value);
+            if (props is not null)
+            {
+                props.Add(record);
+                props.Sort((a, b) =>
+                {
+                    var diff = b.Level - a.Level;
+                    if (diff != 0) return diff;
+                    return (b.Relation != null ? 1 : 0) - (a.Relation != null ? 1 : 0);
+                }); // keep order
+            }
+            else
+            {
+                props = [record];
+            }
+            _props[typeof(P)] = props;
+
+            // replace the top property
+            if (props.First().Equals(record))
+            {
+                if (topProp != null && !topProp.Stackable) topProp.Clear(this);
+                oldValue = topProp?.GetValue<object>();
+                topProp = record.Property;
+            }
+        }
+
+        // Validate constraint
+        if (record.Property is IConstraintProperty constraint && Context is SchemaContext ctx)
+        {
+            if (isClear)
+            {
+                if (record.Valid == false) // clear violated
+                    OnNextViolated();
+            }
+            else
+            {
+                // valid
+                try
+                {
+                    var res = constraint.ValidateAsync(ctx, this).GetAwaiter().GetResult();
+                    if (res != record.Valid)
+                    {
+                        record.Valid = res;
+                        OnNextViolated();
+                    }
+                }
+                catch(Exception ex)
+                {
+                    ctx.LogError(ex, "Validation failed {0}", constraint.Name);
+                }
+            }
+        }
+
+        // Apply side effect
+        if (record.Property.Stackable)
+        {
+            if (isClear)
+                record.Property.Clear(this);
+            else
+                record.Property.Effect(this);
+            OnNextProperty(typeof(P), record.Property.GetValue<object>(), oldValue);
+        }
+        else if (isClear)
+        {
+            // if clear the top property, apply side effect
+            if (props is not { Count: > 0} || props.First().Level < record.Level)
+            {
+                record.Property.Clear(this);
+                topProp = GetProperty<P>();
+                topProp?.Effect(this);
+                OnNextProperty(typeof(P), topProp?.GetValue<object>(), oldValue);
+            }
+        }
+        else if(topProp == record.Property)
+        {
+            record.Property.Effect(this);
+            OnNextProperty(typeof(P), record.Property.GetValue<object>(), oldValue);
+        }
+    }
+
+    #endregion
+
+    #region Subscription
+
+    /// <summary>
+    /// Publish the value change
+    /// </summary>
+    protected void OnNext<T>(T? value)
+    {
+        if (!FullMode) return;
+        _validated?.Cancel();
+        _validated = new CancellationTokenSource();
+        _dataOb?.OnNext((this, value));
+        _ = Task.Run(async () => await ValidateAsync(_validated.Token));
+    }
+
+    /// <summary>
+    /// Publish the violated status changed
+    /// </summary>
+    protected void OnNextViolated()
+    {
+        if (!FullMode) return;
+        _violatedOb?.OnNext((this, IsValid));
+    }
+
+    protected void OnNextProperty(Type propertyCtor, object? value, object? oldValue)
+    {
+        if (!FullMode) return;
+        if (_selfPropObs != null && _selfPropObs.TryGetValue(propertyCtor, out var selfObs))
+            selfObs.OnNext((this, propertyCtor, value, oldValue));
+
+        if (_propObs != null && _propObs.TryGetValue(propertyCtor, out var obs))
+            obs.OnNext((this, propertyCtor, value, oldValue));
+    }
+
+    /// <inheritdoc/>
+    public IDisposable Subscribe(IObserver<(IValueAccess, object?)> observer, bool immediate = false)
+    {
+        if (!FullMode) return _statciFakeSub;
+        _dataOb ??= new Subject<(IValueAccess, object?)>();
+        if (immediate) observer.OnNext((this, TryGetValue(out object? value) ? value : null));
+        return _dataOb.Subscribe(observer);
+    }
+
+    /// <summary>
+    /// Subscribe the data change with handler
+    /// </summary>
+    public IDisposable Subscribe(Action<(IValueAccess, object?)> handler, bool immediate = false)
+        => Subscribe(Observer.Create(handler), immediate);
+
+    /// <summary>
+    /// Subscribe the property change for self property
+    /// </summary>
+    protected IDisposable SubscribeSelfProperty<P, T>(IObserver<(IValueAccess, Type, T?, T?)> observer, bool immediate = false) where P : Property<T>
+    {
+        if (!FullMode) return _statciFakeSub;
+        _selfPropObs ??= new ConcurrentDictionary<Type, Subject<object>>();
+        var obs = _selfPropObs.GetOrAdd(typeof(P), _ => new Subject<object>());
+        if (immediate)
+            observer.OnNext((this, typeof(P), GetPropertyValue<P, T>(), default(T?)));
+        return obs.Subscribe(value => observer.OnNext(((IValueAccess, Type, T?, T?))value));
+    }
+
+    /// <summary>
+    /// Subscribe the property change with handler
+    /// </summary>
+    protected IDisposable SubscribeSelfProperty<P, T>(Action<(IValueAccess, Type, T?, T?)> handler, bool immediate = false) where P : Property<T>
+        => SubscribeSelfProperty<P, T>(Observer.Create(handler), immediate);
+
+    /// <inheritdoc/>
+    public IDisposable SubscribeProperty<P, T>(IObserver<(IValueAccess, Type, T?, T?)> observer, bool immediate = false) where P : Property<T>
+    {
+        if (!FullMode) return _statciFakeSub;
+        _propObs ??= new ConcurrentDictionary<Type, Subject<object>>();
+        var obs = _propObs.GetOrAdd(typeof(P), _ => new Subject<object>());
+        if (immediate)
+            observer.OnNext((this, typeof(P), GetPropertyValue<P, T>(), default(T?)));
+        return obs.Subscribe(value => observer.OnNext(((IValueAccess, Type, T?, T?))value));
+    }
+
+    /// <summary>
+    /// Subscribe the property change with handler
+    /// </summary>
+    public IDisposable SubscribeProperty<P, T>(Action<(IValueAccess, Type, T?, T?)> handler, bool immediate = false) where P : Property<T>
+        => SubscribeProperty<P, T>(Observer.Create(handler), immediate);
+
+    /// <inheritdoc/>
+    public IDisposable SubscribeViolated(IObserver<(IValueAccess, bool)> observer, bool immediate = false)
+    {
+        if (!FullMode) return _statciFakeSub;
+        _violatedOb ??= new Subject<(IValueAccess, bool)>();
+        if (immediate) observer.OnNext((this, IsValid));
+        return _violatedOb.Subscribe(observer);
+    }
+
+    /// <summary>
+    /// Subscribe the data violated status with handler
+    /// </summary>
+    public IDisposable SubscribeViolated(Action<(IValueAccess, bool)> handler, bool immediate = false)
+        => SubscribeViolated(Observer.Create(handler), immediate);
+
+    /// <inheritdoc/>
+    public void RecordSubscription(IDisposable disposable, object? source)
+    {
+        source ??= this;
+        _subs ??= new ConcurrentDictionary<object, ConcurrentBag<IDisposable>>();
+        var bag = _subs.GetOrAdd(source, _ => new ConcurrentBag<IDisposable>());
+        bag.Add(disposable);
+    }
+
+    /// <summary>
+    /// Gets attached relations
+    /// </summary>
+    public IEnumerable<IRelation> GetAttachedRelations()
+    {
+        if (_subs is null) yield break;
+        foreach(var source in _subs.Keys)
+        {
+            if (source is IRelation relation)
+                yield return relation;
+        }
+    }
+
+    /// <inheritdoc/>
+    public void ClearSubscription(object? source)
+    {
+        source ??= this;
+        if (_subs != null && _subs.TryRemove(source, out var bag))
+        {
+            foreach (var d in bag)
+                d.Dispose();
+            bag.Clear();
+        }
+    }
+
+    /// <summary>
+    /// Subscribe the move subscription happened, when override type or other cause the data node full changed
+    /// </summary>
+    public IDisposable SubscribeMove(IObserver<IValueAccess> observer)
+    {
+        _moveObs ??= new Subject<IValueAccess>();
+        return _moveObs.Subscribe(observer);
+    }
+
+    /// <summary>
+    /// Move subscriptions to new node before destroying this node
+    /// </summary>
+    public void MoveSubscription(DataNode newNode)
+    {
+        newNode._dataOb = _dataOb;
+        newNode._propObs = _propObs;
+        newNode._violatedOb = _violatedOb;
+
+        _dataOb = null;
+        _propObs = null;
+        _violatedOb = null;
+
+        _moveObs?.OnNext(newNode);
+    }
+
+    #endregion
+
+    #region Path Navigation
+
+    /// <inheritdoc/>
+    public IValueAccess? Parent { get; init; }
+
+    /// <inheritdoc/>
+    public string? Name => GetPropertyValue<Name, string>();
+
+    /// <inheritdoc/>
+    public string Access
+    {
+        get
+        {
+            IValueAccess? node = this;
+            List<string> names = [];
+            while (node is not null)
+            {
+                string? name = node.Name;
+                if (string.IsNullOrWhiteSpace(name)) break;
+                names.Insert(0, name);
+                node = node.Parent;
+            }
+            return string.Join('.', names);
+        }
+    }
+
+    /// <summary>
+    /// Gets the access value by path
+    /// </summary>
+    public virtual IValueAccess? GetAccessValue(string path, IValueAccess? node = null)
+    {
+        if (string.IsNullOrEmpty(path)) return this;
+        string[] parts = path.Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
+        IEnumerable<IValueAccessPathHandler>? handlers = ((Type as Runtime.ValueType)?.Runtime as SchemaRuntime)?.GetRuntimeItem(typeof(IValueAccessPathHandler)) as IEnumerable<IValueAccessPathHandler>;
+        if (handlers == null) return null;
+        foreach (var handler in handlers)
+        {
+            if (handler.Path.Equals(parts[0], StringComparison.OrdinalIgnoreCase))
+            {
+                var type = handler.GetAccessValue(this, node);
+                return parts.Length > 1 ? type?.GetAccessValue(parts[1]) : type;
+            }
+        }
+        return null;
+    }
+
+    #endregion
+
 
     #region Relation
 
     /// <summary>
-    /// Gets the relation that effect this node for the given property
+    /// Gets the relation that effect this node for the given property, works for non-full mode
     /// </summary>
     public (RelationType Relation, IValueAccess Owner)? GetRelation<T>() where T: IProperty
     {
@@ -92,61 +729,196 @@ public abstract class DataNode(ISchemaContext context, params IPropertyProvider[
             this.ClearValue();
     }
 
-    #endregion
-        
-    #region Implementation
-
-    /// <summary>
-    /// Gets the access value by path
-    /// </summary>
-    public virtual IValueAccess? GetAccessValue(string path, IValueAccess? node = null)
-    {
-        if (string.IsNullOrEmpty(path)) return this;
-        string[] parts = path.Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
-        IEnumerable<IValueAccessPathHandler>? handlers = ((Type as Runtime.ValueType)?.Runtime as SchemaRuntime)?.GetRuntimeItem(typeof(IValueAccessPathHandler)) as IEnumerable<IValueAccessPathHandler>;
-        if (handlers == null) return null;
-        foreach (var handler in handlers)
-        {
-            if (handler.Path.Equals(parts[0], StringComparison.OrdinalIgnoreCase))
-            {
-                var type = handler.GetAccessValue(this, node);
-                return parts.Length > 1 ? type?.GetAccessValue(parts[1]) : type;
-            }
-        }
-        return null;
-    }
-
     /// <inheritdoc/>
-    public void RecordConstraint(IConstraintProperty constraint, bool result)
+    public virtual void AttachRelations(IRelationInfo[] realtions)
     {
-        if (result)
-        {
-            if (_violated == null) return;
-            for (int i = _violated.Count - 1; i >= 0; i--)
-            {
-                if (_violated[i].Equals(constraint) || !constraint.Stackable && constraint.GetType() == _violated[i].GetType())
-                    _violated.RemoveAt(i);
-            }
-        }
-        else if (_violated == null || _violated.All(v => v != constraint && (v.Stackable || v.GetType() != constraint.GetType())))
-        {
-            _violated ??= [];
-            _violated.Add(constraint);
-        }
+        foreach (var info in realtions)
+            foreach (var r in info.Relations)
+                if (info.Owner.GetAccessValue(r.Target, this) == this)
+                    r.Attach(info.Owner, this);
     }
+
+    #endregion
+
+    #region Validation
 
     /// <inheritdoc/>
     public IEnumerable<IConstraintProperty> GetViolatedConstraints()
     {
+        var unStackable = new HashSet<Type>();
+        if (_props is not null)
+        {
+            foreach (var props in _props.Values)
+            {
+                if (props.Count == 0 || props.First().Property is not IConstraintProperty) continue;
+
+                foreach (var record in props)
+                {
+                    if (record.Valid is null) continue;
+                    if (!record.Property.Stackable && !unStackable.Add(record.Property.GetType())) continue;
+                    if (record.Valid != false) continue;
+                    yield return (record.Property as IConstraintProperty)!;
+                }
+            }
+        }
+
         if (_violated == null) yield break;
-        foreach (var constraint in _violated) 
+        foreach (var constraint in _violated)
+        {
+            if (!constraint.Stackable && !unStackable.Add(constraint.GetType())) continue;
             yield return constraint;
+        }
+    }
+
+    /// <summary>
+    /// Gets the error nodes
+    /// </summary>
+    public virtual IEnumerable<DataNode> GetErrorNodes()
+    {
+        if (GetViolatedConstraints().Any())
+            yield return this;
+    }
+
+    /// <summary>
+    /// The error message
+    /// </summary>
+    public string? Error
+    {
+        get
+        {
+            var hasError = false;
+            foreach(var p in GetViolatedConstraints())
+            {
+                var msg = p.GetErrorMessage(this);
+                if (!string.IsNullOrWhiteSpace(msg)) return msg;
+                hasError = true;
+            }
+            return hasError ? new LocaleString("VALUE_NOT_VALID").Format(Context, GetPropertyValue<Display, LocaleString>() ?? GetPropertyValue<Name, string>()) : null;
+        }
+    }
+
+    /// <summary>
+    /// Validate the data
+    /// </summary>
+    public virtual async Task ValidateAsync(CancellationToken cancellationToken)
+    {
+        if (DisableConstraint) return;
+        if (Context is not SchemaContext ctx) return;
+        var tasks = new List<Task>();
+
+        // validate static constraints
+        tasks = _propertyProviders.SelectMany(p => p.GetProperties<IConstraintProperty>())
+            .Concat(Type.GetProperties<IConstraintProperty>())
+            .Select(p => Task.Run(async () =>
+            {
+                try
+                {
+                    var res = await p.ValidateAsync(ctx, this);
+                    RecordConstraint(p, res, true);
+                }
+                catch (Exception ex)
+                {
+                    ctx.LogError(ex, "Validation failed {0}", p.Name);
+                }
+            }, cancellationToken)).ToList();
+
+        // valdiate dynamic constraints
+        if (_props is not null)
+        {
+            foreach (var props in _props.Values)
+            {
+                if (props.Count == 0 || props.First().Property is not IConstraintProperty) continue;
+                foreach (var record in props)
+                {
+                    tasks.Add(Task.Run(async () =>
+                    {
+                        try
+                        {
+                            var prop = (record.Property as IConstraintProperty)!;
+                            var res = await prop.ValidateAsync(ctx, this);
+                            if (res != record.Valid)
+                                record.Valid = res;
+                        }
+                        catch (Exception ex)
+                        {
+                            ctx.LogError(ex, "Validation failed {0}", record.Property.Name);
+                        }
+                    }, cancellationToken));
+                    if (!record.Property.Stackable) break; // only validate the top one for non-stackable
+                }
+            }
+        }
+        if (tasks.Count > 0 && !cancellationToken.IsCancellationRequested)
+            await Task.WhenAll(tasks);
+        OnNextViolated();
     }
 
     /// <summary>
     /// Whether the node is valid, which means no violated constraints
     /// </summary>
-    public virtual bool IsValid => _violated is not { Count: > 0 };
+    public virtual bool IsValid => DisableConstraint || !GetViolatedConstraints().Any();
+
+    /// <inheritdoc/>
+    public void RecordConstraint(IConstraintProperty constraint, bool? result)
+    {
+        RecordConstraint(constraint, result, false);
+    }
+
+    /// <inheritdoc/>
+    public void RecordConstraint(IConstraintProperty constraint, bool? result, bool silent = false)
+    {
+        var map = _props?.GetValueOrDefault(constraint.GetType());
+        var exist = map?.Find(r => r.Property == constraint);
+        
+        // dynamic
+        if (exist != null)
+        {
+            if (exist.Valid == result) return;
+            exist.Valid = result;
+        }
+        // passed
+        else if(result == true || result == null)
+        {
+            if (_violated is null) return;
+            var index = _violated.IndexOf(constraint);
+            if (index < 0) return;
+            _violated.RemoveAt(index);
+        }
+        // fail
+        else
+        {
+            _violated ??= [];
+            var index = _violated.IndexOf(constraint);
+            if (index >= 0) return;
+            _violated.Add(constraint);
+        }
+        if (!silent)
+            OnNextViolated();
+    }
+
+    /// <summary>
+    /// Clear constraints
+    /// </summary>
+    public void ClearConstraints()
+    {
+        _violated?.Clear();
+        _validated?.Cancel();
+        _validated = null;
+
+        if (this._props is not null)
+        {
+            foreach (var props in this._props.Values)
+            {
+                if (props.Count == 0 || props.First().Property is not IConstraintProperty) continue;
+                foreach (var record in props)
+                {
+                    if (record.Property is IConstraintProperty constraint)
+                        record.Valid = null;
+                }
+            }
+        }
+        OnNextViolated();
+    }
 
     /// <summary>
     /// Gets the violated
@@ -155,67 +927,13 @@ public abstract class DataNode(ISchemaContext context, params IPropertyProvider[
 
     #endregion
 
-    #region Abstract
-
-    /// <summary>
-    /// indicate whether the node has value
-    /// </summary>
-    public abstract bool IsEmpty { get; }
-
-    /// <summary>
-    /// Try set value to the data node
-    /// </summary>
-    public abstract bool TrySetValue<T>(T? value);
-
-    /// <summary>
-    /// Try gets the value as the given type
-    /// </summary>
-    public abstract bool TryGetValue(Type type, out object? value);
-
-    /// <summary>
-    /// Clear value
-    /// </summary>
-    public virtual void ClearValue() => TrySetValue<object>(null);
-
-    /// <summary>
-    /// Try gets the value as the given type
-    /// </summary>
-    public virtual bool TryGetValue<T>(out T? value)
-    {
-        bool isEmpty = IsEmpty;
-        if (isEmpty || !TryGetValue(typeof(T), out object? obj))
-        {
-            value = default(T?);
-            return isEmpty;
-        }
-        value = (T?)obj;
-        return true;
-    }
-    
-    /// <summary>
-    /// Gets value
-    /// </summary>
-    public T? GetValue<T>() => TryGetValue(out T? value) ? value : default(T?);
-    
-    /// <summary>
-    /// Gets value
-    /// </summary>
-    public object? GetValue(Type type) => TryGetValue(type, out object? value) ? value : null;
-
-    /// <summary>
-    /// Clones the data node
-    /// </summary>
-    public abstract IValueAccess Clone();
-    
-    #endregion
-
     #region Virtual
 
     /// <summary>
     /// The c# type representation
     /// </summary>
     public virtual Type? CsharpType => (Type as Runtime.ValueType)?.GetCsharpType();
-    
+
     /// <summary>
     /// Equals check
     /// </summary>
@@ -233,19 +951,94 @@ public abstract class DataNode(ISchemaContext context, params IPropertyProvider[
 
     #endregion
 
-    #region Property Access
+    #region Utility
+
+    class PropertyRecord
+    {
+        /// <summary>
+        /// The property source
+        /// </summary>
+        public required IValueAccess Source { get; set; }
+
+        /// <summary>
+        /// The source relation
+        /// </summary>
+        public IRelation? Relation { get; set; }
+
+        /// <summary>
+        /// The distant level of the source to target
+        /// </summary>
+        public int Level { get; set; }
+
+        /// <summary>
+        /// The property
+        /// </summary>
+        public required IProperty Property { get; set; }
+
+        /// <summary>
+        /// Whether the target is valid for the property
+        /// </summary>
+        public bool? Valid { get; set; }
+    }
+
+    class FakeSub: IDisposable    {
+        public void Dispose()
+        {
+        }
+    }
+
+    static FakeSub _statciFakeSub = new FakeSub();
+
+    private int CalcLevel(IValueAccess source)
+    {
+        int level = 0;
+        IValueAccess? curr = this;
+        while (curr != null && curr != source)
+        {
+            level++;
+            curr = curr.Parent;
+        }
+        return level;
+    }
 
     /// <summary>
-    /// Gets the property by type
+    /// Gets the override properties
     /// </summary>
-    public T? GetProperty<T>() where T : class, IProperty
+    private IEnumerable<T> _FilterProperties<T>() where T : IProperty
     {
-        foreach(var provider in this.PropertyProviders)
+        if (_props is null) yield break;
+        if (typeof(T).IsInterface)
         {
-            var prop = provider.GetProperty<T>();
-            if (prop != null) return prop;
+            foreach (var t in _props.Keys.Where(k => typeof(T).IsAssignableFrom(k)))
+            {
+                var s = _props[t];
+                if (s.Count == 0) continue;
+                var first = s.First().Property;
+                if (first.HasValue && first is T v) yield return v;
+                if (first.Stackable == true)
+                {
+                    for (int i = 1; i < s.Count; i++)
+                    {
+                        if (s[i].Property.HasValue && s[i].Property is T p)
+                            yield return p;
+                    }
+                }
+            }
         }
-        return null;
+        else if (_props.TryGetValue(typeof(T), out var props))
+        {
+            if (props.Count == 0) yield break;
+            var first = props.First().Property;
+            if (first.HasValue && first is T v) yield return v;
+            if (first.Stackable == true)
+            {
+                for (int i = 1; i < props.Count; i++)
+                {
+                    if (props[i].Property.HasValue && props[i].Property is T p)
+                        yield return p;
+                }
+            }
+        }
     }
 
     #endregion

@@ -107,7 +107,7 @@ public class AnyNode(ISchemaContext context, params IPropertyProvider[] property
 {
     public override IValueAccess Clone()
     {
-        return new AnyNode(Context, PropertyProviders.ToArray())
+        return new AnyNode(Context, _propertyProviders.ToArray())
         {
             Type = Type,
             Value = Value
@@ -124,7 +124,7 @@ public class BoolNode(ISchemaContext context, params IPropertyProvider[] propert
 
     public override IValueAccess Clone()
     {
-        return new BoolNode(Context, PropertyProviders.ToArray())
+        return new BoolNode(Context, _propertyProviders.ToArray())
         {
             Type = Type,
             Value = Value
@@ -139,7 +139,7 @@ public class StringNode(ISchemaContext context, params IPropertyProvider[] prope
 {
     public override IValueAccess Clone()
     {
-        return new StringNode(Context, PropertyProviders.ToArray())
+        return new StringNode(Context, _propertyProviders.ToArray())
         {
             Type = Type,
             Value = Value
@@ -154,7 +154,7 @@ public class DecimalNode(ISchemaContext context, params IPropertyProvider[] prop
 {
     public override IValueAccess Clone()
     {
-        return new DecimalNode(Context, PropertyProviders.ToArray())
+        return new DecimalNode(Context, _propertyProviders.ToArray())
         {
             Type = Type,
             Value = Value
@@ -169,7 +169,7 @@ public class IntNode(ISchemaContext context, params IPropertyProvider[] property
 {
     public override IValueAccess Clone()
     {
-        return new IntNode(Context, PropertyProviders.ToArray())
+        return new IntNode(Context, _propertyProviders.ToArray())
         {
             Type = Type,
             Value = Value
@@ -184,7 +184,7 @@ public class DateNode(ISchemaContext context, params IPropertyProvider[] propert
 {
     public override IValueAccess Clone()
     {
-        return new DateNode(Context, PropertyProviders.ToArray())
+        return new DateNode(Context, _propertyProviders.ToArray())
         {
             Type = Type,
             Value = Value

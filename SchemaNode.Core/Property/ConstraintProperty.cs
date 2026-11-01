@@ -12,6 +12,11 @@ namespace SchemaNode.Property;
 public interface IConstraintProperty : IProperty
 {
     /// <summary>
+    /// Ges the error message for node
+    /// </summary>
+    public virtual string? GetErrorMessage(IValueAccess node) => null;
+
+    /// <summary>
     /// Validate the data node with the constraint rule. Return true if valid, false if invalid, null if not applicable.
     /// </summary>
     public virtual bool? Validate(SchemaContext context, IValueAccess node)

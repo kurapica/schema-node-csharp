@@ -322,9 +322,12 @@ public class StructFieldType : INodeReferences, IPropertyProvider
         if (propType is ArrayType arrayType) propType = arrayType.Element;
 
         // Properties
+        var nameProp = new Name();
+        nameProp.SetValue(field.Name);
+
         var propTypes = context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_NODE_STRUCT_FIELD);
         if (propType != null) propTypes = propTypes.Concat(context.Runtime.GetSchemaKindPropertyTypes((context.Runtime as SchemaRuntime)!.GetSchemaKindByNodeKind(propType.Kind))).Distinct();
-        IProperty[] props = field.GetProperties(propTypes).ToArray();
+        IProperty[] props = field.GetProperties(propTypes).Prepend(nameProp).ToArray();
         
         (RefTypes, string? error) = await field.LoadPropertiesAsync(context, props, Type);
         field.Error ??= error;

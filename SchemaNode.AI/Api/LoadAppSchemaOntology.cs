@@ -71,7 +71,7 @@ public class LoadAppSchemaOntologyApi : SchemaApi<LoadAppSchemaOntologyRequest, 
             return new LoadAppSchemaOntologyResponse();
         }
 
-        string content = OntologyTextTemplates.Render(graph, format, SchemaContext.GetLocale());
+        string content = OntologyTextTemplates.Render(graph, format, SchemaContext.Locale);
 
         // JSON-LD is already JSON — return it inline so callers can parse it directly.
         // All other formats are plain-text and are returned as a file download.

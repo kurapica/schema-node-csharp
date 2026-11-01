@@ -1,6 +1,11 @@
 ﻿using SchemaNode.Attribute;
+using SchemaNode.Context;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.String;
+using SchemaNode.Runtime;
+using SchemaNode.Utility;
+using System.Text.RegularExpressions;
 using static SchemaNode.Utility.Constant;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
 
@@ -123,5 +128,68 @@ public sealed class LocaleString : ICloneable
         }
 
         return this;
+    }
+
+    public string ToString(ISchemaContext context)
+    {
+        var ctx = context as SchemaContext;
+        var locale = !string.IsNullOrWhiteSpace(ctx?.Locale) ? ctx.Locale.Replace("-", "") : null;
+
+        string result = (locale != null && Trans?.FirstOrDefault(t => t.Lang.StartsWith(locale, StringComparison.OrdinalIgnoreCase) || locale.StartsWith(t.Lang, StringComparison.OrdinalIgnoreCase)) is { } tran 
+            ? tran.Tran : null) ?? Key;
+
+        if (result.IndexOf("{") >= 0)
+        {
+            var convert = Regex.Replace(result, @"\{([^}]+)\}", match =>
+            {
+                string replace = match.Groups[1].Value;
+                if (Regex.IsMatch(replace, @"^\d+$")) return match.Groups[0].Value; // ignore {0}, {1}, etc.
+                if (replace.StartsWith("@"))
+                {
+                    string key = replace.Substring(1);
+                    string field = "";
+                    if (key.IndexOf(':') >= 0)
+                    {
+                        var parts = key.Split(':', 2);
+                        key = parts[0];
+                        field = parts[1];
+                    }
+                    var type = ctx?.GetNodeTypeAsync(key).GetAwaiter().GetResult();
+                    if (type != null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(field))
+                        {
+                            var f = (type as IValueTypeAccess)?.GetAccessValueType(field);
+                            var display = f?.GetProperty<Display>()?.Value;
+                            return display != null ? display.ToString(context) : f?.Name ?? field;
+                        }
+                        else
+                        {
+                            var display = type.GetProperty<Display>()?.Value;
+                            return display != null ? display.ToString(context) : type.Name;
+                        }
+                    }
+                    return Locale.GetString(key, locale) ?? replace;
+                }
+                return Locale.GetString(replace, locale) ?? replace;
+            });
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Format the locale string with arguments.
+    /// </summary>
+    /// <param name="args"></param>
+    /// <returns></returns>
+    public string Format(ISchemaContext context, params object[] args)
+    {
+        return Regex.Replace(ToString(context), @"\{(\d+)\}", match =>
+        {
+            int index = int.Parse(match.Groups[1].Value);
+            if (index >= 0 && index < args.Length)
+                return args[index] is LocaleString locale ? locale.ToString(context) : args[index]?.ToString() ?? string.Empty;
+            return match.Groups[0].Value; // Return the original placeholder if index is out of range
+        });
     }
 }

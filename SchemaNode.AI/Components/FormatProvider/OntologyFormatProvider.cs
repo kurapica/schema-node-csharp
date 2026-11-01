@@ -20,7 +20,7 @@ public class OntologyFormatProvider : ISchemaFormatProvider
         OntologyGraph graph = await context.BuildAppOntologyAsync(
             app.Name, OntologyOptions.Current.BaseUri, cancellationToken: cancellationToken);
 
-        string content = OntologyTextTemplates.Render(graph, format, context.GetLocale());
+        string content = OntologyTextTemplates.Render(graph, format, context.Locale);
 
         string ext = format.ToLowerInvariant() switch
         {

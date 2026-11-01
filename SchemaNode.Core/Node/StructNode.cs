@@ -13,19 +13,10 @@ public class StructNode : DataNode
 
     #region Constructor
 
-    public StructNode(ISchemaContext context, StructType type, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) :base(context, propertyProviders)
-    {
-        Type = type;
-        Parent = parent;
-        
+    public StructNode(ISchemaContext context, StructType type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) :base(context, type, value, parent, propertyProviders)
+    {        
         // init fields
         _fields = type.GetFields().Select(p => p.Type?.Create(context, this, p) ?? throw new Exception($"The struct {type.Name}'s field {p.Name} has not valid value type")).ToArray();
-    }
-
-    public StructNode(ISchemaContext context, StructType type, object value, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) : this(context, type, parent, propertyProviders)
-    {
-        if (!TrySetValue(value))
-            throw new InvalidCastException($"Failed to set value to schema type {type.Name}.");
     }
 
     #endregion
@@ -137,7 +128,7 @@ public class StructNode : DataNode
             if (IsValid) return null;
             JsonObject result = [];
             foreach (var f in _fields.Where(f => !f.IsValid))
-                result[f.PropertyProviders.OfType<StructFieldType>().First().Name] = f.Violated;
+                result[f.Name!] = f.Violated;
             return result;
         }
     }

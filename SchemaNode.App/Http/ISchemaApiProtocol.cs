@@ -119,7 +119,7 @@ public interface ISchemaApiProtocol
             
             // locale
             if (!string.IsNullOrWhiteSpace(request.Locale))
-                context.SetLocale(request.Locale);
+                context.Locale = request.Locale;
             
             // date format
             if (request.DateFormat.HasValue && request.DateFormat != DateFormatMode.Iso8601)
@@ -173,7 +173,7 @@ public interface ISchemaApiProtocol
         // Generate response.
         response!.ExecuteTime = watch.ElapsedMilliseconds;
         response.TimeZone = context.GetTimeZone().Id;
-        response.Locale = context.GetLocale();
+        response.Locale = context.Locale;
         logger.LogDebug("{name} API is executed, cost {time}.", typeof(TApi).Name, watch.ElapsedMilliseconds);
         
         // Stream

@@ -128,7 +128,7 @@ public static class SchemaNodeChatInjection
 
         SchemaContext schemaContext = httpContext.RequestServices.GetRequiredService<SchemaContext>();
         if (!string.IsNullOrWhiteSpace(request.Locale))
-            schemaContext.SetLocale(request.Locale);
+            schemaContext.Locale = request.Locale;
 
         SchemaChatService service = httpContext.RequestServices.GetRequiredService<SchemaChatService>();
         ILogger logger = httpContext.RequestServices

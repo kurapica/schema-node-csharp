@@ -68,6 +68,11 @@ public interface IProperty
     Type Type { get; }
 
     /// <summary>
+    /// The source of the property
+    /// </summary>
+    IValueAccess? Source { get; }
+
+    /// <summary>
     /// CombineProperties the property with another property of the same type, if the current property has no value, it will take the value from the other property.
     /// If return true means the other property is combined into the current property.
     /// If return false and the property is stackable, the other property can be used together with the current property.
@@ -78,13 +83,33 @@ public interface IProperty
     /// Whether the properties are equal, used for stackable property, if the properties are equal, the other property will be ignored.
     /// </summary>
     bool Equals(IProperty other);
+
+    /// <summary>
+    /// Apply the property effect to the target
+    /// </summary>
+    void Effect(IValueAccess target);
+
+    /// <summary>
+    /// Clear the property effect rom the target
+    /// </summary>
+    void Clear(IValueAccess target);
+
+    /// <summary>
+    /// Whether to apply the relation to the property immediately.
+    /// </summary>
+    bool InitWithRelation(IRelation relation, IValueAccess owner, IValueAccess target);
 }
 
 /// <summary>
 /// The property with value of type T
 /// </summary>
-public abstract class Property<T> : IProperty
+public abstract class Property<T>(IValueAccess? source = null) : IProperty
 {
+    /// <summary>
+    /// The property source
+    /// </summary>
+    public IValueAccess? Source { get; } = source;
+
     /// <summary>
     /// The property value
     /// </summary>
@@ -116,7 +141,20 @@ public abstract class Property<T> : IProperty
         if (HasValue != other.HasValue) return false;
         return !HasValue || Equals(other.GetValue<object>(), GetValue<object>());
     }
-    
+
+    /// <inheritdoc/>
+    public void Effect(IValueAccess target)
+    {
+    }
+
+    /// <inheritdoc/>
+    public void Clear(IValueAccess target)
+    {
+    }
+
+    /// <inheritdoc/>
+    public bool InitWithRelation(IRelation relation, IValueAccess owner, IValueAccess target) => true;
+
     /// <summary>
     /// Check the value is not empty
     /// </summary>
