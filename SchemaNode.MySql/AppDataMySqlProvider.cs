@@ -949,8 +949,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         // single row
         if (schema.Single)
         {
-            if (value is ArrayNode arr) value = arr.FirstOrDefault();
-            
+            // Array values are stored as whole json in the value field, no truncation
             // Gets the origin value
             (var origin, _) = await QueryDynamicTableAsync(schema, AppSchemaDataResult.First);
 

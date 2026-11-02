@@ -325,36 +325,7 @@ public static class BatchQueryExtension
         {
             case EnumType enumNode:
                 if (value is EnumNode val)
-                {
-                    string key = $"{enumNode.Name}:{val.GetValue<string>()}";
-                    if (enumsKeys.Add(key))
-                    {
-                        var access = await enumNode.GetEnumEntryAccessAsync(context, val.GetValue<string>()!);
-
-                        if (access.Length > 0)
-                        {
-                            string[] paths = enumNode.Name.Split('.', StringSplitOptions.RemoveEmptyEntries);
-                            string fullPath = string.Empty;
-                            NodeSchema parent = root;
-                            foreach (string p in paths)
-                            {
-                                fullPath = string.IsNullOrWhiteSpace(fullPath) ? p : $"{fullPath}.{p}";
-
-                                parent.Schemas ??= [];
-                                NodeSchema? sub = parent.Schemas.FirstOrDefault(s => s.Name.Equals(fullPath, StringComparison.OrdinalIgnoreCase));
-                                if (sub == null) return;
-                                parent = sub;
-                            }
-
-                            if (parent.Kind == NODE_KIND_ENUM)
-                            {
-                                RootEnumValueSchema.Value!.Children = parent.GetProperty<EnumProperty>()!.GetValue<EnumSchema>()!.Values;
-                                RootEnumValueSchema.Value!.SaveAccessList(access);
-                                RootEnumValueSchema.Value!.Children = null;
-                            }
-                        }
-                    }
-                }
+                    await ScanEnumValueAsync(context, root, enumNode, enumsKeys, val.GetValue<string>());
                 break;
             case StructType @struct:
                 if (value is StructNode obj)
@@ -368,12 +339,12 @@ public static class BatchQueryExtension
                 break;
 
             case ArrayType array:
-                if (value is not ArrayNode arr) return;
-
                 switch (array.Element)
                 {
                     case StructType eleStruct:
                     {
+                        if (value is not ArrayNode arr) return;
+
                         foreach (var v in arr)
                         {
                             if (v is StructNode)
@@ -384,7 +355,26 @@ public static class BatchQueryExtension
                     }
                     case EnumType eleEnum:
                     {
-                        foreach (var v in arr)
+                        // The enum array value is a scalar EnumArrayNode, mirroring the TS EnumArrayNode which extends ScalarNode
+                        if (value is EnumArrayNode enumArray)
+                        {
+                            if (eleEnum.Type == EnumValueType.String)
+                            {
+                                foreach (string? v in enumArray.GetValue<string[]>() ?? [])
+                                    await ScanEnumValueAsync(context, root, eleEnum, enumsKeys, v);
+                            }
+                            else
+                            {
+                                foreach (long v in enumArray.GetValue<long[]>() ?? [])
+                                    await ScanEnumValueAsync(context, root, eleEnum, enumsKeys, v.ToString());
+                            }
+
+                            break;
+                        }
+
+                        if (value is not ArrayNode enumNodes) return;
+
+                        foreach (var v in enumNodes)
                         {
                             if (v is EnumNode)
                                 await ScanEnumAccess(context, root, eleEnum, enumsKeys, v);
@@ -395,6 +385,34 @@ public static class BatchQueryExtension
                 }
                 break;
         }
+    }
+
+    static async Task ScanEnumValueAsync(SchemaContext context, NodeSchema root, EnumType enumNode, HashSet<string> enumsKeys, string? value)
+    {
+        string key = $"{enumNode.Name}:{value}";
+        if (!enumsKeys.Add(key)) return;
+
+        var access = await enumNode.GetEnumEntryAccessAsync(context, value);
+        if (access.Length <= 0) return;
+
+        string[] paths = enumNode.Name.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        string fullPath = string.Empty;
+        NodeSchema parent = root;
+        foreach (string p in paths)
+        {
+            fullPath = string.IsNullOrWhiteSpace(fullPath) ? p : $"{fullPath}.{p}";
+
+            parent.Schemas ??= [];
+            NodeSchema? sub = parent.Schemas.FirstOrDefault(s => s.Name.Equals(fullPath, StringComparison.OrdinalIgnoreCase));
+            if (sub == null) return;
+            parent = sub;
+        }
+
+        if (parent.Kind != NODE_KIND_ENUM) return;
+
+        RootEnumValueSchema.Value!.Children = parent.GetProperty<EnumProperty>()!.GetValue<EnumSchema>()!.Values;
+        RootEnumValueSchema.Value!.SaveAccessList(access);
+        RootEnumValueSchema.Value!.Children = null;
     }
 
     static readonly AsyncLocal<Entry<string>> RootEnumValueSchema = new();

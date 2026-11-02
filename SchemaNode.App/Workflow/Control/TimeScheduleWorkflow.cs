@@ -89,11 +89,11 @@ public class TimeScheduleWorkflow: BaseWorkflow,
     /// </summary>
     class WaitUntil: IJob
     {
-        public Task Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
-            ScheduleJobData job = (ScheduleJobData)context.JobDetail.JobDataMap["schedule"];
-            context.Scheduler.DeleteJob(context.JobDetail.Key);
-            return job.Workflow.ProcessAsync(job.Context, context.JobDetail.Key, job.Schedule);
+            ScheduleJobData job = (ScheduleJobData)context.JobDetail.JobDataMap["schedule"]!;
+            await context.Scheduler.DeleteJob(context.JobDetail.Key);
+            await job.Workflow.ProcessAsync(job.Context, context.JobDetail.Key, job.Schedule);
         }
     }
     
@@ -102,17 +102,16 @@ public class TimeScheduleWorkflow: BaseWorkflow,
     /// </summary>
     class TimeJob: IJob
     {
-        public Task Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
-            ScheduleJobData job = (ScheduleJobData)context.JobDetail.JobDataMap["schedule"];
+            ScheduleJobData job = (ScheduleJobData)context.JobDetail.JobDataMap["schedule"]!;
             if (!job.Workflow.Fork || job.Schedule.End is not null && job.Schedule.End <= DateTimeOffset.UtcNow.DateTime)
             {
-                context.Scheduler.DeleteJob(context.JobDetail.Key);
+                await context.Scheduler.DeleteJob(context.JobDetail.Key);
                 job.Context.Terminate(job.Workflow); // terminate the workflow
             }
             else
                 job.Context.Done(job.Workflow); // continue to the next node
-            return Task.CompletedTask;
         }
     }
     

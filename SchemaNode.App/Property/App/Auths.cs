@@ -2,9 +2,11 @@ using System.Collections.Concurrent;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
+using SchemaNode.Node;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Property;
+using SchemaNode.Property.Struct;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
@@ -108,6 +110,52 @@ public enum PolicyScope
 }
 
 /// <summary>
+/// The black list resolver for the policy scope, it restricts the data scopes when the policy is not declared on an app or app field.
+/// </summary>
+[Meta<ForSchema>(SCHEMA_KIND_NODE_ENUM)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
+[Meta<PropertyValueType>(NS_SYSTEM_BOOL)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.policy.scopeblacklist")]
+[Meta<Static>(true)]
+[Meta<InVisible>(true)]
+[Meta<Alias>("policyScopeResolver")]
+public class PolicyScopeResolver : Property<bool>
+{
+    /// <inheritdoc/>
+    public override void Effect(IValueAccess target)
+    {
+        // defer the effect, so the parent chain is available after the node is attached
+        _ = Task.Run(async () =>
+        {
+            await Task.Yield();
+            IValueAccess? curr = target;
+            while (curr is DataNode node)
+            {
+                string? kind = node.Type.GetProperty<Attach>()?.GetValue<string>();
+                if (string.IsNullOrWhiteSpace(kind))
+                {
+                    curr = node.Parent;
+                    continue;
+                }
+
+                if (!kind.Equals(SCHEMA_KIND_APP, StringComparison.OrdinalIgnoreCase) &&
+                    !kind.Equals(SCHEMA_KIND_APP_FIELD, StringComparison.OrdinalIgnoreCase))
+                {
+                    target.SetPropertyValue<BlackList, object[]>(
+                    [
+                        nameof(PolicyScope.DataCreate).ToCamelCase(),
+                        nameof(PolicyScope.DataRead).ToCamelCase(),
+                        nameof(PolicyScope.DataUpdate).ToCamelCase(),
+                        nameof(PolicyScope.DataDelete).ToCamelCase(),
+                    ], target, null);
+                }
+                break;
+            }
+        });
+    }
+}
+
+/// <summary>
 /// The policy item schema
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.policy.item")]
@@ -116,6 +164,7 @@ public sealed class PolicyItem
     /// <summary>
     /// The policy scope
     /// </summary>
+    [Meta<PolicyScopeResolver>(true)]
     public required PolicyScope Scope { get; set; }
 
     /// <summary>

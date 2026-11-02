@@ -71,7 +71,29 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
     }
     
     /// <inheritdoc/>
-    public async Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner, IValueAccess? target = null)
+    public bool hasDepends => Args.Any(a => !string.IsNullOrWhiteSpace(a.Source));
+
+    /// <inheritdoc/>
+    public void Attach(IRelation relation, IValueAccess owner, IValueAccess target)
+    {
+        if (FuncType == null) return;
+        foreach (CallArg arg in Args)
+        {
+            if (string.IsNullOrWhiteSpace(arg.Source)) continue;
+
+            IValueAccess? node = owner.GetAccessValue(arg.Source, target);
+            if (node == null) continue;
+
+            target.RecordSubscription(node.Subscribe(_ => DebounceProcess(relation, owner, target)), relation);
+        }
+    }
+
+    /// <inheritdoc/>
+    public void Detach(IRelation relation, IValueAccess owner, IValueAccess target)
+        => target.ClearSubscription(relation);
+
+    /// <inheritdoc/>
+    public async Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner, IValueAccess target)
     {
         if (FuncType == null) return null;
         object?[] args = new object?[Args.Length];
@@ -84,12 +106,31 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
             }
             else
             {
-                args[i] = owner.GetAccessValue(a.Source, target ?? owner);
+                args[i] = owner.GetAccessValue(a.Source, target);
                 if (args[i] is DataNode node)
                     await node.LoadDefaultAsync(context);
             }
         }
         return await FuncType.CallAsync<object?>(context, args, mode: Mode);
+    }
+
+    /// <summary>
+    /// Debounce the relation process
+    /// </summary>
+    private static void DebounceProcess(IRelation relation, IValueAccess owner, IValueAccess target)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(10);
+                await relation.ProcessAsync(owner, target);
+            }
+            catch
+            {
+                // ignore the errors, the relation will be processed next time
+            }
+        });
     }
 
     /// <inheritdoc/>

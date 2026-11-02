@@ -1120,7 +1120,7 @@ public abstract class FunctionNodeExpTree
 /// <summary>
 /// The function node argument
 /// </summary>
-public class FunctionNodeArgument : FunctionNodeExpTree
+public class FunctionNodeArgument : FunctionNodeExpTree, IPropertyProvider
 {
     #region Data
 
@@ -1162,6 +1162,11 @@ public class FunctionNodeArgument : FunctionNodeExpTree
     /// Gets the property of the argument
     /// </summary>
     public T? GetProperty<T>() where T : class, IProperty => _source?.GetProperty<T>();
+
+    /// <summary>
+    /// Gets the properties of the argument
+    /// </summary>
+    public IEnumerable<T> GetProperties<T>() where T : IProperty => _source?.GetProperties(typeof(T)).OfType<T>() ?? [];
     
     #endregion
     

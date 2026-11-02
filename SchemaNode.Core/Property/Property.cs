@@ -143,17 +143,17 @@ public abstract class Property<T>(IValueAccess? source = null) : IProperty
     }
 
     /// <inheritdoc/>
-    public void Effect(IValueAccess target)
+    public virtual void Effect(IValueAccess target)
     {
     }
 
     /// <inheritdoc/>
-    public void Clear(IValueAccess target)
+    public virtual void Clear(IValueAccess target)
     {
     }
 
     /// <inheritdoc/>
-    public bool InitWithRelation(IRelation relation, IValueAccess owner, IValueAccess target) => true;
+    public virtual bool InitWithRelation(IRelation relation, IValueAccess owner, IValueAccess target) => true;
 
     /// <summary>
     /// Check the value is not empty

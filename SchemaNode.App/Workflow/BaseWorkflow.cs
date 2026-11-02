@@ -23,9 +23,9 @@ public abstract class BaseWorkflow
     /// <summary>
     /// The abstract method name for workflow processing
     /// The method signature should be:
-    /// @"Task ProcessAsync(WorkflowContext context, arg1, arg2, ...);"
+    /// @"Task CallAsync(WorkflowContext context, arg1, arg2, ...);"
     /// or
-    /// @"Task&lt;Session&gt; ProcessAsync&lt;Session&gt;(WorkflowContext context, Session, arg1, arg2, ...);"
+    /// @"Task&lt;Session&gt; CallAsync&lt;Session&gt;(WorkflowContext context, Session, arg1, arg2, ...);"
     /// </summary>
     public const string WORKFLOW_PROCESS_METHOD = "ProcessAsync";
     

@@ -1,4 +1,4 @@
-﻿using SchemaNode.Attribute;
+﻿﻿using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
@@ -12,7 +12,7 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Relation;
 
 /// <summary>
-/// The relation any check, skip in backend now
+/// The relation any check, invoke all the given functions with the same args
 /// </summary>
 public class AnyProcess : IRelationProcess, INodeReferences, IErrorProvider
 {
@@ -54,7 +54,7 @@ public class AnyProcess : IRelationProcess, INodeReferences, IErrorProvider
     public string? Error { get; private set; }
 
     private FunctionType[]? _funcTypes;
-
+    private FuncCall[]? _calls;
 
     /// <inheritdoc/>
     public async Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner, params string?[] kinds)
@@ -72,13 +72,75 @@ public class AnyProcess : IRelationProcess, INodeReferences, IErrorProvider
             }
             types.Add(funcType);
         }
+        _calls = calls;
         _funcTypes = types.ToArray();
     }
 
     /// <inheritdoc/>
-    public async Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner, IValueAccess? target = null)
+    public bool hasDepends => _calls?.Any(c => c.Args?.Any(a => !string.IsNullOrWhiteSpace(a.Source)) ?? false) ?? false;
+
+    /// <inheritdoc/>
+    public void Attach(IRelation relation, IValueAccess owner, IValueAccess target)
     {
-        return null;
+        if (_calls is null) return;
+        foreach (var call in _calls)
+        {
+            if (call.Args is null) continue;
+            foreach (var arg in call.Args)
+            {
+                if (string.IsNullOrWhiteSpace(arg.Source)) continue;
+                IValueAccess? node = owner.GetAccessValue(arg.Source, target);
+                if (node == null) continue;
+                target.RecordSubscription(node.Subscribe(_ => DebounceProcess(relation, owner, target)), relation);
+            }
+        }
+    }
+
+    /// <inheritdoc/>
+    public void Detach(IRelation relation, IValueAccess owner, IValueAccess target)
+        => target.ClearSubscription(relation);
+
+    /// <inheritdoc/>
+    public async Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner, IValueAccess target)
+    {
+        if (_funcTypes is null || _funcTypes.Length == 0 || _calls is null) return null;
+
+        // build the args by flattening all call args
+        for (int i = 0; i < _funcTypes.Length; i++)
+        {
+            var args = _calls.ElementAtOrDefault(i)?.Args;
+            if (args == null) continue;
+            bool? result = await _funcTypes[i].CallAsync<bool?>(context, args.Select(a => {
+                if (string.IsNullOrWhiteSpace(a.Source))
+                    return a.Value;
+                else
+                {
+                    IValueAccess? access = owner.GetAccessValue(a.Source, target);
+                    return access?.GetValue<object>();
+                }
+            }).ToArray());
+            if (result == true) return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Debounce the relation process
+    /// </summary>
+    private static void DebounceProcess(IRelation relation, IValueAccess owner, IValueAccess target)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(10);
+                await relation.ProcessAsync(owner, target);
+            }
+            catch
+            {
+                // ignore the errors, the relation will be processed next time
+            }
+        });
     }
 
     /// <inheritdoc/>

@@ -19,15 +19,52 @@ namespace SchemaNode.Property.Common;
 [Meta<PropertyValueType>($"{NS_SYSTEM_SCHEMA_FUNC_CALL}<{NS_SYSTEM_SCHEMA_FUNC}.valid>")]
 public class Valid : FuncCallProperty, IConstraintProperty
 {
+    /// <inheritdoc/>
+    public override void Effect(IValueAccess target)
+    {
+        Clear(target);
+
+        if (Value?.Args is not { Length: > 0 }) return;
+        IValueAccess source = Source ?? target;
+        foreach (CallArg arg in Value.Args)
+        {
+            if (string.IsNullOrWhiteSpace(arg.Source)) continue;
+            IValueAccess? t = source.GetAccessValue(arg.Source, target);
+            if (t is null || ReferenceEquals(t, target)) continue;
+            target.RecordSubscription(t.Subscribe(_ => Refresh(target)), this);
+        }
+    }
+
+    /// <inheritdoc/>
+    public override void Clear(IValueAccess target) => target.ClearSubscription(this);
+
+    /// <summary>
+    /// Refresh the constraint result
+    /// </summary>
+    private void Refresh(IValueAccess target)
+    {
+        if (target is not DataNode node || node.Context is not SchemaContext context) return;
+        target.RecordConstraint(this, ValidateAsync(context, target).GetAwaiter().GetResult());
+    }
+
     public async Task<bool?> ValidateAsync(SchemaContext context, IValueAccess node)
     {
+        if (node.IsEmpty) return null;
+        if (node is not StructNode && node.GetValue<object>() is null) return null;
+
         FunctionType? func = !string.IsNullOrWhiteSpace(Value?.Func)
             ? await context.GetNodeTypeAsync<FunctionType>(Value.Func)
             : null;
-        if (func == null) return null;
+        if (func == null)
+        {
+            if (!string.IsNullOrWhiteSpace(Value?.Func))
+                context.LogError($"Valid property function {Value.Func} is not a function type");
+            return null;
+        }
 
         object?[] args = new object[Value!.Args.Length];
         int arrayIndex = -1;
+        IValueAccess owner = Source ?? node;
         for (int i = 0; i < args.Length; i++)
         {
             CallArg arg = Value.Args[i];
@@ -37,7 +74,7 @@ public class Valid : FuncCallProperty, IConstraintProperty
             
             if (!string.IsNullOrWhiteSpace(arg.Source))
             {
-                var value = node.GetAccessValue(arg.Source);
+                var value = owner.GetAccessValue(arg.Source, node);
                 args[i] = value;
                 if (value is ArrayNode && argInfo.ValueType is not ArrayType)
                 {

@@ -9,7 +9,7 @@ namespace SchemaNode.Runtime;
 /// </summary>
 public sealed class DecimalType : ScalarType
 {
-    public override IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) => new DecimalNode(context, propertyProviders) { Type = this, Parent = parent };
+    public override IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) => new DecimalNode(context, this, null, parent, propertyProviders);
     
     /// <inheritdoc />
     protected override ScalarSchema? GetScalarSchema() => GetProperty<DecimalProperty>()?.Value;

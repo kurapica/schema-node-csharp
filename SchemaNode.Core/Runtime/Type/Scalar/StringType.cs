@@ -15,7 +15,7 @@ public sealed class StringType : ScalarType
     public override bool IsIndexable => GetProperty<UpLimitString>()?.GetValue<long>() < ENTITY_PRIMARY_KEY_MAX_LEN;
 
     /// <inheritdoc/>
-    public override IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) => new StringNode(context, propertyProviders) { Type = this, Parent = parent };
+    public override IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) => new StringNode(context, this, null, parent, propertyProviders);
     
     /// <inheritdoc />
     protected override ScalarSchema? GetScalarSchema() => GetProperty<StringProperty>()?.Value;

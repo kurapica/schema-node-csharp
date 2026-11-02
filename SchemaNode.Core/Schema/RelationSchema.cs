@@ -125,9 +125,25 @@ public interface IRelationProcess
     /// Loading the relation schema and prepare for processing
     /// </summary>
     Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner, params string?[] kinds);
-    
+
     /// <summary>
-    /// Process the relation and return the new property value
+    /// Whether the relation process has any depends
     /// </summary>
-    Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner, IValueAccess? target = null);
+    bool hasDepends { get; }
+
+    /// <summary>
+    /// Attach the relation to taret
+    /// </summary>
+    void Attach(IRelation relation, IValueAccess owner, IValueAccess target);
+
+    /// <summary>
+    /// Detach the relation from target
+    /// </summary>
+
+    void Detach(IRelation relation, IValueAccess owner, IValueAccess target);
+
+    /// <summary>
+    /// CallAsync the relation and return the new property value
+    /// </summary>
+    Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner, IValueAccess target);
 }

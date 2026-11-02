@@ -78,26 +78,26 @@ public class WorkflowGenerator : INodeSchemaGenerator
         Type? payloadType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowPayload<>))?.GetGenericArguments()[0];
         workflowSchema.Payload = type.GetMetaProperty<PayloadType>()?.Value ?? (payloadType != null ? typeResolver(payloadType, @namespace, genericArgs)  : null);
         
-        // Process args
+        // CallAsync args
         MethodInfo processMethod = type.GetMethod(BaseWorkflow.WORKFLOW_PROCESS_METHOD, BindingFlags.Public | BindingFlags.Instance) 
-                                   ?? throw new Exception($"Can't find method ProcessAsync in {type.Name}");
+                                   ?? throw new Exception($"Can't find method CallAsync in {type.Name}");
     
         // must be async method, the first parameter is WorkflowContext
         // the second parameter is session if any
         ParameterInfo[] parameters = processMethod.GetParameters();
         if (parameters.Length == 0 || !parameters[0].ParameterType.IsAssignableTo(typeof(WorkflowContext)))
-            throw new Exception($"Invalid ProcessAsync method in workflow type {type.FullName}");
+            throw new Exception($"Invalid CallAsync method in workflow type {type.FullName}");
 
         // match session type
         if (sessionType != null)
         {
             if (parameters.Length < 2 || !parameters[1].ParameterType.IsAssignableTo(sessionType))
-                throw new Exception($"Invalid ProcessAsync method in workflow type {type.FullName}, session parameter mismatch");
+                throw new Exception($"Invalid CallAsync method in workflow type {type.FullName}, session parameter mismatch");
             
             // check return type
             if (!processMethod.ReturnType.IsGenericType || processMethod.ReturnType.GetGenericTypeDefinition() != typeof(Task<>) ||
                 !processMethod.ReturnType.GetGenericArguments()[0].IsAssignableTo(sessionType))
-                throw new Exception($"Invalid ProcessAsync method in workflow type {type.FullName}, return type mismatch");
+                throw new Exception($"Invalid CallAsync method in workflow type {type.FullName}, return type mismatch");
         }
         
         // Gather other parameters

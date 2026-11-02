@@ -2,10 +2,12 @@
 using SchemaNode.Context;
 using SchemaNode.Function;
 using SchemaNode.Node;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Int;
 using SchemaNode.Property.Property;
 using SchemaNode.Relation;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Array;
@@ -20,6 +22,18 @@ namespace SchemaNode.Property.Array;
 [Relation<UpLimitInt, Call>(nameof(MinSize), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(MaxSize)}")]
 public class MinSize : Property<long>, IConstraintProperty
 {
+    /// <inheritdoc/>
+    public override void Effect(IValueAccess target)
+    {
+        if (target is not ArrayNode array || !HasValue) return;
+        if (array.GetPropertyValue<ReadOnly, bool>()) return;
+
+        while (array.Count < Value)
+        {
+            if (array.AddRow() is null) break;
+        }
+    }
+
     /// <summary>
     /// Validate the array data node with sync mode
     /// </summary>

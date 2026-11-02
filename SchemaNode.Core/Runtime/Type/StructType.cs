@@ -1,3 +1,4 @@
+using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Property;
@@ -9,7 +10,6 @@ using SchemaNode.Schema;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
 using System.Reflection;
-using System.Xml.Linq;
 using static SchemaNode.Utility.Constant;
 using Type = System.Type;
 
@@ -182,7 +182,16 @@ public sealed class StructType: ValueType, IRelationProvider, INodeTypeReLoadHan
     }
 
     /// <inheritdoc />
-    public override IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) => new StructNode(context, this, parent, propertyProviders);
+    public override IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    {
+        System.Type? nodeType = (context as SchemaContext)?.FullMode == true
+            ? Schema?.Type?.GetMetaProperty<DataNodeType>()?.Value
+            : null;
+
+        return nodeType is null
+            ? new StructNode(context, this, null, parent, propertyProviders)
+            : DataNode.CreateNode(context, this, nodeType, null, parent, propertyProviders);
+    }
 
     /// <inheritdoc />
     public override IEnumerable<Entry<string>> GetAccessEntries()
@@ -303,6 +312,36 @@ public class StructFieldType : INodeReferences, IPropertyProvider
     /// The default value of the node.
     /// </summary>
     public IValueAccess? Default { get; private set; }
+
+    /// <summary>
+    /// The override field types cache, keyed by the override value type
+    /// </summary>
+    private Dictionary<ValueType, StructFieldType>? _overrideMap;
+
+    /// <summary>
+    /// Gets the struct field type with the overridden value type, the field keeps the same properties
+    /// </summary>
+    public StructFieldType GetOverrideFieldType(ValueType? type)
+    {
+        if (type is null || type == Type) return this;
+        _overrideMap ??= new Dictionary<ValueType, StructFieldType>();
+        if (_overrideMap.TryGetValue(type, out StructFieldType? cached)) return cached;
+
+        StructFieldType field = new()
+        {
+            Name = Name,
+            Type = type,
+            Property = Property,
+            Properties = Properties,
+            RefTypes = RefTypes,
+            Require = Require,
+            DisplayOnly = DisplayOnly,
+            Unpack = Unpack,
+            Default = Default
+        };
+        _overrideMap[type] = field;
+        return field;
+    }
 
     /// <summary>
     /// Load struct field schema

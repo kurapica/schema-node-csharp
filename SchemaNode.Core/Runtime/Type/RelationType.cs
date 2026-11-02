@@ -1,5 +1,6 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
+using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Core;
 using SchemaNode.Schema;
@@ -11,7 +12,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The relation type, they are not node types, only runtime-types controlled by the node types use them
 /// </summary>
-public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INodeReferences, IErrorProvider
+public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INodeReferences, IErrorProvider, IRelation
 {
     /// <summary>
     /// The target of the relation
@@ -42,13 +43,13 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
     public IRelationProcess? Process { get; private set; }
     
     /// <summary>
-    /// Process the relation and return the property with the result
+    /// CallAsync the relation and return the property with the result
     /// </summary>
-    public async Task<IProperty?> ProcessAsync(SchemaContext context, IValueAccess owner, IValueAccess? target = null)
+    public async Task<IProperty?> CallAsync(SchemaContext context, IValueAccess owner, IValueAccess? target = null)
     {
         var propType = Property?.GetCsharpType();
         if (propType == null || Activator.CreateInstance(propType) is not IProperty prop) return null;
-        if (Process == null || await Process.ProcessAsync(context, owner, target) is not { } value) return null;
+        if (Process == null || await Process.ProcessAsync(context, owner, target ?? owner) is not { } value) return null;
         prop.SetValue(value);
         return prop;
     }
@@ -96,6 +97,47 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
                 Error = error.Error;
         }
     }
+
+    #region IRelation
+
+    /// <inheritdoc/>
+    Type? IRelation.PropertyCtor => Property?.GetCsharpType();
+
+    /// <inheritdoc/>
+    bool IRelation.HasDepends => Process?.hasDepends ?? false;
+
+    /// <inheritdoc/>
+    void IRelation.Attach(IValueAccess owner, IValueAccess target)
+    {
+        if (Property?.GetCsharpType() is not { } propType) return;
+        Process?.Detach(this, owner, target); // clear first
+        Process?.Attach(this, owner, target);
+        if (Activator.CreateInstance(propType) is IProperty prop && !prop.InitWithRelation(this, owner, target))
+            return;
+        _ = ((IRelation)this).ProcessAsync(owner, target);
+    }
+
+    /// <inheritdoc/>
+    void IRelation.Detach(IValueAccess owner, IValueAccess target)
+    {
+        if (Property?.GetCsharpType() is not { } propType) return;
+        Process?.Detach(this, owner, target);
+        target.SetPropertyValue(propType, null, owner, this);
+    }
+
+    /// <inheritdoc/>
+    async Task IRelation.ProcessAsync(IValueAccess owner, IValueAccess target)
+    {
+        if (Property?.GetCsharpType() is not { } propType) return;
+        if (owner is not DataNode node || node.Context is not SchemaContext context) return;
+
+        IProperty? prop = await CallAsync(context, owner, target);
+        if (prop is null) return;
+
+        target.SetPropertyValue(propType, prop.GetValue<object>(), owner, this);
+    }
+
+    #endregion
 }
 
 public static class RelationTypeExtensions

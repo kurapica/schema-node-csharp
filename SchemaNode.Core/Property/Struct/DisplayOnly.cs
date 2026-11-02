@@ -1,6 +1,8 @@
 using SchemaNode.Attribute;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Property;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Struct;
@@ -12,4 +14,12 @@ namespace SchemaNode.Property.Struct;
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_STRUCT}.{nameof(DisplayOnly)}")]
 [Meta<Static>(true)]
-public class DisplayOnly: Property<bool>;
+public class DisplayOnly: Property<bool>
+{
+    /// <inheritdoc/>
+    public override void Effect(IValueAccess target)
+    {
+        if (Value == true) // static property only effect once
+            target.SetPropertyValue<ReadOnly, bool>(true, target, null);
+    }
+}

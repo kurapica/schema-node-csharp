@@ -1,9 +1,11 @@
+using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Immutable;
 using SchemaNode.Property.Array;
+using SchemaNode.Property.Core;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using Type = System.Type;
@@ -148,7 +150,19 @@ public sealed class ArrayType: ValueType, IRelationProvider, INodeTypeReLoadHand
     }
 
     /// <inheritdoc />
-    public override IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) => new ArrayNode(context, this, parent, propertyProviders);
+    public override IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    {
+        System.Type? nodeType = (context as SchemaContext)?.FullMode == true
+            ? Schema?.Type?.GetMetaProperty<DataNodeType>()?.Value
+            : null;
+
+        if (nodeType is not null)
+            return DataNode.CreateNode(context, this, nodeType, null, parent, propertyProviders);
+
+        return Element is EnumType
+            ? new EnumArrayNode(context, this, null, parent, propertyProviders)
+            : new ArrayNode(context, this, null, parent, propertyProviders);
+    }
 
     /// <inheritdoc />
     public override IEnumerable<RelationType> GetRelations() => _relations ?? [];

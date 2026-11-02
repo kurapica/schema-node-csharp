@@ -27,7 +27,7 @@ public abstract class SchemaApi<TRequest, TResponse>
     }
     
     /// <summary>
-    /// Process the request
+    /// CallAsync the request
     /// </summary>
     /// <param name="request"></param>
     /// <param name="cancellationToken"></param>

@@ -8,7 +8,7 @@ namespace SchemaNode.Property;
 public interface ILoadableProperty
 {
     /// <summary>
-    /// Process loading task
+    /// CallAsync loading task
     /// </summary>
     Task LoadAsync(SchemaContext context, Runtime.ValueType? ownerType = null);
 }

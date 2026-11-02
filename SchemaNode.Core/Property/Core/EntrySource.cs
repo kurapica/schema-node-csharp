@@ -24,3 +24,8 @@ public class EntrySource : FuncCallProperty;
 [Meta<ReadOnly>(true)]
 [Meta<InVisible>(true)]
 public class EntryRoot: Property<bool>;
+
+/// <summary>
+/// The entry source version, used to notify the view to rebuild the options
+/// </summary>
+public class EntrySourceVersion: Property<long>;

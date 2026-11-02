@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿﻿using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
@@ -9,6 +9,7 @@ using SchemaNode.Struct;
 using System.Collections.Concurrent;
 using System.Reactive;
 using System.Reactive.Subjects;
+using System.Reflection;
 using System.Text.Json.Nodes;
 
 // ReSharper disable InconsistentNaming
@@ -44,7 +45,21 @@ public abstract class DataNode : IValueAccess, IDisposable
     /// <summary>
     /// The property provider
     /// </summary>
-    private IReadOnlyList<IPropertyProvider> _propertyProviders { get; }
+    private readonly List<IPropertyProvider> _propertyProviders;
+
+    /// <summary>
+    /// The property providers, exposed to derived nodes for cloning and child creation
+    /// </summary>
+    protected IReadOnlyList<IPropertyProvider> PropertyProviders => _propertyProviders;
+
+    /// <summary>
+    /// Adds a property provider to the node, which is used by composite nodes to forward the field properties
+    /// </summary>
+    public void AddPropertyProvider(IPropertyProvider? provider)
+    {
+        if (provider is null || _propertyProviders.Contains(provider)) return;
+        _propertyProviders.Add(provider);
+    }
 
     /// <summary>
     /// Violated Constraints
@@ -91,6 +106,16 @@ public abstract class DataNode : IValueAccess, IDisposable
     /// </summary>
     private ConcurrentDictionary<object, ConcurrentBag<IDisposable>>? _subs;
 
+    /// <summary>
+    /// The cached property setters for runtime property constructors
+    /// </summary>
+    private static readonly ConcurrentDictionary<Type, MethodInfo> _setters = new();
+
+    /// <summary>
+    /// The cached data node constructors for schema declared node types
+    /// </summary>
+    private static readonly ConcurrentDictionary<Type, ConstructorInfo> _nodeCtors = new();
+
     #endregion
 
     #region Constructor
@@ -100,7 +125,7 @@ public abstract class DataNode : IValueAccess, IDisposable
         Context = context;
         Type = type;
         Parent = parent;
-        _propertyProviders = propertyProviders;
+        _propertyProviders = [.. propertyProviders];
 
         if (value is not null)
         {
@@ -116,9 +141,16 @@ public abstract class DataNode : IValueAccess, IDisposable
 
     public void Dispose()
     {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
         // clear property effect
-        foreach (var prop in GetProperties<IProperty>())
-            prop.Clear(this);
+        if (FullMode)
+            foreach (var prop in GetProperties<IProperty>())
+                prop.Clear(this);
 
         _validated?.Cancel();
 
@@ -354,6 +386,22 @@ public abstract class DataNode : IValueAccess, IDisposable
     }
 
     /// <inheritdoc/>
+    public void SetPropertyValue(Type propertyCtor, object? value, IValueAccess? source, IRelation? relation)
+    {
+        Type? valueType = propertyCtor.BaseType?.IsGenericType == true ? propertyCtor.BaseType.GetGenericArguments().FirstOrDefault() : null;
+        if (valueType == null) return;
+
+        MethodInfo setter = _setters.GetOrAdd(propertyCtor, static type =>
+        {
+            Type? propValueType = type.BaseType?.IsGenericType == true ? type.BaseType.GetGenericArguments().FirstOrDefault() : null;
+            return typeof(DataNode).GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                .First(m => m.Name == nameof(SetPropertyValue) && m.IsGenericMethod)
+                .MakeGenericMethod(type, propValueType ?? typeof(object));
+        });
+        setter.Invoke(this, [value, source, relation]);
+    }
+
+    /// <inheritdoc/>
     public void SetPropertyValue<P, T>(T? value, IValueAccess? source, IRelation? relation) where P : Property<T>
     {
         source ??= this;
@@ -411,7 +459,7 @@ public abstract class DataNode : IValueAccess, IDisposable
             // replace the top property
             if (props.First().Equals(record))
             {
-                if (topProp != null && !topProp.Stackable) topProp.Clear(this);
+                if (FullMode && topProp != null && !topProp.Stackable) topProp.Clear(this);
                 oldValue = topProp?.GetValue<object>();
                 topProp = record.Property;
             }
@@ -447,10 +495,13 @@ public abstract class DataNode : IValueAccess, IDisposable
         // Apply side effect
         if (record.Property.Stackable)
         {
-            if (isClear)
-                record.Property.Clear(this);
-            else
-                record.Property.Effect(this);
+            if (FullMode)
+            {
+                if (isClear)
+                    record.Property.Clear(this);
+                else
+                    record.Property.Effect(this);
+            }
             OnNextProperty(typeof(P), record.Property.GetValue<object>(), oldValue);
         }
         else if (isClear)
@@ -458,15 +509,18 @@ public abstract class DataNode : IValueAccess, IDisposable
             // if clear the top property, apply side effect
             if (props is not { Count: > 0} || props.First().Level < record.Level)
             {
-                record.Property.Clear(this);
+                if (FullMode)
+                    record.Property.Clear(this);
                 topProp = GetProperty<P>();
-                topProp?.Effect(this);
+                if (FullMode)
+                    topProp?.Effect(this);
                 OnNextProperty(typeof(P), topProp?.GetValue<object>(), oldValue);
             }
         }
         else if(topProp == record.Property)
         {
-            record.Property.Effect(this);
+            if (FullMode)
+                record.Property.Effect(this);
             OnNextProperty(typeof(P), record.Property.GetValue<object>(), oldValue);
         }
     }
@@ -499,15 +553,16 @@ public abstract class DataNode : IValueAccess, IDisposable
     protected void OnNextProperty(Type propertyCtor, object? value, object? oldValue)
     {
         if (!FullMode) return;
+        (IValueAccess, Type, object?, object?) payload = (this, propertyCtor, value, oldValue);
         if (_selfPropObs != null && _selfPropObs.TryGetValue(propertyCtor, out var selfObs))
-            selfObs.OnNext((this, propertyCtor, value, oldValue));
+            selfObs.OnNext(payload);
 
         if (_propObs != null && _propObs.TryGetValue(propertyCtor, out var obs))
-            obs.OnNext((this, propertyCtor, value, oldValue));
+            obs.OnNext(payload);
     }
 
     /// <inheritdoc/>
-    public IDisposable Subscribe(IObserver<(IValueAccess, object?)> observer, bool immediate = false)
+    public virtual IDisposable Subscribe(IObserver<(IValueAccess, object?)> observer, bool immediate = false)
     {
         if (!FullMode) return _statciFakeSub;
         _dataOb ??= new Subject<(IValueAccess, object?)>();
@@ -531,7 +586,7 @@ public abstract class DataNode : IValueAccess, IDisposable
         var obs = _selfPropObs.GetOrAdd(typeof(P), _ => new Subject<object>());
         if (immediate)
             observer.OnNext((this, typeof(P), GetPropertyValue<P, T>(), default(T?)));
-        return obs.Subscribe(value => observer.OnNext(((IValueAccess, Type, T?, T?))value));
+        return obs.Subscribe(value => observer.OnNext(ToSelfPropertyChange<P, T>(value)));
     }
 
     /// <summary>
@@ -548,7 +603,7 @@ public abstract class DataNode : IValueAccess, IDisposable
         var obs = _propObs.GetOrAdd(typeof(P), _ => new Subject<object>());
         if (immediate)
             observer.OnNext((this, typeof(P), GetPropertyValue<P, T>(), default(T?)));
-        return obs.Subscribe(value => observer.OnNext(((IValueAccess, Type, T?, T?))value));
+        return obs.Subscribe(value => observer.OnNext(ToSelfPropertyChange<P, T>(value)));
     }
 
     /// <summary>
@@ -556,6 +611,15 @@ public abstract class DataNode : IValueAccess, IDisposable
     /// </summary>
     public IDisposable SubscribeProperty<P, T>(Action<(IValueAccess, Type, T?, T?)> handler, bool immediate = false) where P : Property<T>
         => SubscribeProperty<P, T>(Observer.Create(handler), immediate);
+
+    /// <summary>
+    /// Convert the boxed property change payload to the typed property change
+    /// </summary>
+    private static (IValueAccess, Type, T?, T?) ToSelfPropertyChange<P, T>(object value) where P : Property<T>
+    {
+        (IValueAccess, Type, object?, object?) payload = ((IValueAccess, Type, object?, object?))value;
+        return (payload.Item1, payload.Item2, payload.Item3 is T nv ? nv : default(T?), payload.Item4 is T ov ? ov : default(T?));
+    }
 
     /// <inheritdoc/>
     public IDisposable SubscribeViolated(IObserver<(IValueAccess, bool)> observer, bool immediate = false)
@@ -573,7 +637,7 @@ public abstract class DataNode : IValueAccess, IDisposable
         => SubscribeViolated(Observer.Create(handler), immediate);
 
     /// <inheritdoc/>
-    public void RecordSubscription(IDisposable disposable, object? source)
+    public virtual void RecordSubscription(IDisposable disposable, object? source)
     {
         source ??= this;
         _subs ??= new ConcurrentDictionary<object, ConcurrentBag<IDisposable>>();
@@ -595,7 +659,7 @@ public abstract class DataNode : IValueAccess, IDisposable
     }
 
     /// <inheritdoc/>
-    public void ClearSubscription(object? source)
+    public virtual void ClearSubscription(object? source)
     {
         source ??= this;
         if (_subs != null && _subs.TryRemove(source, out var bag))
@@ -716,7 +780,7 @@ public abstract class DataNode : IValueAccess, IDisposable
         if (!this.IsEmpty || this.GetProperty<DisplayOnly>()?.Value != true) return;
         var r = this.GetRelation<Default>();
         if (r is null) return;
-        var d = await r.Value.Relation.ProcessAsync(context, r.Value.Owner, this);
+        var d = await r.Value.Relation.CallAsync(context, r.Value.Owner, this);
         if (d is null || !d.HasValue) return;
         this.TrySetValue(d.GetValue<object>());
     }
@@ -732,6 +796,9 @@ public abstract class DataNode : IValueAccess, IDisposable
     /// <inheritdoc/>
     public virtual void AttachRelations(IRelationInfo[] realtions)
     {
+        // relations only work in full mode
+        if (!FullMode) return;
+
         foreach (var info in realtions)
             foreach (var r in info.Relations)
                 if (info.Owner.GetAccessValue(r.Target, this) == this)
@@ -988,6 +1055,21 @@ public abstract class DataNode : IValueAccess, IDisposable
     }
 
     static FakeSub _statciFakeSub = new FakeSub();
+
+    /// <summary>
+    /// Creates the data node with the schema declared node type, falls back to the type default node when the node type is not specified
+    /// </summary>
+    public static IValueAccess CreateNode(ISchemaContext context, IValueTypeAccess type, Type? nodeType, object? value, IValueAccess? parent, params IPropertyProvider[] propertyProviders)
+    {
+        if (nodeType is null || !typeof(IValueAccess).IsAssignableFrom(nodeType))
+            return type.Create(context, parent, propertyProviders);
+
+        ConstructorInfo ctor = _nodeCtors.GetOrAdd(nodeType, static t =>
+            t.GetConstructor([typeof(ISchemaContext), typeof(IValueTypeAccess), typeof(object), typeof(IValueAccess), typeof(IPropertyProvider[])])
+            ?? throw new InvalidOperationException($"The data node type {t.Name} has no valid constructor."));
+
+        return (IValueAccess)ctor.Invoke([context, type, value, parent, propertyProviders]);
+    }
 
     private int CalcLevel(IValueAccess source)
     {

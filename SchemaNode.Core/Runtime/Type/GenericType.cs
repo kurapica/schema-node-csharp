@@ -16,5 +16,5 @@ internal sealed class GenericType: ValueType
     /// <summary>
     /// Use any node directly
     /// </summary>
-    public override IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) => new AnyNode(context, propertyProviders){ Type = this, Parent = parent };
+    public override IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) => new AnyNode(context, this, null, parent, propertyProviders);
 }

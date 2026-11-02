@@ -26,7 +26,7 @@ public interface IRelation
     /// <summary>
     /// The property constructor
     /// </summary>
-    Type PropertyCtor { get; }
+    Type? PropertyCtor { get; }
 
     /// <summary>
     /// Whether the relation depends on other value access
@@ -46,7 +46,7 @@ public interface IRelation
     /// <summary>
     /// Execute the relation and set new property to the target
     /// </summary>
-    Task Process(IValueAccess owner, IValueAccess target);
+    Task ProcessAsync(IValueAccess owner, IValueAccess target);
 }
 
 /// <summary>
@@ -62,7 +62,21 @@ public interface IRelationInfo
     /// <summary>
     /// The relations
     /// </summary>
-    IRelation[] Relations { get; }
+    List<IRelation> Relations { get; }
+}
+
+/// <summary>
+/// The default relation information implementation
+/// </summary>
+public sealed class RelationInfo : IRelationInfo
+{
+    /// <inheritdoc/>
+    public required IValueAccess Owner { get; init; }
+
+    /// <summary>
+    /// The relations
+    /// </summary>
+    public List<IRelation> Relations { get; } = [];
 }
 
 /// <summary>
@@ -226,6 +240,11 @@ public interface IValueAccess
     /// </summary>
     void SetPropertyValue<P, T>(T? value, IValueAccess? source, IRelation? relation) where P : Property<T>;
 
+    /// <summary>
+    /// Sets the property value to the value access by the runtime property constructor
+    /// </summary>
+    void SetPropertyValue(Type propertyCtor, object? value, IValueAccess? source, IRelation? relation);
+
     #endregion
 
     #region Subscription
@@ -300,7 +319,7 @@ public interface IValueAccess
     /// <returns></returns>
     IValueAccess? GetAccessValue(string path, IValueAccess? node = null);
 
-    #region
+    #endregion
 
     #region Relation
 

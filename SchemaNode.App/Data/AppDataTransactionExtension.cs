@@ -1,4 +1,4 @@
-﻿using SchemaNode.Context;
+﻿﻿using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
@@ -163,7 +163,7 @@ public static class AppDataTransactionExtension
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
         var transChangedData = context.GetOrAddContextItem<Dictionary<string, TransactionChangeData>>();
 
-        // Process data field push
+        // CallAsync data field push
         foreach (string target in transChangedData.Keys.ToArray())
             await ProcessDataPush(context, target, transChangedData[target]);
 
@@ -346,7 +346,7 @@ public static class AppDataTransactionExtension
         context.SetContextItem<Dictionary<string, TransactionChangeData>>(null);
     }
 
-    // Process the data push
+    // CallAsync the data push
     static async Task ProcessDataPush(SchemaContext context, string target, TransactionChangeData changeData, bool pushAllFields = false, AppFieldType? pushNode = null)
     {
         #region Generate push orders
@@ -382,7 +382,7 @@ public static class AppDataTransactionExtension
                 baseFields = root.Fields;
         }
 
-        // Process levels
+        // CallAsync levels
         while (baseFields.Count > 0)
         {
             FieldDataPushLevel next = new();
@@ -421,7 +421,7 @@ public static class AppDataTransactionExtension
 
         #endregion
 
-        // Process data push
+        // CallAsync data push
         while (root?.Fields.Count is > 0)
         {
             foreach (AppFieldType field in root.Fields)
@@ -610,6 +610,14 @@ public static class AppDataTransactionExtension
                         IValueAccess? ret = await field.PushFunc!.CallAsync<IValueAccess, DataDeriveCompileContext>(context, args);
                         if (ret is ArrayNode arr)
                             result.AddRange(arr);
+                        else if (ret is EnumArrayNode enumArray)
+                        {
+                            // The enum array value is a scalar EnumArrayNode, mirroring the TS EnumArrayNode which extends ScalarNode
+                            if (enumArray.EnumType.Type == EnumValueType.String)
+                                result.AddRange(enumArray.GetValue<string[]>() ?? []);
+                            else
+                                result.AddRange(enumArray.GetValue<long[]>() ?? []);
+                        }
                         else if(ret is not null)
                             result.Add(ret);
                     }
@@ -901,7 +909,7 @@ public static class AppDataTransactionExtension
                 }
             }
 
-            // Process next level
+            // CallAsync next level
             root = root.Next;
         }
     }

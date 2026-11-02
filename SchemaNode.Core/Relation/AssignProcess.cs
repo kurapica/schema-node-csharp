@@ -36,7 +36,20 @@ public class AssignProcess : IRelationProcess
     }
 
     /// <inheritdoc/> 
-    public Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner, IValueAccess? target = null) 
+    public bool hasDepends => false;
+
+    /// <inheritdoc/> 
+    public void Attach(IRelation relation, IValueAccess owner, IValueAccess target)
+    {
+    }
+
+    /// <inheritdoc/> 
+    public void Detach(IRelation relation, IValueAccess owner, IValueAccess target)
+    {
+    }
+
+    /// <inheritdoc/> 
+    public Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner, IValueAccess target)
         => Task.FromResult(_value?.GetValue<object>());
 }
 

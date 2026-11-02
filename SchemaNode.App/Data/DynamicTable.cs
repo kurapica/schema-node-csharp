@@ -380,7 +380,7 @@ public class DynamicTableSchema
                     {
                         Name = DYNAMIC_TABLE_VALUE_FIELD,
                         Type = DynamicTableFieldType.Json,
-                        ValueType = node
+                        ValueType = arrayNode // store the whole array as json
                     });
                 }
                 break;
@@ -927,7 +927,7 @@ public class DynamicTableSchema
                         // call function to get value
                         try
                         {
-                            if (await relation.ProcessAsync(context, pack, fld) is Default { HasValue: true } result)
+                            if (await relation.CallAsync(context, pack, fld) is Default { HasValue: true } result)
                                 fld.TrySetValue(result.Value);
                         }
                         catch

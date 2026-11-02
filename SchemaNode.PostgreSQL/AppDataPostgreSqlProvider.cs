@@ -952,8 +952,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
         // single row
         if (schema.Single)
         {
-            if (value is ArrayNode arr) value = arr.FirstOrDefault();
-
+            // Array values are stored as whole json in the value field, no truncation
             (IValueAccess? origin, _) = await QueryDynamicTableAsync(schema, AppSchemaDataResult.First);
 
             if (value == null || value.IsEmpty)

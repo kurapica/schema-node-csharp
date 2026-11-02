@@ -49,7 +49,7 @@ public static class RelationProviderExtension
                 {
                     foreach (var currNode in currNodes)
                     {
-                        if (await process.ProcessAsync(context, node, currNode) is not IConstraintProperty prop) continue;
+                        if (await process.CallAsync(context, node, currNode) is not IConstraintProperty prop) continue;
                         bool? result = await prop.ValidateAsync(context, currNode);
                         if (result.HasValue) currNode.RecordConstraint(prop, result.Value);
                     }

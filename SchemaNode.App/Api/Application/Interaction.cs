@@ -32,7 +32,7 @@ public class InteractionApi : SchemaApi<InteractionRequest, InteractionResponse>
 public static class InteractionExtensions
 {
     /// <summary>
-    /// Process the interaction request
+    /// CallAsync the interaction request
     /// </summary>
     public static async Task<Guid?> InteractionAsync(this SchemaContext context, InteractionRequest request, bool innerCall = false)
     {

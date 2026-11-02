@@ -52,7 +52,7 @@ public interface ISchemaApiProtocol
         IReadOnlyDictionary<string, object>? data = null);
     
     /// <summary>
-    /// Process the schema api request
+    /// CallAsync the schema api request
     /// </summary>
     public async Task<IResult> ProcessAsync<TApi, TRequest, TResponse>(HttpContext ctx)
         where TApi : SchemaApi<TRequest, TResponse>
