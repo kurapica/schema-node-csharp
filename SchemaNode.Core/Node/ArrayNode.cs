@@ -602,7 +602,7 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
             return true;
         }
 
-        node = ElementType.Create(Context, this);
+        node = ElementType.Create(Context, null, this);
         return node.TrySetValue(value);
     }
 

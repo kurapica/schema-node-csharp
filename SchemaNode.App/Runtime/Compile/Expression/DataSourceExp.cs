@@ -193,7 +193,7 @@ public class DataSourceExpVisitor : IExpVisitor
                     if (item == null)
                     {
                         paramMap[arg] = !arg.Require
-                            ? new ConstantExp(arg.ValueType.From(context.Context, null))
+                            ? new ConstantExp(arg.ValueType.Create(context.Context, (object?)null))
                             : throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
                     }
                     else

@@ -67,8 +67,8 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
 
             return type switch
             {
-                AppSchemaDataResult.Count => (schemaContext.System.Int.From(context, total), total),
-                AppSchemaDataResult.Exist => (schemaContext.System.Bool.From(context, total > 0), total),
+                AppSchemaDataResult.Count => (schemaContext.System.Int.Create(context, total), total),
+                AppSchemaDataResult.Exist => (schemaContext.System.Bool.Create(context, total > 0), total),
                 AppSchemaDataResult.First => (origins.Count > 0 ? origins[0].Clone() : null, total),
                 AppSchemaDataResult.Last => (origins.Count > 0 ? origins[^1].Clone() : null, total),
                 AppSchemaDataResult.Field => (new ArrayNode(context, ((schema.ValueType as ArrayType)!.Element as StructType)!.GetField(dataField!)!.Type!, 

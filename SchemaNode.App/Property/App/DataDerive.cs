@@ -173,8 +173,8 @@ internal static class DataDeriveExtensions
         {
             DataCombineType.Newest => value is ArrayNode arr ? arr.LastOrDefault() : value,
             DataCombineType.Oldest => value is ArrayNode arr ? arr.FirstOrDefault() : value,
-            DataCombineType.Sum => type.From(context, value is ArrayNode arr ? arr.Sum(a => a.TryGetValue<decimal>(out var d) ? d : 0) : value != null && value.TryGetValue<decimal>(out var s) ? s : 0m),
-            DataCombineType.Count => type.From(context, value is ArrayNode arr ? arr.Count : 0),
+            DataCombineType.Sum => type.Create(context, value is ArrayNode arr ? arr.Sum(a => a.TryGetValue<decimal>(out var d) ? d : 0) : value != null && value.TryGetValue<decimal>(out var s) ? s : 0m),
+            DataCombineType.Count => type.Create(context, value is ArrayNode arr ? arr.Count : 0),
             _ => throw new NotImplementedException(),
         };
     }

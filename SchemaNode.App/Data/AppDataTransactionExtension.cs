@@ -27,7 +27,7 @@ public static class AppDataTransactionExtension
     /// Save field data
     /// </summary>
     public static Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, JsonNode? value = null)
-        => context.SaveFieldDataAsync(field, field.ValueType!.From(context, value) ?? throw new NotSupportedException());
+        => context.SaveFieldDataAsync(field, field.ValueType!.Create(context, value) ?? throw new NotSupportedException());
 
     /// <summary>
     /// Save the field data by data
@@ -971,7 +971,7 @@ public static class AppDataTransactionExtension
                         case DataCombineType.Sum:
                         case DataCombineType.Count:
                             {
-                                result = field.ValueType.From(context,
+                                result = field.ValueType.Create(context,
                                     (origin is { IsEmpty: false } ? origin.GetValue<decimal>() : 0m) +
                                     (now is { IsEmpty: false } ? now.GetValue<decimal>() : 0m) -
                                     (old is { IsEmpty: false } ? old.GetValue<decimal>() : 0m)
@@ -1030,7 +1030,7 @@ public static class AppDataTransactionExtension
                                 case DataCombineType.Sum when nodeField.Type is IntType or  DecimalType:
                                 case DataCombineType.Count when nodeField.Type is IntType:
                                     {
-                                        final[nodeField.Name] = nodeField.Type.From(context,
+                                        final[nodeField.Name] = nodeField.Type.Create(context,
                                             (originFld is { IsEmpty: false } ? originFld.GetValue<decimal>() : 0m) +
                                             (nowFld is { IsEmpty: false } ? nowFld.GetValue<decimal>() : 0m) -
                                             (oldFld is { IsEmpty: false } ? oldFld.GetValue<decimal>() : 0m)
@@ -1224,7 +1224,7 @@ public static class AppDataTransactionExtension
                     });
 
                     // Save to result
-                    result = field.ValueType.From(context, joinObjs);
+                    result = field.ValueType.Create(context, joinObjs);
                     break;
                 }
         }

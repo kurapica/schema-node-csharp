@@ -75,7 +75,7 @@ public static class SystemAppData
         for (int i = 0; i < keys.Count; i++)
         {
             var keyType = (arrType!.Element as StructType)?.GetField(keys[i])?.Type;
-            var valueNode = keyType?.From(context, args[i]);
+            var valueNode = keyType?.Create(context, args[i]);
             if (valueNode == null || valueNode.IsEmpty) return default;
 
             if (keyType is EnumType { Cascade: { Length: > 1 } } enumType &&
@@ -87,7 +87,7 @@ public static class SystemAppData
                 var enumAccess = await enumType.GetEnumEntryAccessAsync(context, valueNode.GetValue<string>()!);
                 if (enumAccess.Length == 0) return default;
                 keyValues[i] = enumAccess.Where(a => !string.IsNullOrWhiteSpace(a.Entry?.Value))
-                    .Select(a => keyType.From(context, a.Entry!.Value)).ToList();
+                    .Select(a => keyType.Create(context, a.Entry!.Value)).ToList();
             }
             else
             {
@@ -228,7 +228,7 @@ public static class SystemAppData
             || fieldType.ValueType is ArrayType a && (a.Element is not StructType || a.Primary == null || a.Primary.Count == 0)
             ) return null;
 
-        var dataNode = fieldType.ValueType?.From(context, data);
+        var dataNode = fieldType.ValueType?.Create(context, data);
         if (dataNode == null || dataNode.IsEmpty) return null;
 
         using var stack = context.StackAccess(appType.Name, target);
@@ -242,12 +242,12 @@ public static class SystemAppData
                 {
                     if (dataNode is not IntNode and not DecimalNode) goto ROLLBACK;
                     if (dataNode is IntNode)
-                        origin = fieldType.ValueType.From(context,
+                        origin = fieldType.ValueType.Create(context,
                             (origin is { IsEmpty: false } ? origin.GetValue<long>() : 0m) +
                             (dataNode is { IsEmpty: false } ? dataNode.GetValue<long>() : 0m)
                         );
                     else if (dataNode is DecimalNode)
-                        origin = fieldType.ValueType.From(context,
+                        origin = fieldType.ValueType.Create(context,
                             (origin is { IsEmpty: false } ? origin.GetValue<decimal>() : 0m) +
                             (dataNode is { IsEmpty: false } ? dataNode.GetValue<decimal>() : 0m)
                         );
@@ -267,13 +267,13 @@ public static class SystemAppData
                         {
                             decimal orgVal = orgFld is { IsEmpty: false } ? orgFld.GetValue<decimal>() : 0m;
                             decimal dataVal = dataFld is { IsEmpty: false } ? dataFld.GetValue<decimal>() : 0m;
-                            originStruct[fld.Name] = fld.Type?.From(context, orgVal + dataVal);
+                            originStruct[fld.Name] = fld.Type?.Create(context, orgVal + dataVal);
                         }
                         else if (orgFld?.Type is IntType && dataFld?.Type is IntType)
                         {
                             long orgVal = orgFld is { IsEmpty: false } ? orgFld.GetValue<long>() : 0L;
                             long dataVal = dataFld is { IsEmpty: false } ? dataFld.GetValue<long>() : 0L;
-                            originStruct[fld.Name] = fld.Type?.From(context, orgVal + dataVal);
+                            originStruct[fld.Name] = fld.Type?.Create(context, orgVal + dataVal);
                         }
                     }
                     break;
@@ -308,13 +308,13 @@ public static class SystemAppData
                                 {
                                     decimal orgVal = orgFld is { IsEmpty: false } ? orgFld.GetValue<decimal>() : 0m;
                                     decimal dataVal = dataFld is { IsEmpty: false } ? dataFld.GetValue<decimal>() : 0m;
-                                    oitem[fld.Name] = fld.Type?.From(context, orgVal + dataVal);
+                                    oitem[fld.Name] = fld.Type?.Create(context, orgVal + dataVal);
                                 }
                                 else if (orgFld?.Type is IntType && dataFld?.Type is IntType)
                                 {
                                     long orgVal = orgFld is { IsEmpty: false } ? orgFld.GetValue<long>() : 0L;
                                     long dataVal = dataFld is { IsEmpty: false } ? dataFld.GetValue<long>() : 0L;
-                                    oitem[fld.Name] = fld.Type?.From(context, orgVal + dataVal);
+                                    oitem[fld.Name] = fld.Type?.Create(context, orgVal + dataVal);
                                 }
                             }
                         }

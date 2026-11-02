@@ -502,7 +502,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// </summary>
     public async Task<IValueAccess?> GetSchemaNodeAsync(object? value, IValueTypeAccess? expectedType = null, bool onlyValid = false)
     {
-        if (value == null) return expectedType?.From(this, null);
+        if (value == null) return expectedType?.Create(this, (object?)null);
 
         if (expectedType == null)
         {
@@ -543,7 +543,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
         {
             try
             {
-                if (!onlyValid) return expectedType.From(this, value);
+                if (!onlyValid) return expectedType.Create(this, value);
                 var node = await expectedType.ValidateValueAsync(this, value);
                 return node?.IsValid == true ? node : null;
             }
@@ -618,7 +618,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
         (string SchemaType, Type ProviderType, Type ItemType)? info = GetRequiredService<SchemaContextItemProvider>().GetProviderType(type);
         if (info == null) return null;
         return GetService(info.Value.ProviderType) is ISchemaContextItemProvider { HasItem: true } provider && provider.TryGetItem(out object? item)
-            ? asDataNode ? GetNodeTypeAsync<ValueType>(info.Value.SchemaType).GetAwaiter().GetResult()?.From(this, item) : item
+            ? asDataNode ? GetNodeTypeAsync<ValueType>(info.Value.SchemaType).GetAwaiter().GetResult()?.Create(this, item) : item
             : null;
     }
     
@@ -647,7 +647,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
         (string SchemaType, Type ProviderType, Type ItemType)? info = GetRequiredService<SchemaContextItemProvider>().GetProviderType(split[0]);
         if (info == null) return null;
         var result = GetService(info.Value.ProviderType) is ISchemaContextItemProvider { HasItem: true } provider && provider.TryGetItem(out object? item)
-            ? GetNodeTypeAsync<ValueType>(info.Value.SchemaType).GetAwaiter().GetResult()?.From(this, item)
+            ? GetNodeTypeAsync<ValueType>(info.Value.SchemaType).GetAwaiter().GetResult()?.Create(this, item)
             : null;
         return result != null && split.Length > 1 ? result.GetAccessValue(split[1]) : result;
     }

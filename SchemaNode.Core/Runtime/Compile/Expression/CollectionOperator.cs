@@ -324,8 +324,8 @@ public class CollectionExpVisitor : IExpVisitor
                     (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.orderby)}"))!,
                     [
                         orderBy.Root,
-                        new ConstantExp(context.System.String.From(context.Context, orderBy.OrderField)),
-                        new ConstantExp(context.System.Bool.From(context.Context, orderBy.Descending))
+                        new ConstantExp(context.System.String.Create(context.Context, orderBy.OrderField)),
+                        new ConstantExp(context.System.Bool.Create(context.Context, orderBy.Descending))
                     ],
                     exp.ValueType));
             

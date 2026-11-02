@@ -33,7 +33,7 @@ public class ScalarTypeTest : Base.CoreTestBase
         var intType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_INT);
         Assert.IsNotNull(intType);
 
-        var node = intType.From(Context, 42L);
+        var node = intType.Create(Context, 42L);
         Assert.IsNotNull(node);
         Assert.AreEqual(42L, node.GetValue<long>());
         Assert.IsFalse(node.IsEmpty);
@@ -57,7 +57,7 @@ public class ScalarTypeTest : Base.CoreTestBase
         var strType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_STRING);
         Assert.IsNotNull(strType);
 
-        var node = strType.From(Context, "hello");
+        var node = strType.Create(Context, "hello");
         Assert.IsNotNull(node);
         Assert.AreEqual("hello", node.GetValue<string>());
     }
@@ -68,7 +68,7 @@ public class ScalarTypeTest : Base.CoreTestBase
         var boolType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_BOOL);
         Assert.IsNotNull(boolType);
 
-        var node = boolType.From(Context, true);
+        var node = boolType.Create(Context, true);
         Assert.IsNotNull(node);
         Assert.AreEqual(true, node.GetValue<bool>());
     }
@@ -80,7 +80,7 @@ public class ScalarTypeTest : Base.CoreTestBase
         Assert.IsNotNull(dateType);
 
         var dt = DateTimeOffset.UtcNow;
-        var node = dateType.From(Context, dt);
+        var node = dateType.Create(Context, dt);
         Assert.IsNotNull(node);
         Assert.AreEqual(dt, node.GetValue<DateTimeOffset>());
     }
@@ -91,7 +91,7 @@ public class ScalarTypeTest : Base.CoreTestBase
         var numType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_NUMBER);
         Assert.IsNotNull(numType);
 
-        var node = numType.From(Context, 3.14m);
+        var node = numType.Create(Context, 3.14m);
         Assert.IsNotNull(node);
         Assert.AreEqual(3.14m, node.GetValue<decimal>());
     }
@@ -113,7 +113,7 @@ public class ScalarTypeTest : Base.CoreTestBase
         var intType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_INT);
         Assert.IsNotNull(intType);
 
-        var original = intType.From(Context, 42L);
+        var original = intType.Create(Context, 42L);
         Assert.IsNotNull(original);
 
         var cloned = original.Clone();
@@ -128,7 +128,7 @@ public class ScalarTypeTest : Base.CoreTestBase
         var objType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_OBJECT);
         Assert.IsNotNull(objType);
 
-        var node = objType.From(Context, 42L);
+        var node = objType.Create(Context, 42L);
         Assert.IsNotNull(node);
         Assert.AreEqual(42L, node.GetValue<long>());
     }
@@ -139,7 +139,7 @@ public class ScalarTypeTest : Base.CoreTestBase
         var intType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_INT);
         Assert.IsNotNull(intType);
 
-        var node = intType.From(Context, 42L);
+        var node = intType.Create(Context, 42L);
         Assert.IsFalse(node.IsEmpty);
         node.ClearValue();
         Assert.IsTrue(node.IsEmpty);

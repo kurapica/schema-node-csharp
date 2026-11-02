@@ -359,7 +359,7 @@ public class FuncCallVarNode : DataNode, IEnumerable<StructNode>
     /// </summary>
     public StructNode? AddRow(object? data, string? name = null)
     {
-        if (_argType.Create(Context, this) is not StructNode node) return null;
+        if (_argType.Create(Context, null, this) is not StructNode node) return null;
         if (data is not null && !node.TrySetValue(data)) return null;
 
         _args.Add(node);

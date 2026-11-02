@@ -346,8 +346,8 @@ public class FuncCallArgsNode : DataNode, IEnumerable<StructNode>
     private StructNode? AddRow(JsonObject data, string name, IPropertyProvider? provider)
     {
         IValueAccess created = provider is null
-            ? _argType.Create(Context, this)
-            : _argType.Create(Context, this, provider);
+            ? _argType.Create(Context, null, this)
+            : _argType.Create(Context, null, this, provider);
         if (created is not StructNode node) return null;
         if (!node.TrySetValue(data)) return null;
 

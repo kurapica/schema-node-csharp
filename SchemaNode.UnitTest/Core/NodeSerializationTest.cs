@@ -15,7 +15,7 @@ public class NodeSerializationTest : Base.CoreTestBase
         var intType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_INT);
         Assert.IsNotNull(intType);
 
-        var node = intType.From(Context, 42L);
+        var node = intType.Create(Context, 42L);
         Assert.AreEqual(42L, node.GetValue<long>());
         Assert.IsFalse(node.IsEmpty);
     }
@@ -38,7 +38,7 @@ public class NodeSerializationTest : Base.CoreTestBase
         var strType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_STRING);
         Assert.IsNotNull(strType);
 
-        var node = strType.From(Context, "测试数据");
+        var node = strType.Create(Context, "测试数据");
         Assert.AreEqual("测试数据", node.GetValue<string>());
     }
 
@@ -48,7 +48,7 @@ public class NodeSerializationTest : Base.CoreTestBase
         var boolType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_BOOL);
         Assert.IsNotNull(boolType);
 
-        var node = boolType.From(Context, false);
+        var node = boolType.Create(Context, false);
         Assert.AreEqual(false, node.GetValue<bool>());
     }
 
@@ -59,7 +59,7 @@ public class NodeSerializationTest : Base.CoreTestBase
         Assert.IsNotNull(dateType);
 
         var dt = DateTimeOffset.UtcNow;
-        var node = dateType.From(Context, dt);
+        var node = dateType.Create(Context, dt);
         Assert.AreEqual(dt, node.GetValue<DateTimeOffset>());
     }
 
@@ -69,7 +69,7 @@ public class NodeSerializationTest : Base.CoreTestBase
         var numType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_NUMBER);
         Assert.IsNotNull(numType);
 
-        var node = numType.From(Context, 42.5m);
+        var node = numType.Create(Context, 42.5m);
         Assert.AreEqual(42.5m, node.GetValue<decimal>());
     }
 
@@ -79,7 +79,7 @@ public class NodeSerializationTest : Base.CoreTestBase
         var intType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_INT);
         Assert.IsNotNull(intType);
 
-        var original = intType.From(Context, 99L);
+        var original = intType.Create(Context, 99L);
         var cloned = original.Clone();
         Assert.IsNotNull(cloned);
         Assert.AreEqual(99L, cloned.GetValue<long>());
@@ -92,7 +92,7 @@ public class NodeSerializationTest : Base.CoreTestBase
         var intType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_INT);
         Assert.IsNotNull(intType);
 
-        var node = intType.From(Context, -42L);
+        var node = intType.Create(Context, -42L);
         Assert.AreEqual(-42L, node.GetValue<long>());
     }
 
@@ -102,7 +102,7 @@ public class NodeSerializationTest : Base.CoreTestBase
         var intType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_INT);
         Assert.IsNotNull(intType);
 
-        var node = intType.From(Context, 0L);
+        var node = intType.Create(Context, 0L);
         // Note: 0 may be treated as empty for numeric scalars
         Console.WriteLine($"Zero Int: IsEmpty={node.IsEmpty}, Value={node.GetValue<long>()}");
         Assert.AreEqual(0L, node.GetValue<long>());

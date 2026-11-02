@@ -150,18 +150,18 @@ public sealed class ArrayType: ValueType, IRelationProvider, INodeTypeReLoadHand
     }
 
     /// <inheritdoc />
-    public override IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    public override IValueAccess Create(ISchemaContext context, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
     {
         System.Type? nodeType = (context as SchemaContext)?.FullMode == true
             ? Schema?.Type?.GetMetaProperty<DataNodeType>()?.Value
             : null;
 
         if (nodeType is not null)
-            return DataNode.CreateNode(context, this, nodeType, null, parent, propertyProviders);
+            return DataNode.CreateNode(context, this, nodeType, value, parent, propertyProviders);
 
         return Element is EnumType
-            ? new EnumArrayNode(context, this, null, parent, propertyProviders)
-            : new ArrayNode(context, this, null, parent, propertyProviders);
+            ? new EnumArrayNode(context, this, value, parent, propertyProviders)
+            : new ArrayNode(context, this, value, parent, propertyProviders);
     }
 
     /// <inheritdoc />

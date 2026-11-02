@@ -1059,10 +1059,10 @@ public abstract class DataNode : IValueAccess, IDisposable
     /// <summary>
     /// Creates the data node with the schema declared node type, falls back to the type default node when the node type is not specified
     /// </summary>
-    public static IValueAccess CreateNode(ISchemaContext context, IValueTypeAccess type, Type? nodeType, object? value, IValueAccess? parent, params IPropertyProvider[] propertyProviders)
+    public static IValueAccess CreateNode(ISchemaContext context, IValueTypeAccess type, Type? nodeType, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
     {
         if (nodeType is null || !typeof(IValueAccess).IsAssignableFrom(nodeType))
-            return type.Create(context, parent, propertyProviders);
+            return type.Create(context, value, parent, propertyProviders);
 
         ConstructorInfo ctor = _nodeCtors.GetOrAdd(nodeType, static t =>
             t.GetConstructor([typeof(ISchemaContext), typeof(IValueTypeAccess), typeof(object), typeof(IValueAccess), typeof(IPropertyProvider[])])

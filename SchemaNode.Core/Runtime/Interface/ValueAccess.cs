@@ -121,12 +121,7 @@ public interface IValueTypeAccess : IPropertyProvider
     /// <param name="parent"></param>
     /// <param name="propertyProvider"></param>
     /// <returns></returns>
-    IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders);
-
-    /// <summary>
-    /// Generate the data node with given value
-    /// </summary>
-    IValueAccess From(ISchemaContext context, object? value, IValueAccess? parent = null, params IPropertyProvider[] propertyProvider);
+    IValueAccess Create(ISchemaContext context, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders);
 
     /// <summary>
     /// Gets the match C# type

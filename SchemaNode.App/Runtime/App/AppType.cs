@@ -436,13 +436,7 @@ public sealed class AppType : IValueTypeAccess, INodeTypeReLoadHandler
     public bool HasAccessEntries => _fields is { Count: > 0 };
 
     /// <inheritdoc/>
-    public IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
-    {
-        throw new NotImplementedException();
-    }
-
-    /// <inheritdoc/>
-    public IValueAccess From(ISchemaContext context, object? value, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    public IValueAccess Create(ISchemaContext context, object? value, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
     {
         throw new NotImplementedException();
     }

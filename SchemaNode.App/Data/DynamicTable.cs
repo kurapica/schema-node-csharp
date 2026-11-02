@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+﻿﻿using System.Collections.Immutable;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
@@ -644,7 +644,7 @@ public class DynamicTableSchema
             if (val == null)
             {
                 if (field is { IsJoinField: true, ValueType: DecimalType or IntType})
-                    val = field.ValueType.From(context, 0);
+                    val = field.ValueType.Create(context, 0);
                 else
                     continue;
             }

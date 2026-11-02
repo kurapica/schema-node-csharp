@@ -602,9 +602,9 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     switch (type)
                     {
                         case AppSchemaDataResult.Exist:
-                            return (_context.System.Bool.From(_context, total > 0), total);
+                            return (_context.System.Bool.Create(_context, total > 0), total);
                         case AppSchemaDataResult.Count:
-                            return (_context.System.Int.From(_context, total), total);
+                            return (_context.System.Int.Create(_context, total), total);
                     }
 
                     if (total == 0)
@@ -1610,7 +1610,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             }
 
             // For one field value
-            var node = r != null ? type.From(_context, r) : null;
+            var node = r != null ? type.Create(_context, r) : null;
             if (node is { IsEmpty: false })
             {
                 IValueAccess? intNode = null;

@@ -546,7 +546,7 @@ public class StructNode : DataNode
             type = randomType;
         }
 
-        IValueAccess created = type.Create(Context, this, structField.GetOverrideFieldType(type));
+        IValueAccess created = type.Create(Context, null, this, structField.GetOverrideFieldType(type));
         if (created is not DataNode newNode)
         {
             UnloadRandomStructType(randomType);

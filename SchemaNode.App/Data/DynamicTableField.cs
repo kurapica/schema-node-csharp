@@ -133,7 +133,7 @@ public class DynamicTableField
             });
         }
 
-        return ValueType.From(context, data);
+        return ValueType.Create(context, data);
     }
 
     /// <summary>

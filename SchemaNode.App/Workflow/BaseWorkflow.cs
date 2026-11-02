@@ -96,7 +96,7 @@ public abstract class BaseWorkflow
     /// Sets the payload, the workflow will be marked as done or fork a new workflow context for the next workflow
     /// </summary>
     protected void SetPayload(WorkflowContext context, object? payload = null, Access? access = null)
-        => context.Done(this, payload == null ? null : PayloadType?.From(context, payload) ?? payload as IValueAccess, access);
+        => context.Done(this, payload == null ? null : PayloadType?.Create(context, payload) ?? payload as IValueAccess, access);
     
     /// <summary>
     /// Find the next workflow by name(include self)

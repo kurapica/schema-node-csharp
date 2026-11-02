@@ -371,7 +371,15 @@ internal static class TypeDetailExtensions
 
         // Always keep the origin type
         result.Type = input;
-        _typeDetailCache[input] = result;
+
+        // Never publish a no-cache result: callers unwrap generic arguments by
+        // mutating the returned detail (List<T> / Nullable<T> / IEnumerable<T> add
+        // their flags in place). Caching that instance under the argument's own
+        // type made a plain scalar such as string or a struct such as LocaleString
+        // permanently look like an array, so the same property resolved to
+        // `system.list<system.string>` or `system.localestrings` depending on which
+        // test generated a generic detail first.
+        if (!noCache) _typeDetailCache[input] = result;
         return result;
     }
 

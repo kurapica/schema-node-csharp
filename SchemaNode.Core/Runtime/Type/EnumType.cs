@@ -5,6 +5,8 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using SchemaNode.Struct;
 using SchemaNode.Schema.Provider;
+using SchemaNode.Property.Core;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Runtime;
 
@@ -62,7 +64,19 @@ public sealed class EnumType: ValueType
     public override Task LoadAsync(SchemaContext context)
     {
         _enumSchema = GetProperty<EnumProperty>()?.Value;
-        
+
+        // Add entry source for enum type
+        EntrySource enumProp = new EntrySource();
+        enumProp.SetValue<FuncCall>(new FuncCall
+        {
+            Func = $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.getenumaccess)}",
+            Args = [
+                new CallArg { Value = Name },
+                new CallArg { Source = NODE_SELF },
+            ]
+        });
+        AddProperties([enumProp]);
+
         // Status
         if (_enumSchema == null) Error = ErrorCodes.NO_DEFINITION;
         
@@ -116,7 +130,8 @@ public sealed class EnumType: ValueType
     }
 
     /// <inheritdoc />
-    public override IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) => new EnumNode(context, this, null, parent, propertyProviders);
+    public override IValueAccess Create(ISchemaContext context, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) 
+        => new EnumNode(context, this, value, parent, propertyProviders);
 
     /// <inheritdoc />
     public override bool IsIndexable => true;

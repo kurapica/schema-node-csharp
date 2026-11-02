@@ -204,6 +204,16 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
     }
 
     /// <summary>
+    /// Add more properties for type
+    /// </summary>
+    protected void AddProperties(IEnumerable<IProperty> properties)
+    {
+        if (properties is null) return;
+        _props ??= [];
+        _props = _props.Concat(properties).ToArray();
+    }
+
+    /// <summary>
     /// Gets the property with given type
     /// </summary>
     public virtual T? GetProperty<T>() where T : class, IProperty => _props?.OfType<T>().FirstOrDefault();
@@ -488,18 +498,8 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// <summary>
     /// Generate the data node from the node type
     /// </summary>
-    public abstract IValueAccess Create(ISchemaContext context, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders);
-
-    /// <summary>
-    /// Generate the data node with given value
-    /// </summary>
-    public IValueAccess From(ISchemaContext context, object? value, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
-    {
-        var node = Create(context, parent, propertyProviders);
-        node.TrySetValue(value);
-        return node;
-    }
-    
+    public abstract IValueAccess Create(ISchemaContext context, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders);
+        
     #endregion
 
     #region Virtual

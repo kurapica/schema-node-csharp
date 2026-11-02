@@ -278,7 +278,7 @@ public static class AppSchemaDataFilterExtensions
                             _ => LogicType.Equal
                         }, 
                         new AppSchemaDataFilterField(key),
-                        new AppSchemaDataFilterValue(valueType.From(context, val))),
+                        new AppSchemaDataFilterValue(valueType.Create(context, val))),
                 _ => null
             };
             
@@ -461,10 +461,10 @@ public static class AppSchemaDataFilterExtensions
                 {
                     case LogicType.IsNull:
                     case LogicType.IsEmpty:
-                        return context.System.Bool.From(context, result.IsEmpty);
+                        return context.System.Bool.Create(context, result.IsEmpty);
                     case LogicType.NotNull:
                     case LogicType.NotEmpty:
-                        return context.System.Bool.From(context, !result.IsEmpty);
+                        return context.System.Bool.Create(context, !result.IsEmpty);
                     default:
                         throw new NotSupportedException($"The unary expression type not supported: {unary.Type}");
                 }
@@ -481,8 +481,8 @@ public static class AppSchemaDataFilterExtensions
                         IValueAccess right = binary.Right.Test(context, structNode, context.System.Bool);
                         return binary.Type switch
                         {
-                            LogicType.AndAlso => context.System.Bool.From(context, left.GetValue<bool>() && right.GetValue<bool>()),
-                            _ => context.System.Bool.From(context, left.GetValue<bool>() || right.GetValue<bool>())
+                            LogicType.AndAlso => context.System.Bool.Create(context, left.GetValue<bool>() && right.GetValue<bool>()),
+                            _ => context.System.Bool.Create(context, left.GetValue<bool>() || right.GetValue<bool>())
                         };
                     }
 
@@ -508,7 +508,7 @@ public static class AppSchemaDataFilterExtensions
                             right = binary.Right.Test(context, structNode, left.Type);
                         }
 
-                        return context.System.Bool.From(context, left.Type switch
+                        return context.System.Bool.Create(context, left.Type switch
                         {
                             IntType => Compare<long>(binary.Type, left, right),
                             DecimalType => Compare<decimal>(binary.Type, left, right),
@@ -525,13 +525,13 @@ public static class AppSchemaDataFilterExtensions
                     {
                         IValueAccess val = binary.Right.Test(context, structNode);
                         AppSchemaDataFilterValue? container = binary.Left as AppSchemaDataFilterValue;
-                        if (container == null || container.Value is not IEnumerable<object> enums || val.IsEmpty || !val.GetType().IsAssignableTo(typeof(ScalarNode))) return context.System.Bool.From(context, false);
+                        if (container == null || container.Value is not IEnumerable<object> enums || val.IsEmpty || !val.GetType().IsAssignableTo(typeof(ScalarNode))) return context.System.Bool.Create(context, false);
                         
                         bool exist = enums.Any(e => e.ToString() == val.ToString());
                         return binary.Type switch
                         {
-                            LogicType.Contains => context.System.Bool.From(context, exist),
-                            _ => context.System.Bool.From(context, !exist),
+                            LogicType.Contains => context.System.Bool.Create(context, exist),
+                            _ => context.System.Bool.Create(context, !exist),
                         };
                     }
 
@@ -546,8 +546,8 @@ public static class AppSchemaDataFilterExtensions
                         string? left = binary.Left.Test(context, structNode, context.System.String).GetValue<string>();
                         string? right = binary.Right.Test(context, structNode, context.System.String).GetValue<string>();
 
-                        if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right)) return context.System.Bool.From(context, false);
-                        return context.System.Bool.From(context, binary.Type switch
+                        if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right)) return context.System.Bool.Create(context, false);
+                        return context.System.Bool.Create(context, binary.Type switch
                         {
                             LogicType.StartsWith => left.StartsWith(right),
                             LogicType.NotStartsWith => !left.StartsWith(right),
@@ -592,8 +592,8 @@ public static class AppSchemaDataFilterExtensions
             case AppSchemaDataFilterValue value:
             {
                 if (value.Value is IValueAccess n) return n;
-                if (expectType != null) return expectType.From(context, value.Value) ?? throw new NotSupportedException($"The filter value is not valid as {expectType.Name}");
-                return context.System.String.From(context, value.Value.ToString() ?? "");
+                if (expectType != null) return expectType.Create(context, value.Value) ?? throw new NotSupportedException($"The filter value is not valid as {expectType.Name}");
+                return context.System.String.Create(context, value.Value.ToString() ?? "");
             }
         }
 
@@ -604,7 +604,7 @@ public static class AppSchemaDataFilterExtensions
     {
         T leftVal = (left.IsEmpty ? default(T) : left.GetValue<T>())!;
         T rightVal = (right.IsEmpty ? default(T) : right.GetValue<T>())!;
-        return left.Type.From(context, type switch
+        return left.Type.Create(context, type switch
         {
             ArithmeticType.Add => leftVal + rightVal,
             ArithmeticType.Subtract => leftVal - rightVal,

@@ -164,8 +164,8 @@ public static class AppDataQueryExtension
         
         if (!isValidFilter || string.IsNullOrEmpty(target) && appType?.ScopeType != AppScopeType.SystemLevel) return type switch
         {
-            AppSchemaDataResult.Count => context.System.Int.From(context, 0),
-            AppSchemaDataResult.Exist => context.System.Bool.From(context, false),
+            AppSchemaDataResult.Count => context.System.Int.Create(context, 0),
+            AppSchemaDataResult.Exist => context.System.Bool.Create(context, false),
             AppSchemaDataResult.First => null,
             AppSchemaDataResult.Last => null,
             AppSchemaDataResult.Field => new ArrayNode(context, ((appField.ValueType as ArrayType)!.Element as StructType)!.GetField(dataField!)!.Type!),

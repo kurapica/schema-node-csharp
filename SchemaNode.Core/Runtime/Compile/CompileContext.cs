@@ -484,7 +484,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 }
 
                 // Const expression
-                await SetArgExp(i, arg?.Value == null ? null : new ConstantExp(arg.ValueType!.From(Context, arg.Value)));
+                await SetArgExp(i, arg?.Value == null ? null : new ConstantExp(arg.ValueType!.Create(Context, arg.Value)));
             }
 
             // For params
@@ -528,7 +528,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                                 exp.Status = ErrorCodes.FUNC_ARG_WRONG_TYPE;
                                 throw new FunctionVisitException(ErrorCodes.FUNC_ARG_WRONG_TYPE);
                             }
-                            await SetArgExp(j, new ConstantExp(arg.ValueType.From(Context, arg.Value)));
+                            await SetArgExp(j, new ConstantExp(arg.ValueType.Create(Context, arg.Value)));
                         }
                     }
                 }
@@ -616,11 +616,11 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 {
                     if (argExp == null)
                     {
-                        argExp = new ConstantExp(argType.From(Context, argDef.Default));
+                        argExp = new ConstantExp(argType.Create(Context, argDef.Default));
                     }
                     else
                     {
-                        argExp = new DefaultExp(argExp, argType.From(Context, argDef.Default));
+                        argExp = new DefaultExp(argExp, argType.Create(Context, argDef.Default));
                     }
                 }
                                 
@@ -1051,7 +1051,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         {
             string schema = (Context.Runtime as SchemaRuntime)?.GetTypeSchema(exp.Type) ?? throw new Exception($"The type {exp.Type.FullName} can't be converted to schema type node");
             NodeType nodeType = Context.GetNodeTypeAsync(schema).GetAwaiter().GetResult() ?? throw new Exception($"The schema type node {schema} not found");
-            MethodInfo method = typeof(ValueType).GetMethod(nameof(ValueType.From))!;
+            MethodInfo method = typeof(ValueType).GetMethod(nameof(ValueType.Create))!;
             return Expression.Convert(Expression.Call(Expression.Constant(nodeType), method, notNullExp), type);
         }
 
