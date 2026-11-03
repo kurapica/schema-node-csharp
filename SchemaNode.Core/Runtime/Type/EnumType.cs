@@ -157,7 +157,7 @@ public sealed class EnumType: ValueType
         if (Provider != null && Provider.IsAssignableTo(typeof(IEnumEntryProvider)))
         {
             EntryAccess<string>[] accessList = await (context.GetRequiredService(Provider) as IEnumEntryProvider)!
-                .GetEnumEntryAccessAsync(Name, value, !root.IsRoot ? root.Value : null);
+                .GetEnumEntryAccessAsync(Name, value, !root.IsRoot ? root.Value : null).ConfigureAwait(false);
             if (accessList.Length > 0)
             {
                 lock (_lock) root.SaveAccessList(accessList);

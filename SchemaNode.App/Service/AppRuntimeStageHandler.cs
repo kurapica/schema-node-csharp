@@ -204,16 +204,16 @@ public class AppRuntimeStageHandler : IRuntimeStageHandler
         }
         
         // loading system apps
-        await LoadAllAppTypes("");
+        await LoadAllAppTypes("").ConfigureAwait(false);
         
         async Task LoadAllAppTypes(string fullName)
         {
-           var appType = await schemaContext.GetAppTypeAsync(fullName);
+           var appType = await schemaContext.GetAppTypeAsync(fullName).ConfigureAwait(false);
            if (appType == null) return;
            runtime.SaveSystemApp(appType);
             
             foreach (var schema in appType.GetSubAppSchemas())
-                await LoadAllAppTypes(schema.FullName);
+                await LoadAllAppTypes(schema.FullName).ConfigureAwait(false);
         }
     }
 
@@ -238,6 +238,6 @@ public class AppRuntimeStageHandler : IRuntimeStageHandler
         AppWorkflowQueue? workflowQueue = runtime.GetRuntimeItem<AppWorkflowQueue>();
         if (workflowQueue == null) return;
         while (workflowQueue.TryDequeue(out AppWorkflowType? workflowType))
-            await workflowType.LoadAsync(schemaContext);
+            await workflowType.LoadAsync(schemaContext).ConfigureAwait(false);
     }
 }

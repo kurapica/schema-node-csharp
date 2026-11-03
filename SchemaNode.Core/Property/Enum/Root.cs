@@ -21,7 +21,7 @@ public class Root: Property<string>, IConstraintProperty
         if (string.IsNullOrWhiteSpace(Value) || string.IsNullOrWhiteSpace(nodeValue)) return null;
         if (Value.Equals(nodeValue)) return true;
 
-        var access = await (node.Type as Runtime.EnumType)!.GetEnumEntryAccessAsync(context, nodeValue);
+        var access = await (node.Type as Runtime.EnumType)!.GetEnumEntryAccessAsync(context, nodeValue).ConfigureAwait(false);
         return access.Any(a =>Value.Equals(a.Entry?.Value));
     }
 }

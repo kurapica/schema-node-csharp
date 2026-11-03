@@ -55,19 +55,19 @@ public class AccessEntryConsumer: FuncCallProperty, IConstraintProperty
             AccessValueTypeProvider? provider = parent.GetProperty<AccessValueTypeProvider>();
             if (provider is { HasValue: true, Value: { } providerCall } && !string.IsNullOrWhiteSpace(providerCall.Func))
             {
-                FunctionType? typeFunc = await context.GetNodeTypeAsync<FunctionType>(providerCall.Func);
+                FunctionType? typeFunc = await context.GetNodeTypeAsync<FunctionType>(providerCall.Func).ConfigureAwait(false);
                 object?[] typeArgs = providerCall.Args.Select(a => string.IsNullOrWhiteSpace(a.Source)
                     ? a.Value
                     : (provider.Source ?? node).GetAccessValue(a.Source, node)?.GetValue<object>()).ToArray();
-                string? type = typeFunc is null ? null : await typeFunc.CallAsync<string>(context, typeArgs);
-                valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<ValueType>(type) : null;
+                string? type = typeFunc is null ? null : await typeFunc.CallAsync<string>(context, typeArgs).ConfigureAwait(false);
+                valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<ValueType>(type).ConfigureAwait(false) : null;
                 break;
             }
             parent = parent.Parent;
         }
         if (valueType is null) return null;
 
-        FunctionType? func = await context.GetNodeTypeAsync<FunctionType>(Value!.Func);
+        FunctionType? func = await context.GetNodeTypeAsync<FunctionType>(Value!.Func).ConfigureAwait(false);
         if (func is null)
         {
             context.LogError($"Valid property function {Value!.Func} is not a function type");
@@ -83,7 +83,7 @@ public class AccessEntryConsumer: FuncCallProperty, IConstraintProperty
                 IValueAccess? source = owner.GetAccessValue(a.Source, node);
                 return ReferenceEquals(source, node) ? valueType.Name : source?.GetValue<object>();
             }).ToArray();
-            return await func.CallAsync<bool?>(context, args);
+            return await func.CallAsync<bool?>(context, args).ConfigureAwait(false);
         }
         catch (Exception e)
         {

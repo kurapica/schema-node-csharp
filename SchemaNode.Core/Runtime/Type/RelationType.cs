@@ -49,7 +49,7 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
     {
         var propType = Property?.GetCsharpType();
         if (propType == null || Activator.CreateInstance(propType) is not IProperty prop) return null;
-        if (Process == null || await Process.ProcessAsync(context, owner, target ?? owner) is not { } value) return null;
+        if (Process == null || await Process.ProcessAsync(context, owner, target ?? owner).ConfigureAwait(false) is not { } value) return null;
         prop.SetValue(value);
         return prop;
     }
@@ -73,7 +73,7 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
     public async Task LoadAsync(SchemaContext context, params string?[] kinds)
     {
         Property = !string.IsNullOrWhiteSpace(relation.Property) 
-            ? await context.GetPropertyType(relation.Property, kinds)
+            ? await context.GetPropertyType(relation.Property, kinds).ConfigureAwait(false)
             : null;
         if (Property?.GetCsharpType() == null)
         {
@@ -92,7 +92,7 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
                 Error = ErrorCodes.RELATION_PROPERTY_NOT_VALID;
                 break;
             }
-            await Process.LoadAsync(context, relation, Owner, kinds);
+            await Process.LoadAsync(context, relation, Owner, kinds).ConfigureAwait(false);
             if (Process is IErrorProvider error && !string.IsNullOrWhiteSpace(error.Error))
                 Error = error.Error;
         }
@@ -131,7 +131,7 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
         if (Property?.GetCsharpType() is not { } propType) return;
         if (owner is not DataNode node || node.Context is not SchemaContext context) return;
 
-        IProperty? prop = await CallAsync(context, owner, target);
+        IProperty? prop = await CallAsync(context, owner, target).ConfigureAwait(false);
         if (prop is null) return;
 
         target.SetPropertyValue(propType, prop.GetValue<object>(), owner, this);
@@ -148,7 +148,7 @@ public static class RelationTypeExtensions
     public static async Task<RelationType> LoadAsync(this RelationSchema relation, SchemaContext context, IValueTypeAccess owner, params string?[] kinds)
     {
         RelationType type = new(relation, owner);
-        await type.LoadAsync(context, kinds);
+        await type.LoadAsync(context, kinds).ConfigureAwait(false);
         return type;
     }
 }

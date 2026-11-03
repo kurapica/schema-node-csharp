@@ -54,7 +54,7 @@ public class ArithmeticExpVisitor : IExpVisitor
         // Prepare argument expressions
         List<Expression> argExps = [];
         foreach (SchemaExp arg in arithmeticExp.Args)
-            argExps.Add(await context.CompileSchemaExpAsync(arg));
+            argExps.Add(await context.CompileSchemaExpAsync(arg).ConfigureAwait(false));
 
         if (argExps.Count == 0) throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
         

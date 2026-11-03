@@ -46,7 +46,7 @@ public class AccessValueTypeResolver: Property<string>
                 {
                     async Task ResolveAsync()
                     {
-                        FunctionType? func = await context.GetNodeTypeAsync<FunctionType>(accessCall!.Func);
+                        FunctionType? func = await context.GetNodeTypeAsync<FunctionType>(accessCall!.Func).ConfigureAwait(false);
                         if (func is null) return;
 
                         object?[] args = accessCall.Args.Select(a =>
@@ -58,7 +58,7 @@ public class AccessValueTypeResolver: Property<string>
                             return accessed?.GetValue<object>();
                         }).ToArray();
 
-                        string? value = await func.CallAsync<string>(context, args);
+                        string? value = await func.CallAsync<string>(context, args).ConfigureAwait(false);
                         target.SetPropertyValue<Default, object>(value, provider, null);
                     }
 
@@ -74,7 +74,7 @@ public class AccessValueTypeResolver: Property<string>
                     }
 
                     // resolve the access value type
-                    await ResolveAsync();
+                    await ResolveAsync().ConfigureAwait(false);
                     break;
                 }
                 provider = provider.Parent;

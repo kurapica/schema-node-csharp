@@ -29,13 +29,13 @@ public class ArrayValue: Property<bool>, IConstraintProperty
         {
             foreach (IValueAccess element in node)
             {
-                bool? result = await prop.ValidateAsync(context, element);
+                bool? result = await prop.ValidateAsync(context, element).ConfigureAwait(false);
                 if (result.HasValue) element.RecordConstraint(prop, result.Value);
             }
         }
 
         // Validate by relations
-        await type.ValidateWithRelationsAsync(context, node);
+        await type.ValidateWithRelationsAsync(context, node).ConfigureAwait(false);
         return null;
     }
 }

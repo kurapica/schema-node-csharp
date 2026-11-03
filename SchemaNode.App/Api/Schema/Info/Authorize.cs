@@ -24,18 +24,18 @@ public class AuthorizeApi : SchemaApi<AuthorizeRequest, AuthorizeResponse>
         // schema
         if (!string.IsNullOrEmpty(request.Name))
         {
-            NodeType schema = await SchemaContext.GetNodeTypeAsync(request.Name)
+            NodeType schema = await SchemaContext.GetNodeTypeAsync(request.Name).ConfigureAwait(false)
                 ?? throw new Exception(ErrorCodes.TYPE_NOT_FOUND);
             
             return new AuthorizeResponse
             {
-                Result = await SchemaContext.AuthorizeAsync(schema, request.Scope, true)
+                Result = await SchemaContext.AuthorizeAsync(schema, request.Scope, true).ConfigureAwait(false)
             };
         }
         
         // app
         if (string.IsNullOrEmpty(request.App)) throw new Exception(AppErrorCodes.APP_NOT_FOUND);
-        AppType app = await SchemaContext.GetAppTypeAsync(request.App) ?? throw new Exception(AppErrorCodes.APP_NOT_FOUND);
+        AppType app = await SchemaContext.GetAppTypeAsync(request.App).ConfigureAwait(false) ?? throw new Exception(AppErrorCodes.APP_NOT_FOUND);
 
         // field
         if (!string.IsNullOrEmpty(request.Field))
@@ -43,7 +43,7 @@ public class AuthorizeApi : SchemaApi<AuthorizeRequest, AuthorizeResponse>
             var field = app.GetField(request.Field) ?? throw new Exception(AppErrorCodes.APP_FIELD_NOT_FOUND);
             return new AuthorizeResponse
             {
-                Result = await SchemaContext.AuthorizeAsync(field, request.Scope, true)
+                Result = await SchemaContext.AuthorizeAsync(field, request.Scope, true).ConfigureAwait(false)
             };
         }
         
@@ -53,13 +53,13 @@ public class AuthorizeApi : SchemaApi<AuthorizeRequest, AuthorizeResponse>
             var workflow = app.GetWorkflow(request.Workflow) ?? throw new Exception(AppErrorCodes.APP_WORKFLOW_NOT_FOUND);
             return new AuthorizeResponse
             {
-                Result = await SchemaContext.AuthorizeAsync(workflow, request.Scope, true)
+                Result = await SchemaContext.AuthorizeAsync(workflow, request.Scope, true).ConfigureAwait(false)
             };
         }
 
         return new AuthorizeResponse
         {
-            Result = await SchemaContext.AuthorizeAsync(app, request.Scope, true)
+            Result = await SchemaContext.AuthorizeAsync(app, request.Scope, true).ConfigureAwait(false)
         };
     }
 }

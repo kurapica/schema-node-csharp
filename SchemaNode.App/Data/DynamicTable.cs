@@ -757,7 +757,7 @@ public class DynamicTableSchema
                         // app
                         string? app = call.Args.FirstOrDefault()?.Value?.ToValue<string>();
                         if (string.IsNullOrWhiteSpace(app)) continue; // no app
-                        AppType? appType = await context.GetAppTypeAsync(app);
+                        AppType? appType = await context.GetAppTypeAsync(app).ConfigureAwait(false);
                         if (appType == null) continue; // app not exist
 
                         // app field
@@ -831,7 +831,7 @@ public class DynamicTableSchema
                         if (filter == null) continue; // no valid data to query
 
                         // query the dynamic data
-                        (IValueAccess? value, _) = await context.GetAppFieldDataAsync(appField, AppSchemaDataResult.List, filter);
+                        (IValueAccess? value, _) = await context.GetAppFieldDataAsync(appField, AppSchemaDataResult.List, filter).ConfigureAwait(false);
 
                         // set the display only field value
                         switch (primary.Count)
@@ -902,7 +902,7 @@ public class DynamicTableSchema
                 
                 // generate for each row
                 foreach (IValueAccess row in array)
-                    await GenerateDisplayOnlyFields(context, type, row, true);
+                    await GenerateDisplayOnlyFields(context, type, row, true).ConfigureAwait(false);
                 break;
             }
             case StructNode pack:
@@ -927,7 +927,7 @@ public class DynamicTableSchema
                         // call function to get value
                         try
                         {
-                            if (await relation.CallAsync(context, pack, fld) is Default { HasValue: true } result)
+                            if (await relation.CallAsync(context, pack, fld).ConfigureAwait(false) is Default { HasValue: true } result)
                                 fld.TrySetValue(result.Value);
                         }
                         catch
@@ -938,10 +938,10 @@ public class DynamicTableSchema
                     else switch (field.Type)
                     {
                         case StructType @struct:
-                            await GenerateDisplayOnlyFields(context, @struct, fld);
+                            await GenerateDisplayOnlyFields(context, @struct, fld).ConfigureAwait(false);
                             break;
                         case ArrayType { Element: StructType arrayStruct }:
-                            await GenerateDisplayOnlyFields(context, arrayStruct, fld);
+                            await GenerateDisplayOnlyFields(context, arrayStruct, fld).ConfigureAwait(false);
                             break;
                         // Fill empty field with default value
                         default:

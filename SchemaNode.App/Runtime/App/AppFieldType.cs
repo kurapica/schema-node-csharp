@@ -224,11 +224,11 @@ public sealed class AppFieldType
     {
         Error = null;
         
-        ValueType = await context.GetNodeTypeAsync<ValueType>(Type);
+        ValueType = await context.GetNodeTypeAsync<ValueType>(Type).ConfigureAwait(false);
         if (ValueType == null) Error = AppErrorCodes.APP_FIELD_TYPE_NOT_VALID;
-        
+
         _props = _appFieldSchema.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_APP_FIELD)).ToArray();
-        (_refTypes, Error) = await _appFieldSchema.LoadPropertiesAsync(context, _props, ValueType);
+        (_refTypes, Error) = await _appFieldSchema.LoadPropertiesAsync(context, _props, ValueType).ConfigureAwait(false);
 
         _appFieldSchema.Error = Error;
         
@@ -261,12 +261,12 @@ public sealed class AppFieldType
         Derive? derive = GetProperty<DataDerive>()?.Value;
         if (!string.IsNullOrWhiteSpace(derive?.Source))
         {
-            if (await context.GetNodeTypeAsync<FunctionType>(derive.Calc) is { Args.Length: 1 } funcNode)
+            if (await context.GetNodeTypeAsync<FunctionType>(derive.Calc).ConfigureAwait(false) is { Args.Length: 1 } funcNode)
             {
                 PushFunc = funcNode;
-                
+
                 AppFieldType? pushSource = Application.GetField(derive.Source);
-                if (pushSource == null || (pushSource.ValueType ?? await context.GetNodeTypeAsync<ValueType>(pushSource.Type))
+                if (pushSource == null || (pushSource.ValueType ?? await context.GetNodeTypeAsync<ValueType>(pushSource.Type).ConfigureAwait(false))
                     is not ArrayType { Element: not null, Primary: { Count: > 0}} array ||
                     funcNode.Args[0].ValueType != null && funcNode.Args[0].ValueType is not GenericType && 
                     !array.Element.IsAssignableTo(funcNode.Args[0].ValueType!))
@@ -284,7 +284,7 @@ public sealed class AppFieldType
                     DataDeriveCompileContext compileContext = new DataDeriveCompileContext(context, funcNode);
                     try
                     {
-                        FunctionTypeSchema pushSchema = await compileContext.VisitFunctionType();
+                        FunctionTypeSchema pushSchema = await compileContext.VisitFunctionType().ConfigureAwait(false);
                         DataDeriveThirdFieldInfo[] pushField = compileContext.ThirdFields;
                         if (pushField.Length > 0)
                         {
@@ -321,7 +321,7 @@ public sealed class AppFieldType
             {
                 if (string.IsNullOrWhiteSpace(foreign.Field) ||
                     string.IsNullOrWhiteSpace(foreign.App) ||
-                    await context.GetAppTypeAsync(foreign.App) is not { } refApp ||
+                    await context.GetAppTypeAsync(foreign.App).ConfigureAwait(false) is not { } refApp ||
                     refApp.ScopeType == AppScopeType.SystemLevel ||
                     structType?.GetField(foreign.Field) == null)
                 {
@@ -336,7 +336,7 @@ public sealed class AppFieldType
         if (!string.IsNullOrWhiteSpace(View?.App) || !string.IsNullOrWhiteSpace(View?.Field))
         {
             if (structType == null || string.IsNullOrWhiteSpace(View?.App) || string.IsNullOrWhiteSpace(View?.Field) ||
-                await context.GetAppTypeAsync(View.App) is not { } sourceApp ||
+                await context.GetAppTypeAsync(View.App).ConfigureAwait(false) is not { } sourceApp ||
                 sourceApp.GetField(View.Field) is not { } sourceField ||
                 sourceApp.ScopeType != AppScopeType.SystemLevel && sourceField.Foreigns is not { Length:> 0 } ||
                 sourceField.Foreigns is { Length: > 0 } && sourceField.Foreigns.All(f => !f.App.Equals(Application.Name, StringComparison.OrdinalIgnoreCase)) ||
@@ -432,14 +432,14 @@ public sealed class AppFieldType
         if (!noAuth)
         {
             bool isSystem = Application.GetProperty<SystemDefined>()?.Value == true;
-            schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true));
-            schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true));
-            schema.SetProperty<SchemaUpdate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true));
-            schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true));
-            schema.SetProperty<DataCreate, bool>(!isSystem && !ReadOnly && await context.AuthorizeAsync(this, PolicyScope.DataCreate, true));
-            schema.SetProperty<DataRead, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.DataRead, true));
-            schema.SetProperty<DataUpdate, bool>(!isSystem && !ReadOnly && await context.AuthorizeAsync(this, PolicyScope.DataUpdate, true));
-            schema.SetProperty<DataDelete, bool>(!isSystem && !ReadOnly && await context.AuthorizeAsync(this, PolicyScope.DataDelete, true));
+            schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true).ConfigureAwait(false));
+            schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true).ConfigureAwait(false));
+            schema.SetProperty<SchemaUpdate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true).ConfigureAwait(false));
+            schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true).ConfigureAwait(false));
+            schema.SetProperty<DataCreate, bool>(!isSystem && !ReadOnly && await context.AuthorizeAsync(this, PolicyScope.DataCreate, true).ConfigureAwait(false));
+            schema.SetProperty<DataRead, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.DataRead, true).ConfigureAwait(false));
+            schema.SetProperty<DataUpdate, bool>(!isSystem && !ReadOnly && await context.AuthorizeAsync(this, PolicyScope.DataUpdate, true).ConfigureAwait(false));
+            schema.SetProperty<DataDelete, bool>(!isSystem && !ReadOnly && await context.AuthorizeAsync(this, PolicyScope.DataDelete, true).ConfigureAwait(false));
         }
 
         // The block columns
@@ -453,7 +453,7 @@ public sealed class AppFieldType
                 bool authorized = true;
                 foreach (string evaluator in this.GetColPolicies(f.Name))
                 {
-                    authorized = await context.AuthorizeAsync(evaluator, true);
+                    authorized = await context.AuthorizeAsync(evaluator, true).ConfigureAwait(false);
                     if (authorized) break;
                 }
 
@@ -543,7 +543,7 @@ public sealed class AppFieldType
             return result;
         }
         else
-            return await ValueType!.ValidateValueAsync(context, value);
+            return await ValueType!.ValidateValueAsync(context, value).ConfigureAwait(false);
     }
 
     /// <summary>

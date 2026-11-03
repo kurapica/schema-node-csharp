@@ -26,9 +26,9 @@ public static class Function
         [Meta<SchemaType>(typeof(ValueType))] string? type = null,
         bool matchArrayElement = false)
     {
-        var returnType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        var returnType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type).ConfigureAwait(false) : null;
         if (returnType == null) return true;
-        var nodeType = !string.IsNullOrWhiteSpace(func) ? await context.GetNodeTypeAsync<FunctionType>(func) : null;
+        var nodeType = !string.IsNullOrWhiteSpace(func) ? await context.GetNodeTypeAsync<FunctionType>(func).ConfigureAwait(false) : null;
         if (nodeType == null) return false;
         return nodeType?.Return != null && returnType != null && (nodeType.Return.IsAssignableTo(returnType) || matchArrayElement && returnType is Runtime.ArrayType { Element: not null } arr && nodeType.Return.IsAssignableTo(arr.Element));
     }
@@ -40,11 +40,11 @@ public static class Function
         [Meta<SchemaType>(typeof(AnyType))] string func,
         [Meta<SchemaType>(typeof(ValueType))] params string[] args)
     {
-        var funcType = !string.IsNullOrWhiteSpace(func) ? await context.GetNodeTypeAsync<FunctionType>(func) : null;
+        var funcType = !string.IsNullOrWhiteSpace(func) ? await context.GetNodeTypeAsync<FunctionType>(func).ConfigureAwait(false) : null;
         if (funcType == null || args.Length != funcType.Args.Length) return false;
         for (int i = 0; i < args.Length; i++)
         {
-            var argType = !string.IsNullOrWhiteSpace(args[i]) ? await context.GetNodeTypeAsync<Runtime.ValueType>(args[i]) : null;
+            var argType = !string.IsNullOrWhiteSpace(args[i]) ? await context.GetNodeTypeAsync<Runtime.ValueType>(args[i]).ConfigureAwait(false) : null;
             if (argType == null) return false;
             if (funcType.Args[i].ValueType == null || !funcType.Args[i].ValueType!.IsAssignableTo(argType)) return false;
         }
@@ -76,7 +76,7 @@ public static class Function
             foreach (FuncArg arg in args)
             {
                 if (string.IsNullOrWhiteSpace(arg.Name) || string.IsNullOrWhiteSpace(arg.Type)) continue;
-                var fieldType = await context.GetNodeTypeAsync<IValueTypeAccess>(arg.Type);
+                var fieldType = await context.GetNodeTypeAsync<IValueTypeAccess>(arg.Type).ConfigureAwait(false);
                 if (fieldType == null) continue;
                 var entry = new Entry<string> { Value = arg.Name, HasChildren = (isCollection == true || fieldType is not Runtime.ArrayType) && fieldType.HasAccessEntries };
                 entry.SetProperty<Display, LocaleString>(arg.GetProperty<Display>()?.Value ?? arg.Name);
@@ -99,7 +99,7 @@ public static class Function
             foreach (FuncExp exp in exps)
             {
                 if (string.IsNullOrWhiteSpace(exp.Name) || string.IsNullOrWhiteSpace(exp.Return)) continue;
-                Runtime.ValueType? fieldType = await context.GetNodeTypeAsync<Runtime.ValueType>(exp.Return);
+                Runtime.ValueType? fieldType = await context.GetNodeTypeAsync<Runtime.ValueType>(exp.Return).ConfigureAwait(false);
                 if (fieldType == null) continue;
                 var entry = new Entry<string> { Value = exp.Name, HasChildren = (isCollection == true || fieldType is not Runtime.ArrayType) && fieldType.HasAccessEntries };
                 entry.SetProperty<Display, LocaleString>(exp.Name);
@@ -167,7 +167,7 @@ public static class Function
         string[] paths = path.Split('.', StringSplitOptions.RemoveEmptyEntries);
         var type = args?.FirstOrDefault(f => f.Name.Equals(paths[0], StringComparison.OrdinalIgnoreCase))?.Type
             ?? exps?.FirstOrDefault(e => e.Name.Equals(paths[0], StringComparison.OrdinalIgnoreCase))?.Return;
-        Runtime.ValueType? valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        Runtime.ValueType? valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type).ConfigureAwait(false) : null;
         if (valueType is null) return null;
         for (int i = 1; i < paths.Length; i++)
         {
@@ -182,7 +182,7 @@ public static class Function
     /// </summary>
     public static async Task<List<ApplyMode>> getapplymodes(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type)
     {
-        var returnType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        var returnType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type).ConfigureAwait(false) : null;
         if (returnType == null) return [];
         if (returnType is Runtime.ArrayType)
         {
@@ -208,7 +208,7 @@ public static class Function
     /// </summary>
     public static async Task<string?> getexpectreturn(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type, ApplyMode applyMode)
     {
-        var valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        var valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type).ConfigureAwait(false) : null;
         if (valueType == null) return null;
         return applyMode switch
         {
@@ -232,7 +232,7 @@ public static class Function
         FuncArg[]? args,
         FuncExp[]? exps)
     {
-        var valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        var valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type).ConfigureAwait(false) : null;
         if (valueType is not Runtime.StructType strt) return [];
         return [
             new EntryAccess<string>{
@@ -251,7 +251,7 @@ public static class Function
     public static async Task<string?> getreturnfieldtype(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type, string field)
     {
         if (string.IsNullOrWhiteSpace(field)) return null;
-        var valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        var valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type).ConfigureAwait(false) : null;
         if (valueType is Runtime.ArrayType arr) valueType = arr.Element;
         if (valueType is not Runtime.StructType strt) return "";
         return strt.GetField(field)?.Type?.Name;

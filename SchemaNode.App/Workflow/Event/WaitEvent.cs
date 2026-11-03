@@ -36,7 +36,7 @@ public class WaitEvent<T> : BaseWorkflow,
             schema.Error ??= AppErrorCodes.WORKFLOW_EVENT_NOT_VALID;
             return;
         }
-        _eventType = await context.GetNodeTypeAsync<Runtime.EventType>(decare.Event);
+        _eventType = await context.GetNodeTypeAsync<Runtime.EventType>(decare.Event).ConfigureAwait(false);
         if (_eventType == null)
         {
             schema.Error ??= AppErrorCodes.WORKFLOW_EVENT_NOT_VALID;
@@ -59,7 +59,7 @@ public class WaitEvent<T> : BaseWorkflow,
         var instance = await _eventType.GetEventInstance(context, 
             _args.Select<CallArg, object?>(callArg => string.IsNullOrEmpty(callArg.Source)
                 ? callArg.Value?.DeepClone()
-                : context.GetWorkflowPayload(callArg.Source)).ToArray());
+                : context.GetWorkflowPayload(callArg.Source)).ToArray()).ConfigureAwait(false);
         if (instance == null)
         {
             context.Error(this, $"The event {_eventType.Name} can't be instantiated.");

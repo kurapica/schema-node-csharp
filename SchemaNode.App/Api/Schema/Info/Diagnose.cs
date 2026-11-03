@@ -23,8 +23,8 @@ public class DiagnoseApi : SchemaApi<DiagnoseRequest, DiagnoseResponse>
 
         return new DiagnoseResponse
         {
-            Namespace = await DiagnoseNamespaceAsync(await SchemaContext.GetNodeTypeAsync("")),
-            App = DiagnoseAppAsync(await SchemaContext.GetAppTypeAsync("")),
+            Namespace = await DiagnoseNamespaceAsync(await SchemaContext.GetNodeTypeAsync("").ConfigureAwait(false)).ConfigureAwait(false),
+            App = DiagnoseAppAsync(await SchemaContext.GetAppTypeAsync("").ConfigureAwait(false)),
         };
     }
 
@@ -38,9 +38,9 @@ public class DiagnoseApi : SchemaApi<DiagnoseRequest, DiagnoseResponse>
                 JsonObject? res = null;
                 foreach (var s in ns.GetNodeSchemas())
                 {
-                    var n = await SchemaContext.GetNodeTypeAsync(s.FullName);
+                    var n = await SchemaContext.GetNodeTypeAsync(s.FullName).ConfigureAwait(false);
                     if (n == null) continue;
-                    var r = await DiagnoseNamespaceAsync(n);
+                    var r = await DiagnoseNamespaceAsync(n).ConfigureAwait(false);
                     if (r == null || r.IsEmpty()) continue;
                     res ??= new JsonObject();
                     res[s.Name] = r;

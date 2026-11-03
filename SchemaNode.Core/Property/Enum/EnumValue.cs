@@ -26,6 +26,6 @@ public class EnumValue: Property<bool>, IConstraintProperty
         var type = (node.Type as Runtime.EnumType)!;
         return type.Type == EnumValueType.Flags
             ? node.TryGetValue(out long flagsValue) && flagsValue >= 0 && flagsValue <= type.MaxFlags
-            : await type.GetEnumEntryAccessAsync(context, node.GetValue<string>()) is { Length: > 0};
+            : await type.GetEnumEntryAccessAsync(context, node.GetValue<string>()).ConfigureAwait(false) is { Length: > 0};
     }
 }

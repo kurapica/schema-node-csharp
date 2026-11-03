@@ -25,7 +25,7 @@ public class InteractionApi : SchemaApi<InteractionRequest, InteractionResponse>
         Logger.LogDebug("[Api]Interaction [Request]{request}", request);
 
         // Done
-        return new InteractionResponse { WorkflowId = await SchemaContext.InteractionAsync(request) };
+        return new InteractionResponse { WorkflowId = await SchemaContext.InteractionAsync(request).ConfigureAwait(false) };
     }
 }
 
@@ -37,7 +37,7 @@ public static class InteractionExtensions
     public static async Task<Guid?> InteractionAsync(this SchemaContext context, InteractionRequest request, bool innerCall = false)
     {
         // Indicate the workflow node
-        AppType app = await context.GetAppTypeAsync(request.App) ?? throw new Exception(AppErrorCodes.APP_NOT_FOUND);
+        AppType app = await context.GetAppTypeAsync(request.App).ConfigureAwait(false) ?? throw new Exception(AppErrorCodes.APP_NOT_FOUND);
         AppWorkflowType workflowType = app.GetWorkflow(request.Workflow) ?? throw new Exception(AppErrorCodes.APP_WORKFLOW_NOT_FOUND);
         if (workflowType.RootWorkflowContext == null) throw new Exception(AppErrorCodes.APP_WORKFLOW_NOT_START);
         
@@ -46,7 +46,7 @@ public static class InteractionExtensions
         
         // authorize
         if (!innerCall)
-            await context.AuthorizeAsync(workflowType, PolicyScope.FuncExecute);
+            await context.AuthorizeAsync(workflowType, PolicyScope.FuncExecute).ConfigureAwait(false);
         
         // Find the contains node
         BaseWorkflow node = (string.IsNullOrEmpty(request.Node) 
@@ -76,7 +76,7 @@ public static class InteractionExtensions
         // Check if still working
         if (request.Terminate == true)
         {
-            await workContext.TerminateAsync();
+            await workContext.TerminateAsync().ConfigureAwait(false);
         }
         else
         {

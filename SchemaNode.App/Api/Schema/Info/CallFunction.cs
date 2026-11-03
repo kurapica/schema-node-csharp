@@ -23,7 +23,7 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
         Logger.LogDebug("[Api]CallFunction [Request]{request}", request);
 
         // get function node
-        NodeType? node = await SchemaContext.GetNodeTypeAsync(request.Name);
+        NodeType? node = await SchemaContext.GetNodeTypeAsync(request.Name).ConfigureAwait(false);
         if (node is not FunctionType func || func.HasFlag<WorkflowOnly>() == true) return new CallFunctionResponse { Result = null };
 
         // set target
@@ -31,12 +31,12 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
             SchemaContext.SetAccess(request.App, request.Target);
 
         // authorize
-        await SchemaContext.AuthorizeAsync(node, PolicyScope.FuncExecute);
+        await SchemaContext.AuthorizeAsync(node, PolicyScope.FuncExecute).ConfigureAwait(false);
         
         // call function
         return new CallFunctionResponse
         {
-            Result = await SchemaContext.CallFunctionAsync(func, request.Args, request.Return, request.ApplyMode)
+            Result = await SchemaContext.CallFunctionAsync(func, request.Args, request.Return, request.ApplyMode).ConfigureAwait(false)
         };
     }
 }

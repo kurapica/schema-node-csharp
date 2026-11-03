@@ -153,8 +153,8 @@ public class IntrinsicExpVisitor : IExpVisitor
             // Break
             case BreakExp breakExp:
             {
-                Expression cond = await context.CompileSchemaExpAsync(breakExp.Cond);
-                Expression value = await context.CompileSchemaExpAsync(breakExp.Value);
+                Expression cond = await context.CompileSchemaExpAsync(breakExp.Cond).ConfigureAwait(false);
+                Expression value = await context.CompileSchemaExpAsync(breakExp.Value).ConfigureAwait(false);
                 ParameterExpression resultVar = Expression.Variable(value.Type);
 
                 return breakExp.Type switch
@@ -193,15 +193,15 @@ public class IntrinsicExpVisitor : IExpVisitor
             
             // a ? b : c
             case ConditionalExp condExp:
-                return Expression.Condition(await context.CompileSchemaExpAsync(condExp.Condition),
-                    await context.CompileSchemaExpAsync(condExp.TrueExp, expectedType),
-                    await context.CompileSchemaExpAsync(condExp.FalseExp, expectedType));
+                return Expression.Condition(await context.CompileSchemaExpAsync(condExp.Condition).ConfigureAwait(false),
+                    await context.CompileSchemaExpAsync(condExp.TrueExp, expectedType).ConfigureAwait(false),
+                    await context.CompileSchemaExpAsync(condExp.FalseExp, expectedType).ConfigureAwait(false));
             
             // a ?? b
             case DefaultExp defaultExp:
             {
-                if (defaultExp.Inner is LogicExp) return await context.CompileSchemaExpAsync(defaultExp.Inner, expectedType);
-                var inner = await context.CompileSchemaExpAsync(defaultExp.Inner, expectedType);
+                if (defaultExp.Inner is LogicExp) return await context.CompileSchemaExpAsync(defaultExp.Inner, expectedType).ConfigureAwait(false);
+                var inner = await context.CompileSchemaExpAsync(defaultExp.Inner, expectedType).ConfigureAwait(false);
                 return inner.Type.IsNullable() 
                     ? Expression.Coalesce(inner, Expression.Constant(defaultExp.Default.GetValue(expectedType), expectedType))
                     : inner;
@@ -216,15 +216,15 @@ public class IntrinsicExpVisitor : IExpVisitor
             {
                 return fldAccess.Default != null
                     ? await context.CompileSchemaExpAsync(new FuncCallExp(
-                        (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}"))!,
+                        (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}").ConfigureAwait(false))!,
                         [fldAccess.Owner, new ConstantExp(context.System.String.Create(context.Context, fldAccess.FieldName)), fldAccess.Default],
                         fldAccess.ValueType
-                    ), expectedType)
+                    ), expectedType).ConfigureAwait(false)
                     : await context.CompileSchemaExpAsync(new FuncCallExp(
-                        (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}"))!,
+                        (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}").ConfigureAwait(false))!,
                         [fldAccess.Owner, new ConstantExp(context.System.String.Create(context.Context, fldAccess.FieldName))],
                         fldAccess.ValueType
-                    ), expectedType);
+                    ), expectedType).ConfigureAwait(false);
             }
         }
 

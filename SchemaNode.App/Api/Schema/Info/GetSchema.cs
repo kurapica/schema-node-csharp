@@ -33,8 +33,8 @@ public class GetSchemaApi : SchemaApi<GetSchemaRequest, GetSchemaResponse>
         foreach (string t in request.Names) 
         {
             cancellationToken.ThrowIfCancellationRequested();
-            NodeType? node = await SchemaContext.GetNodeTypeAsync(t);
-            await GetNodeSchemas(node, true);
+            NodeType? node = await SchemaContext.GetNodeTypeAsync(t).ConfigureAwait(false);
+            await GetNodeSchemas(node, true).ConfigureAwait(false);
         }
 
         return new GetSchemaResponse
@@ -45,16 +45,16 @@ public class GetSchemaApi : SchemaApi<GetSchemaRequest, GetSchemaResponse>
         async Task GetNodeSchemas(NodeType? node, bool first = false)
         {
             if (node == null) return;
-            if (await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead, true) == false) return;
+            if (await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead, true).ConfigureAwait(false) == false) return;
 
-            await SchemaContext.GetNodeSchemasAsync(node, root, types, request.IncludeRefs ?? false, cancellationToken: cancellationToken);
+            await SchemaContext.GetNodeSchemasAsync(node, root, types, request.IncludeRefs ?? false, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             if (node is NamespaceType ns && first)
                 foreach (var pair in ns.GetNodeSchemas())
                 {
-                    var nodeType = await SchemaContext.GetNodeTypeAsync(pair.FullName);
+                    var nodeType = await SchemaContext.GetNodeTypeAsync(pair.FullName).ConfigureAwait(false);
                     if (nodeType != null)
-                        await GetNodeSchemas(nodeType);
+                        await GetNodeSchemas(nodeType).ConfigureAwait(false);
                 }
         }
     }

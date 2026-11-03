@@ -14,7 +14,7 @@ public class ExitWorkflow: BaseWorkflow
     {
         if (cond)
         {
-            await context.TerminateAsync();
+            await context.TerminateAsync().ConfigureAwait(false);
         }
         else
         {

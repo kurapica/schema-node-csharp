@@ -19,7 +19,7 @@ public class SaveAppWorkflowSchemaApi : SchemaApi<SaveAppWorkflowSchemaRequest, 
 
         return new SaveAppWorkflowSchemaResponse
         {
-            Result = await SchemaContext.SaveAppWorkflowSchemaAsync(request.App, request.Schema)
+            Result = await SchemaContext.SaveAppWorkflowSchemaAsync(request.App, request.Schema).ConfigureAwait(false)
         };
     }
 }

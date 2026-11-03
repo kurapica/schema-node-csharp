@@ -536,13 +536,13 @@ public class StructNode : DataNode
         if (propertyCtor == typeof(OverrideType))
         {
             type = newValue is string typeName && !string.IsNullOrWhiteSpace(typeName)
-                ? await ctx.GetNodeTypeAsync<Runtime.ValueType>(typeName)
+                ? await ctx.GetNodeTypeAsync<Runtime.ValueType>(typeName).ConfigureAwait(false)
                 : structField.Type;
             if (type is null || type == node.Type) return;
         }
         else
         {
-            randomType = await CreateRandomStructTypeAsync(ctx, newValue as StructFieldSchema[] ?? []);
+            randomType = await CreateRandomStructTypeAsync(ctx, newValue as StructFieldSchema[] ?? []).ConfigureAwait(false);
             type = randomType;
         }
 
@@ -596,7 +596,7 @@ public class StructNode : DataNode
         schema.SetProperty<StructProperty, StructSchema>(new StructSchema { Fields = fields });
 
         StructType type = new();
-        await type.LoadTypeAsync(context, schema);
+        await type.LoadTypeAsync(context, schema).ConfigureAwait(false);
 
         _randomStructTypes ??= [];
         _randomStructTypes.Add(type);

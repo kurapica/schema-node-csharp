@@ -23,7 +23,7 @@ public abstract class SchemaApi<TRequest, TResponse>
         Logger = logger;
         _criticalRegionProvider = new Lazy<ICriticalRegionProvider>(Services.GetRequiredService<ICriticalRegionProvider>);
         SchemaContext = Services.GetRequiredService<SchemaContext>();
-        return await ExecuteAsync(request, request.Context.RequestAborted);
+        return await ExecuteAsync(request, request.Context.RequestAborted).ConfigureAwait(false);
     }
     
     /// <summary>

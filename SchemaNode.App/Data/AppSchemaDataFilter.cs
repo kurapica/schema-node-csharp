@@ -241,11 +241,11 @@ public static class AppSchemaDataFilterExtensions
             if (filterMode == FieldFilterMode.Filter)
             {
                 // get the function
-                FunctionType? funcType = await context.GetNodeTypeAsync<FunctionType>(key);
+                FunctionType? funcType = await context.GetNodeTypeAsync<FunctionType>(key).ConfigureAwait(false);
                 if (funcType != null && value is JsonArray { Count: > 0 } arr)
                 {
                     // Call filter func with policy filter compile context
-                    AppSchemaDataFilter? f = await funcType.CallAsync<AppSchemaDataFilter, QueryFilterCompileContext>(context, arr.Select(a => (object)a!).ToArray());
+                    AppSchemaDataFilter? f = await funcType.CallAsync<AppSchemaDataFilter, QueryFilterCompileContext>(context, arr.Select(a => (object)a!).ToArray()).ConfigureAwait(false);
                     if (f != null)
                     {
                         accessExp = accessExp != null

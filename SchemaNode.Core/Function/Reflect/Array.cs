@@ -44,7 +44,7 @@ public static class Array
     /// </summary>
     public static async Task<string> getarraytype(SchemaContext context, [Meta<SchemaType>(typeof(ElementType))] string element)
     {
-        var elementType = await context.GetNodeTypeAsync<Runtime.ValueType>(element);
+        var elementType = await context.GetNodeTypeAsync<Runtime.ValueType>(element).ConfigureAwait(false);
         if (elementType is null) return "";
         return (elementType.ArrayType?.Name ?? $"{NS_SYSTEM_LIST}<{elementType.Name}>");
     }
@@ -54,7 +54,7 @@ public static class Array
     /// </summary>
     public static async Task<string> getarrayelement(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string array)
     {
-        var arrayType = await context.GetNodeTypeAsync<Runtime.ValueType>(array);
+        var arrayType = await context.GetNodeTypeAsync<Runtime.ValueType>(array).ConfigureAwait(false);
         if (arrayType is null) return "";
         return arrayType is Runtime.ArrayType a ? a.Element!.Name : arrayType.Name;
     }
@@ -64,10 +64,10 @@ public static class Array
     /// </summary>
     public static async Task<bool> isarrayele(SchemaContext context, [Meta<SchemaType>(typeof(AnyType))] string name)
     {
-        var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);
-        return nodeType != null && 
-               !nodeType.Kind.Equals(NODE_KIND_ARRAY, StringComparison.OrdinalIgnoreCase) &&
-               typeof(NodeValueKind).GetRecordedValues().Any(v => v.GetValue<string>()!.Equals(nodeType.Kind, StringComparison.OrdinalIgnoreCase));
+        var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name).ConfigureAwait(false);
+        // An array element must be a value type and not an array (no nested arrays). Checking the
+        // type directly keeps the result independent of the record registry population order.
+        return nodeType is Runtime.ValueType and not Runtime.ArrayType;
     }
 
     /// <summary>
@@ -82,7 +82,7 @@ public static class Array
             return []; // not access-able
         path ??= root;
         
-        var eleType = await context.GetNodeTypeAsync<Runtime.ValueType>(element);
+        var eleType = await context.GetNodeTypeAsync<Runtime.ValueType>(element).ConfigureAwait(false);
         if (eleType is null) return [];
         
         // the first entry list
@@ -142,7 +142,7 @@ public static class Array
     public static async Task<string?> getaccessvaluetype(SchemaContext context,  [Meta<SchemaType>(typeof(ValueType))] string element, string? path = null)
     {
         if (string.IsNullOrWhiteSpace(path)) return null;
-        var elementType = await context.GetNodeTypeAsync<Runtime.ValueType>(element);
+        var elementType = await context.GetNodeTypeAsync<Runtime.ValueType>(element).ConfigureAwait(false);
         if (elementType is null) return null;
         if (path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase) || path.Equals(ARRAY_PREVIOUS, StringComparison.OrdinalIgnoreCase)) return $"{NS_SYSTEM_LIST}<{elementType.Name}>";
         string[] paths = path.Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
@@ -158,9 +158,9 @@ public static class Array
         string? path = null,
         [Meta<EntryRoot>(true)] string? root = null)
     {
-        var type = await context.GetNodeTypeAsync<Runtime.ValueType>(name);
+        var type = await context.GetNodeTypeAsync<Runtime.ValueType>(name).ConfigureAwait(false);
         type = (type as Runtime.ArrayType)?.Element ?? type;
-        return type is null ? [] : await Type.getaccessentries(context, type.Name, path, root);
+        return type is null ? [] : await Type.getaccessentries(context, type.Name, path, root).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -168,9 +168,9 @@ public static class Array
     /// </summary>
     public static async Task<string?> getelementaccessvaluetype(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string name, string path = "")
     {
-        var type = await context.GetNodeTypeAsync<Runtime.ValueType>(name);
+        var type = await context.GetNodeTypeAsync<Runtime.ValueType>(name).ConfigureAwait(false);
         type = (type as Runtime.ArrayType)?.Element ?? type;
-        return type is null ? null : await Type.getaccessvaluetype(context, type.Name, path);
+        return type is null ? null : await Type.getaccessvaluetype(context, type.Name, path).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -178,11 +178,11 @@ public static class Array
     /// </summary>
     public static async Task<bool> isassignabletoelement(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type,[Meta<SchemaType>(typeof(ValueType))] params string[] targets)
     {
-        var typeNode = string.IsNullOrWhiteSpace(type) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(type);
+        var typeNode = string.IsNullOrWhiteSpace(type) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(type).ConfigureAwait(false);
         if (typeNode == null) return false;
         foreach (var target in targets)
         {
-            var targetNode = string.IsNullOrWhiteSpace(target) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(target);
+            var targetNode = string.IsNullOrWhiteSpace(target) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(target).ConfigureAwait(false);
             targetNode = targetNode is Runtime.ArrayType arr ? arr.Element : targetNode;
             if (targetNode != null && typeNode.IsAssignableTo(targetNode)) return true;
         }

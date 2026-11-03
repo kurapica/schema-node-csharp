@@ -19,7 +19,7 @@ public class SaveAppSchemaApi : SchemaApi<SaveAppSchemaRequest, SaveAppSchemaRes
 
         return new SaveAppSchemaResponse
         {
-            Result = await SchemaContext.SaveAppSchemaAsync(request.Schema)
+            Result = await SchemaContext.SaveAppSchemaAsync(request.Schema).ConfigureAwait(false)
         };
     }
 }

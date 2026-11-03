@@ -18,7 +18,7 @@ public class DeleteAppWorkflowSchemaApi : SchemaApi<DeleteAppWorkflowSchemaReque
 
         return new DeleteAppWorkflowSchemaResponse
         {
-            Result = await SchemaContext.DeleteAppWorkflowSchemaAsync(request.App, request.Workflow)
+            Result = await SchemaContext.DeleteAppWorkflowSchemaAsync(request.App, request.Workflow).ConfigureAwait(false)
         };
     }
 }

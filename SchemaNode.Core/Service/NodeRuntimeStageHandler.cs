@@ -237,18 +237,18 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         schemaContext.SystemMode = true;
         
         // Loading all system node types
-        await LoadAllNodeTypes(string.Empty);
+        await LoadAllNodeTypes(string.Empty).ConfigureAwait(false);
 
         // Loading system access
         SystemAccess access = schemaContext.System;
-        access.Self = (await schemaContext.GetNodeTypeAsync<Runtime.NamespaceType>(NS_SYSTEM))!;
-        access.Bool = (await schemaContext.GetNodeTypeAsync<Runtime.BoolType>(NS_SYSTEM_BOOL))!;
-        access.String = (await schemaContext.GetNodeTypeAsync<Runtime.StringType>(NS_SYSTEM_STRING))!;
-        access.Decimal = (await schemaContext.GetNodeTypeAsync<Runtime.DecimalType>(NS_SYSTEM_NUMBER))!;
-        access.Int = (await schemaContext.GetNodeTypeAsync<Runtime.IntType>(NS_SYSTEM_INT))!;
-        access.Date = (await schemaContext.GetNodeTypeAsync<Runtime.DateType>(NS_SYSTEM_DATE))!;
-        access.Context = (await schemaContext.GetNodeTypeAsync<Runtime.StructType>(NS_SYSTEM_CONTEXT))!;
-        access.Object = (await schemaContext.GetNodeTypeAsync<Runtime.ObjectType>(NS_SYSTEM_OBJECT))!;
+        access.Self = (await schemaContext.GetNodeTypeAsync<Runtime.NamespaceType>(NS_SYSTEM).ConfigureAwait(false))!;
+        access.Bool = (await schemaContext.GetNodeTypeAsync<Runtime.BoolType>(NS_SYSTEM_BOOL).ConfigureAwait(false))!;
+        access.String = (await schemaContext.GetNodeTypeAsync<Runtime.StringType>(NS_SYSTEM_STRING).ConfigureAwait(false))!;
+        access.Decimal = (await schemaContext.GetNodeTypeAsync<Runtime.DecimalType>(NS_SYSTEM_NUMBER).ConfigureAwait(false))!;
+        access.Int = (await schemaContext.GetNodeTypeAsync<Runtime.IntType>(NS_SYSTEM_INT).ConfigureAwait(false))!;
+        access.Date = (await schemaContext.GetNodeTypeAsync<Runtime.DateType>(NS_SYSTEM_DATE).ConfigureAwait(false))!;
+        access.Context = (await schemaContext.GetNodeTypeAsync<Runtime.StructType>(NS_SYSTEM_CONTEXT).ConfigureAwait(false))!;
+        access.Object = (await schemaContext.GetNodeTypeAsync<Runtime.ObjectType>(NS_SYSTEM_OBJECT).ConfigureAwait(false))!;
 
         // Loading all access path handlers
         if (accessPathHandlers.Count > 0)
@@ -257,7 +257,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             foreach (Type handlerType in accessPathHandlers)
             {
                 IValueAccessPathHandler handler = (IValueAccessPathHandler)ActivatorUtilities.CreateInstance(context.Services, handlerType);
-                await handler.LoadAsync(context);
+                await handler.LoadAsync(context).ConfigureAwait(false);
                 handlers.Add(handler);
             }
             
@@ -420,11 +420,11 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
 
         async Task LoadAllNodeTypes(string fullName)
         {
-            Runtime.NodeType? nodeType = await schemaContext.GetNodeTypeAsync(fullName);
+            Runtime.NodeType? nodeType = await schemaContext.GetNodeTypeAsync(fullName).ConfigureAwait(false);
             if (nodeType is not NamespaceType ns) return;
             
             foreach (NodeSchema schema in ns.GetNodeSchemas())
-                await LoadAllNodeTypes(schema.FullName);
+                await LoadAllNodeTypes(schema.FullName).ConfigureAwait(false);
         }
         
         #endregion

@@ -112,6 +112,27 @@ public abstract class DataNode : IValueAccess, IDisposable
     private static readonly ConcurrentDictionary<Type, MethodInfo> _setters = new();
 
     /// <summary>
+    /// The cached factories for runtime property instances. A property class normally declares a
+    /// constructor taking the source node; declaration-only classes (`class X : Property&lt;T&gt;;`)
+    /// only have the implicit parameterless constructor and are created without the source argument
+    /// (the record still carries <see cref="PropertyRecord.Source"/>).
+    /// </summary>
+    private static readonly ConcurrentDictionary<Type, ObjectFactory> _propertyFactories = new();
+
+    private static ObjectFactory GetPropertyFactory(Type type) =>
+        _propertyFactories.GetOrAdd(type, static t =>
+        {
+            try
+            {
+                return ActivatorUtilities.CreateFactory(t, [typeof(IValueAccess)]);
+            }
+            catch (InvalidOperationException)
+            {
+                return ActivatorUtilities.CreateFactory(t, []);
+            }
+        });
+
+    /// <summary>
     /// The cached data node constructors for schema declared node types
     /// </summary>
     private static readonly ConcurrentDictionary<Type, ConstructorInfo> _nodeCtors = new();
@@ -295,7 +316,7 @@ public abstract class DataNode : IValueAccess, IDisposable
     {
         var init = GetProperty<Init>();
         if (init is null || init.Value?.Func is null || Context is not SchemaContext ctx) return;
-        var func = await ctx.GetNodeTypeAsync<FunctionType>(init.Value.Func);
+        var func = await ctx.GetNodeTypeAsync<FunctionType>(init.Value.Func).ConfigureAwait(false);
         if (func is null) return;
         try
         {
@@ -304,7 +325,7 @@ public abstract class DataNode : IValueAccess, IDisposable
             {
                 if (string.IsNullOrWhiteSpace(a.Source)) return a.Value;
                 return source.GetAccessValue(a.Source)?.GetValue<object>();
-            }).ToArray(), null, init.Value.Mode);
+            }).ToArray(), null, init.Value.Mode).ConfigureAwait(false);
             if (value is not null)
                 TrySetValue(value);
         }
@@ -433,11 +454,11 @@ public abstract class DataNode : IValueAccess, IDisposable
 
             // add new property
             _props ??= [];
-            record = new PropertyRecord { 
-                Source = source, 
-                Relation = relation, 
+            record = new PropertyRecord {
+                Source = source,
+                Relation = relation,
                 Level = CalcLevel(source),
-                Property = ActivatorUtilities.CreateInstance<P>(Context.Services, source) 
+                Property = (P)GetPropertyFactory(typeof(P))(Context.Services, [source])
             };
             record.Property.SetValue(value);
             if (props is not null)
@@ -538,7 +559,7 @@ public abstract class DataNode : IValueAccess, IDisposable
         _validated?.Cancel();
         _validated = new CancellationTokenSource();
         _dataOb?.OnNext((this, value));
-        _ = Task.Run(async () => await ValidateAsync(_validated.Token));
+        _ = Task.Run(async () => await ValidateAsync(_validated.Token).ConfigureAwait(false));
     }
 
     /// <summary>
@@ -780,7 +801,7 @@ public abstract class DataNode : IValueAccess, IDisposable
         if (!this.IsEmpty || this.GetProperty<DisplayOnly>()?.Value != true) return;
         var r = this.GetRelation<Default>();
         if (r is null) return;
-        var d = await r.Value.Relation.CallAsync(context, r.Value.Owner, this);
+        var d = await r.Value.Relation.CallAsync(context, r.Value.Owner, this).ConfigureAwait(false);
         if (d is null || !d.HasValue) return;
         this.TrySetValue(d.GetValue<object>());
     }
@@ -880,7 +901,7 @@ public abstract class DataNode : IValueAccess, IDisposable
             {
                 try
                 {
-                    var res = await p.ValidateAsync(ctx, this);
+                    var res = await p.ValidateAsync(ctx, this).ConfigureAwait(false);
                     RecordConstraint(p, res, true);
                 }
                 catch (Exception ex)
@@ -902,7 +923,7 @@ public abstract class DataNode : IValueAccess, IDisposable
                         try
                         {
                             var prop = (record.Property as IConstraintProperty)!;
-                            var res = await prop.ValidateAsync(ctx, this);
+                            var res = await prop.ValidateAsync(ctx, this).ConfigureAwait(false);
                             if (res != record.Valid)
                                 record.Valid = res;
                         }
@@ -916,7 +937,7 @@ public abstract class DataNode : IValueAccess, IDisposable
             }
         }
         if (tasks.Count > 0 && !cancellationToken.IsCancellationRequested)
-            await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks).ConfigureAwait(false);
         OnNextViolated();
     }
 

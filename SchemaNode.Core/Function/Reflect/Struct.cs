@@ -33,7 +33,7 @@ public static class Struct
         List<Entry<string>> first = [];
         foreach (StructFieldSchema f in fields.Where(f => !string.IsNullOrWhiteSpace(f.Name) && !string.IsNullOrWhiteSpace(f.Type)))
         {
-            Runtime.ValueType? fieldType = await context.GetNodeTypeAsync<Runtime.ValueType>(f.Type);
+            Runtime.ValueType? fieldType = await context.GetNodeTypeAsync<Runtime.ValueType>(f.Type).ConfigureAwait(false);
             if (fieldType == null) continue;
             var entry = new Entry<string> { Value = f.Name, HasChildren = fieldType.HasAccessEntries };
             entry.SetProperty<Display, LocaleString>(f.GetProperty<Display>()?.Value ?? fieldType.GetProperty<Display>()?.Value ?? f.Name);
@@ -46,7 +46,7 @@ public static class Struct
             .FirstOrDefault(c => path.Equals(c.Value, StringComparison.OrdinalIgnoreCase) ||
                                  path.StartsWith($"{c.Value}.", StringComparison.OrdinalIgnoreCase)) : null;
         IValueTypeAccess? valueType = curr != null 
-            ? await context.GetNodeTypeAsync<Runtime.ValueType>(fields.First(f => f.Name.Equals(curr.Value, StringComparison.OrdinalIgnoreCase)).Type) 
+            ? await context.GetNodeTypeAsync<Runtime.ValueType>(fields.First(f => f.Name.Equals(curr.Value, StringComparison.OrdinalIgnoreCase)).Type).ConfigureAwait(false) 
             : null;
         
         while (valueType != null)
@@ -92,7 +92,7 @@ public static class Struct
         if (paths.Length == 0) return null;
         var field = fields.FirstOrDefault(f => f.Name.Equals(paths[0], StringComparison.OrdinalIgnoreCase));
         if (field == null || string.IsNullOrWhiteSpace(field.Type)) return null;
-        var valueType = await context.GetNodeTypeAsync<IValueTypeAccess>(field.Type);
+        var valueType = await context.GetNodeTypeAsync<IValueTypeAccess>(field.Type).ConfigureAwait(false);
         return paths.Length > 1 ? valueType?.GetAccessValueType(paths[1])?.Name : valueType?.Name;
     }
 
@@ -101,7 +101,7 @@ public static class Struct
     /// </summary>
     public static async Task<bool> isindexablefield(SchemaContext context, StructFieldSchema field)
     {
-        var valueType = await context.GetNodeTypeAsync<Runtime.ValueType>(field.Type);
+        var valueType = await context.GetNodeTypeAsync<Runtime.ValueType>(field.Type).ConfigureAwait(false);
         if (valueType?.IsIndexable == true) return true;
         return valueType is Runtime.StringType && field.GetProperty<UpLimitString>() is { HasValue: true, Value: <= PRIMARY_KEY_MAX_LEN };
     }
@@ -111,7 +111,7 @@ public static class Struct
     /// </summary>
     public static async Task<EntryAccess<string>[]> getindexablefields(SchemaContext context, [Meta<SchemaType>(typeof(Schema.StructType))]string type)
     {
-        var structType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.StructType>(type) : null;
+        var structType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.StructType>(type).ConfigureAwait(false) : null;
         if (structType is null) return [];
         List<Entry<string>> result = [];
         foreach (var f in structType.GetFields())
@@ -131,7 +131,7 @@ public static class Struct
     /// </summary>
     public static async Task<bool> hasdynamicfield(SchemaContext context, [Meta<SchemaType>(typeof(Schema.ValueType))]string type)
     {
-        var valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        var valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type).ConfigureAwait(false) : null;
         valueType = (valueType as Runtime.ArrayType)?.Element ?? valueType;
         if (valueType is not Runtime.StructType structType) return false;
         return structType.GetFields().Any(f => f.Type is Runtime.ObjectType);    

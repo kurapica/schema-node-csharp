@@ -31,7 +31,7 @@ public class BatchQueryAppDataApi : SchemaApi<BatchQueryAppDataRequest, BatchQue
     {
         Logger.LogDebug("[Api]BatchQueryAppData [Request]{request}", request);
         
-        (AppDataResult[] result, NodeSchema[]? schemas) = await SchemaContext.BatchQueryAppDataAsync(request.Queries, cancellationToken);
+        (AppDataResult[] result, NodeSchema[]? schemas) = await SchemaContext.BatchQueryAppDataAsync(request.Queries, cancellationToken).ConfigureAwait(false);
         
         return new BatchQueryAppDataResponse
         {
@@ -66,7 +66,7 @@ public static class BatchQueryExtension
             cancellationToken?.ThrowIfCancellationRequested();
             
             if (string.IsNullOrWhiteSpace(query.App)) continue;
-            Runtime.AppType? node = await context.GetAppTypeAsync(query.App);
+            Runtime.AppType? node = await context.GetAppTypeAsync(query.App).ConfigureAwait(false);
             if (node == null) continue;
             
             // check scope, if not system level scope, target is required
@@ -77,7 +77,7 @@ public static class BatchQueryExtension
 
             // load schema
             if (!(query.NoSchema ?? false)) 
-                await context.GetNodeSchemasAsync(node, root, cancellationToken:cancellationToken);
+                await context.GetNodeSchemasAsync(node, root, cancellationToken:cancellationToken).ConfigureAwait(false);
 
             // query fields
             IEnumerable<AppFieldType> fields = node.GetFields().Where(f => f.EnableDynamicTable || f.IsForeignView);
@@ -101,10 +101,10 @@ public static class BatchQueryExtension
                 fieldResults[field.Name] = fieldResult;
 
                 // authorize check
-                fieldResult.DataRead = await context.AuthorizeAsync(field, PolicyScope.DataRead, true);
-                fieldResult.DataCreate = !field.ReadOnly && await context.AuthorizeAsync(field, PolicyScope.DataCreate, true);
-                fieldResult.DataUpdate = !field.ReadOnly && await context.AuthorizeAsync(field, PolicyScope.DataUpdate, true);
-                fieldResult.DataDelete = !field.ReadOnly && await context.AuthorizeAsync(field, PolicyScope.DataDelete, true);
+                fieldResult.DataRead = await context.AuthorizeAsync(field, PolicyScope.DataRead, true).ConfigureAwait(false);
+                fieldResult.DataCreate = !field.ReadOnly && await context.AuthorizeAsync(field, PolicyScope.DataCreate, true).ConfigureAwait(false);
+                fieldResult.DataUpdate = !field.ReadOnly && await context.AuthorizeAsync(field, PolicyScope.DataUpdate, true).ConfigureAwait(false);
+                fieldResult.DataDelete = !field.ReadOnly && await context.AuthorizeAsync(field, PolicyScope.DataDelete, true).ConfigureAwait(false);
 
                 if (query.SchemaOnly == true || fieldResult.DataRead != true) continue; // no data query
 
@@ -138,7 +138,7 @@ public static class BatchQueryExtension
                         try
                         {
                             // Authorize evaluator
-                            bool authorized = await context.AuthorizeAsync(policy.Evaluator, true);
+                            bool authorized = await context.AuthorizeAsync(policy.Evaluator, true).ConfigureAwait(false);
                             if (!authorized) continue;
                             if (policy.FilterFunc == null) break;
 
@@ -152,7 +152,7 @@ public static class BatchQueryExtension
                             }
 
                             // Call filter func with policy filter compile context
-                            AppSchemaDataFilter? f = await policy.FilterFunc.CallAsync<AppSchemaDataFilter, QueryFilterCompileContext>(context, []);
+                            AppSchemaDataFilter? f = await policy.FilterFunc.CallAsync<AppSchemaDataFilter, QueryFilterCompileContext>(context, []).ConfigureAwait(false);
                             if (f == null) {
                                 isValidFilter = false;
                                 break;
@@ -170,7 +170,7 @@ public static class BatchQueryExtension
                     // CombineProperties filters
                     if (q?.Filter != null)
                     {
-                        var qFilter = await q.Filter.ToAppSchemaDataFilterAsync(context, ((field.ValueType as ArrayType)!.Element as StructType)!, field.Filters);
+                        var qFilter = await q.Filter.ToAppSchemaDataFilterAsync(context, ((field.ValueType as ArrayType)!.Element as StructType)!, field.Filters).ConfigureAwait(false);
                         filter = filter != null && qFilter != null ? filter.AndAlso(qFilter) : (filter ?? qFilter);
                     }
                             
@@ -187,12 +187,12 @@ public static class BatchQueryExtension
                             
                     if (isValidFilter)
                         (result, total) = await context.GetAppFieldDataAsync( field,AppSchemaDataResult.List,
-                            filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy, genDisplayOnly:true);
+                            filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy, genDisplayOnly:true).ConfigureAwait(false);
                 }
                 else
                 {
                     (result, total) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List,
-                        filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy, genDisplayOnly: true);
+                        filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy, genDisplayOnly: true).ConfigureAwait(false);
                 }
 
                 // mark loaded
@@ -225,7 +225,7 @@ public static class BatchQueryExtension
                             bool authorized = true;
                             foreach(string evaluator in field.GetColPolicies(f.Name))
                             {
-                                authorized = await context.AuthorizeAsync(evaluator, true);
+                                authorized = await context.AuthorizeAsync(evaluator, true).ConfigureAwait(false);
                                 if (authorized) break;
                             }
                             if (authorized) continue;
@@ -260,7 +260,7 @@ public static class BatchQueryExtension
                         
                     // scan enum access
                     if (!(query.NoSchema ?? false))
-                        await ScanEnumAccess(context, root, field.ValueType!, enumsKeys, result);
+                        await ScanEnumAccess(context, root, field.ValueType!, enumsKeys, result).ConfigureAwait(false);
                 }
             }
             
@@ -269,7 +269,7 @@ public static class BatchQueryExtension
                 App = query.App,
                 Target = query.Target,
                 Results = fieldResults,
-                Schema = !(query.NoSchema ?? false) ? await node.GetSchemaAsync(context): null
+                Schema = !(query.NoSchema ?? false) ? await node.GetSchemaAsync(context).ConfigureAwait(false): null
             };
             
             /*/ workflow states
@@ -325,7 +325,7 @@ public static class BatchQueryExtension
         {
             case EnumType enumNode:
                 if (value is EnumNode val)
-                    await ScanEnumValueAsync(context, root, enumNode, enumsKeys, val.GetValue<string>());
+                    await ScanEnumValueAsync(context, root, enumNode, enumsKeys, val.GetValue<string>()).ConfigureAwait(false);
                 break;
             case StructType @struct:
                 if (value is StructNode obj)
@@ -333,7 +333,7 @@ public static class BatchQueryExtension
                     foreach (StructFieldType f in @struct.GetFields())
                     {
                         if (obj.GetAccessValue(f.Name) is { IsEmpty: false } v)
-                            await ScanEnumAccess(context, root, f.Type!, enumsKeys, v);
+                            await ScanEnumAccess(context, root, f.Type!, enumsKeys, v).ConfigureAwait(false);
                     }
                 }
                 break;
@@ -348,7 +348,7 @@ public static class BatchQueryExtension
                         foreach (var v in arr)
                         {
                             if (v is StructNode)
-                                await ScanEnumAccess(context, root, eleStruct, enumsKeys, v);
+                                await ScanEnumAccess(context, root, eleStruct, enumsKeys, v).ConfigureAwait(false);
                         }
 
                         break;
@@ -361,12 +361,12 @@ public static class BatchQueryExtension
                             if (eleEnum.Type == EnumValueType.String)
                             {
                                 foreach (string? v in enumArray.GetValue<string[]>() ?? [])
-                                    await ScanEnumValueAsync(context, root, eleEnum, enumsKeys, v);
+                                    await ScanEnumValueAsync(context, root, eleEnum, enumsKeys, v).ConfigureAwait(false);
                             }
                             else
                             {
                                 foreach (long v in enumArray.GetValue<long[]>() ?? [])
-                                    await ScanEnumValueAsync(context, root, eleEnum, enumsKeys, v.ToString());
+                                    await ScanEnumValueAsync(context, root, eleEnum, enumsKeys, v.ToString()).ConfigureAwait(false);
                             }
 
                             break;
@@ -377,7 +377,7 @@ public static class BatchQueryExtension
                         foreach (var v in enumNodes)
                         {
                             if (v is EnumNode)
-                                await ScanEnumAccess(context, root, eleEnum, enumsKeys, v);
+                                await ScanEnumAccess(context, root, eleEnum, enumsKeys, v).ConfigureAwait(false);
                         }
 
                         break;
@@ -392,7 +392,7 @@ public static class BatchQueryExtension
         string key = $"{enumNode.Name}:{value}";
         if (!enumsKeys.Add(key)) return;
 
-        var access = await enumNode.GetEnumEntryAccessAsync(context, value);
+        var access = await enumNode.GetEnumEntryAccessAsync(context, value).ConfigureAwait(false);
         if (access.Length <= 0) return;
 
         string[] paths = enumNode.Name.Split('.', StringSplitOptions.RemoveEmptyEntries);

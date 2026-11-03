@@ -32,7 +32,7 @@ public static class Property
                 string name = propType.GetPropertyName();
                 if (!string.IsNullOrWhiteSpace(name) && nameSet.Add(name))
                 {
-                    var type = await context.GetNodeTypeAsync<PropertyType>(schemaType);
+                    var type = await context.GetNodeTypeAsync<PropertyType>(schemaType).ConfigureAwait(false);
                     if (type != null)
                     {
                         if (type.GetProperty<Static>()?.Value == true) continue;
@@ -66,17 +66,17 @@ public static class Property
                 string name = propType.GetPropertyName();
                 if (property.Equals(name, StringComparison.OrdinalIgnoreCase))
                 {
-                    var type = await context.GetNodeTypeAsync<PropertyType>(schemaType);
+                    var type = await context.GetNodeTypeAsync<PropertyType>(schemaType).ConfigureAwait(false);
                     if (type == null) continue;
                     if (!string.IsNullOrWhiteSpace(ownerType))
                     {
                         var resolver = type.GetProperty<PropertyValueTypeResolver>()?.Value;
                         if (!string.IsNullOrWhiteSpace(resolver))
                         {
-                            var func = await context.GetNodeTypeAsync<FunctionType>(resolver);
+                            var func = await context.GetNodeTypeAsync<FunctionType>(resolver).ConfigureAwait(false);
                             if (func != null)
                             {
-                                var res = await func.CallAsync<string>(context, [ownerType]);
+                                var res = await func.CallAsync<string>(context, [ownerType]).ConfigureAwait(false);
                                 if (!string.IsNullOrWhiteSpace(res)) return res;
                             }
                         }
@@ -93,7 +93,7 @@ public static class Property
     /// </summary>
     public static async Task<bool> isstatic(SchemaContext context, [Meta<SchemaType>(typeof(Schema.PropertyType))] string type)
     {
-        var propertyType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.PropertyType>(type) : null;
+        var propertyType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.PropertyType>(type).ConfigureAwait(false) : null;
         return propertyType?.GetProperty<Static>()?.Value ?? false;
     }
 
@@ -102,7 +102,7 @@ public static class Property
     /// </summary>
     public static async Task<bool> isstackable(SchemaContext context, [Meta<SchemaType>(typeof(Schema.PropertyType))] string type)
     {
-        var propertyType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.PropertyType>(type) : null;
+        var propertyType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.PropertyType>(type).ConfigureAwait(false) : null;
         return propertyType?.GetProperty<Stackable>()?.Value ?? false;
     }
 
@@ -111,7 +111,7 @@ public static class Property
     /// </summary>
     public static async Task<bool> notstatic(SchemaContext context, [Meta<SchemaType>(typeof(Schema.PropertyType))] string type)
     {
-        var propertyType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.PropertyType>(type) : null;
+        var propertyType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.PropertyType>(type).ConfigureAwait(false) : null;
         return !(propertyType?.GetProperty<Static>()?.Value ?? false);
     }
 
@@ -120,7 +120,7 @@ public static class Property
     /// </summary>
     public static async Task<bool> notstackable(SchemaContext context, [Meta<SchemaType>(typeof(Schema.PropertyType))] string type)
     {
-        var propertyType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.PropertyType>(type) : null;
+        var propertyType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.PropertyType>(type).ConfigureAwait(false) : null;
         return !(propertyType?.GetProperty<Stackable>()?.Value ?? false);
     }
     
@@ -129,7 +129,7 @@ public static class Property
     /// </summary>
     public static async Task<bool> forschema(SchemaContext context, [Meta<SchemaType>(typeof(Schema.PropertyType))] string name, [Meta<SchemaType>(typeof(SchemaKind))] params string[] kinds)
     {
-        var prop = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<Runtime.PropertyType>(name) : null;
+        var prop = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<Runtime.PropertyType>(name).ConfigureAwait(false) : null;
         return kinds.Any(kind => prop?.ForSchema(kind) ?? false);
     }
 

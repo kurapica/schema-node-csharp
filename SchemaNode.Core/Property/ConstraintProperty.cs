@@ -164,7 +164,7 @@ public interface IConstraintProperty : IProperty
         if (!HasValue || node.IsEmpty) return null;
         foreach (var item in node)
         {
-            if ((await ValidateAsync(context, item)) == false)
+            if ((await ValidateAsync(context, item).ConfigureAwait(false)) == false)
                 return false;
         }
         return null;

@@ -20,10 +20,10 @@ public class TimeScheduleWorkflow: BaseWorkflow,
     public async Task<JobKey?> ProcessAsync(WorkflowContext context, JobKey? jobKey, TimeSchedule schedule)
     {
         ISchedulerFactory factory = context.GetRequiredService<ISchedulerFactory>();
-        IScheduler scheduler = await factory.GetScheduler();
+        IScheduler scheduler = await factory.GetScheduler().ConfigureAwait(false);
         try
         {
-            if (jobKey != null) await scheduler.DeleteJob(jobKey);
+            if (jobKey != null) await scheduler.DeleteJob(jobKey).ConfigureAwait(false);
         }
         catch
         {
@@ -46,7 +46,7 @@ public class TimeScheduleWorkflow: BaseWorkflow,
                 .StartAt(schedule.Start.Value)
                 .Build();
             
-            await scheduler.ScheduleJob(waitUtilJob, waitUntilTrigger);
+            await scheduler.ScheduleJob(waitUtilJob, waitUntilTrigger).ConfigureAwait(false);
             return waitUtilJob.Key;
         }
         else if (schedule.End is not null && schedule.End <= now.DateTime)
@@ -71,7 +71,7 @@ public class TimeScheduleWorkflow: BaseWorkflow,
             : TriggerBuilder.Create().WithCronSchedule(schedule.Cron)
                 .StartNow()
                 .Build();
-        await scheduler.ScheduleJob(timeJob, timeTrigger);
+        await scheduler.ScheduleJob(timeJob, timeTrigger).ConfigureAwait(false);
         return timeJob.Key;
     }
     
@@ -80,8 +80,8 @@ public class TimeScheduleWorkflow: BaseWorkflow,
     {
         if (session == null) return;
         ISchedulerFactory factory = context.GetRequiredService<ISchedulerFactory>();
-        IScheduler scheduler = await factory.GetScheduler();
-        await scheduler.DeleteJob(session);
+        IScheduler scheduler = await factory.GetScheduler().ConfigureAwait(false);
+        await scheduler.DeleteJob(session).ConfigureAwait(false);
     }
     
     /// <summary>
@@ -92,8 +92,8 @@ public class TimeScheduleWorkflow: BaseWorkflow,
         public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             ScheduleJobData job = (ScheduleJobData)context.JobDetail.JobDataMap["schedule"]!;
-            await context.Scheduler.DeleteJob(context.JobDetail.Key);
-            await job.Workflow.ProcessAsync(job.Context, context.JobDetail.Key, job.Schedule);
+            await context.Scheduler.DeleteJob(context.JobDetail.Key).ConfigureAwait(false);
+            await job.Workflow.ProcessAsync(job.Context, context.JobDetail.Key, job.Schedule).ConfigureAwait(false);
         }
     }
     
@@ -107,7 +107,7 @@ public class TimeScheduleWorkflow: BaseWorkflow,
             ScheduleJobData job = (ScheduleJobData)context.JobDetail.JobDataMap["schedule"]!;
             if (!job.Workflow.Fork || job.Schedule.End is not null && job.Schedule.End <= DateTimeOffset.UtcNow.DateTime)
             {
-                await context.Scheduler.DeleteJob(context.JobDetail.Key);
+                await context.Scheduler.DeleteJob(context.JobDetail.Key).ConfigureAwait(false);
                 job.Context.Terminate(job.Workflow); // terminate the workflow
             }
             else

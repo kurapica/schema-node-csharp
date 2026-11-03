@@ -59,7 +59,7 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
         Args = call.Args;
         
         // load & check
-        FuncType = !string.IsNullOrWhiteSpace(Func) ? await context.GetNodeTypeAsync<FunctionType>(Func): null;
+        FuncType = !string.IsNullOrWhiteSpace(Func) ? await context.GetNodeTypeAsync<FunctionType>(Func).ConfigureAwait(false): null;
         Error = FuncType == null ? ErrorCodes.RELATION_FUNC_NOT_EXIST : null;
         
         // check args
@@ -108,10 +108,10 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
             {
                 args[i] = owner.GetAccessValue(a.Source, target);
                 if (args[i] is DataNode node)
-                    await node.LoadDefaultAsync(context);
+                    await node.LoadDefaultAsync(context).ConfigureAwait(false);
             }
         }
-        return await FuncType.CallAsync<object?>(context, args, mode: Mode);
+        return await FuncType.CallAsync<object?>(context, args, mode: Mode).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -123,8 +123,8 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
         {
             try
             {
-                await Task.Delay(10);
-                await relation.ProcessAsync(owner, target);
+                await Task.Delay(10).ConfigureAwait(false);
+                await relation.ProcessAsync(owner, target).ConfigureAwait(false);
             }
             catch
             {

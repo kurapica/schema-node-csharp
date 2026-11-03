@@ -32,13 +32,13 @@ public class RowAuths : Property<RowPolicy[]>, ILoadableProperty, IErrorProvider
         
         foreach (RowPolicy item in Value)
         {
-            item.EvaluatorFunc = await context.GetNodeTypeAsync<FunctionType>(item.Evaluator);
+            item.EvaluatorFunc = await context.GetNodeTypeAsync<FunctionType>(item.Evaluator).ConfigureAwait(false);
             if (item.EvaluatorFunc == null || item.EvaluatorFunc.Args.Length != 0 || !item.EvaluatorFunc.Return.IsAssignableTo(context.System.Bool))
             {
                 Error ??= AppErrorCodes.APP_ROW_AUTH_EVALUATOR_NOT_VALID;
                 continue;
             }
-            item.FilterFunc = await  context.GetNodeTypeAsync<FunctionType>(item.Filter);
+            item.FilterFunc = await  context.GetNodeTypeAsync<FunctionType>(item.Filter).ConfigureAwait(false);
             if (item.FilterFunc is { Args.Length: 1 } && item.FilterFunc.Return.IsAssignableTo(context.System.Bool) && 
                 (ownerType == null || (item.FilterFunc.Args[0].ValueType != null && item.FilterFunc.Args[0].ValueType!.IsAssignableTo(ownerType)))) continue;
             Error ??= AppErrorCodes.APP_ROW_AUTH_FILTER_NOT_VALID;

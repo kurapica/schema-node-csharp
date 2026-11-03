@@ -48,7 +48,7 @@ public class Filters : Property<FieldFilter[]>, ILoadableProperty, IErrorProvide
         {
             if (filter.Mode == FieldFilterMode.Filter)
             {
-                filter.FilterFunction = string.IsNullOrWhiteSpace(filter.FilterFunc) ? null : await context.GetNodeTypeAsync<FunctionType>(filter.FilterFunc);
+                filter.FilterFunction = string.IsNullOrWhiteSpace(filter.FilterFunc) ? null : await context.GetNodeTypeAsync<FunctionType>(filter.FilterFunc).ConfigureAwait(false);
                 if (filter.FilterFunction == null ||
                     filter.FilterFunction.Args.Length < 2 ||
                     filter.FilterFunction.Args[0].ValueType == null ||

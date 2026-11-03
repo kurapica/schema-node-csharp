@@ -67,7 +67,7 @@ public static class Service
             app.MapPost(url, async (HttpContext ctx) =>
             {
                 Task<IResult> res = (Task<IResult>)task.Invoke(null, [ctx])!;
-                return await res;
+                return await res.ConfigureAwait(false);
             });
             Console.WriteLine($"<{apiType.Api.Name}> is now listening.");
         }
@@ -85,11 +85,11 @@ public static class Service
                     // authorization
                     if (authorize is not null)
                     {
-                        var ok = await authorize(context);
+                        var ok = await authorize(context).ConfigureAwait(false);
                         if (!ok)
                         {
                             context.Response.StatusCode = 403;
-                            await context.Response.WriteAsync("Forbidden");
+                            await context.Response.WriteAsync("Forbidden").ConfigureAwait(false);
                             return;
                         }
                     }
@@ -97,7 +97,7 @@ public static class Service
                     // add embedded meta
                     await using var stream = manProvider.GetFileInfo("index.html").CreateReadStream();
                     using var reader = new StreamReader(stream);
-                    var html = await reader.ReadToEndAsync();
+                    var html = await reader.ReadToEndAsync().ConfigureAwait(false);
 
                     // add <head> meta tag
                     html = html.Replace("</head>", string.Join("", [
@@ -107,7 +107,7 @@ public static class Service
                     ]));
 
                     context.Response.ContentType = "text/html";
-                    await context.Response.WriteAsync(html);
+                    await context.Response.WriteAsync(html).ConfigureAwait(false);
                 });
 
                 // add authorization policy
@@ -135,7 +135,7 @@ public static class Service
         where TResponse : SchemaApiResponse
     {
         var protocol = ctx.RequestServices.GetRequiredService<ISchemaApiProtocol>();
-        return await protocol.ProcessAsync<TApi, TRequest, TResponse>(ctx);
+        return await protocol.ProcessAsync<TApi, TRequest, TResponse>(ctx).ConfigureAwait(false);
     }
 
     static async Task<IResult> ProcessDefaultSchemaApiAsync<TApi, TRequest, TResponse>(HttpContext ctx)
@@ -144,7 +144,7 @@ public static class Service
         where TResponse : SchemaApiResponse
     {
         ISchemaApiProtocol protocol = new DefaultSchemaApiProtocol();
-        return await protocol.ProcessAsync<TApi, TRequest, TResponse>(ctx);
+        return await protocol.ProcessAsync<TApi, TRequest, TResponse>(ctx).ConfigureAwait(false);
     }
 
     /// <summary>

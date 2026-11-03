@@ -29,7 +29,7 @@ public class PropertyType : NodeType
     {
         _property = GetProperty<PropertyProperty>()?.Value;
         ValueType = !string.IsNullOrWhiteSpace(_property?.Type) 
-            ? await context.GetNodeTypeAsync<ValueType>(_property.Type)
+            ? await context.GetNodeTypeAsync<ValueType>(_property.Type).ConfigureAwait(false)
             : null;
         if (ValueType == null)
             Error = ErrorCodes.NO_DEFINITION;

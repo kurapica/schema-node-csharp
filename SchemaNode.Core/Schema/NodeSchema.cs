@@ -192,7 +192,7 @@ internal static class NodeSchemaExtensions
         {
             if (prop is ILoadableProperty loadableProp)
             {
-                await loadableProp.LoadAsync(context, ownerType);
+                await loadableProp.LoadAsync(context, ownerType).ConfigureAwait(false);
                 if (prop is IErrorProvider err)
                     error ??= err.Error;
             }
@@ -201,7 +201,7 @@ internal static class NodeSchemaExtensions
             {
                 foreach (string name in refProp.GetRefTypes())
                 {
-                    var node = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync(name) : null;
+                    var node = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync(name).ConfigureAwait(false) : null;
                     if (node != null)
                     {
                         refTypes.Add(node);

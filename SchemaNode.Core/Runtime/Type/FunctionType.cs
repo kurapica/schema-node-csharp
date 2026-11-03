@@ -119,7 +119,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
 
         // Return type
         ValueType? retType = !string.IsNullOrWhiteSpace(func.Return)
-            ? await context.GetNodeTypeAsync<ValueType>(func.Return, Generics, GenericParams)
+            ? await context.GetNodeTypeAsync<ValueType>(func.Return, Generics, GenericParams).ConfigureAwait(false)
             : null;
         if (retType == null || retType is GenericType && !IsSystemCall)
         {
@@ -150,7 +150,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                 return;
             }
 
-            arg.ValueType = !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetNodeTypeAsync<ValueType>(arg.Type, Generics) : null;
+            arg.ValueType = !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetNodeTypeAsync<ValueType>(arg.Type, Generics).ConfigureAwait(false) : null;
 
             if (arg.ValueType == null || arg.ValueType is GenericType && !IsSystemCall)
             {
@@ -170,14 +170,14 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
 
                 // Gets the property type
                 var kind = (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(currentType.Kind);
-                PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_FUNC_ARG);
+                PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_FUNC_ARG).ConfigureAwait(false);
                 if (prop == null) continue;
 
                 // Only work for constraint properties
                 Type? propType = prop.GetCsharpType();
                 if (propType == null) continue;
 
-                var relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_FUNC_ARG);
+                var relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_FUNC_ARG).ConfigureAwait(false);
                 Error ??= relationType.Error;
 
                 _relations ??= [];
@@ -399,7 +399,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
         try
         {
             Error = null;
-            return await context.VisitFunctionTypeAsync(this);
+            return await context.VisitFunctionTypeAsync(this).ConfigureAwait(false);
         }
         catch(FunctionVisitException fex)
         {
@@ -457,7 +457,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
         }
         
         // Compile dynamic method
-        funcInfo.DynamicMethod = await context.CompileFunctionTypeAsync(this) ?? throw new Exception($"The function {Name} dynamic method compile failed");
+        funcInfo.DynamicMethod = await context.CompileFunctionTypeAsync(this).ConfigureAwait(false) ?? throw new Exception($"The function {Name} dynamic method compile failed");
         funcInfo.Method = funcInfo.DynamicMethod.Method;
         
         // Compile
@@ -482,7 +482,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
             return v is DBNull ? null : v;
 
         // Argument validation
-        SchemaFuncInfo funcInfo = await GetSchemaFuncInfoAsync(context) ?? throw new Exception($"Function {Name} can't be complied");
+        SchemaFuncInfo funcInfo = await GetSchemaFuncInfoAsync(context).ConfigureAwait(false) ?? throw new Exception($"Function {Name} can't be complied");
         
         // Generic types
         Type?[] generics = new Type?[funcInfo.Generics.Length];
@@ -522,7 +522,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
         // parse return type
         if (!string.IsNullOrWhiteSpace(rType) && funcInfo.Return.IsGenericParameter)
         {
-            Type? rCsharpType = (await context.GetNodeTypeAsync(rType))?.GetCsharpType();
+            Type? rCsharpType = (await context.GetNodeTypeAsync(rType).ConfigureAwait(false))?.GetCsharpType();
             if (rCsharpType != null) GetArgType(funcInfo.Return, rCsharpType);
         }
         
@@ -703,7 +703,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
 
             // ReSharper disable once SuspiciousTypeConversion.Global
             result = Provider != null && Provider.IsAssignableTo(typeof(IFunctionSchemaProvider))
-                ? await (context.GetRequiredService(Provider) as IFunctionSchemaProvider)!.CallFunctionAsync(Name, cArgs, rType, mode)
+                ? await (context.GetRequiredService(Provider) as IFunctionSchemaProvider)!.CallFunctionAsync(Name, cArgs, rType, mode).ConfigureAwait(false)
                 : null;
         }
         else
@@ -712,7 +712,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
             int arrayIdx = -1;
 
             // Argument validation
-            FunctionTypeSchema funcSchema = await context.VisitFunctionTypeAsync<TC>(this);
+            FunctionTypeSchema funcSchema = await context.VisitFunctionTypeAsync<TC>(this).ConfigureAwait(false);
             
             // parse parameters
             int cnt = Math.Max(funcSchema.Args.Length, args.Length);
@@ -840,7 +840,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
             }
 
             Delegate? method = !IsSystemCall 
-                ? await context.CompileFunctionTypeAsync<TC>(this) ?? throw new Exception($"The function {Name} dynamic method compile failed") 
+                ? await context.CompileFunctionTypeAsync<TC>(this).ConfigureAwait(false) ?? throw new Exception($"The function {Name} dynamic method compile failed") 
                 : null;
 
             // Call
@@ -848,7 +848,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
             {
                 if (!isCall)
                 {
-                    var returnType = !string.IsNullOrWhiteSpace(rType) ? await context.GetNodeTypeAsync<ValueType>(rType) : null;
+                    var returnType = !string.IsNullOrWhiteSpace(rType) ? await context.GetNodeTypeAsync<ValueType>(rType).ConfigureAwait(false) : null;
                     switch (mode)
                     {
                         case ApplyMode.Map:
@@ -867,7 +867,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                 
                 if (mode == ApplyMode.Call)
                 {
-                    result = await getResult();
+                    result = await getResult().ConfigureAwait(false);
                 }
                 else if (arrayIdx >= 1)
                 {
@@ -880,7 +880,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                             foreach (var t in col)
                             {
                                 callArgs[arrayIdx] = t;
-                                object? m = await getResult();
+                                object? m = await getResult().ConfigureAwait(false);
                                 if (m != null) results.Add(m);
                             }
 
@@ -889,7 +889,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                                 if (results[0] is IValueAccess n)
                                 {
                                     var arrayNode =
-                                        ((await context.GetArrayNodeTypeAsync(n.Type))!.Create(context) as ArrayNode)!;
+                                        ((await context.GetArrayNodeTypeAsync(n.Type).ConfigureAwait(false))!.Create(context) as ArrayNode)!;
                                     arrayNode.AddRange(results);
                                     result = arrayNode;
                                 }
@@ -913,7 +913,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                             foreach (var t in col)
                             {
                                 callArgs[arrayIdx] = t;
-                                object? v = await getResult();
+                                object? v = await getResult().ConfigureAwait(false);
                                 if (v is bool and true || v is BoolNode bn && bn.GetValue<bool>())
                                     results.Add(t);
                             }
@@ -923,7 +923,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                                 if (results[0] is IValueAccess n)
                                 {
                                     var arrayNode =
-                                        ((await context.GetArrayNodeTypeAsync(n.Type))!.Create(context) as ArrayNode)!;
+                                        ((await context.GetArrayNodeTypeAsync(n.Type).ConfigureAwait(false))!.Create(context) as ArrayNode)!;
                                     arrayNode.AddRange(results);
                                     result = arrayNode;
                                 }
@@ -952,7 +952,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                             for (int i = startIndex; i < col.Length; i++)
                             {
                                 callArgs[arrayIdx] = col[i];
-                                object? m = await getResult();
+                                object? m = await getResult().ConfigureAwait(false);
                                 if (m != null) callArgs[reduceIdx] = m;
                             }
 
@@ -965,7 +965,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                             foreach (object c in col)
                             {
                                 callArgs[arrayIdx] = c;
-                                object? v = await getResult();
+                                object? v = await getResult().ConfigureAwait(false);
                                 if (v is bool and true || v is BoolNode bn && bn.GetValue<bool>())
                                 {
                                     result = c;
@@ -980,7 +980,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                             for(int i = col.Length - 1; i >= 0; i--)
                             {
                                 callArgs[arrayIdx] = col[i];
-                                object? v = await getResult();
+                                object? v = await getResult().ConfigureAwait(false);
                                 if (v is bool and true || v is BoolNode bn && bn.GetValue<bool>())
                                 {
                                     result = col[i];
@@ -996,7 +996,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                             foreach(var c in col)
                             {
                                 callArgs[arrayIdx] = c;
-                                object? v = await getResult();
+                                object? v = await getResult().ConfigureAwait(false);
                                 if (v is bool and true || v is BoolNode bn && bn.GetValue<bool>())
                                     count++;
                             }
@@ -1010,7 +1010,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                             foreach(var c in col)
                             {
                                 callArgs[arrayIdx] = c;
-                                object? v = await getResult();
+                                object? v = await getResult().ConfigureAwait(false);
                                 if (!(v is bool and true || v is BoolNode bn && bn.GetValue<bool>()))
                                 {
                                     all = false;
@@ -1027,7 +1027,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                             foreach(var c in col)
                             {
                                 callArgs[arrayIdx] = c;
-                                object? v = await getResult();
+                                object? v = await getResult().ConfigureAwait(false);
                                 if (v is bool and true || v is BoolNode bn && bn.GetValue<bool>())
                                 {
                                     any = true;
@@ -1051,7 +1051,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
 
             async Task<object?> getResult()
             {
-                if (IsSystemCall) return await CallSystemFuncAsync(context, callArgs, rType);
+                if (IsSystemCall) return await CallSystemFuncAsync(context, callArgs, rType).ConfigureAwait(false);
                 return method!.DynamicInvoke(callArgs);
             }
         }
@@ -1061,7 +1061,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
         if (result is T r) return r;
         if (typeof(T).IsAssignableTo(typeof(IValueAccess)))
         {
-            return await context.GetSchemaNodeAsync(result) is T rNode ? rNode : default(T?);
+            return await context.GetSchemaNodeAsync(result).ConfigureAwait(false) is T rNode ? rNode : default(T?);
         }
         return result.TryConvertTo<T>(out var f) ? f : default(T?);
     }
@@ -1303,7 +1303,7 @@ public static class FunctionTypeExtensions
     public static async Task<T?> CallFunctionAsync<T, TC>(this SchemaContext context, string name, object?[] args, string? rType = null, ApplyMode mode = ApplyMode.Call)
         where TC: CompileContext
     {
-        FunctionType node = await context.GetNodeTypeAsync<FunctionType>(name) ?? throw new Exception($"Function {name} not found");
-        return await node.CallAsync<T, TC>(context, args, rType, mode);
+        FunctionType node = await context.GetNodeTypeAsync<FunctionType>(name).ConfigureAwait(false) ?? throw new Exception($"Function {name} not found");
+        return await node.CallAsync<T, TC>(context, args, rType, mode).ConfigureAwait(false);
     }
 }

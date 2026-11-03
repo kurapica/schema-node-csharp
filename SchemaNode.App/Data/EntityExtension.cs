@@ -21,7 +21,7 @@ public static class EntityExtension
     /// </summary>
     public static async Task<T?> GetEntityAsync<T>(this SchemaContext context, string? target, params object[] keys)
     {
-        AppFieldType appFieldType = await context.AssertAppField<T>();
+        AppFieldType appFieldType = await context.AssertAppField<T>().ConfigureAwait(false);
         if (appFieldType.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrEmpty(target))
             return default;
         
@@ -44,7 +44,7 @@ public static class EntityExtension
         }
         
         using var _ = context.StackAccess(appFieldType.App, target);
-        var (value, _) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.First, filter, genDisplayOnly: true);
+        var (value, _) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.First, filter, genDisplayOnly: true).ConfigureAwait(false);
         return value != null ? value.GetValue<T>() : default;
     }
 
@@ -53,7 +53,7 @@ public static class EntityExtension
     /// </summary>
     public static async Task<T?> GetEntityAsync<T>(this SchemaContext context, string target, Expression<Func<T, bool>> cond, bool forUpdate = false)
     {
-        AppFieldType appFieldType = await context.AssertAppField<T>();
+        AppFieldType appFieldType = await context.AssertAppField<T>().ConfigureAwait(false);
         if (appFieldType.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrEmpty(target))
             return default;
         
@@ -61,7 +61,7 @@ public static class EntityExtension
         AppSchemaDataFilter filter = AppSchemaDataFilterVisitor.Build(cond);
        
         using var stack = context.StackAccess(appFieldType.App, target);
-        var (value, _) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.First, filter, forUpdate: forUpdate, genDisplayOnly: !forUpdate);
+        var (value, _) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.First, filter, forUpdate: forUpdate, genDisplayOnly: !forUpdate).ConfigureAwait(false);
         return value != null ? value.GetValue<T>() : default;
     }
     
@@ -76,7 +76,7 @@ public static class EntityExtension
     /// </summary>
     public static async Task<List<T>> GetEntitiesAsync<T>(this SchemaContext context, string target, Expression<Func<T, bool>> cond, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
     {
-        AppFieldType appFieldType = await context.AssertAppField<T>();
+        AppFieldType appFieldType = await context.AssertAppField<T>().ConfigureAwait(false);
         if (appFieldType.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrEmpty(target))
             return [];
         
@@ -84,7 +84,7 @@ public static class EntityExtension
         using var stack = context.StackAccess(appFieldType.App, target);
         
         var (value, _) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.List, filter,
-            skip, take, desc, orderBy, forUpdate: forUpdate, genDisplayOnly: !forUpdate);
+            skip, take, desc, orderBy, forUpdate: forUpdate, genDisplayOnly: !forUpdate).ConfigureAwait(false);
         return value is ArrayNode arr ? arr.Select(o => o.GetValue<T>()!).ToList() : [];
     }
     
@@ -99,7 +99,7 @@ public static class EntityExtension
     /// </summary>
     public static async Task<(List<T>, int)> GetEntitiesWithTotalAsync<T>(this SchemaContext context, string target, Expression<Func<T, bool>> cond, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
     {
-        AppFieldType appFieldType = await context.AssertAppField<T>();
+        AppFieldType appFieldType = await context.AssertAppField<T>().ConfigureAwait(false);
         if (appFieldType.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrEmpty(target))
             return ([], 0);
         
@@ -107,7 +107,7 @@ public static class EntityExtension
         using var stack = context.StackAccess(appFieldType.App, target);
         
         var (value, total) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.List, filter,
-            skip, take, desc, orderBy, forUpdate: forUpdate, genDisplayOnly: !forUpdate);
+            skip, take, desc, orderBy, forUpdate: forUpdate, genDisplayOnly: !forUpdate).ConfigureAwait(false);
         return (value is ArrayNode arr ? arr.Select(o => o.GetValue<T>()!).ToList() : [], total);
     }
     
@@ -126,15 +126,15 @@ public static class EntityExtension
     /// </summary>
     public static async Task<bool> DeleteEntityAsync<T>(this SchemaContext context, string target, T value)
     {
-        AppFieldType appFieldType = await context.AssertAppField<T>();
+        AppFieldType appFieldType = await context.AssertAppField<T>().ConfigureAwait(false);
         if (appFieldType.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrWhiteSpace(target))
             throw new ArgumentException($"The target is required for app field of type {typeof(T).FullName}");
         
         using var _ = context.StackAccess(appFieldType.App, target);
-        if (!appFieldType.GetPrimaryProperties().Any())  return await context.SaveFieldDataAsync(appFieldType, null);
+        if (!appFieldType.GetPrimaryProperties().Any())  return await context.SaveFieldDataAsync(appFieldType, null).ConfigureAwait(false);
 
         var node = (appFieldType.ValueType as ArrayType)?.Element?.Create(context, value) ?? throw new ArgumentException($"The value of type {typeof(T).FullName} is invalid for delete");
-        return await context.DeleteFieldListDataAsync(appFieldType, node);
+        return await context.DeleteFieldListDataAsync(appFieldType, node).ConfigureAwait(false);
     }
     /// <summary>
     /// Delete entity data
@@ -146,14 +146,14 @@ public static class EntityExtension
     /// </summary>
     public static async Task<bool> DeleteEntityAsync<T>(this SchemaContext context, string? target, params object[] keys)
     {
-        AppFieldType appFieldType = await context.AssertAppField<T>();
+        AppFieldType appFieldType = await context.AssertAppField<T>().ConfigureAwait(false);
         if (appFieldType.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrWhiteSpace(target))
             throw new ArgumentException($"The target is required for app field of type {typeof(T).FullName}");
         
         using var _ = context.StackAccess(appFieldType.App, target);
         IReadOnlyList<PropertyInfo> primaries = appFieldType.GetPrimaryProperties();
         if (primaries.Count == 0)
-            return await context.SaveFieldDataAsync(appFieldType, null);
+            return await context.SaveFieldDataAsync(appFieldType, null).ConfigureAwait(false);
 
         if (keys.Length != primaries.Count)
             throw new ArgumentException($"The type {typeof(T).FullName} primary key count not contains");
@@ -170,7 +170,7 @@ public static class EntityExtension
         }
 
         if (filter == null) throw new ArgumentException($"The type {typeof(T).FullName} primary key is invalid");
-        return await context.DeleteFieldListDataAsync(appFieldType, filter);
+        return await context.DeleteFieldListDataAsync(appFieldType, filter).ConfigureAwait(false);
     }
     
     /// <summary>
@@ -178,7 +178,7 @@ public static class EntityExtension
     /// </summary>
     public static async Task<bool> DeleteEntitiesAsync<T>(this SchemaContext context, string target, List<T> value)
     {
-        AppFieldType appFieldType = await context.AssertAppField<T>();
+        AppFieldType appFieldType = await context.AssertAppField<T>().ConfigureAwait(false);
         var primaries = appFieldType.GetPrimaryProperties();
         if (primaries == null) throw new ArgumentException($"The app field of type {typeof(T).FullName} only support single value");
         if (appFieldType.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrWhiteSpace(target))
@@ -193,7 +193,7 @@ public static class EntityExtension
             array.Add(node);
         }
 
-        return await context.DeleteFieldListDataAsync(appFieldType, array);
+        return await context.DeleteFieldListDataAsync(appFieldType, array).ConfigureAwait(false);
     }
     
     /// <summary>
@@ -205,13 +205,13 @@ public static class EntityExtension
     /// Delete entity data
     /// </summary>
     public static async Task<bool> DeleteEntitiesAsync<T>(this SchemaContext context, string target, Expression<Func<T, bool>> cond)
-        => await context.DeleteFieldEntityAsync(await context.AssertAppField<T>(), target, cond);
-    
+        => await context.DeleteFieldEntityAsync(await context.AssertAppField<T>().ConfigureAwait(false), target, cond).ConfigureAwait(false);
+
     /// <summary>
     /// Delete entity data
     /// </summary>
     public static async Task<bool> DeleteEntitiesAsync<T>(this SchemaContext context, Expression<Func<T, bool>> cond)
-        => await context.DeleteFieldEntityAsync(await context.AssertAppField<T>(), string.Empty, cond);
+        => await context.DeleteFieldEntityAsync(await context.AssertAppField<T>().ConfigureAwait(false), string.Empty, cond).ConfigureAwait(false);
 
     /// <summary>
     /// Delete entity data
@@ -223,7 +223,7 @@ public static class EntityExtension
             throw new ArgumentException($"The target is required for app field of type {typeof(T).FullName}");
         using var _ = context.StackAccess(field.App, target);
         var node = (field.ValueType as ArrayType)?.Element?.Create(context, value) ?? throw new ArgumentException($"The value of type {typeof(T).FullName} is invalid for delete");
-        return await context.DeleteFieldListDataAsync(field, node);
+        return await context.DeleteFieldListDataAsync(field, node).ConfigureAwait(false);
     }
     
     /// <summary>
@@ -248,7 +248,7 @@ public static class EntityExtension
             var node = (field.ValueType as ArrayType)?.Element?.Create(context, valueItem) ?? throw new ArgumentException($"The value of type {typeof(T).FullName} is invalid for delete");
             array.Add(node);
         }
-        return await context.DeleteFieldListDataAsync(field, array);
+        return await context.DeleteFieldListDataAsync(field, array).ConfigureAwait(false);
     }
     /// <summary>
     /// Delete entity data
@@ -285,14 +285,14 @@ public static class EntityExtension
     /// </summary>
     public static async Task<bool> SaveEntityAsync<T>(this SchemaContext context, string target, T value)
     {
-        AppFieldType appFieldType = await context.AssertAppField<T>();
+        AppFieldType appFieldType = await context.AssertAppField<T>().ConfigureAwait(false);
         if (appFieldType.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrWhiteSpace(target))
             throw new ArgumentException($"The target is required for app field of type {typeof(T).FullName}");
         
         using var stack = context.StackAccess(appFieldType.App, target);
-        return await context.SaveFieldDataAsync(appFieldType, appFieldType.ValueType!.Create(context, value));
+        return await context.SaveFieldDataAsync(appFieldType, appFieldType.ValueType!.Create(context, value)).ConfigureAwait(false);
     }
-    
+
     /// <summary>
     /// Save entity data
     /// </summary>
@@ -303,14 +303,14 @@ public static class EntityExtension
     /// </summary>
     public static async Task<bool> SaveEntitiesAsync<T>(this SchemaContext context, string target, List<T> values)
     {
-        AppFieldType appFieldType = await context.AssertAppField<T>();
+        AppFieldType appFieldType = await context.AssertAppField<T>().ConfigureAwait(false);
         var primaries = appFieldType.GetPrimaryProperties();
         if (primaries == null) throw new ArgumentException($"The app field of {typeof(T).FullName} only support single value");
         if (appFieldType.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrWhiteSpace(target))
             throw new ArgumentException($"The target is required for app field of type {typeof(T).FullName}");
         
         using var _ = context.StackAccess(appFieldType.App, target);
-        return await context.SaveFieldDataAsync(appFieldType, appFieldType.ValueType!.Create(context, values));
+        return await context.SaveFieldDataAsync(appFieldType, appFieldType.ValueType!.Create(context, values)).ConfigureAwait(false);
     }
     
     /// <summary>

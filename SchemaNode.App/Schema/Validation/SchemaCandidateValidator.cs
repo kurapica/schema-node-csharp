@@ -89,7 +89,7 @@ public static class SchemaCandidateValidator
         NormalizeTypeAliases(normalized, 0);
         NormalizeFlattenedDefinitions(normalized, 0);
 
-        await ValidateCoreAsync(context, normalized, expectedName, checkAuthorization, result, 0, cancellationToken);
+        await ValidateCoreAsync(context, normalized, expectedName, checkAuthorization, result, 0, cancellationToken).ConfigureAwait(false);
         return result;
     }
 
@@ -379,19 +379,19 @@ public static class SchemaCandidateValidator
         // 2. Identity checks.
         ValidateIdentity(context, schema, expectedName, result);
         if (result.Errors.Count == 0)
-            await ValidateNamespaceAsync(context, schema, result);
+            await ValidateNamespaceAsync(context, schema, result).ConfigureAwait(false);
 
         // 3. Structural validation against system.schema.node.schema (kind enum, field types).
         try
         {
-            var metaType = await context.GetNodeTypeAsync<RuntimeValueType>(NodeSchemaTypeName);
+            var metaType = await context.GetNodeTypeAsync<RuntimeValueType>(NodeSchemaTypeName).ConfigureAwait(false);
             if (metaType == null)
             {
                 result.AddError(SchemaValidationErrorCodes.StructureInvalid, $"The schema type '{NodeSchemaTypeName}' is not available.");
             }
             else
             {
-                var value = await metaType.ValidateValueAsync(context, root);
+                var value = await metaType.ValidateValueAsync(context, root).ConfigureAwait(false);
                 if (value == null)
                     result.AddError(SchemaValidationErrorCodes.StructureInvalid, "The candidate schema does not match the node schema structure.");
                 else if (!value.IsValid && value.Violated is { } violated)
@@ -411,16 +411,16 @@ public static class SchemaCandidateValidator
         switch (schema.Kind.ToLowerInvariant())
         {
             case NODE_KIND_STRUCT:
-                await ValidateStructAsync(context, root, genericNames, result, cancellationToken);
+                await ValidateStructAsync(context, root, genericNames, result, cancellationToken).ConfigureAwait(false);
                 break;
             case NODE_KIND_ENUM:
                 ValidateEnum(root, result);
                 break;
             case NODE_KIND_ARRAY:
-                await ValidateArrayAsync(context, root, genericNames, result, cancellationToken);
+                await ValidateArrayAsync(context, root, genericNames, result, cancellationToken).ConfigureAwait(false);
                 break;
             case NODE_KIND_FUNCTION:
-                await ValidateFunctionAsync(context, root, genericNames, result, cancellationToken);
+                await ValidateFunctionAsync(context, root, genericNames, result, cancellationToken).ConfigureAwait(false);
                 break;
             case NODE_KIND_NAMESPACE:
                 // namespace sub schemas are validated recursively below
@@ -451,7 +451,7 @@ public static class SchemaCandidateValidator
 
         // Reject references to functions that do not exist (valid, entrySource, default, ...).
         if (result.Errors.Count == 0)
-            await ValidateFunctionReferencesAsync(context, root, string.Empty, genericNames, result, 0, cancellationToken);
+            await ValidateFunctionReferencesAsync(context, root, string.Empty, genericNames, result, 0, cancellationToken).ConfigureAwait(false);
 
         // 6. Namespace sub schemas.
         if (schema.Kind.Equals(NODE_KIND_NAMESPACE, StringComparison.OrdinalIgnoreCase)
@@ -460,13 +460,13 @@ public static class SchemaCandidateValidator
             foreach (var subSchema in schemas)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                await ValidateCoreAsync(context, subSchema, null, false, result, depth + 1, cancellationToken);
+                await ValidateCoreAsync(context, subSchema, null, false, result, depth + 1, cancellationToken).ConfigureAwait(false);
             }
         }
 
         // 7. Authorization is checked last so malformed candidates do not reach the policy system.
         if (checkAuthorization && result.Errors.Count == 0)
-            await CheckAuthorizationAsync(context, schema, result);
+            await CheckAuthorizationAsync(context, schema, result).ConfigureAwait(false);
 
         // 8. Normalized representation used by the response protocol and the frontend apply step.
         try
@@ -548,7 +548,7 @@ public static class SchemaCandidateValidator
     {
         if (string.IsNullOrWhiteSpace(schema.Namespace)) return;
 
-        NodeType? namespaceType = await TryGetNodeTypeAsync(context, schema.Namespace);
+        NodeType? namespaceType = await TryGetNodeTypeAsync(context, schema.Namespace).ConfigureAwait(false);
         if (namespaceType is not RuntimeNamespaceType)
         {
             result.AddError(
@@ -562,11 +562,11 @@ public static class SchemaCandidateValidator
     {
         try
         {
-            NodeType? existing = await context.GetNodeTypeAsync(schema.FullName);
+            NodeType? existing = await context.GetNodeTypeAsync(schema.FullName).ConfigureAwait(false);
             if (existing != null)
             {
                 // Enforce the same authorization as SaveSchemaAsync for an update.
-                await context.AuthorizeAsync(existing, PolicyScope.SchemaUpdate);
+                await context.AuthorizeAsync(existing, PolicyScope.SchemaUpdate).ConfigureAwait(false);
                 result.Operation = OperationUpdate;
                 return;
             }
@@ -575,12 +575,12 @@ public static class SchemaCandidateValidator
             // existing parent namespace must allow SchemaCreate.
             string name = schema.Namespace ?? string.Empty;
             NodeType? parent = null;
-            while (!string.IsNullOrWhiteSpace(name) && (parent = await context.GetNodeTypeAsync(name)) == null)
+            while (!string.IsNullOrWhiteSpace(name) && (parent = await context.GetNodeTypeAsync(name).ConfigureAwait(false)) == null)
                 name = name.GetNamespace();
 
             parent ??= (context.Runtime as SchemaRuntime)?.RootNamespace;
             if (parent != null)
-                await context.AuthorizeAsync(parent, PolicyScope.SchemaCreate);
+                await context.AuthorizeAsync(parent, PolicyScope.SchemaCreate).ConfigureAwait(false);
 
             result.Operation = OperationCreate;
         }
@@ -643,7 +643,7 @@ public static class SchemaCandidateValidator
             if (string.IsNullOrWhiteSpace(type))
                 result.AddError(SchemaValidationErrorCodes.InvalidDefinition, "The struct field type is required.", $"{path}.type");
             else
-                await RequireValueTypeAsync(context, type, genericNames, $"{path}.type", "struct field", result);
+                await RequireValueTypeAsync(context, type, genericNames, $"{path}.type", "struct field", result).ConfigureAwait(false);
         }
     }
 
@@ -710,7 +710,7 @@ public static class SchemaCandidateValidator
             return;
         }
 
-        var elementType = await RequireValueTypeAsync(context, element, genericNames, "array.element", "array element", result);
+        var elementType = await RequireValueTypeAsync(context, element, genericNames, "array.element", "array element", result).ConfigureAwait(false);
         if (elementType is RuntimeArrayType)
             result.AddError(SchemaValidationErrorCodes.InvalidDefinition, "An array element type cannot be an array.", "array.element");
     }
@@ -732,7 +732,7 @@ public static class SchemaCandidateValidator
         if (string.IsNullOrWhiteSpace(returnType))
             result.AddError(SchemaValidationErrorCodes.InvalidDefinition, "The function return type is required.", "func.return");
         else
-            await RequireValueTypeAsync(context, returnType, genericNames, "func.return", "function return", result);
+            await RequireValueTypeAsync(context, returnType, genericNames, "func.return", "function return", result).ConfigureAwait(false);
 
         if (funcDef["args"] is JsonArray args)
         {
@@ -756,7 +756,7 @@ public static class SchemaCandidateValidator
                 if (string.IsNullOrWhiteSpace(argType))
                     result.AddError(SchemaValidationErrorCodes.InvalidDefinition, "The function argument type is required.", $"{path}.type");
                 else
-                    await RequireValueTypeAsync(context, argType, genericNames, $"{path}.type", "function argument", result);
+                    await RequireValueTypeAsync(context, argType, genericNames, $"{path}.type", "function argument", result).ConfigureAwait(false);
             }
         }
 
@@ -774,14 +774,14 @@ public static class SchemaCandidateValidator
 
                 string? expType = GetString(exp, "return");
                 if (!string.IsNullOrWhiteSpace(expType))
-                    await RequireValueTypeAsync(context, expType, genericNames, $"{path}.return", "function expression return", result);
+                    await RequireValueTypeAsync(context, expType, genericNames, $"{path}.return", "function expression return", result).ConfigureAwait(false);
 
                 if (exp["call"] is JsonObject call)
                 {
                     string? funcName = GetString(call, "func");
                     if (!string.IsNullOrWhiteSpace(funcName))
                     {
-                        NodeType? funcType = await TryGetNodeTypeAsync(context, funcName);
+                        NodeType? funcType = await TryGetNodeTypeAsync(context, funcName).ConfigureAwait(false);
                         if (funcType is not FunctionType)
                             result.AddError(SchemaValidationErrorCodes.UnknownType, $"The function '{funcName}' does not exist.", $"{path}.call.func");
                     }
@@ -814,7 +814,7 @@ public static class SchemaCandidateValidator
                     && !string.IsNullOrWhiteSpace(funcName)
                     && !IsGenericType(funcName, genericNames))
                 {
-                    NodeType? funcType = await TryGetNodeTypeAsync(context, funcName);
+                    NodeType? funcType = await TryGetNodeTypeAsync(context, funcName).ConfigureAwait(false);
                     if (funcType is not FunctionType)
                         result.AddError(
                             SchemaValidationErrorCodes.UnknownType,
@@ -822,7 +822,7 @@ public static class SchemaCandidateValidator
                             childPath);
                 }
 
-                await ValidateFunctionReferencesAsync(context, value, childPath, genericNames, result, depth + 1, cancellationToken);
+                await ValidateFunctionReferencesAsync(context, value, childPath, genericNames, result, depth + 1, cancellationToken).ConfigureAwait(false);
             }
             return;
         }
@@ -832,7 +832,7 @@ public static class SchemaCandidateValidator
             for (int i = 0; i < array.Count; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                await ValidateFunctionReferencesAsync(context, array[i], $"{path}[{i}]", genericNames, result, depth + 1, cancellationToken);
+                await ValidateFunctionReferencesAsync(context, array[i], $"{path}[{i}]", genericNames, result, depth + 1, cancellationToken).ConfigureAwait(false);
             }
         }
     }
@@ -847,7 +847,7 @@ public static class SchemaCandidateValidator
     {
         if (IsGenericType(typeName, genericNames)) return null;
 
-        NodeType? nodeType = await TryGetNodeTypeAsync(context, typeName);
+        NodeType? nodeType = await TryGetNodeTypeAsync(context, typeName).ConfigureAwait(false);
         if (nodeType == null)
         {
             result.AddError(SchemaValidationErrorCodes.UnknownType, $"The {role} type '{typeName}' does not exist.", path);
@@ -880,7 +880,7 @@ public static class SchemaCandidateValidator
     {
         try
         {
-            return await context.GetNodeTypeAsync(typeName);
+            return await context.GetNodeTypeAsync(typeName).ConfigureAwait(false);
         }
         catch
         {

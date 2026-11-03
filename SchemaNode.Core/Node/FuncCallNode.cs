@@ -47,7 +47,7 @@ public class FuncCallNode : StructNode
         if (!FullMode || Context is not SchemaContext ctx) return;
 
         string? func = FuncField?.GetValue<string>();
-        FunctionType? funcType = !string.IsNullOrWhiteSpace(func) ? await ctx.GetNodeTypeAsync<FunctionType>(func) : null;
+        FunctionType? funcType = !string.IsNullOrWhiteSpace(func) ? await ctx.GetNodeTypeAsync<FunctionType>(func).ConfigureAwait(false) : null;
         ArgsField?.RefreshFuncCall(ModeField?.GetValue<ApplyMode>(), funcType);
     }
 }

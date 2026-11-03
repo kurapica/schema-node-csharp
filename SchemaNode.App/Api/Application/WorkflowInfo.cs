@@ -23,7 +23,7 @@ public class WorkflowInfoApi : SchemaApi<WorkflowInfoRequest, WorkflowInfoRespon
 
         return new WorkflowInfoResponse
         {
-            Status = await SchemaContext.GetWorkflowInfo(request)
+            Status = await SchemaContext.GetWorkflowInfo(request).ConfigureAwait(false)
         };
     }
 }
@@ -39,7 +39,7 @@ public static class WorkflowInfoExtensions
     public static async Task<WorkflowStatus?> GetWorkflowInfo(this SchemaContext context, WorkflowInfoRequest request)
     {
         // Indicate the workflow node
-        AppType app = await context.GetAppTypeAsync(request.App) ?? throw new Exception(AppErrorCodes.APP_NOT_FOUND);
+        AppType app = await context.GetAppTypeAsync(request.App).ConfigureAwait(false) ?? throw new Exception(AppErrorCodes.APP_NOT_FOUND);
         AppWorkflowType workflowType = app.GetWorkflow(request.Workflow) ?? throw new Exception(AppErrorCodes.APP_WORKFLOW_NOT_FOUND);
         if (workflowType.RootWorkflowContext == null) throw new Exception(AppErrorCodes.APP_WORKFLOW_NOT_START);
         
@@ -47,7 +47,7 @@ public static class WorkflowInfoExtensions
         context.SetAccess(app.Name);
         
         // authorize
-        await context.AuthorizeAsync(workflowType, PolicyScope.DataRead);
+        await context.AuthorizeAsync(workflowType, PolicyScope.DataRead).ConfigureAwait(false);
         
         // Continue an existing workflow
         WorkflowContext? workContext = workflowType.RootWorkflowContext.GetForkedWorkflowContextById(request.WorkflowId);

@@ -23,7 +23,7 @@ public static class Type
     /// </summary>
     public static async Task<string?> getusagetype(SchemaContext context, [Meta<SchemaType>(typeof(AnyType))] string name, bool arrayElement = false)
     {
-        var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);
+        var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name).ConfigureAwait(false);
         if (arrayElement && nodeType is ArrayType arr) nodeType = arr.Element;
         SchemaRuntime? runtime = context.Runtime as SchemaRuntime;
         return runtime != null && nodeType != null ? runtime.GetUsageSchema(runtime.GetSchemaKindByNodeKind(nodeType.Kind)) : null;
@@ -39,7 +39,7 @@ public static class Type
         if (!string.IsNullOrWhiteSpace(root) && !string.IsNullOrWhiteSpace(name) && !name.Equals(root, StringComparison.OrdinalIgnoreCase) && !name.StartsWith($"{root}.", StringComparison.OrdinalIgnoreCase))
             return []; // not access-able
         
-        var ns = await context.GetNodeTypeAsync<Runtime.NodeType>(string.IsNullOrWhiteSpace(name) ? (root ?? "") : name);
+        var ns = await context.GetNodeTypeAsync<Runtime.NodeType>(string.IsNullOrWhiteSpace(name) ? (root ?? "") : name).ConfigureAwait(false);
         if (ns == null) return [];
 
         List<EntryAccess<string>> result = [];
@@ -91,7 +91,7 @@ public static class Type
             return []; // not access-able
         path ??= root;
         
-        IValueTypeAccess? valueType = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<IValueTypeAccess>(name) : null;
+        IValueTypeAccess? valueType = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<IValueTypeAccess>(name).ConfigureAwait(false) : null;
         if (valueType == null) return [];
 
         List<EntryAccess<string>> result = [];
@@ -137,7 +137,7 @@ public static class Type
         [Meta<SchemaType>(typeof(AnyType))] string name,
         string access)
     {
-        var valueType = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<IValueTypeAccess>(name) : null;
+        var valueType = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<IValueTypeAccess>(name).ConfigureAwait(false) : null;
         if (valueType == null) return "";
         return string.IsNullOrWhiteSpace(access) ? valueType.Name : (valueType.GetAccessValueType(access)?.Name ?? "");
     }
@@ -147,7 +147,7 @@ public static class Type
         bool? matchArrayElement,
         [Meta<SchemaType>(typeof(SchemaNode.Enum.NodeKind))] params string[] kinds)
     {
-        var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);
+        var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name).ConfigureAwait(false);
         if (nodeType == null) return false;
         foreach (var kind in kinds)
         {
@@ -167,7 +167,7 @@ public static class Type
         bool matchArrayElement,
         [Meta<SchemaType>(typeof(SchemaNode.Enum.NodeKind))] params string[] kinds)
     {
-        IValueTypeAccess? nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(name);
+        IValueTypeAccess? nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(name).ConfigureAwait(false);
         nodeType = nodeType?.GetAccessValueType(access);
         if (nodeType == null) return false;
         foreach (var kind in kinds)
@@ -184,7 +184,7 @@ public static class Type
     /// </summary>
     public static async Task<string?> getschemakind(SchemaContext context, [Meta<SchemaType>(typeof(AnyType))] string name)
     {
-        var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);
+        var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name).ConfigureAwait(false);
         return nodeType?.Kind != null ? (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(nodeType.Kind) : null;
     }
 
@@ -196,9 +196,10 @@ public static class Type
     /// <returns></returns>
     public static async Task<bool> isvaluekind(SchemaContext context, [Meta<SchemaType>(typeof(AnyType))] string name)
     {
-        var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);
-        return nodeType != null && 
-            typeof(NodeValueKind).GetRecordedValues().Any(v => v.GetValue<string>()!.Equals(nodeType.Kind, StringComparison.OrdinalIgnoreCase));
+        var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name).ConfigureAwait(false);
+        // A value kind is exactly a runtime ValueType (scalar, enum, struct or array). Checking the
+        // type directly keeps the result independent of the record registry population order.
+        return nodeType is Runtime.ValueType;
     }
     
     /// <summary>
@@ -206,11 +207,11 @@ public static class Type
     /// </summary>
     public static async Task<bool> isassignableto(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type, bool matchArrayElement, [Meta<SchemaType>(typeof(ValueType))] params string[] targets)
     {
-        var typeNode = string.IsNullOrWhiteSpace(type) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(type);
+        var typeNode = string.IsNullOrWhiteSpace(type) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(type).ConfigureAwait(false);
         if (typeNode == null) return false;
         foreach (var target in targets)
         {
-            var targetNode = string.IsNullOrWhiteSpace(target) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(target);
+            var targetNode = string.IsNullOrWhiteSpace(target) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(target).ConfigureAwait(false);
             if (targetNode != null && (typeNode.IsAssignableTo(targetNode) || matchArrayElement && typeNode is ArrayType { Element: not null } arr && arr.Element.IsAssignableTo(targetNode))) return true;
         }
         return false;
@@ -221,11 +222,11 @@ public static class Type
     /// </summary>
     public static async Task<bool> isgenericmatch(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type, [Meta<SchemaType>(typeof(ValueType))] string genericType, [Meta<SchemaType>(typeof(ValueType))] params string[] genericParams)
     {
-        var checkType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        var checkType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type).ConfigureAwait(false) : null;
         if (checkType == null) return false;
-        var genType = !string.IsNullOrWhiteSpace(genericType) ? await context.GetNodeTypeAsync<Runtime.ValueType>(genericType) : null;
+        var genType = !string.IsNullOrWhiteSpace(genericType) ? await context.GetNodeTypeAsync<Runtime.ValueType>(genericType).ConfigureAwait(false) : null;
         if (genType == null || !genType.IsGeneric || genericParams.Length != genType.Generics!.Count || genericParams.Any(string.IsNullOrWhiteSpace)) return false;
-        var matchType = await context.GetNodeTypeAsync<Runtime.ValueType>($"{genType.Name}<${string.Join(',', genericParams)}>");
+        var matchType = await context.GetNodeTypeAsync<Runtime.ValueType>($"{genType.Name}<${string.Join(',', genericParams)}>").ConfigureAwait(false);
         return matchType != null && matchType.IsAssignableTo(checkType);
     }
 
@@ -234,7 +235,7 @@ public static class Type
     /// </summary>
     public static async Task<bool> isindexable(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type)
     {
-        var typeNode = string.IsNullOrWhiteSpace(type) ?  null : await context.GetNodeTypeAsync<Runtime.ValueType>(type);
+        var typeNode = string.IsNullOrWhiteSpace(type) ?  null : await context.GetNodeTypeAsync<Runtime.ValueType>(type).ConfigureAwait(false);
         return typeNode?.IsIndexable ?? false;
     }
 }

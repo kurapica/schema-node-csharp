@@ -12,7 +12,9 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
 {
     public async Task<bool> EnsureDynamicTableAsync(DynamicTableSchema schema)
     {
-        await Task.Yield();
+        // Yield to a thread-pool thread without capturing the caller's synchronization context
+        // (Task.Yield() has no ConfigureAwait and would marshal the continuation back to a UI context).
+        await Task.Run(() => { }).ConfigureAwait(false);
         return true;
     }
 
@@ -22,7 +24,9 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
     {
         SchemaContext schemaContext = context as  SchemaContext ?? throw new ArgumentNullException(nameof(context));
         
-        await Task.Yield();
+        // Yield to a thread-pool thread without capturing the caller's synchronization context
+        // (Task.Yield() has no ConfigureAwait and would marshal the continuation back to a UI context).
+        await Task.Run(() => { }).ConfigureAwait(false);
         string compositeKey = PrepareKey(schema);
         ConcurrentDictionary<string, List<IValueAccess>> table = _dynamicTables.GetOrAdd(schema.AppField.DynamicTableName, _ => []);
         List<IValueAccess> list = table.GetOrAdd(compositeKey, _ => []);
@@ -85,7 +89,9 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
 
     public async Task<(bool result, IValueAccess? update, IValueAccess? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, IValueAccess? data = null, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null)
     {
-        await Task.Yield();
+        // Yield to a thread-pool thread without capturing the caller's synchronization context
+        // (Task.Yield() has no ConfigureAwait and would marshal the continuation back to a UI context).
+        await Task.Run(() => { }).ConfigureAwait(false);
         string compositeKey = PrepareKey(schema);
         ConcurrentDictionary<string, List<IValueAccess>> table = _dynamicTables.GetOrAdd(schema.AppField.DynamicTableName, _ => []);
         List<IValueAccess> list = table.GetOrAdd(compositeKey, _ => []);
@@ -165,7 +171,9 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
     /// </summary>
     public async Task<(bool result, IValueAccess? origin)> ClearDynamicTableDataAsync(DynamicTableSchema schema)
     {
-        await Task.Yield();
+        // Yield to a thread-pool thread without capturing the caller's synchronization context
+        // (Task.Yield() has no ConfigureAwait and would marshal the continuation back to a UI context).
+        await Task.Run(() => { }).ConfigureAwait(false);
         string compositeKey = PrepareKey(schema);
         ConcurrentDictionary<string, List<IValueAccess>> table = _dynamicTables.GetOrAdd(schema.AppField.DynamicTableName, _ => []);
         if (table.TryRemove(compositeKey, out List<IValueAccess>? list))
@@ -180,7 +188,9 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
     {
         SchemaContext schemaContext = context as  SchemaContext ?? throw new ArgumentNullException(nameof(context));
         
-        await Task.Yield();
+        // Yield to a thread-pool thread without capturing the caller's synchronization context
+        // (Task.Yield() has no ConfigureAwait and would marshal the continuation back to a UI context).
+        await Task.Run(() => { }).ConfigureAwait(false);
         string compositeKey = PrepareKey(schema);
         ConcurrentDictionary<string, List<IValueAccess>> table = _dynamicTables.GetOrAdd(schema.AppField.DynamicTableName, _ => []);
         List<IValueAccess> list = table.GetOrAdd(compositeKey, _ => []);
@@ -211,7 +221,9 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
     
     public async Task DropDynamicTableAsync(DynamicTableSchema schema)
     {
-        await Task.Yield();
+        // Yield to a thread-pool thread without capturing the caller's synchronization context
+        // (Task.Yield() has no ConfigureAwait and would marshal the continuation back to a UI context).
+        await Task.Run(() => { }).ConfigureAwait(false);
         _dynamicTables.TryRemove(schema.AppField.DynamicTableName, out _);
     }
 

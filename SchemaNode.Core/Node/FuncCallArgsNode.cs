@@ -463,9 +463,9 @@ public class FuncCallArgsNode : DataNode, IEnumerable<StructNode>
             if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(typeName) || source == typeName)
                 continue;
 
-            if (await SchemaNode.Function.Reflect.Type.isassignableto(ctx, source, false, typeName))
+            if (await SchemaNode.Function.Reflect.Type.isassignableto(ctx, source, false, typeName).ConfigureAwait(false))
                 continue;
-            if (await SchemaNode.Function.Reflect.Type.isassignableto(ctx, source, true, typeName))
+            if (await SchemaNode.Function.Reflect.Type.isassignableto(ctx, source, true, typeName).ConfigureAwait(false))
             {
                 colIdx = i;
                 break;
@@ -479,8 +479,8 @@ public class FuncCallArgsNode : DataNode, IEnumerable<StructNode>
             string? source = raw?["sourceType"]?.GetValue<string>();
             if (!string.IsNullOrWhiteSpace(source) && !string.IsNullOrWhiteSpace(typeName) && source != typeName)
             {
-                if (!await SchemaNode.Function.Reflect.Type.isassignableto(ctx, source, false, typeName)
-                    && await SchemaNode.Function.Reflect.Type.isassignableto(ctx, source, true, typeName))
+                if (!await SchemaNode.Function.Reflect.Type.isassignableto(ctx, source, false, typeName).ConfigureAwait(false)
+                    && await SchemaNode.Function.Reflect.Type.isassignableto(ctx, source, true, typeName).ConfigureAwait(false))
                     colIdx = _args.Count;
             }
         }

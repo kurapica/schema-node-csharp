@@ -22,7 +22,7 @@ public static class SystemReflectWorkflow
         [Meta<SchemaType>(typeof(Schema.WorkflowType))] string? workflow,
         [Meta<SchemaType>(typeof(WorkflowKind))] string kind)
     {
-        var workflowType = !string.IsNullOrWhiteSpace(workflow) ? await context.GetNodeTypeAsync<Runtime.WorkflowType>(workflow) : null;
+        var workflowType = !string.IsNullOrWhiteSpace(workflow) ? await context.GetNodeTypeAsync<Runtime.WorkflowType>(workflow).ConfigureAwait(false) : null;
         return kind.Equals(workflowType?.WorkflowKind, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -32,7 +32,7 @@ public static class SystemReflectWorkflow
     public static async Task<bool> hasargs(SchemaContext context,
         [Meta<SchemaType>(typeof(Schema.WorkflowType))] string workflow)
     {
-        var workflowType = !string.IsNullOrWhiteSpace(workflow) ? await context.GetNodeTypeAsync<Runtime.WorkflowType>(workflow) : null;
+        var workflowType = !string.IsNullOrWhiteSpace(workflow) ? await context.GetNodeTypeAsync<Runtime.WorkflowType>(workflow).ConfigureAwait(false) : null;
         return workflowType?.Args?.Length > 0;
     }
 
@@ -42,7 +42,7 @@ public static class SystemReflectWorkflow
     public static async Task<bool> hasstate(SchemaContext context,
         [Meta<SchemaType>(typeof(Schema.WorkflowType))] string workflow)
     {
-        var workflowType = !string.IsNullOrWhiteSpace(workflow) ? await context.GetNodeTypeAsync<Runtime.WorkflowType>(workflow) : null;
+        var workflowType = !string.IsNullOrWhiteSpace(workflow) ? await context.GetNodeTypeAsync<Runtime.WorkflowType>(workflow).ConfigureAwait(false) : null;
         return workflowType?.State != null;
     }
 
@@ -52,7 +52,7 @@ public static class SystemReflectWorkflow
     public static async Task<bool> isforkable(SchemaContext context,
         [Meta<SchemaType>(typeof(WorkflowKind))] string workflow)
     {
-        var workflowType = !string.IsNullOrWhiteSpace(workflow) ? await context.GetNodeTypeAsync<Runtime.WorkflowType>(workflow) : null;
+        var workflowType = !string.IsNullOrWhiteSpace(workflow) ? await context.GetNodeTypeAsync<Runtime.WorkflowType>(workflow).ConfigureAwait(false) : null;
         return workflowType?.GetProperty<Forkable>()?.GetValue<bool>() ?? false;
     }
 
@@ -62,7 +62,7 @@ public static class SystemReflectWorkflow
     public static async Task<string?> getpayloadtype(SchemaContext context,
         [Meta<SchemaType>(typeof(Schema.WorkflowType))] string workflow)
     {
-        var workflowType = !string.IsNullOrWhiteSpace(workflow) ? await context.GetNodeTypeAsync<Runtime.WorkflowType>(workflow) : null;
+        var workflowType = !string.IsNullOrWhiteSpace(workflow) ? await context.GetNodeTypeAsync<Runtime.WorkflowType>(workflow).ConfigureAwait(false) : null;
         return workflowType?.Payload?.Name;
     }
 
@@ -72,7 +72,7 @@ public static class SystemReflectWorkflow
     public static async Task<string?> getstatetype(SchemaContext context,
         [Meta<SchemaType>(typeof(Schema.WorkflowType))] string workflow)
     {
-        var workflowType = !string.IsNullOrWhiteSpace(workflow) ? await context.GetNodeTypeAsync<Runtime.WorkflowType>(workflow) : null;
+        var workflowType = !string.IsNullOrWhiteSpace(workflow) ? await context.GetNodeTypeAsync<Runtime.WorkflowType>(workflow).ConfigureAwait(false) : null;
         return workflowType?.State?.Name;
     }
 
@@ -107,7 +107,7 @@ public static class SystemReflectWorkflow
             foreach (var node in nodes)
             {
                 if (string.IsNullOrWhiteSpace(node.Name) || string.IsNullOrWhiteSpace(node.Type)) continue;
-                var workflowType = await context.GetNodeTypeAsync<Runtime.WorkflowType>(node.Type);
+                var workflowType = await context.GetNodeTypeAsync<Runtime.WorkflowType>(node.Type).ConfigureAwait(false);
                 if (workflowType?.Payload == null) continue;
 
                 var entry = new Entry<string> { Value = node.Name, HasChildren = workflowType.Payload is not Runtime.ArrayType && workflowType.Payload.HasAccessEntries };
@@ -187,7 +187,7 @@ public static class SystemReflectWorkflow
         if (string.IsNullOrWhiteSpace(path)) return null;
         string[] paths = path.Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
         var type = nodes?.FirstOrDefault(f => f.Name.Equals(paths[0], StringComparison.OrdinalIgnoreCase))?.Type;
-        var workflowType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.WorkflowType>(type) : null;
+        var workflowType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.WorkflowType>(type).ConfigureAwait(false) : null;
         return paths.Length > 1 ? workflowType?.Payload?.GetAccessValueType(paths[1])?.Name : workflowType?.Payload?.Name;
     }
 }

@@ -36,7 +36,7 @@ public class Auths : Property<PolicyItem[]>, ILoadableProperty, IErrorProvider, 
         if (Value == null) return;
         foreach (PolicyItem item in Value)
         {
-            item.Function = await context.GetNodeTypeAsync<FunctionType>(item.Evaluator);
+            item.Function = await context.GetNodeTypeAsync<FunctionType>(item.Evaluator).ConfigureAwait(false);
             if (item.Function is { Args.Length: 0 } && item.Function.Return.IsAssignableTo(context.System.Bool)) continue;
             Error ??= AppErrorCodes.APP_POLICY_EVALUATOR_NOT_VALID;
         }
@@ -310,7 +310,7 @@ public static class PolicyExtensions
                     // The result should be the same for the same evaluator in one context
                     if (!cache.Result.TryGetValue(item.Evaluator, out authorized))
                     {
-                        bool? result = await context.CallFunctionAsync<bool>(item.Evaluator, []);
+                        bool? result = await context.CallFunctionAsync<bool>(item.Evaluator, []).ConfigureAwait(false);
                         if (result.HasValue)
                         {
                             authorized = result.Value;
@@ -345,7 +345,7 @@ public static class PolicyExtensions
             {
                 try
                 {
-                    bool? result = await context.CallFunctionAsync<bool>(evaluator, []);
+                    bool? result = await context.CallFunctionAsync<bool>(evaluator, []).ConfigureAwait(false);
                     if (result.HasValue)
                     {
                         authorized = result.Value;

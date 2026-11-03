@@ -64,7 +64,7 @@ public class AnyProcess : IRelationProcess, INodeReferences, IErrorProvider
         List<FunctionType> types = [];
         foreach(var call in calls)
         {
-            var funcType = await context.GetNodeTypeAsync<FunctionType>(call.Func, null, null, true);
+            var funcType = await context.GetNodeTypeAsync<FunctionType>(call.Func, null, null, true).ConfigureAwait(false);
             if (funcType == null)
             {
                 Error ??= ErrorCodes.RELATION_FUNC_NOT_EXIST;
@@ -118,7 +118,7 @@ public class AnyProcess : IRelationProcess, INodeReferences, IErrorProvider
                     IValueAccess? access = owner.GetAccessValue(a.Source, target);
                     return access?.GetValue<object>();
                 }
-            }).ToArray());
+            }).ToArray()).ConfigureAwait(false);
             if (result == true) return true;
         }
         return false;
@@ -133,8 +133,8 @@ public class AnyProcess : IRelationProcess, INodeReferences, IErrorProvider
         {
             try
             {
-                await Task.Delay(10);
-                await relation.ProcessAsync(owner, target);
+                await Task.Delay(10).ConfigureAwait(false);
+                await relation.ProcessAsync(owner, target).ConfigureAwait(false);
             }
             catch
             {

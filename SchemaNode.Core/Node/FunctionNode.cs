@@ -50,7 +50,7 @@ public class FunctionNode : StructNode
         ArgsField?.SetShowVariadic((((schema?.LoadState ?? 0) & SchemaLoadState.System) > 0));
 
         // the return and argument type are immutable if the function is used
-        var nodeType = await ctx.GetNodeTypeAsync<FunctionType>(funcName);
+        var nodeType = await ctx.GetNodeTypeAsync<FunctionType>(funcName).ConfigureAwait(false);
         if (nodeType?.IsUsed == true)
         {
             ReturnField?.SetPropertyValue<ReadOnly, bool>(true, this, null);

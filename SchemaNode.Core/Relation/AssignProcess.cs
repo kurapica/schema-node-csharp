@@ -27,7 +27,7 @@ public class AssignProcess : IRelationProcess
         var kind = nodeKind != null ? (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(nodeKind): null;
         if (kind != null && !kinds.Any(k => kind.Equals(k))) kinds = kinds.Append(kind).ToArray();
 
-        var propType = (await context.GetPropertyType(schema.Property, kinds))?.GetCsharpType();
+        var propType = (await context.GetPropertyType(schema.Property, kinds).ConfigureAwait(false))?.GetCsharpType();
         if (propType != null && propType.IsAssignableTo(typeof(IProperty)))
         {
             _value = Activator.CreateInstance(propType) as IProperty;

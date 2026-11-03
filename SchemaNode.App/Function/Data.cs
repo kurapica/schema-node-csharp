@@ -54,7 +54,7 @@ public static class SystemAppData
         if (args is [object[] o]) args = o;
         
         // get the app field type
-        AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app) : null;
+        AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app).ConfigureAwait(false) : null;
         AppFieldType? fieldType = appType?.GetField(field);
         if (fieldType is null || !(fieldType.EnableDynamicTable || fieldType.IsForeignView)) return default;
 
@@ -84,7 +84,7 @@ public static class SystemAppData
                     f.Filter.Equals(keys[i], StringComparison.OrdinalIgnoreCase) &&
                     f.Resolve == FieldFilterResolve.CascadeParent))
             {
-                var enumAccess = await enumType.GetEnumEntryAccessAsync(context, valueNode.GetValue<string>()!);
+                var enumAccess = await enumType.GetEnumEntryAccessAsync(context, valueNode.GetValue<string>()!).ConfigureAwait(false);
                 if (enumAccess.Length == 0) return default;
                 keyValues[i] = enumAccess.Where(a => !string.IsNullOrWhiteSpace(a.Entry?.Value))
                     .Select(a => keyType.Create(context, a.Entry!.Value)).ToList();
@@ -108,7 +108,7 @@ public static class SystemAppData
                 : new AppSchemaDataFilterBinary(LogicType.AndAlso, filter, keyFilter);
         }
 
-        var (value, _) = await context.GetAppFieldDataAsync(fieldType, keys.Count == 0 ? AppSchemaDataResult.First : AppSchemaDataResult.List, filter);
+        var (value, _) = await context.GetAppFieldDataAsync(fieldType, keys.Count == 0 ? AppSchemaDataResult.First : AppSchemaDataResult.List, filter).ConfigureAwait(false);
         var result = value;
         if (keys.Count > 0)
         {
@@ -155,7 +155,7 @@ public static class SystemAppData
         string dataField,
         params object?[] args)
     {
-        var result = await get<IValueAccess>(context, app, field, args);
+        var result = await get<IValueAccess>(context, app, field, args).ConfigureAwait(false);
         var f = (result as StructNode)?.GetAccessValue(dataField);
         return f != null ? f.GetValue<T>() : default(T?);
     }
@@ -178,7 +178,7 @@ public static class SystemAppData
         [Meta<SchemaType>(typeof(Identifier))] string field)
     {
         AppType? appType = !string.IsNullOrEmpty(app)
-            ? await context.GetAppTypeAsync(app)
+            ? await context.GetAppTypeAsync(app).ConfigureAwait(false)
             : null;
 
         AppFieldType? fieldType = appType?.GetField(field);
@@ -210,7 +210,7 @@ public static class SystemAppData
         bool raiseEvent = false
     )
     {
-        AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app) : null;
+        AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app).ConfigureAwait(false) : null;
         if (appType == null) return null;
 
         Access? access = context.GetContextItem<Access>();
@@ -232,8 +232,8 @@ public static class SystemAppData
         if (dataNode == null || dataNode.IsEmpty) return null;
 
         using var stack = context.StackAccess(appType.Name, target);
-        await context.BeginTransactionAsync();
-        var origin = await context.GetAppFieldDataAsync(fieldType, dataNode, forUpdate: true);
+        await context.BeginTransactionAsync().ConfigureAwait(false);
+        var origin = await context.GetAppFieldDataAsync(fieldType, dataNode, forUpdate: true).ConfigureAwait(false);
         if (origin == null) goto ROLLBACK;
 
         switch (fieldType.ValueType)
@@ -323,12 +323,12 @@ public static class SystemAppData
                 }
         }
 
-        await context.SaveFieldDataAsync(fieldType, origin.ToJson());
-        await context.CommitTransactionAsync(!raiseEvent);
+        await context.SaveFieldDataAsync(fieldType, origin.ToJson()).ConfigureAwait(false);
+        await context.CommitTransactionAsync(!raiseEvent).ConfigureAwait(false);
         return (origin is ArrayNode { Count: < 2 } arrayNode ? arrayNode.FirstOrDefault() : origin)?.ToJson();
 
     ROLLBACK:
-        await context.RollbackTransactionAsync();
+        await context.RollbackTransactionAsync().ConfigureAwait(false);
         return null;
     }
 
@@ -361,7 +361,7 @@ public static class SystemAppData
         params string[] overrides
     )
     {
-        AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app): null;
+        AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app).ConfigureAwait(false): null;
         if (appType == null) return false;
 
         Access? access = context.GetContextItem<Access>();
@@ -374,14 +374,14 @@ public static class SystemAppData
         AppFieldType? fieldType = appType.GetField(field);
         if (fieldType == null) return false;
         
-        var dataNode = await fieldType.ValidateDataAsync(context, data);
+        var dataNode = await fieldType.ValidateDataAsync(context, data).ConfigureAwait(false);
         if (dataNode == null || dataNode.IsEmpty || !dataNode.IsValid) return false;
         
         using var stack = context.StackAccess(app, target);
 
-        await context.BeginTransactionAsync();
-        await context.SaveFieldDataAsync(fieldType, dataNode, onlyAdd: onlyAdd, overrides: overrides);
-        await context.CommitTransactionAsync(!raiseEvent);
+        await context.BeginTransactionAsync().ConfigureAwait(false);
+        await context.SaveFieldDataAsync(fieldType, dataNode, onlyAdd: onlyAdd, overrides: overrides).ConfigureAwait(false);
+        await context.CommitTransactionAsync(!raiseEvent).ConfigureAwait(false);
         return true;
     }
 
@@ -406,7 +406,7 @@ public static class SystemAppData
         bool raiseEvent = false
     )
     {
-        AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app) : null;
+        AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app).ConfigureAwait(false) : null;
         if (appType == null) return false;
 
         Access? access = context.GetContextItem<Access>();
@@ -419,17 +419,17 @@ public static class SystemAppData
         AppFieldType? fieldType = appType.GetField(field);
         if (fieldType == null) return false;
 
-        var dataNode = await fieldType.ValidateDataAsync(context, data);
+        var dataNode = await fieldType.ValidateDataAsync(context, data).ConfigureAwait(false);
         if (dataNode == null || dataNode.IsEmpty || !dataNode.IsValid) return false;
 
         using var stack = context.StackAccess(app, target);
 
-        await context.BeginTransactionAsync();
+        await context.BeginTransactionAsync().ConfigureAwait(false);
         if (fieldType.ValueType is ArrayType { Primary: { Count: > 0 }})
-            await context.DeleteFieldListDataAsync(fieldType, dataNode);
+            await context.DeleteFieldListDataAsync(fieldType, dataNode).ConfigureAwait(false);
         else
-            await context.SaveFieldDataAsync(fieldType, null);
-        await context.CommitTransactionAsync(!raiseEvent);
+            await context.SaveFieldDataAsync(fieldType, null).ConfigureAwait(false);
+        await context.CommitTransactionAsync(!raiseEvent).ConfigureAwait(false);
         return true;
     }
 

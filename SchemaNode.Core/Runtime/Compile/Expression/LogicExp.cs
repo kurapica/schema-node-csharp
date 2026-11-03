@@ -87,7 +87,7 @@ public class LogicExpVisitor : IExpVisitor
 
         // Simplify NOT expressions
         if (logicExp?.Type == LogicType.Not && logicExp is UnaryLogicExp { Inner: LogicExp innerExp })
-            logicExp = (await NotExpAsync(context.Context, innerExp)) ?? logicExp;
+            logicExp = (await NotExpAsync(context.Context, innerExp).ConfigureAwait(false)) ?? logicExp;
         
         // Re-order the compare expressions
         return ReOrderCompareExp(logicExp);
@@ -106,20 +106,20 @@ public class LogicExpVisitor : IExpVisitor
                 switch (unExp.Type)
                 {
                     case LogicType.Not:
-                        return Expression.Not(await context.CompileSchemaExpAsync(unExp.Inner));
+                        return Expression.Not(await context.CompileSchemaExpAsync(unExp.Inner).ConfigureAwait(false));
                     case LogicType.IsNull:
                     {
-                        Expression innerExp = await context.CompileSchemaExpAsync(unExp.Inner);
+                        Expression innerExp = await context.CompileSchemaExpAsync(unExp.Inner).ConfigureAwait(false);
                         return Expression.Equal(innerExp, Expression.Constant(null, innerExp.Type));
                     }
                     case LogicType.NotNull:
                     {
-                        Expression innerExp = await context.CompileSchemaExpAsync(unExp.Inner);
+                        Expression innerExp = await context.CompileSchemaExpAsync(unExp.Inner).ConfigureAwait(false);
                         return Expression.NotEqual(innerExp, Expression.Constant(null, innerExp.Type));
                     }
                     case LogicType.IsEmpty:
                     case LogicType.NotEmpty:
-                        return await context.CompileSchemaExpAsync(new FuncCallExp(unExp.Method!, [unExp.Inner], unExp.ValueType));
+                        return await context.CompileSchemaExpAsync(new FuncCallExp(unExp.Method!, [unExp.Inner], unExp.ValueType)).ConfigureAwait(false);
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
@@ -127,8 +127,8 @@ public class LogicExpVisitor : IExpVisitor
 
             // Binary logic
             case BinaryLogicExp binExp:
-                Expression left = await context.CompileSchemaExpAsync(binExp.Left);
-                Expression right = await context.CompileSchemaExpAsync(binExp.Right);
+                Expression left = await context.CompileSchemaExpAsync(binExp.Left).ConfigureAwait(false);
+                Expression right = await context.CompileSchemaExpAsync(binExp.Right).ConfigureAwait(false);
                 Type exType = left.Type.GetNotNullType();
                 left = context.ConvertExp(exType, left);
                 right = context.ConvertExp(exType, right);
@@ -143,7 +143,7 @@ public class LogicExpVisitor : IExpVisitor
                     LogicType.GreaterEqual => Expression.GreaterThanOrEqual(left, right),
                     LogicType.LessThan => Expression.LessThan(left, right),
                     LogicType.LessEqual => Expression.LessThanOrEqual(left, right),
-                    _ => await context.CompileSchemaExpAsync(new FuncCallExp(binExp.Method!, [binExp.Left, binExp.Right], binExp.ValueType))
+                    _ => await context.CompileSchemaExpAsync(new FuncCallExp(binExp.Method!, [binExp.Left, binExp.Right], binExp.ValueType)).ConfigureAwait(false)
                 };
         }
 
@@ -160,23 +160,23 @@ public class LogicExpVisitor : IExpVisitor
                 
                 LogicType.IsNull => new UnaryLogicExp(LogicType.NotNull, unaryLogicExp.Inner, exp.ValueType),
                 
-                LogicType.IsEmpty => new UnaryLogicExp(LogicType.NotEmpty, unaryLogicExp.Inner, exp.ValueType, await context.GetNodeTypeAsync<FunctionType>($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}") ),
+                LogicType.IsEmpty => new UnaryLogicExp(LogicType.NotEmpty, unaryLogicExp.Inner, exp.ValueType, await context.GetNodeTypeAsync<FunctionType>($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}").ConfigureAwait(false) ),
                 
                 LogicType.NotNull => new UnaryLogicExp(LogicType.IsNull, unaryLogicExp.Inner, exp.ValueType),
                 
-                LogicType.NotEmpty => new UnaryLogicExp(LogicType.IsEmpty, unaryLogicExp.Inner, exp.ValueType, await context.GetNodeTypeAsync<FunctionType>($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.isempty)}") ),
+                LogicType.NotEmpty => new UnaryLogicExp(LogicType.IsEmpty, unaryLogicExp.Inner, exp.ValueType, await context.GetNodeTypeAsync<FunctionType>($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.isempty)}").ConfigureAwait(false) ),
                 _ => null
             },
             BinaryLogicExp binaryLogicExp => binaryLogicExp.Type switch
             {
                 LogicType.AndAlso => new BinaryLogicExp(LogicType.OrElse, 
-                    (await NotExpAsync(context, (binaryLogicExp.Left as LogicExp)!))!,
-                    (await NotExpAsync(context, (binaryLogicExp.Right as LogicExp)!))!, 
+                    (await NotExpAsync(context, (binaryLogicExp.Left as LogicExp)!).ConfigureAwait(false))!,
+                    (await NotExpAsync(context, (binaryLogicExp.Right as LogicExp)!).ConfigureAwait(false))!, 
                         exp.ValueType),
                 
                 LogicType.OrElse => new BinaryLogicExp(LogicType.AndAlso,
-                    (await NotExpAsync(context, (binaryLogicExp.Left as LogicExp)!))!,
-                    (await NotExpAsync(context, (binaryLogicExp.Right as LogicExp)!))!, 
+                    (await NotExpAsync(context, (binaryLogicExp.Left as LogicExp)!).ConfigureAwait(false))!,
+                    (await NotExpAsync(context, (binaryLogicExp.Right as LogicExp)!).ConfigureAwait(false))!, 
                         exp.ValueType),
                             
                 LogicType.Equal => new BinaryLogicExp(LogicType.NotEqual, binaryLogicExp.Left, binaryLogicExp.Right, exp.ValueType),
@@ -187,28 +187,28 @@ public class LogicExpVisitor : IExpVisitor
                 LogicType.LessEqual => new BinaryLogicExp(LogicType.GreaterThan, binaryLogicExp.Left, binaryLogicExp.Right, exp.ValueType),
                 
                 LogicType.Contains => new BinaryLogicExp(LogicType.NotContains, binaryLogicExp.Left, binaryLogicExp.Right, exp.ValueType,
-                    await context.GetNodeTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.notcontains)}") ),
+                    await context.GetNodeTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.notcontains)}").ConfigureAwait(false) ),
                 
                 LogicType.NotContains => new BinaryLogicExp(LogicType.Contains, binaryLogicExp.Left, binaryLogicExp.Right, exp.ValueType,
-                    await context.GetNodeTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.contains)}") ),
+                    await context.GetNodeTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.contains)}").ConfigureAwait(false) ),
                 
                 LogicType.StartsWith => new BinaryLogicExp(LogicType.NotStartsWith, binaryLogicExp.Left, binaryLogicExp.Right, exp.ValueType,
-                    await context.GetNodeTypeAsync<FunctionType>($"system.str.logic.{nameof(SystemStr.Logic.notstartswith)}") ),
+                    await context.GetNodeTypeAsync<FunctionType>($"system.str.logic.{nameof(SystemStr.Logic.notstartswith)}").ConfigureAwait(false) ),
                 
                 LogicType.NotStartsWith => new BinaryLogicExp(LogicType.StartsWith, binaryLogicExp.Left, binaryLogicExp.Right, exp.ValueType,
-                    await context.GetNodeTypeAsync<FunctionType>($"system.str.logic.{nameof(SystemStr.Logic.startswith)}") ),
+                    await context.GetNodeTypeAsync<FunctionType>($"system.str.logic.{nameof(SystemStr.Logic.startswith)}").ConfigureAwait(false) ),
                 
                 LogicType.EndsWith => new BinaryLogicExp(LogicType.NotEndsWith, binaryLogicExp.Left, binaryLogicExp.Right, exp.ValueType,
-                    await context.GetNodeTypeAsync<FunctionType>($"system.str.logic.{nameof(SystemStr.Logic.notendswith)}") ),
+                    await context.GetNodeTypeAsync<FunctionType>($"system.str.logic.{nameof(SystemStr.Logic.notendswith)}").ConfigureAwait(false) ),
                 
                 LogicType.NotEndsWith => new BinaryLogicExp(LogicType.EndsWith, binaryLogicExp.Left, binaryLogicExp.Right, exp.ValueType,
-                    await context.GetNodeTypeAsync<FunctionType>($"system.str.logic.{nameof(SystemStr.Logic.endswith)}") ),
+                    await context.GetNodeTypeAsync<FunctionType>($"system.str.logic.{nameof(SystemStr.Logic.endswith)}").ConfigureAwait(false) ),
                 
                 LogicType.Match => new BinaryLogicExp(LogicType.NotMatch, binaryLogicExp.Left, binaryLogicExp.Right, exp.ValueType,
-                    await context.GetNodeTypeAsync<FunctionType>($"system.str.logic.{nameof(SystemStr.Logic.notcontains)}") ),
+                    await context.GetNodeTypeAsync<FunctionType>($"system.str.logic.{nameof(SystemStr.Logic.notcontains)}").ConfigureAwait(false) ),
                 
                 LogicType.NotMatch => new BinaryLogicExp(LogicType.Match, binaryLogicExp.Left, binaryLogicExp.Right, exp.ValueType,
-                    await context.GetNodeTypeAsync<FunctionType>($"system.str.logic.{nameof(SystemStr.Logic.contains)}") ),
+                    await context.GetNodeTypeAsync<FunctionType>($"system.str.logic.{nameof(SystemStr.Logic.contains)}").ConfigureAwait(false) ),
                 
                 _ => null
             },

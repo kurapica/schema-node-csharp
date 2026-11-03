@@ -21,7 +21,7 @@ public class WhiteList : Property<object[]>, IConstraintProperty
     public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)
     {
         if (Value == null || Value.Length == 0 || node.IsEmpty || node.Type.GetProperty<AsSuggest>()?.Value == true) return null;
-        var accessList = await (node.Type as EnumType)!.GetEnumEntryAccessAsync(context, node.GetValue<string>());
+        var accessList = await (node.Type as EnumType)!.GetEnumEntryAccessAsync(context, node.GetValue<string>()).ConfigureAwait(false);
         return accessList.Any(a => Value.Any(v => v.Equals(a.Entry?.Value)));
     }
 

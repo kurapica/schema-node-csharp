@@ -61,7 +61,7 @@ public sealed class EventType: NodeType, IValueTypeAccess, IRelationProvider
 
         if (!string.IsNullOrWhiteSpace(_eventSchema?.Payload))
         {
-            Payload = await context.GetNodeTypeAsync<ValueType>(_eventSchema.Payload, Generics, GenericParams);
+            Payload = await context.GetNodeTypeAsync<ValueType>(_eventSchema.Payload, Generics, GenericParams).ConfigureAwait(false);
             if (Payload == null)
                 Error ??= AppErrorCodes.EVENT_PAYLOAD_NOT_VALID;
         }
@@ -81,7 +81,7 @@ public sealed class EventType: NodeType, IValueTypeAccess, IRelationProvider
                 return;
             }
 
-            arg.ValueType = !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetNodeTypeAsync<ValueType>(arg.Type, Generics) : null;
+            arg.ValueType = !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetNodeTypeAsync<ValueType>(arg.Type, Generics).ConfigureAwait(false) : null;
 
             if (arg.ValueType == null)
             {
@@ -104,14 +104,14 @@ public sealed class EventType: NodeType, IValueTypeAccess, IRelationProvider
 
                 // Gets the property type
                 var kind = (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(currentType.Kind);
-                PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_FUNC_ARG);
+                PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_FUNC_ARG).ConfigureAwait(false);
                 if (prop == null) continue;
 
                 // Only work for constraint properties
                 Type? propType = prop.GetCsharpType();
                 if (propType == null) continue;
 
-                var relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_FUNC_ARG);
+                var relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_FUNC_ARG).ConfigureAwait(false);
                 Error ??= relationType.Error;
 
                 _relations ??= [];
@@ -220,7 +220,7 @@ public sealed class EventType: NodeType, IValueTypeAccess, IRelationProvider
         for (int i = 0; i < Args.Length; i++)
         {
             var arg = Args[i];
-            var argType = (await context.GetNodeTypeAsync<ValueType>(arg.Type))?.GetCsharpType();
+            var argType = (await context.GetNodeTypeAsync<ValueType>(arg.Type).ConfigureAwait(false))?.GetCsharpType();
             if (argType == null) return null; // keep simple
             genArgs[i] = argType.TryConvert(args?.ElementAtOrDefault(i), out var result)  ? result : null;
         }

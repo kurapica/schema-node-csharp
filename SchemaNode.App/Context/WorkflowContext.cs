@@ -534,7 +534,7 @@ public class WorkflowContext: SchemaContext
     {
         if (_workflow == null) return;
         
-        await _processLock.WaitAsync();
+        await _processLock.WaitAsync().ConfigureAwait(false);
         try
         {
             if (_workflow == null) return;
@@ -545,7 +545,7 @@ public class WorkflowContext: SchemaContext
             {
                 // All done
                 if (IsWorkflowTerminatable(_workflow))
-                    await TerminateAsync();
+                    await TerminateAsync().ConfigureAwait(false);
                 return;
             }
 
@@ -557,7 +557,7 @@ public class WorkflowContext: SchemaContext
 
                 // CallAsync the workflow
                 state.Status = WorkflowStatus.Running;
-                await state.ProcessAsync(this, workflow);
+                await state.ProcessAsync(this, workflow).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -581,7 +581,7 @@ public class WorkflowContext: SchemaContext
             Task.Run(async () =>
             {
                 await Task.Yield();
-                await TerminateAsync();
+                await TerminateAsync().ConfigureAwait(false);
             });
         }
     }
@@ -597,16 +597,16 @@ public class WorkflowContext: SchemaContext
         {
             // release workflow state
             BaseWorkflow? workflow = _workflow?.FindByName(name);
-            if (workflow != null) await value.ReleaseAsync(this, workflow);
+            if (workflow != null) await value.ReleaseAsync(this, workflow).ConfigureAwait(false);
             if (value.Status is WorkflowStatus.Running or WorkflowStatus.Waiting)
                 value.Status = WorkflowStatus.Terminated;
             
             if (value.ForkContexts is not { Count: > 0 }) continue;
             foreach ((_, WorkflowContext key) in value.ForkContexts)
-                await key.TerminateAsync();
+                await key.TerminateAsync().ConfigureAwait(false);
         }
         
-        await PersistenceAsync();
+        await PersistenceAsync().ConfigureAwait(false);
 
         Dispose();
     }
@@ -631,9 +631,9 @@ public class WorkflowContext: SchemaContext
         int curr = _version;
         Task.Run(async () =>
         {
-            await Task.Delay(2000);
+            await Task.Delay(2000).ConfigureAwait(false);
             if (curr != _version) return;
-            await PersistenceAsync();
+            await PersistenceAsync().ConfigureAwait(false);
         });
     }
     
@@ -650,7 +650,7 @@ public class WorkflowContext: SchemaContext
         if (persistence != null)
         {
             WorkflowContextSnapshot? snapshot = Backup();
-            if (snapshot != null) await persistence.SaveAsync(snapshot);
+            if (snapshot != null) await persistence.SaveAsync(snapshot).ConfigureAwait(false);
         }
     }
 
@@ -741,7 +741,7 @@ public class WorkflowContext: SchemaContext
                 }
             }
             Task? task = (Task?)processMethod.Invoke(workflow, args);
-            if (task != null) await task;
+            if (task != null) await task.ConfigureAwait(false);
         }
         
         /// <summary>
@@ -788,7 +788,7 @@ public class WorkflowContext: SchemaContext
                 }
             }
             Task<T>? task = (Task<T>?)processMethod.Invoke(workflow, args);
-            if (task != null) Session = await task;
+            if (task != null) Session = await task.ConfigureAwait(false);
         }
 
         /// <summary>
@@ -796,7 +796,7 @@ public class WorkflowContext: SchemaContext
         /// </summary>
         public override async Task ReleaseAsync(WorkflowContext context, BaseWorkflow workflow)
         {
-            await ((IWorkflowSession<T>)workflow).ReleaseSessionAsync(context, Session);
+            await ((IWorkflowSession<T>)workflow).ReleaseSessionAsync(context, Session).ConfigureAwait(false);
             Session = default;
         }
 

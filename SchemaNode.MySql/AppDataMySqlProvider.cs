@@ -62,7 +62,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     public async Task<bool> EnsureDynamicTableAsync(DynamicTableSchema schema)  
     {
         string tableName = sqlProvider.QuoteTable(schema.AppField.DynamicTableName);
-        await EnsureOpenConnectionAsync();
+        await EnsureOpenConnectionAsync().ConfigureAwait(false);
 
         // Check to update the data table
         bool exist = false;
@@ -75,15 +75,15 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 await using DbCommand command = GetDbCommand();
                 command.CommandText = $"DESCRIBE {tableName}";
                 Logger.LogDebug(command.CommandText);
-                await using DbDataReader reader = await command.ExecuteReaderAsync();
+                await using DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
                 try
                 {
-                    while (await reader.ReadAsync())
+                    while (await reader.ReadAsync().ConfigureAwait(false))
                         nameTypes.Add(reader.GetString(0), reader.GetString(1));
                 }
                 finally
                 {
-                    await reader.CloseAsync();
+                    await reader.CloseAsync().ConfigureAwait(false);
                 }
 
                 // Check the new columns since we won't touch key fields
@@ -108,12 +108,12 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             {
                 await using DbCommand command = GetDbCommand();
                 command.CommandText = $"SHOW INDEXES FROM {tableName}";
-                await using DbDataReader reader = await command.ExecuteReaderAsync();
+                await using DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
                 // Check indexes
                 try
                 {
-                    while (await reader.ReadAsync())
+                    while (await reader.ReadAsync().ConfigureAwait(false))
                     {
                         string keyName = reader.GetString("Key_name");
                         if (keyName.Equals(DYNAMIC_UNIQUE_INDEX, StringComparison.OrdinalIgnoreCase))
@@ -129,7 +129,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 }
                 finally
                 {
-                    await reader.CloseAsync();
+                    await reader.CloseAsync().ConfigureAwait(false);
                 }
             }
 
@@ -179,7 +179,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     await using DbCommand updateCommand = GetDbCommand();
                     updateCommand.CommandText = sb[i];
                     Logger.LogInformation(updateCommand.CommandText);
-                    await updateCommand.ExecuteNonQueryAsync();
+                    await updateCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
 
@@ -239,7 +239,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     await using DbCommand command = GetDbCommand();
                     command.CommandText = sb.ToString();
                     Logger.LogInformation(command.CommandText);
-                    await command.ExecuteNonQueryAsync();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
 
                 // Create the indexes
@@ -260,7 +260,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     await using DbCommand command = GetDbCommand();
                     command.CommandText = sb.ToString();
                     Logger.LogInformation(command.CommandText);
-                    await command.ExecuteNonQueryAsync();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -307,7 +307,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     await using DbCommand command = GetDbCommand();
                     command.CommandText = sb.ToString();
                     Logger.LogInformation(command.CommandText);
-                    await command.ExecuteNonQueryAsync();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
                 // Create the indexes
                 string scopeTargetPart = string.Join(',', schema.ScopeFields.Select(f => sqlProvider.QuoteField(f.Name)).Concat([_refAttrField]));
@@ -321,7 +321,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     await using DbCommand command = GetDbCommand();
                     command.CommandText = sb.ToString();
                     Logger.LogInformation(command.CommandText);
-                    await command.ExecuteNonQueryAsync();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
             catch (MySqlException ex) when (ex.ErrorCode == MySqlErrorCode.DuplicateKeyName)
@@ -347,7 +347,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         (string wherePrefix, _) = PrepareWhere(schema, "t0");
         string querySuffix = forUpdate ? " FOR UPDATE;" : ";";
         
-        await EnsureOpenConnectionAsync();
+        await EnsureOpenConnectionAsync().ConfigureAwait(false);
         
         // single row
         if (schema.Single)
@@ -361,18 +361,18 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 await using DbCommand command = GetDbCommand();
                 command.CommandText = $"SELECT {sqlProvider.QuoteField(DYNAMIC_TABLE_VALUE_FIELD)} FROM {tableName} t0{wherePrefix}{TrueCond}{querySuffix}";
                 Logger.LogDebug(command.CommandText);
-                await using DbDataReader reader = await command.ExecuteReaderAsync();
+                await using DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
                 try
                 {
                     if (reader.HasRows)
                     {
-                        await reader.ReadAsync();
+                        await reader.ReadAsync().ConfigureAwait(false);
                         value = schema.Fields.Last().FromReader(_context, reader);
                     }
                 }
                 finally
                 {
-                    await reader.CloseAsync();
+                    await reader.CloseAsync().ConfigureAwait(false);
                 }
             }
             else
@@ -478,18 +478,18 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 await using DbCommand command = GetDbCommand();
                 command.CommandText = sb.ToString();
                 Logger.LogDebug(command.CommandText);
-                await using DbDataReader reader = await command.ExecuteReaderAsync();
+                await using DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
                 try
                 {
                     if (reader.HasRows)
                     {
-                        await reader.ReadAsync();
+                        await reader.ReadAsync().ConfigureAwait(false);
                         value = schema.GetFieldPack(_context, reader, queryOnly: !forUpdate);
                     }
                 }
                 finally
                 {
-                    await reader.CloseAsync();
+                    await reader.CloseAsync().ConfigureAwait(false);
                 }
             }
 
@@ -594,10 +594,10 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     : $"SELECT COUNT(*) {sb};";
 
                 Logger.LogDebug(totalCommand.CommandText);
-                await using DbDataReader totalReader = await totalCommand.ExecuteReaderAsync();
+                await using DbDataReader totalReader = await totalCommand.ExecuteReaderAsync().ConfigureAwait(false);
                 try
                 {
-                    if (totalReader.HasRows && await totalReader.ReadAsync())
+                    if (totalReader.HasRows && await totalReader.ReadAsync().ConfigureAwait(false))
                         total = totalReader.GetInt32(0);
                     switch (type)
                     {
@@ -612,7 +612,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 }
                 finally
                 {
-                    await totalReader.CloseAsync();
+                    await totalReader.CloseAsync().ConfigureAwait(false);
                 }
             }
 
@@ -712,12 +712,12 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             await using DbCommand command = GetDbCommand();
             command.CommandText = select.ToString();
             Logger.LogDebug(command.CommandText);
-            await using DbDataReader reader = await command.ExecuteReaderAsync();
+            await using DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
             try
             {
                 if (reader.HasRows)
                 {
-                    while (await reader.ReadAsync())
+                    while (await reader.ReadAsync().ConfigureAwait(false))
                     {
                         var pack = type == AppSchemaDataResult.Field
                             ? schema.GetFieldPack(_context, reader, dataField ?? "", !forUpdate)
@@ -732,11 +732,11 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             }
             finally
             {
-                await reader.CloseAsync();
+                await reader.CloseAsync().ConfigureAwait(false);
             }
 
             // Load the attribute-based fields if needed
-            await FillAttributeDataAsync(schema, value, forUpdate);
+            await FillAttributeDataAsync(schema, value, forUpdate).ConfigureAwait(false);
 
             if (type is AppSchemaDataResult.First or AppSchemaDataResult.Last)
                 return (value?.ElementAtOrDefault(0) as IValueAccess, value is { Count: > 0 } ? 1 : 0);
@@ -798,12 +798,12 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             await using var command = GetDbCommand();
             command.CommandText = select.ToString();
             Logger.LogDebug(command.CommandText);
-            await using var reader = await command.ExecuteReaderAsync();
+            await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
             try
             {
                 if (reader.HasRows)
                 {
-                    while (await reader.ReadAsync())
+                    while (await reader.ReadAsync().ConfigureAwait(false))
                     {
                         int offset = 0;
                         IEnumerable<StructNode> nodes = value.OfType<StructNode>();
@@ -928,7 +928,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             }
             finally
             {
-                await reader.CloseAsync();
+                await reader.CloseAsync().ConfigureAwait(false);
             }
         }
     }
@@ -938,7 +938,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             DynamicTableSchema schema, IValueAccess? value = null, 
             bool canAdd = true, bool onlyAdd = false, string[]? overrides = null)
     {
-        await EnsureOpenConnectionAsync();
+        await EnsureOpenConnectionAsync().ConfigureAwait(false);
         
         // Prepare
         string tableName = sqlProvider.QuoteTable(schema.AppField.DynamicTableName);
@@ -951,7 +951,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         {
             // Array values are stored as whole json in the value field, no truncation
             // Gets the origin value
-            (var origin, _) = await QueryDynamicTableAsync(schema, AppSchemaDataResult.First);
+            (var origin, _) = await QueryDynamicTableAsync(schema, AppSchemaDataResult.First).ConfigureAwait(false);
 
             // Delete if null
             if (value == null || value.IsEmpty)
@@ -961,7 +961,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     await using DbCommand command = GetDbCommand();
                     command.CommandText = $"DELETE FROM {tableName}{wherePrefix}{TrueCond};";
                     Logger.LogInformation(command.CommandText);
-                    await command.ExecuteNonQueryAsync();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                     return (true, null, origin);
                 }
                 return (false, null, null);
@@ -984,7 +984,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                         await using DbCommand command = GetDbCommand();
                         command.CommandText = string.Format(insertTemplate, sqlProvider.Literal(value));
                         Logger.LogInformation(command.CommandText);
-                        await command.ExecuteNonQueryAsync();
+                        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                         isInsert = true;
                     }
                     catch (MySqlException ex)
@@ -999,12 +999,12 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 {
                     // Gets the origin value again
                     if (origin == null)
-                        (origin, _) = await QueryDynamicTableAsync(schema, AppSchemaDataResult.First);
+                        (origin, _) = await QueryDynamicTableAsync(schema, AppSchemaDataResult.First).ConfigureAwait(false);
 
                     await using DbCommand command = GetDbCommand();
                     command.CommandText = $"UPDATE {tableName} SET {sqlProvider.QuoteField(DYNAMIC_TABLE_VALUE_FIELD)} = {sqlProvider.Literal(value)}{wherePrefix}{TrueCond};";
                     Logger.LogInformation(command.CommandText);
-                    await command.ExecuteNonQueryAsync();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
                 return (true, value, origin);
             }
@@ -1023,7 +1023,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                         await using DbCommand command = GetDbCommand();
                         command.CommandText = string.Format(insertTemplate, string.Join(',', schema.GetFieldValues(pack).Select(p => sqlProvider.Literal(p.value))));
                         Logger.LogInformation(command.CommandText);
-                        await command.ExecuteNonQueryAsync();
+                        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                         isInsert = true;
                     }
                     catch (MySqlException ex)
@@ -1038,7 +1038,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 {
                     // Gets the origin value again
                     if (origin == null)
-                        (origin, _) = await QueryDynamicTableAsync(schema, AppSchemaDataResult.First);
+                        (origin, _) = await QueryDynamicTableAsync(schema, AppSchemaDataResult.First).ConfigureAwait(false);
 
                     // Header
                     sb.Clear();
@@ -1059,7 +1059,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     await using DbCommand command = GetDbCommand();
                     command.CommandText = sb.ToString();
                     Logger.LogInformation(command.CommandText);
-                    await command.ExecuteNonQueryAsync();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
                 return (true, value, origin);
             }
@@ -1090,7 +1090,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             }
 
             // Query
-            var origin = await this.QueryOriginNodesAsync(_context, schema, packs, forUpdate: true);
+            var origin = await this.QueryOriginNodesAsync(_context, schema, packs, forUpdate: true).ConfigureAwait(false);
             ArrayNode? oArr = origin as ArrayNode;
             if (!canAdd && (oArr == null || oArr.Count < packs.Length))
                 throw new UnauthorizedAccessException();
@@ -1157,7 +1157,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                         await using DbCommand command = GetDbCommand();
                         command.CommandText = string.Format(insertTemplate, string.Join(',', schema.GetFieldValues(pack).Select(p => sqlProvider.Literal(p.value))));
                         Logger.LogInformation(command.CommandText);
-                        await command.ExecuteNonQueryAsync();
+                        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                         isInsert = true;
 
                         updatedPacks.Add(pack);
@@ -1174,7 +1174,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     // query again
                     if (originPack == null)
                     {
-                        origin = await this.QueryOriginNodesAsync(_context, schema, [pack], forUpdate: true);
+                        origin = await this.QueryOriginNodesAsync(_context, schema, [pack], forUpdate: true).ConfigureAwait(false);
                         if (origin is ArrayNode { Count: 1 } arr)
                             originPack = arr[0] as StructNode;
                     }
@@ -1208,7 +1208,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                         await using DbCommand command = GetDbCommand();
                         command.CommandText = sb.ToString();
                         Logger.LogInformation(command.CommandText);
-                        await command.ExecuteNonQueryAsync();
+                        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                     }
 
                     updatedPacks.Add(pack);
@@ -1223,8 +1223,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     foreach (DynamicTableField dynamic in schema.Fields.Where(f => f.HasTypeRelation))
                     {
                         StructFieldSchema[] fields = dynamic.RelationType != null
-                            ? await GetStructFieldConfigs(schema.AppField, pack, dynamic.RelationType)
-                            : await GetStructFieldConfigs(pack, dynamic.StructRelation!);
+                            ? await GetStructFieldConfigs(schema.AppField, pack, dynamic.RelationType).ConfigureAwait(false)
+                            : await GetStructFieldConfigs(pack, dynamic.StructRelation!).ConfigureAwait(false);
                         if (fields.Length == 0) continue;
 
                         List<(string, IValueAccess v)> primaries = [];
@@ -1232,7 +1232,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                             primaries.Add((fld, v!));
 
                         await SaveAttributeBasedFieldAsync(schema.AppField.AttributeTableName, scopeItems, fields,
-                            pack.GetAccessValue(dynamic.Name)?.GetValue<JsonObject>(), dynamic.Name.ToLower(), primaries);
+                            pack.GetAccessValue(dynamic.Name)?.GetValue<JsonObject>(), dynamic.Name.ToLower(), primaries).ConfigureAwait(false);
                     }
                 }
             }
@@ -1243,20 +1243,20 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     /// <inheritdoc />
     public async Task<(bool result, IValueAccess? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, AppSchemaDataFilter? filter)
     {
-        await EnsureOpenConnectionAsync();
+        await EnsureOpenConnectionAsync().ConfigureAwait(false);
         string tableName = sqlProvider.QuoteTable(schema.AppField.DynamicTableName);        
         (string wherePrefix, _) = PrepareWhere(schema);
 
         // single row
         if (schema.Single)
         {
-            (var origin, _) = await QueryDynamicTableAsync(schema,AppSchemaDataResult.First, forUpdate: true);
+            (var origin, _) = await QueryDynamicTableAsync(schema,AppSchemaDataResult.First, forUpdate: true).ConfigureAwait(false);
             if (origin is null) return (false, null);
             
             await using DbCommand command = GetDbCommand();
             command.CommandText = $"DELETE FROM {tableName}{wherePrefix}{TrueCond};";
             Logger.LogInformation(command.CommandText);
-            await command.ExecuteNonQueryAsync();
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             
             return (true, origin);
         }
@@ -1267,14 +1267,14 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             string sql = filter?.ToSql(sqlProvider, schema) ?? "";
             if (string.IsNullOrEmpty(sql)) return (false, null); // prevent full table delete
 
-            var (origin, _) = await QueryDynamicTableAsync(schema, AppSchemaDataResult.List, filter, forUpdate: true);
+            var (origin, _) = await QueryDynamicTableAsync(schema, AppSchemaDataResult.List, filter, forUpdate: true).ConfigureAwait(false);
             if (origin is not ArrayNode arr || arr.Count == 0) return (false, null);
                         
             await using DbCommand command = GetDbCommand();
             command.CommandText = $"DELETE FROM {tableName}{wherePrefix}{sql};";
             Logger.LogInformation(command.CommandText);
-            await command.ExecuteNonQueryAsync();
-            await DeleteAttributeBasedFieldAsync(schema, arr);
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            await DeleteAttributeBasedFieldAsync(schema, arr).ConfigureAwait(false);
             return (true, origin);
         }
     }
@@ -1284,10 +1284,10 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     /// </summary>
     public async Task<(bool result, IValueAccess? origin)> ClearDynamicTableDataAsync(DynamicTableSchema schema)
     {
-        await EnsureOpenConnectionAsync();
+        await EnsureOpenConnectionAsync().ConfigureAwait(false);
         (string wherePrefix, _) = PrepareWhere(schema);
 
-        var (origin, _) = await QueryDynamicTableAsync(schema, schema.Single ? AppSchemaDataResult.First : AppSchemaDataResult.List, forUpdate: true);
+        var (origin, _) = await QueryDynamicTableAsync(schema, schema.Single ? AppSchemaDataResult.First : AppSchemaDataResult.List, forUpdate: true).ConfigureAwait(false);
         if (origin is null || origin is ArrayNode { Count:0 }) return (false, null);
 
         {
@@ -1295,7 +1295,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             command.CommandText =
                 $"DELETE FROM {sqlProvider.QuoteTable(schema.AppField.DynamicTableName)}{wherePrefix}{TrueCond};";
             Logger.LogInformation(command.CommandText);
-            await command.ExecuteNonQueryAsync();
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
         
         if (schema.AppField.Topology == FieldStorageTopology.AttributeBased)
@@ -1303,7 +1303,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             await using DbCommand command = GetDbCommand();
             command.CommandText = $"DELETE FROM {sqlProvider.QuoteTable(schema.AppField.AttributeTableName)}{wherePrefix}{TrueCond};";
             Logger.LogInformation(command.CommandText);
-            await command.ExecuteNonQueryAsync();
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
         return (true, origin);
@@ -1316,13 +1316,13 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         
         #if DEBUG
         string tableName = sqlProvider.QuoteTable(schema.AppField.DynamicTableName);
-        await EnsureOpenConnectionAsync();
+        await EnsureOpenConnectionAsync().ConfigureAwait(false);
 
         {
             await using DbCommand command = GetDbCommand();
             command.CommandText = $"DROP TABLE IF EXISTS {tableName};";
             Logger.LogInformation(command.CommandText);
-            await command.ExecuteNonQueryAsync();
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
         
         if (schema.AppField.Topology == FieldStorageTopology.AttributeBased)
@@ -1331,7 +1331,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             await using DbCommand attrCommand = GetDbCommand();
             attrCommand.CommandText = $"DROP TABLE IF EXISTS {attrTableName};";
             Logger.LogInformation(attrCommand.CommandText);
-            await attrCommand.ExecuteNonQueryAsync();
+            await attrCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
         #endif
     }
@@ -1342,8 +1342,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         if (_transaction != null)
             throw new InvalidOperationException("There is already a transaction in progress.");
 
-        await EnsureOpenConnectionAsync();
-        _transaction = await dbConn.BeginTransactionAsync();
+        await EnsureOpenConnectionAsync().ConfigureAwait(false);
+        _transaction = await dbConn.BeginTransactionAsync().ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -1351,8 +1351,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     {
         if (_transaction == null)
             throw new InvalidOperationException("There is no transaction in progress.");
-        await _transaction.CommitAsync();
-        await _transaction.DisposeAsync();
+        await _transaction.CommitAsync().ConfigureAwait(false);
+        await _transaction.DisposeAsync().ConfigureAwait(false);
         _transaction = null;
     }
 
@@ -1361,8 +1361,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     {
         if (_transaction == null)
             throw new InvalidOperationException("There is no transaction in progress.");
-        await _transaction.RollbackAsync();
-        await _transaction.DisposeAsync();
+        await _transaction.RollbackAsync().ConfigureAwait(false);
+        await _transaction.DisposeAsync().ConfigureAwait(false);
         _transaction = null;
     }
 
@@ -1371,7 +1371,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     {
         if (_transaction is not null)
         {
-            await _transaction.DisposeAsync();
+            await _transaction.DisposeAsync().ConfigureAwait(false);
             _transaction = null;
         }
         GC.SuppressFinalize(this);
@@ -1395,7 +1395,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         try
         {
             if (dbConn.State != ConnectionState.Open)
-                await dbConn.OpenAsync();
+                await dbConn.OpenAsync().ConfigureAwait(false);
         }
         catch (Exception)
         {
@@ -1436,7 +1436,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 {
                     var schema = appField.Application.GetField(fieldName)?.GetDynamicTableSchema(_context)
                         ?? throw new Exception($"The field {fieldName} not found in app {appField.Application.Name}");
-                    (var result, int total) = await QueryDynamicTableAsync(schema,AppSchemaDataResult.List);
+                    (var result, int total) = await QueryDynamicTableAsync(schema,AppSchemaDataResult.List).ConfigureAwait(false);
                     if (total > 50)
                         Logger.LogWarning($"The query result of field {fieldName} in app {appField.Application.Name} is too large, total {total}, relation function {call.Func} may not work properly");
                     
@@ -1465,7 +1465,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         // Execute the function to get the struct field configs
         try
         {
-            JsonNode? result = await call.FuncType.CallAsync<JsonNode>(_context, args);
+            JsonNode? result = await call.FuncType.CallAsync<JsonNode>(_context, args).ConfigureAwait(false);
             // try convert
             if (result is JsonArray arr)
             {
@@ -1475,7 +1475,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             else if (result is JsonValue)
             {
                 string typeName = result.ToJsonString().Trim('"');
-                var type = await _context.GetNodeTypeAsync<RuntimeValueType>(typeName);
+                var type = await _context.GetNodeTypeAsync<RuntimeValueType>(typeName).ConfigureAwait(false);
                 if (type is ArrayType arrType)
                     type = arrType.Element;
                 if (type is StructType structType)
@@ -1534,7 +1534,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         // Execute the function to get the struct field configs
         try
         {
-            JsonNode? result = await call.FuncType.CallAsync<JsonNode>(_context, args);
+            JsonNode? result = await call.FuncType.CallAsync<JsonNode>(_context, args).ConfigureAwait(false);
             switch (result)
             {
                 // try convert
@@ -1544,7 +1544,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 case JsonValue:
                 {
                     string typeName = result.ToJsonString().Trim('"');
-                    var type = await _context.GetNodeTypeAsync<RuntimeValueType>(typeName);
+                    var type = await _context.GetNodeTypeAsync<RuntimeValueType>(typeName).ConfigureAwait(false);
                     if (type is ArrayType arrType)
                         type = arrType.Element;
                     if (type is StructType structType)
@@ -1583,7 +1583,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
 
         foreach (StructFieldSchema field in fields.Where(f => f.GetProperty<DisplayOnly>()?.Value != true))
         {
-            var type = await _context.GetNodeTypeAsync<RuntimeValueType>(field.Type);
+            var type = await _context.GetNodeTypeAsync<RuntimeValueType>(field.Type).ConfigureAwait(false);
             if (type == null)
             {
                 Logger.LogWarning($"The attribute field {field.Name} type not found, will be ignored");
@@ -1605,7 +1605,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             // For struct type, we need to save the nested fields separately, since the attribute table is designed to be flat, means the field name is in format "structField_attrField"
             if (type is StructType structType)
             {
-                await SaveAttributeBasedFieldAsync(attrTable, scopeItems, structType.GetFields().Select(GetFieldSchema).ToArray(), r as JsonObject, attrField, primaries);
+                await SaveAttributeBasedFieldAsync(attrTable, scopeItems, structType.GetFields().Select(GetFieldSchema).ToArray(), r as JsonObject, attrField, primaries).ConfigureAwait(false);
                 continue;
             }
 
@@ -1677,11 +1677,11 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 await using DbCommand command = GetDbCommand();
                 command.CommandText = $"INSERT INTO {tableRef} ({columnList}) VALUES ({fixedValues}{sep} {litAttr}, {litInt}, {litStr}, {litDat}, {litDbl}, {litTxt}, {litJson}) ON DUPLICATE KEY UPDATE {_refAttrIntField} = {litInt}, {_refAttrStrField} = {litStr}, {_refAttrDatField} = {litDat}, {_refAttrDblField} = {litDbl}, {_refAttrTxtField} = {litTxt}, {_refAttrJsonField} = {litJson};";
                 Logger.LogInformation(command.CommandText);
-                await command.ExecuteNonQueryAsync();
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
             else
             {
-                await DeleteAttributeBasedFieldAsync(attrTable, scopeItems, field, prev, primaries);
+                await DeleteAttributeBasedFieldAsync(attrTable, scopeItems, field, prev, primaries).ConfigureAwait(false);
             }
         }
     }
@@ -1689,12 +1689,12 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     async Task DeleteAttributeBasedFieldAsync(string attrTable, Dictionary<string, string> scopeItems, StructFieldSchema field, string prev, List<(string k, IValueAccess v)> primaries)
     {
         string attrField = $"{prev}_{field.Name}";
-        var type = await _context.GetNodeTypeAsync<RuntimeValueType>(field.Type);
+        var type = await _context.GetNodeTypeAsync<RuntimeValueType>(field.Type).ConfigureAwait(false);
         if (type is StructType @struct)
         {
             foreach (StructFieldSchema f in @struct.GetFields().Where(f => f.DisplayOnly != true).Select(GetFieldSchema))
             {
-                await DeleteAttributeBasedFieldAsync(attrTable, scopeItems, f, attrField, primaries);
+                await DeleteAttributeBasedFieldAsync(attrTable, scopeItems, f, attrField, primaries).ConfigureAwait(false);
             }
         }
         else
@@ -1702,7 +1702,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             await using DbCommand command = GetDbCommand();
             command.CommandText =$"DELETE FROM {sqlProvider.QuoteTable(attrTable)} WHERE {string.Join(" AND ", scopeItems.Select(p => $"{sqlProvider.QuoteField(p.Key)} = {p.Value}").Concat([$"{_refAttrField} = {sqlProvider.Literal(attrField)}"]).Concat(primaries.Select(p => $"{sqlProvider.QuoteField(p.k)} = {sqlProvider.Literal(p.v)}")))};";
             Logger.LogInformation(command.CommandText);
-            await command.ExecuteNonQueryAsync();
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
     }
 
@@ -1717,8 +1717,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             foreach (StructNode pack in arr.OfType<StructNode>())
             {
                 StructFieldSchema[] fields = dynamic.RelationType != null 
-                    ? await GetStructFieldConfigs(schema.AppField, pack, dynamic.RelationType)
-                    : await GetStructFieldConfigs(pack, dynamic.StructRelation!);
+                    ? await GetStructFieldConfigs(schema.AppField, pack, dynamic.RelationType).ConfigureAwait(false)
+                    : await GetStructFieldConfigs(pack, dynamic.StructRelation!).ConfigureAwait(false);
                 if (fields.Length == 0) continue;
                 List<(string, IValueAccess v)> primaries = [];
                 foreach ((string fld, var v) in schema.GetFieldValues(pack, true))
@@ -1726,7 +1726,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
 
                 foreach (StructFieldSchema field in fields)
                     await DeleteAttributeBasedFieldAsync(schema.AppField.AttributeTableName, scopeItems, field,
-                        dynamic.Name.ToLower(), primaries);
+                        dynamic.Name.ToLower(), primaries).ConfigureAwait(false);
             }
         }
     }

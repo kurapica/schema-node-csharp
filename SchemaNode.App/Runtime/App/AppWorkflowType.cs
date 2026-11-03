@@ -105,25 +105,25 @@ public sealed class AppWorkflowType: IDisposable
     public async Task LoadAsync(SchemaContext context)
     {
         _props = _appWorkflowSchema.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_APP_WORKFLOW)).ToArray();
-        (_refTypes, Error) = await _appWorkflowSchema.LoadPropertiesAsync(context, _props);
+        (_refTypes, Error) = await _appWorkflowSchema.LoadPropertiesAsync(context, _props).ConfigureAwait(false);
 
         // Resolve payload types for all nodes
         foreach (var node in Nodes)
         {
-            var (_subRefTypes, err) = await node.LoadPropertiesAsync(context, node.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_APP_WORKFLOW_NODE)).ToArray());
+            var (_subRefTypes, err) = await node.LoadPropertiesAsync(context, node.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_APP_WORKFLOW_NODE)).ToArray()).ConfigureAwait(false);
             Error ??= err;
             if (_subRefTypes is { Length: > 0 })
                 _refTypes = _refTypes == null ? _subRefTypes : _refTypes.Concat(_subRefTypes).ToArray();
 
             if (string.IsNullOrWhiteSpace(node.Payload)) continue;
-            node.PayloadValueType = await context.GetNodeTypeAsync<ValueType>(node.Payload);
+            node.PayloadValueType = await context.GetNodeTypeAsync<ValueType>(node.Payload).ConfigureAwait(false);
             if (node.PayloadValueType == null)
                 Error ??= AppErrorCodes.WORKFLOW_NODE_VALUE_TYPE_NOT_VALID;
         }
 
         // Init the entry workflow context
         if (Nodes.Length <= 1 || !Active) return;
-        await ActiveAsync(context);
+        await ActiveAsync(context).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -183,10 +183,10 @@ public sealed class AppWorkflowType: IDisposable
         if (!noAuth)
         {
             bool isSystem = Application.GetProperty<SystemDefined>()?.Value == true;
-            schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true));
-            schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true));
-            schema.SetProperty<SchemaUpdate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true));
-            schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true));
+            schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true).ConfigureAwait(false));
+            schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true).ConfigureAwait(false));
+            schema.SetProperty<SchemaUpdate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true).ConfigureAwait(false));
+            schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true).ConfigureAwait(false));
         }
         
         return schema;
@@ -224,7 +224,7 @@ public sealed class AppWorkflowType: IDisposable
 
             foreach (var node in Nodes)
             {
-                var workflowType = await context.GetNodeTypeAsync(node.Type) as WorkflowType;
+                var workflowType = await context.GetNodeTypeAsync(node.Type).ConfigureAwait(false) as WorkflowType;
                 Type csharpType = workflowType?.GetCsharpType() ?? throw new InvalidOperationException($"BaseWorkflow type {node.Type} not found");
 
                 // All constructors parameters goto state, init directly
@@ -251,7 +251,7 @@ public sealed class AppWorkflowType: IDisposable
                 }
 
                 // details
-                await wNode.LoadAsync(context, node);
+                await wNode.LoadAsync(context, node).ConfigureAwait(false);
                 Error ??= node.Error;
 
                 // args
@@ -268,7 +268,7 @@ public sealed class AppWorkflowType: IDisposable
                         {
                             Source = argNode.Source,
                             Value = argNode.Value,
-                            ValueType = await context.GetNodeTypeAsync<ValueType>(argDef.Type),
+                            ValueType = await context.GetNodeTypeAsync<ValueType>(argDef.Type).ConfigureAwait(false),
                         };
                     }
                 }
@@ -307,7 +307,7 @@ public sealed class AppWorkflowType: IDisposable
             IWorkflowContextPersistence? persistence = context.GetService<IWorkflowContextPersistence>();
             if (persistence != null)
             {
-                var result = await persistence.ListAsync(App, Name, null, WorkflowStatus.Running);
+                var result = await persistence.ListAsync(App, Name, null, WorkflowStatus.Running).ConfigureAwait(false);
                 if (result.Item2 > 0)
                 {
                     // only should have one running context
@@ -338,7 +338,7 @@ public sealed class AppWorkflowType: IDisposable
 
         if (_workflowContext != null)
         {
-            await _workflowContext.TerminateAsync();
+            await _workflowContext.TerminateAsync().ConfigureAwait(false);
             _workflowContext = null;
         }
     }

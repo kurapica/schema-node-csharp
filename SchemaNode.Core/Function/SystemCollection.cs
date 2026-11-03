@@ -72,7 +72,7 @@ public static class SystemCollection
         
         T? @default = default(T?))
     {
-        IValueAccess? result = await GetFieldNode(context, obj, field);
+        IValueAccess? result = await GetFieldNode(context, obj, field).ConfigureAwait(false);
         return result is { IsEmpty: false } ? result.GetValue<T>() : (@default ?? default);
     }
 
@@ -85,12 +85,12 @@ public static class SystemCollection
         
         var f = @struct.GetField(field)?? throw new InvalidOperationException($"The field {field} not found in the struct {@struct.Name}");
         if (f.Type == null) throw new InvalidOperationException($"The field {field} type is null in the struct {@struct.Name}");
-        var arrayNode = await context.GetArrayNodeTypeAsync(f.Type) ?? throw new InvalidOperationException($"The field {field} type {f.Type} has no array type");
+        var arrayNode = await context.GetArrayNodeTypeAsync(f.Type).ConfigureAwait(false) ?? throw new InvalidOperationException($"The field {field} type {f.Type} has no array type");
 
         List<T> resultType = [];
         foreach (var item in array)
         {
-            var fieldNode = await GetFieldNode(context, item, field);
+            var fieldNode = await GetFieldNode(context, item, field).ConfigureAwait(false);
             if (fieldNode is { IsEmpty: false }) resultType.Add(fieldNode.GetValue<T>()!);
         }
         return resultType;
@@ -151,7 +151,7 @@ public static class SystemCollection
         string field,
         T value) where T: IComparable
     {
-        IValueAccess? result = await GetFieldNode(context, obj, field);
+        IValueAccess? result = await GetFieldNode(context, obj, field).ConfigureAwait(false);
         if (result ==  null || result.IsEmpty) return false;
         return value.CompareTo(result.GetValue<T>()) == 0;
     }
@@ -165,7 +165,7 @@ public static class SystemCollection
         string field,
         T value) where T : IComparable
     {
-        IValueAccess? result = await GetFieldNode(context, obj, field);
+        IValueAccess? result = await GetFieldNode(context, obj, field).ConfigureAwait(false);
         if (result == null || result.IsEmpty) return false;
         return value.CompareTo(result.GetValue<T>()) != 0;
     }
@@ -179,7 +179,7 @@ public static class SystemCollection
         string field,
         T value) where T : IComparable
     {
-        IValueAccess? result = await GetFieldNode(context, obj, field);
+        IValueAccess? result = await GetFieldNode(context, obj, field).ConfigureAwait(false);
         if (result == null || result.IsEmpty) return false;
         return value.CompareTo(result.GetValue<T>()) >= 0;
     }
@@ -193,7 +193,7 @@ public static class SystemCollection
         string field,
         T value) where T : IComparable
     {
-        IValueAccess? result = await GetFieldNode(context, obj, field);
+        IValueAccess? result = await GetFieldNode(context, obj, field).ConfigureAwait(false);
         if (result == null || result.IsEmpty) return false;
         return value.CompareTo(result.GetValue<T>()) > 0;
     }
@@ -207,7 +207,7 @@ public static class SystemCollection
         string field,
         T value) where T : IComparable
     {
-        IValueAccess? result = await GetFieldNode(context, obj, field);
+        IValueAccess? result = await GetFieldNode(context, obj, field).ConfigureAwait(false);
         if (result == null || result.IsEmpty) return false;
         return value.CompareTo(result.GetValue<T>()) <= 0;
     }
@@ -221,7 +221,7 @@ public static class SystemCollection
         string field,
         T value) where T : IComparable
     {
-        IValueAccess? result = await GetFieldNode(context, obj, field);
+        IValueAccess? result = await GetFieldNode(context, obj, field).ConfigureAwait(false);
         if (result == null || result.IsEmpty) return false;
         return value.CompareTo(result.GetValue<T>()) < 0;
     }
@@ -235,7 +235,7 @@ public static class SystemCollection
     {
         var node = obj?.GetAccessValue(path);
         if (node is not DataNode n) return node;
-        await n.LoadDefaultAsync(context);
+        await n.LoadDefaultAsync(context).ConfigureAwait(false);
         return node;
     }
 }

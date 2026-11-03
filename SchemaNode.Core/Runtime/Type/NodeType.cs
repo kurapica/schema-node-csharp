@@ -145,7 +145,7 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
     internal virtual async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, IReadOnlyList<NodeType>? genericParams = null)
     {
         // load basic info
-        Namespace = !string.IsNullOrWhiteSpace(schema.Namespace) ? await context.GetNodeTypeAsync<NamespaceType>(schema.Namespace) : null;
+        Namespace = !string.IsNullOrWhiteSpace(schema.Namespace) ? await context.GetNodeTypeAsync<NamespaceType>(schema.Namespace).ConfigureAwait(false) : null;
         Schema = schema;
         GenericParams = genericParams is { Count: > 0 } ? genericParams : null;
 
@@ -169,12 +169,12 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
         _props = props.Count > 0 ? props.ToArray() : null;
         Generics = GetProperty<Generics>()?.Value;
 
-        await LoadAsync(context);
+        await LoadAsync(context).ConfigureAwait(false);
         Loaded = true;
 
         context.DeferLoadTask(async () =>
         {
-            (_refTypes, string? error) = await schema.LoadPropertiesAsync(context, props, this as ValueType);
+            (_refTypes, string? error) = await schema.LoadPropertiesAsync(context, props, this as ValueType).ConfigureAwait(false);
             Error ??= error;
 
             // Loading schema properties after loading, to avoid cycle ref
@@ -484,7 +484,7 @@ public abstract class ValueType : NodeType, IValueTypeAccess
         // constraints
         foreach (IConstraintProperty constraint in Constraints.Where(c => c.HasValue))
         {
-            bool? valid = await constraint.ValidateAsync(ctx, result);
+            bool? valid = await constraint.ValidateAsync(ctx, result).ConfigureAwait(false);
             if (valid.HasValue) result.RecordConstraint(constraint, valid.Value);
         }
         

@@ -29,7 +29,7 @@ public class ValidateSchemaApi : SchemaApi<ValidateSchemaRequest, ValidateSchema
             request.Schema,
             request.TargetName,
             checkAuthorization: true,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
 
         return new ValidateSchemaResponse
         {

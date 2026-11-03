@@ -29,6 +29,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="SchemaNode.App" />
     <InternalsVisibleTo Include="SchemaNode.UnitTest" />
+    <InternalsVisibleTo Include="SchemaNode.WPF.View" />
   </ItemGroup>
 
   <ItemGroup>

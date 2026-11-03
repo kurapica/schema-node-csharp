@@ -34,7 +34,7 @@ public class OntologyVectorPostgreSqlService(
     /// <inheritdoc />
     public async Task EnsureTableAsync(CancellationToken cancellationToken = default)
     {
-        await using NpgsqlConnection conn = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using NpgsqlConnection conn = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using NpgsqlCommand cmd = conn.CreateCommand();
         cmd.CommandText = $"""
             CREATE TABLE IF NOT EXISTS "{_table}" (
@@ -61,28 +61,28 @@ public class OntologyVectorPostgreSqlService(
             CREATE INDEX IF NOT EXISTS "{_table}_embedding_idx"
                 ON "{_table}" USING hnsw (embedding vector_cosine_ops);
             """;
-        await cmd.ExecuteNonQueryAsync(cancellationToken);
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task DeleteAsync(string schemaKey, CancellationToken cancellationToken = default)
     {
-        await using NpgsqlConnection conn = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using NpgsqlConnection conn = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using NpgsqlCommand cmd = conn.CreateCommand();
         // Delete the block atom itself and all its child atoms (enum values, struct fields, …)
         cmd.CommandText = $"""DELETE FROM "{_table}" WHERE schema_key = $1 OR parent = $1;""";
         cmd.Parameters.AddWithValue(schemaKey);
-        await cmd.ExecuteNonQueryAsync(cancellationToken);
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task IndexAsync(
         SemanticAtom atom, OntologyVectorCategory category, string locale, CancellationToken cancellationToken = default)
     {
-        ReadOnlyMemory<float> embeddings = await embeddingService.GenerateVectorAsync(atom.Content, cancellationToken: cancellationToken);
+        ReadOnlyMemory<float> embeddings = await embeddingService.GenerateVectorAsync(atom.Content, cancellationToken: cancellationToken).ConfigureAwait(false);
         var vector = new PgVector(embeddings);
 
-        await using NpgsqlConnection conn = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using NpgsqlConnection conn = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using NpgsqlCommand cmd = conn.CreateCommand();
         cmd.CommandText = $"""
             INSERT INTO "{_table}" (schema_key, kind, name, parent, locale, category, content, embedding)
@@ -104,17 +104,17 @@ public class OntologyVectorPostgreSqlService(
         cmd.Parameters.AddWithValue(category.ToString());
         cmd.Parameters.AddWithValue(atom.Content);
         cmd.Parameters.AddWithValue(vector);
-        await cmd.ExecuteNonQueryAsync(cancellationToken);
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<OntologyVectorMatch>> SearchAsync(
         string queryText, int topK = 5, OntologyVectorCategory? category = null, string? locale = null, CancellationToken cancellationToken = default)
     {
-        ReadOnlyMemory<float> queryEmbeddings = await embeddingService.GenerateVectorAsync(queryText, cancellationToken: cancellationToken);
+        ReadOnlyMemory<float> queryEmbeddings = await embeddingService.GenerateVectorAsync(queryText, cancellationToken: cancellationToken).ConfigureAwait(false);
         var queryVector = new PgVector(queryEmbeddings);
 
-        await using NpgsqlConnection conn = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using NpgsqlConnection conn = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using NpgsqlCommand cmd = conn.CreateCommand();
 
         var conditions = new List<string>();
@@ -136,8 +136,8 @@ public class OntologyVectorPostgreSqlService(
         if (!string.IsNullOrEmpty(locale)) cmd.Parameters.AddWithValue(locale);
 
         var results = new List<OntologyVectorMatch>();
-        await using NpgsqlDataReader reader = await cmd.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
+        await using NpgsqlDataReader reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             results.Add(new OntologyVectorMatch
             {

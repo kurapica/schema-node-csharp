@@ -45,7 +45,7 @@ public class QueryFilterCompileContext : CompileContext
             return schema;
         }
         
-        schema = await base.VisitFunctionType();
+        schema = await base.VisitFunctionType().ConfigureAwait(false);
         _lastLogicExp = schema.Exps.LastOrDefault()?.Value as LogicExp;
         if (_lastLogicExp == null)
             throw new FunctionVisitException(AppErrorCodes.FUNC_IS_NOT_POLICY_FILTER);
@@ -106,14 +106,14 @@ public class QueryFilterCompileContext : CompileContext
                                 }
                                 else
                                 {
-                                    var valueNode = await Context.GetSchemaNodeAsync(a.Value, a.ValueType ?? call.FuncType.Args[j].ValueType, true)
+                                    var valueNode = await Context.GetSchemaNodeAsync(a.Value, a.ValueType ?? call.FuncType.Args[j].ValueType, true).ConfigureAwait(false)
                                         ?? throw new FunctionVisitException(AppErrorCodes.FUNC_IS_NOT_POLICY_FILTER);
                                     replaceArgs[j] = new ConstantExp(valueNode);
                                 }
                             }
 
                             var replaceExp = new FuncCallExp(call.FuncType, replaceArgs, field.Type!);
-                            args[i] = await VisitSchemaExpAsync(replaceExp);
+                            args[i] = await VisitSchemaExpAsync(replaceExp).ConfigureAwait(false);
                         }
                     }
                     else
@@ -131,7 +131,7 @@ public class QueryFilterCompileContext : CompileContext
             if (changed)
                 exp = new FuncCallExp(funcCallExp.Function, args, funcCallExp.ValueType, funcCallExp.ApplyMode);
         }
-        SchemaExp result = await base.VisitSchemaExpAsync(exp);
+        SchemaExp result = await base.VisitSchemaExpAsync(exp).ConfigureAwait(false);
         return (result is FieldAccessExp { Owner: ArgumentExp { Index: 0 } or 
             VariableExp { Value: ArgumentExp { Index: 0 } } } fieldExp)
             ? new QueryFieldAccessExpression(fieldExp.FieldName, fieldExp.ValueType)
@@ -152,13 +152,13 @@ public class QueryFilterCompileContext : CompileContext
     {
         return exp switch
         {
-            VariableExp varExp => await CompileDataSourceFilter(varExp.Value), // nested variable
-            DefaultExp defaultExp => await CompileDataSourceFilter(defaultExp.Inner),
+            VariableExp varExp => await CompileDataSourceFilter(varExp.Value).ConfigureAwait(false), // nested variable
+            DefaultExp defaultExp => await CompileDataSourceFilter(defaultExp.Inner).ConfigureAwait(false),
             QueryFieldAccessExpression fieldExp => Expression.New(typeof(AppSchemaDataFilterField).GetConstructors()[0], Expression.Constant(fieldExp.FieldName)),
-            UnaryLogicExp unaryExp => Expression.New(typeof(AppSchemaDataFilterUnary).GetConstructors()[0], Expression.Constant(unaryExp.Type), await CompileDataSourceFilter(unaryExp.Inner)),
-            BinaryLogicExp binaryExp => Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(binaryExp.Type), await CompileDataSourceFilter(binaryExp.Left), await CompileDataSourceFilter(binaryExp.Right)),
-            ArithmeticExp arExp => Expression.New(typeof(AppSchemaDataFilterArith).GetConstructors()[0], Expression.Constant(arExp.Type), arExp.Args.Length > 2 ? await CompileDataSourceFilter(new ArithmeticExp(arExp.Type, arExp.Args.SkipLast(1).ToArray(), arExp.ValueType)) : await CompileDataSourceFilter(arExp.Args[0]), await CompileDataSourceFilter(arExp.Args.Last())),
-            _ => Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], Expression.Convert(await base.CompileSchemaExpAsync(exp), typeof(object))),
+            UnaryLogicExp unaryExp => Expression.New(typeof(AppSchemaDataFilterUnary).GetConstructors()[0], Expression.Constant(unaryExp.Type), await CompileDataSourceFilter(unaryExp.Inner).ConfigureAwait(false)),
+            BinaryLogicExp binaryExp => Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(binaryExp.Type), await CompileDataSourceFilter(binaryExp.Left).ConfigureAwait(false), await CompileDataSourceFilter(binaryExp.Right).ConfigureAwait(false)),
+            ArithmeticExp arExp => Expression.New(typeof(AppSchemaDataFilterArith).GetConstructors()[0], Expression.Constant(arExp.Type), arExp.Args.Length > 2 ? await CompileDataSourceFilter(new ArithmeticExp(arExp.Type, arExp.Args.SkipLast(1).ToArray(), arExp.ValueType)).ConfigureAwait(false) : await CompileDataSourceFilter(arExp.Args[0]).ConfigureAwait(false), await CompileDataSourceFilter(arExp.Args.Last()).ConfigureAwait(false)),
+            _ => Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], Expression.Convert(await base.CompileSchemaExpAsync(exp).ConfigureAwait(false), typeof(object))),
         };
     }
 }

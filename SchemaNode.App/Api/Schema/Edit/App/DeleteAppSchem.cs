@@ -18,7 +18,7 @@ public class DeleteAppSchemaApi : SchemaApi<DeleteAppSchemaRequest, DeleteAppSch
 
         return new DeleteAppSchemaResponse
         {
-            Result = await SchemaContext.DeleteAppSchemaAsync(request.App)
+            Result = await SchemaContext.DeleteAppSchemaAsync(request.App).ConfigureAwait(false)
         };
     }
 }

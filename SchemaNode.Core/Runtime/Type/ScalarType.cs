@@ -35,7 +35,7 @@ public abstract class ScalarType : ValueType
 
         if (!string.IsNullOrWhiteSpace(scalar?.Base))
         {
-            BaseType = await context.GetNodeTypeAsync<ScalarType>(scalar.Base);
+            BaseType = await context.GetNodeTypeAsync<ScalarType>(scalar.Base).ConfigureAwait(false);
             if (BaseType == null || !BaseType.Kind.Equals(Kind, StringComparison.OrdinalIgnoreCase))
                 Error = ErrorCodes.SCALAR_WRONG_BASE;
         }

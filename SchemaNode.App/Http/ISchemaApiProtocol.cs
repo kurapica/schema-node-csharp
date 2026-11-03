@@ -74,7 +74,7 @@ public interface ISchemaApiProtocol
             if (ctx.Request.ContentType != null && ctx.Request.ContentType.Contains("application/json", StringComparison.OrdinalIgnoreCase))
             {
                 ctx.Request.Body.Position = 0;
-                requestBody = await new StreamReader(ctx.Request.Body).ReadToEndAsync();
+                requestBody = await new StreamReader(ctx.Request.Body).ReadToEndAsync().ConfigureAwait(false);
             }
             else if (ctx.Request.ContentType != null && ctx.Request.ContentType.Contains("multipart/form-data", StringComparison.OrdinalIgnoreCase))
             {
@@ -153,7 +153,7 @@ public interface ISchemaApiProtocol
             TApi api = provider.GetRequiredService<TApi>();
             request.Context = ctx;
             request.Files = files;
-            response = await api._ExecuteAsync(request, logger);
+            response = await api._ExecuteAsync(request, logger).ConfigureAwait(false);
         }
         catch (UnauthorizedAccessException ex)
         {

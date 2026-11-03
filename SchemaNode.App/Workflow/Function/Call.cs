@@ -33,7 +33,7 @@ public class Call<T>: BaseWorkflow,
             schema.Error ??= AppErrorCodes.WORKFLOW_CALL_FUNC_NOT_VALID;
             return;
         }
-        _function = await context.GetNodeTypeAsync<FunctionType>(call.Func);
+        _function = await context.GetNodeTypeAsync<FunctionType>(call.Func).ConfigureAwait(false);
         if (_function == null)
         {
             schema.Error ??= AppErrorCodes.WORKFLOW_CALL_FUNC_NOT_VALID;
@@ -58,7 +58,7 @@ public class Call<T>: BaseWorkflow,
             SetPayload(context, await _function.CallAsync<IValueAccess>(context,
                 _args?.Select<CallArg, object?>(callArg => string.IsNullOrEmpty(callArg.Source)
                     ? callArg.Value?.DeepClone()
-                    : context.GetWorkflowPayload(callArg.Source)).ToArray() ?? [], PayloadType?.Name));
+                    : context.GetWorkflowPayload(callArg.Source)).ToArray() ?? [], PayloadType?.Name).ConfigureAwait(false));
         }
         catch (Exception e)
         {

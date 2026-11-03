@@ -40,7 +40,7 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
                 {
                     string namespaceName = name.GetNamespace();
                     string schemaName = name.GetSchemaName();
-                    schema = await context.GetEntityAsync<NodeEntity>(Target, string.IsNullOrWhiteSpace(namespaceName) ? ROOT : namespaceName, schemaName);
+                    schema = await context.GetEntityAsync<NodeEntity>(Target, string.IsNullOrWhiteSpace(namespaceName) ? ROOT : namespaceName, schemaName).ConfigureAwait(false);
                     
                     // namespace may not save when they are system generated, just try
                     if (schema == null)
@@ -61,7 +61,7 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
                     {
                         // sub namespace
                         string ns = string.IsNullOrEmpty(schema.Name) ? ROOT : schema.FullName;
-                        NodeSchema[] value = (await context.GetEntitiesAsync<NodeEntity>(Target, s => s.Namespace == ns)).Select(s => (NodeSchema)s!).ToArray();
+                        NodeSchema[] value = (await context.GetEntitiesAsync<NodeEntity>(Target, s => s.Namespace == ns).ConfigureAwait(false)).Select(s => (NodeSchema)s!).ToArray();
                         if (value.Length == 0 && checkSubNs) continue;
                         schema.Schemas = value;
                         foreach (NodeSchema sub in value)
@@ -73,7 +73,7 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
                                 {
                                     foreach (var v in @enum.Values)
                                     {
-                                        v.HasChildren = (await context.GetEntitiesAsync<EnumValueEntity>(Target,e => e.Enum == sub.FullName && e.Root == v.Value, take: 1)).Count != 0;
+                                        v.HasChildren = (await context.GetEntitiesAsync<EnumValueEntity>(Target,e => e.Enum == sub.FullName && e.Root == v.Value, take: 1).ConfigureAwait(false)).Count != 0;
                                     }
                                     sub.SetProperty<EnumProperty, EnumSchema>(@enum);
                                 }
@@ -89,7 +89,7 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
                             foreach (var value in @enum.Values)
                             {
                                 value.HasChildren = (await context.GetEntitiesAsync<EnumValueEntity>(Target,
-                                    e => e.Enum == schema.FullName && e.Root == value.Value, take: 1)).Count != 0;
+                                    e => e.Enum == schema.FullName && e.Root == value.Value, take: 1).ConfigureAwait(false)).Count != 0;
                             }
 
                             schema.SetProperty<EnumProperty, EnumSchema>(@enum);
@@ -117,9 +117,9 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
         
         try
         {
-            await context.BeginTransactionAsync();
-            await context.SaveEntityAsync<NodeEntity>(Target, schema!);
-            await context.CommitTransactionAsync();
+            await context.BeginTransactionAsync().ConfigureAwait(false);
+            await context.SaveEntityAsync<NodeEntity>(Target, schema!).ConfigureAwait(false);
+            await context.CommitTransactionAsync().ConfigureAwait(false);
             return true;
         }
         catch (Exception e)
@@ -136,21 +136,21 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
         
         try
         {
-            NodeType? delNode = await context.GetNodeTypeAsync(schema);
+            NodeType? delNode = await context.GetNodeTypeAsync(schema).ConfigureAwait(false);
             NodeSchema? nodeSchema = delNode?.GetNodeSchema();
             if (nodeSchema == null) return false;
             
-            await context.BeginTransactionAsync();
-            await context.DeleteEntityAsync<NodeEntity>(Target, nodeSchema!);
+            await context.BeginTransactionAsync().ConfigureAwait(false);
+            await context.DeleteEntityAsync<NodeEntity>(Target, nodeSchema!).ConfigureAwait(false);
 
             switch (nodeSchema.Kind)
             {
                 case NODE_KIND_ENUM:
                     if (delNode is Runtime.EnumType { Cascade.Length: > 0 })
-                        await context.DeleteEntitiesAsync<EnumValueEntity>(Target, e => e.Enum == nodeSchema.FullName);
+                        await context.DeleteEntitiesAsync<EnumValueEntity>(Target, e => e.Enum == nodeSchema.FullName).ConfigureAwait(false);
                     break;
             }
-            await context.CommitTransactionAsync();
+            await context.CommitTransactionAsync().ConfigureAwait(false);
             return true;
         }
         catch (Exception e)
@@ -170,21 +170,21 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
         if (string.IsNullOrEmpty(value) && string.IsNullOrWhiteSpace(start)) return [];
         try
         {
-            var enumType = await context.GetNodeTypeAsync<Runtime.EnumType>(name);
+            var enumType = await context.GetNodeTypeAsync<Runtime.EnumType>(name).ConfigureAwait(false);
             if (enumType is not { Cascade.Length: > 0 }) return [];
 
-            Entry<string>[] root = (await enumType.GetEnumEntryAccessAsync(context, null)).First().Children!; // only root
+            Entry<string>[] root = (await enumType.GetEnumEntryAccessAsync(context, null).ConfigureAwait(false)).First().Children!; // only root
             AppSchemaDataOrder[] orderBy = [new AppSchemaDataOrder(nameof(EnumValueEntity.Seqno), false)];
 
             // Only load the children of the start value if value not provided
             if (string.IsNullOrWhiteSpace(value))
             {
-                Entry<string>? startEntry = root.FirstOrDefault(e => e.Value.Equals(start, StringComparison.OrdinalIgnoreCase)) 
-                                            ?? await context.GetEntityAsync<EnumValueEntity>(Target, name, start!);
+                Entry<string>? startEntry = root.FirstOrDefault(e => e.Value.Equals(start, StringComparison.OrdinalIgnoreCase))
+                                            ?? await context.GetEntityAsync<EnumValueEntity>(Target, name, start!).ConfigureAwait(false);
                 if (startEntry is not { HasChildren: true }) return []; // not existed
-                
-                List<EnumValueEntity> children = await context.GetEntitiesAsync<EnumValueEntity>(Target, 
-                    e => e.Enum == name && e.Root == start, orderBy: orderBy);
+
+                List<EnumValueEntity> children = await context.GetEntitiesAsync<EnumValueEntity>(Target,
+                    e => e.Enum == name && e.Root == start, orderBy: orderBy).ConfigureAwait(false);
                 return
                 [
                     new EntryAccess<string>
@@ -201,15 +201,15 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
             while (value is not null)
             {
                 Entry<string>? info = root.FirstOrDefault(e => e.Value.Equals(value, StringComparison.OrdinalIgnoreCase));
-                EnumValueEntity? entity = info == null ? await context.GetEntityAsync<EnumValueEntity>(Target, name, value) : null;
+                EnumValueEntity? entity = info == null ? await context.GetEntityAsync<EnumValueEntity>(Target, name, value).ConfigureAwait(false) : null;
                 if (entity != null) info = entity;
                 if (info == null) return [];
-                
+
                 accesses.Add(new EntryAccess<string>
                 {
                     Entry =  info,
-                    Children = (await context.GetEntitiesAsync<EnumValueEntity>(Target, 
-                        e => e.Enum == name && e.Root == value, orderBy: orderBy))
+                    Children = (await context.GetEntitiesAsync<EnumValueEntity>(Target,
+                        e => e.Enum == name && e.Root == value, orderBy: orderBy).ConfigureAwait(false))
                         .Select(e => (Entry<string>)e!).ToArray()
                 });
                 if (entity == null)
@@ -248,10 +248,10 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
         {
             if (string.IsNullOrEmpty(value)) return false; // should be done in save schema
             
-            var enumType = await context.GetNodeTypeAsync<Runtime.EnumType>(name);
+            var enumType = await context.GetNodeTypeAsync<Runtime.EnumType>(name).ConfigureAwait(false);
             if (enumType is not { Cascade.Length: > 0 }) return false;
-            
-            var accessList = await GetEnumEntryAccessAsync(name, value);
+
+            var accessList = await GetEnumEntryAccessAsync(name, value).ConfigureAwait(false);
             if (accessList.Length == 0 || accessList.Length > enumType.Cascade.Length) return false;
 
             value = accessList.Last().Entry!.Value;
@@ -259,13 +259,13 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
             EnumValueEntity? valueEntity = null;
             if (accessList.Length > 2)
             {
-                valueEntity = await context.GetEntityAsync<EnumValueEntity>(Target, name, value);
+                valueEntity = await context.GetEntityAsync<EnumValueEntity>(Target, name, value).ConfigureAwait(false);
                 if (valueEntity == null) return false;
             }
-            
+
             // Gets the exist entries
             List<EnumValueEntity> existEntries = await context.GetEntitiesAsync<EnumValueEntity>(
-                Target, e => e.Enum == name && e.Root == value, orderBy:[new  AppSchemaDataOrder(nameof(EnumValueEntity.Seqno), false)]);
+                Target, e => e.Enum == name && e.Root == value, orderBy:[new  AppSchemaDataOrder(nameof(EnumValueEntity.Seqno), false)]).ConfigureAwait(false);
             
             List<EnumValueEntity>? deletes = null;
             
@@ -302,21 +302,21 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
                 }).ToList();
             }
             
-            await context.BeginTransactionAsync();
+            await context.BeginTransactionAsync().ConfigureAwait(false);
             if (deletes is { Count: > 0 })
-                await context.DeleteEntitiesAsync(Target, deletes);
+                await context.DeleteEntitiesAsync(Target, deletes).ConfigureAwait(false);
 
             if (existEntries.Count > 0)
-                await context.SaveEntitiesAsync(Target, existEntries);
+                await context.SaveEntitiesAsync(Target, existEntries).ConfigureAwait(false);
 
             // Update the children flag
             if (valueEntity is not null)
             {
                 valueEntity.HasChildren = existEntries.Count > 0;
-                await context.SaveEntityAsync(Target, valueEntity);
+                await context.SaveEntityAsync(Target, valueEntity).ConfigureAwait(false);
             }
             
-            await context.CommitTransactionAsync();
+            await context.CommitTransactionAsync().ConfigureAwait(false);
             return true;
         }
         catch (Exception e)
@@ -349,19 +349,19 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
             }
             else
             {
-                schema = await context.GetEntityAsync<AppEntity>(Target, string.IsNullOrWhiteSpace(container) ? ROOT : container, name);
+                schema = await context.GetEntityAsync<AppEntity>(Target, string.IsNullOrWhiteSpace(container) ? ROOT : container, name).ConfigureAwait(false);
                 if (schema != null) app = schema.FullName;
             }
 
             // load apps
-            List<AppSchema> apps = (await context.GetEntitiesAsync<AppEntity>(Target, e => e.Container == app)).Select(a => (AppSchema)a!).ToList();
+            List<AppSchema> apps = (await context.GetEntitiesAsync<AppEntity>(Target, e => e.Container == app).ConfigureAwait(false)).Select(a => (AppSchema)a!).ToList();
             foreach(AppSchema subApp in apps)
             {
                 // check sub apps
-                subApp.HasApps = (await context.GetEntitiesAsync<AppEntity>(Target, e => e.Container == subApp.FullName, take: 1)).Count != 0;
+                subApp.HasApps = (await context.GetEntitiesAsync<AppEntity>(Target, e => e.Container == subApp.FullName, take: 1).ConfigureAwait(false)).Count != 0;
 
                 // check fields
-                subApp.HasFields = (await context.GetEntitiesAsync<AppFieldEntity>(Target, e => e.App == subApp.FullName, take: 1)).Count != 0;
+                subApp.HasFields = (await context.GetEntitiesAsync<AppFieldEntity>(Target, e => e.App == subApp.FullName, take: 1).ConfigureAwait(false)).Count != 0;
             }
 
             // provide container app
@@ -374,7 +374,7 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
             schema.Apps = apps.Count > 0 ? apps.ToArray() : null;
             
             // load fields
-            List<AppFieldEntity> fields = await context.GetEntitiesAsync<AppFieldEntity>(Target, e => e.App == app);
+            List<AppFieldEntity> fields = await context.GetEntitiesAsync<AppFieldEntity>(Target, e => e.App == app).ConfigureAwait(false);
             if (fields.Count > 0)
             {
                 fields.Sort((a, b) => a.Seqno.CompareTo(b.Seqno));
@@ -383,7 +383,7 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
             }
             
             // load workflows
-            List<AppWorkflowEntity> workflows = await context.GetEntitiesAsync<AppWorkflowEntity>(Target, e => e.App == app);
+            List<AppWorkflowEntity> workflows = await context.GetEntitiesAsync<AppWorkflowEntity>(Target, e => e.App == app).ConfigureAwait(false);
             if (workflows.Count > 0)
             {
                 workflows.Sort((a, b) => a.Seqno.CompareTo(b.Seqno));
@@ -404,9 +404,9 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
     {
         try
         {
-            await context.BeginTransactionAsync();
-            await context.SaveEntityAsync<AppEntity>(Target, app!);
-            await context.CommitTransactionAsync();
+            await context.BeginTransactionAsync().ConfigureAwait(false);
+            await context.SaveEntityAsync<AppEntity>(Target, app!).ConfigureAwait(false);
+            await context.CommitTransactionAsync().ConfigureAwait(false);
             
             return true;
         }
@@ -427,9 +427,9 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
             string container = app.GetNamespace();
             string name = app.GetSchemaName();
             
-            await context.BeginTransactionAsync();
-            await context.DeleteEntityAsync<AppEntity>(Target, string.IsNullOrWhiteSpace(container) ? ROOT : container, name);
-            await context.CommitTransactionAsync();
+            await context.BeginTransactionAsync().ConfigureAwait(false);
+            await context.DeleteEntityAsync<AppEntity>(Target, string.IsNullOrWhiteSpace(container) ? ROOT : container, name).ConfigureAwait(false);
+            await context.CommitTransactionAsync().ConfigureAwait(false);
             
             return true;
         }
@@ -445,7 +445,7 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
     {
         try
         {            
-            var appNode = await context.GetAppTypeAsync(app);
+            var appNode = await context.GetAppTypeAsync(app).ConfigureAwait(false);
             if (appNode == null) return false;
             
             AppFieldType? exist = appNode.GetField(field.Name);
@@ -460,9 +460,9 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
                 field.Seqno = exist.Seqno;
             }
             
-            await context.BeginTransactionAsync();
-            await context.SaveEntityAsync<AppFieldEntity>(Target, field!);
-            await context.CommitTransactionAsync();
+            await context.BeginTransactionAsync().ConfigureAwait(false);
+            await context.SaveEntityAsync<AppFieldEntity>(Target, field!).ConfigureAwait(false);
+            await context.CommitTransactionAsync().ConfigureAwait(false);
             
             return true;
         }
@@ -478,18 +478,18 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
     {
         try
         {
-            List<AppFieldEntity> fields = await context.GetEntitiesAsync<AppFieldEntity>(Target, e => e.App == app);
+            List<AppFieldEntity> fields = await context.GetEntitiesAsync<AppFieldEntity>(Target, e => e.App == app).ConfigureAwait(false);
             int exist = fields.FindIndex(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase));
             if (exist < 0) return false;
 
-            await context.BeginTransactionAsync();
-            await context.DeleteEntityAsync(Target, fields[exist]);
+            await context.BeginTransactionAsync().ConfigureAwait(false);
+            await context.DeleteEntityAsync(Target, fields[exist]).ConfigureAwait(false);
 
             fields = fields.Skip(exist + 1).ToList();
             for(int i = 0; i < fields.Count; i++)
                 fields[i].Seqno = exist + i;
-            await context.SaveEntitiesAsync(Target, fields);
-            await context.CommitTransactionAsync();
+            await context.SaveEntitiesAsync(Target, fields).ConfigureAwait(false);
+            await context.CommitTransactionAsync().ConfigureAwait(false);
 
             return true;
         }
@@ -508,15 +508,15 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
             if (string.IsNullOrEmpty(field1) || string.IsNullOrEmpty(field2)) return false;
             if (field1 == field2) return true;
 
-            AppFieldEntity? first = await context.GetEntityAsync<AppFieldEntity>(Target, app, field1);
-            AppFieldEntity? second = await context.GetEntityAsync<AppFieldEntity>(Target, app, field2);
+            AppFieldEntity? first = await context.GetEntityAsync<AppFieldEntity>(Target, app, field1).ConfigureAwait(false);
+            AppFieldEntity? second = await context.GetEntityAsync<AppFieldEntity>(Target, app, field2).ConfigureAwait(false);
             if (first == null || second == null) return false;
 
             (first.Seqno, second.Seqno) = (second.Seqno, first.Seqno);
 
-            await context.BeginTransactionAsync();
-            await context.SaveEntitiesAsync(Target, [ first, second ]);
-            await context.CommitTransactionAsync();
+            await context.BeginTransactionAsync().ConfigureAwait(false);
+            await context.SaveEntitiesAsync(Target, [ first, second ]).ConfigureAwait(false);
+            await context.CommitTransactionAsync().ConfigureAwait(false);
             return true;
         }
         catch(Exception e)
@@ -531,7 +531,7 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
     {
         try
         {            
-            var appNode = await context.GetAppTypeAsync(app);
+            var appNode = await context.GetAppTypeAsync(app).ConfigureAwait(false);
             if (appNode == null) return false;
             
             AppWorkflowType? exist = appNode.GetWorkflow(workflow.Name);
@@ -546,9 +546,9 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
                 workflow.Seqno = exist.Seqno;
             }
             
-            await context.BeginTransactionAsync();
-            await context.SaveEntityAsync<AppWorkflowEntity>(Target, workflow!);
-            await context.CommitTransactionAsync();
+            await context.BeginTransactionAsync().ConfigureAwait(false);
+            await context.SaveEntityAsync<AppWorkflowEntity>(Target, workflow!).ConfigureAwait(false);
+            await context.CommitTransactionAsync().ConfigureAwait(false);
             
             return true;
         }
@@ -564,19 +564,19 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
     {
         try
         {
-            List<AppWorkflowEntity> fields = await context.GetEntitiesAsync<AppWorkflowEntity>(Target, e => e.App == app);
+            List<AppWorkflowEntity> fields = await context.GetEntitiesAsync<AppWorkflowEntity>(Target, e => e.App == app).ConfigureAwait(false);
             int exist = fields.FindIndex(f => f.Name.Equals(workflow, StringComparison.OrdinalIgnoreCase));
             if (exist < 0) return false;
 
-            await context.BeginTransactionAsync();
-            await context.DeleteEntityAsync(Target, fields[exist]);
+            await context.BeginTransactionAsync().ConfigureAwait(false);
+            await context.DeleteEntityAsync(Target, fields[exist]).ConfigureAwait(false);
 
             fields = fields.Skip(exist + 1).ToList();
             for(int i = 0; i < fields.Count; i++)
                 fields[i].Seqno = exist + i;
-            await context.SaveEntitiesAsync(Target, fields);
+            await context.SaveEntitiesAsync(Target, fields).ConfigureAwait(false);
 
-            await context.CommitTransactionAsync();
+            await context.CommitTransactionAsync().ConfigureAwait(false);
 
             return true;
         }

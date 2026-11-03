@@ -49,11 +49,11 @@ public class DataSourceExpVisitor : IExpVisitor
             throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
 
         // App & Field must be valid
-        var appType = await context.Context.GetAppTypeAsync(app);
+        var appType = await context.Context.GetAppTypeAsync(app).ConfigureAwait(false);
         AppFieldType? appField = appType?.GetField(field);
         ValueType? schemaType = appField?.ValueType;
         if (schemaType == null && !string.IsNullOrEmpty(appField?.Type))
-            schemaType = await context.Context.GetNodeTypeAsync<ValueType>(appField.Type);
+            schemaType = await context.Context.GetNodeTypeAsync<ValueType>(appField.Type).ConfigureAwait(false);
         return schemaType is ArrayType { Element: StructType, Primary: { Count: > 0 } }
             ? new DataSourceExp(new DataSource(app, field, schemaType))
             : null; // call directly
@@ -119,7 +119,7 @@ public class DataSourceExpVisitor : IExpVisitor
             
             // predicate check
             if (dataResultExp is PredicateCollectionResult { Predicate: not null } predicateResultExp)
-                filter = await CompileDataSourceFilter(context, predicateResultExp.Predicate);
+                filter = await CompileDataSourceFilter(context, predicateResultExp.Predicate).ConfigureAwait(false);
         }
         
         string app = dataSource.Source.App;
@@ -133,8 +133,8 @@ public class DataSourceExpVisitor : IExpVisitor
                 case PredicateCollectionOperator whereExp:
                     filter = filter != null 
                         ? Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(LogicType.AndAlso), 
-                            filter, await CompileDataSourceFilter(context, whereExp.Predicate))
-                        : await CompileDataSourceFilter(context, whereExp.Predicate);
+                            filter, await CompileDataSourceFilter(context, whereExp.Predicate).ConfigureAwait(false))
+                        : await CompileDataSourceFilter(context, whereExp.Predicate).ConfigureAwait(false);
                     curr = whereExp.Root;
                     break;
                 case OrderByCollectionOperator orderByExp:
@@ -142,11 +142,11 @@ public class DataSourceExpVisitor : IExpVisitor
                     curr = orderByExp.Root;
                     break;
                 case TakeCollectionOperator takeExp:
-                    take = await context.CompileSchemaExpAsync(takeExp.Take);
+                    take = await context.CompileSchemaExpAsync(takeExp.Take).ConfigureAwait(false);
                     curr = takeExp.Root;
                     break;
                 case SkipCollectionOperator skipExp:
-                    skip = await context.CompileSchemaExpAsync(skipExp.Skip);
+                    skip = await context.CompileSchemaExpAsync(skipExp.Skip).ConfigureAwait(false);
                     curr = skipExp.Root;
                     break;
                 default:
@@ -181,7 +181,7 @@ public class DataSourceExpVisitor : IExpVisitor
         // Try inline function call
         if (exp is FuncCallExp funcCall)
         {
-            FunctionTypeSchema inlineFunc = await context.VisitFunctionTypeAsync(funcCall.Function);
+            FunctionTypeSchema inlineFunc = await context.VisitFunctionTypeAsync(funcCall.Function).ConfigureAwait(false);
             if (inlineFunc.Exps is [{ Value: LogicExp inlineExp }])
             {
                 // Replace parameters
@@ -205,7 +205,7 @@ public class DataSourceExpVisitor : IExpVisitor
                 try
                 {
 
-                    return await CompileDataSourceFilter(context, inlineExp, paramMap);
+                    return await CompileDataSourceFilter(context, inlineExp, paramMap).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -221,12 +221,12 @@ public class DataSourceExpVisitor : IExpVisitor
         {
             FieldAccessExp fieldExp => ReplaceExp(fieldExp.Owner) is CollectionItemExp 
                 ? Expression.New(typeof(AppSchemaDataFilterField).GetConstructors()[0], Expression.Constant(fieldExp.FieldName))
-                : Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], await context.CompileSchemaExpAsync(new FieldAccessExp(ReplaceExp(fieldExp.Owner), fieldExp.FieldName, fieldExp.ValueType), typeof(object))),
-            VariableExp varExp => await CompileDataSourceFilter(context, varExp.Value, expReplace),
-            DefaultExp dftExp => await CompileDataSourceFilter(context, dftExp.Inner, expReplace), // unpack the default
-            UnaryLogicExp unaryExp => Expression.New(typeof(AppSchemaDataFilterUnary).GetConstructors()[0], Expression.Constant(unaryExp.Type), await CompileDataSourceFilter(context, unaryExp.Inner, expReplace)),
-            BinaryLogicExp binaryExp => Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(binaryExp.Type), await CompileDataSourceFilter(context, binaryExp.Left, expReplace), await CompileDataSourceFilter(context, binaryExp.Right, expReplace)),
-            _ => Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], await context.CompileSchemaExpAsync(exp, typeof(object))),
+                : Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], await context.CompileSchemaExpAsync(new FieldAccessExp(ReplaceExp(fieldExp.Owner), fieldExp.FieldName, fieldExp.ValueType), typeof(object)).ConfigureAwait(false)),
+            VariableExp varExp => await CompileDataSourceFilter(context, varExp.Value, expReplace).ConfigureAwait(false),
+            DefaultExp dftExp => await CompileDataSourceFilter(context, dftExp.Inner, expReplace).ConfigureAwait(false), // unpack the default
+            UnaryLogicExp unaryExp => Expression.New(typeof(AppSchemaDataFilterUnary).GetConstructors()[0], Expression.Constant(unaryExp.Type), await CompileDataSourceFilter(context, unaryExp.Inner, expReplace).ConfigureAwait(false)),
+            BinaryLogicExp binaryExp => Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(binaryExp.Type), await CompileDataSourceFilter(context, binaryExp.Left, expReplace).ConfigureAwait(false), await CompileDataSourceFilter(context, binaryExp.Right, expReplace).ConfigureAwait(false)),
+            _ => Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], await context.CompileSchemaExpAsync(exp, typeof(object)).ConfigureAwait(false)),
         };
 
         SchemaExp ReplaceExp(SchemaExp e)

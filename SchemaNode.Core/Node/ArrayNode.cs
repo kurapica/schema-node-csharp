@@ -639,8 +639,8 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
 
     private static async Task InitElementAsync(DataNode node)
     {
-        await Task.Delay(1);
-        await node.InitAsync();
+        await Task.Delay(1).ConfigureAwait(false);
+        await node.InitAsync().ConfigureAwait(false);
     }
 
     private JsonArray GetJsonArray()

@@ -105,7 +105,7 @@ public static class AppDataProviderExtension
             }
 
             // 3. Query
-            (IValueAccess? res, _) = await dataProvider.QueryDynamicTableAsync(schema,AppSchemaDataResult.List, filter, forUpdate: forUpdate);
+            (IValueAccess? res, _) = await dataProvider.QueryDynamicTableAsync(schema,AppSchemaDataResult.List, filter, forUpdate: forUpdate).ConfigureAwait(false);
 
             // 4. Filter results by combined PKs
             if (res is ArrayNode resultArray)
@@ -137,7 +137,7 @@ public static class AppDataProviderExtension
                     filter = filter == null ? caseFilter : filter.OrElse(caseFilter);
             }
             
-            (IValueAccess? res, _) = await dataProvider.QueryDynamicTableAsync(schema,AppSchemaDataResult.List, filter, forUpdate: forUpdate);
+            (IValueAccess? res, _) = await dataProvider.QueryDynamicTableAsync(schema,AppSchemaDataResult.List, filter, forUpdate: forUpdate).ConfigureAwait(false);
             return res;
         }
     }
@@ -148,7 +148,7 @@ public static class AppDataProviderExtension
     public static async Task<(bool result, IValueAccess? origin)> DeleteSchemaNodeAsync(this IAppDataProvider dataProvider, ISchemaContext context, DynamicTableSchema schema, IValueAccess node)
     {
         if (schema.Single)
-            return await dataProvider.ClearDynamicTableDataAsync(schema);
+            return await dataProvider.ClearDynamicTableDataAsync(schema).ConfigureAwait(false);
 
         var arrayType = schema.AppField.ValueType as ArrayType ?? throw new InvalidOperationException("Invalid array schema");
         
@@ -158,7 +158,7 @@ public static class AppDataProviderExtension
             {
                 var filter = structNode.GetQueryFilter(arrayType);
                 if (filter == null) return (false, null);
-                return await dataProvider.DeleteDynamicTableDataAsync(schema, filter);
+                return await dataProvider.DeleteDynamicTableDataAsync(schema, filter).ConfigureAwait(false);
             }
             case ArrayNode arrNode when arrNode.ElementType != arrayType.Element:
                 throw new InvalidOperationException("Invalid element type in array node for deletion");
@@ -179,7 +179,7 @@ public static class AppDataProviderExtension
 
                     if (filter != null)
                     {
-                        var (result, deleted) = await dataProvider.DeleteDynamicTableDataAsync(schema, filter);
+                        var (result, deleted) = await dataProvider.DeleteDynamicTableDataAsync(schema, filter).ConfigureAwait(false);
                         if (result && deleted is ArrayNode deletedArray)
                         {
                             count += deletedArray.Count;

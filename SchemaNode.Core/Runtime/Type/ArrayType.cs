@@ -52,7 +52,7 @@ public sealed class ArrayType: ValueType, IRelationProvider, INodeTypeReLoadHand
         }
         
         // load properties
-        Element = !string.IsNullOrWhiteSpace(array.Element) ? await context.GetNodeTypeAsync<ValueType>(array.Element, Generics, GenericParams) : null;
+        Element = !string.IsNullOrWhiteSpace(array.Element) ? await context.GetNodeTypeAsync<ValueType>(array.Element, Generics, GenericParams).ConfigureAwait(false) : null;
         Primary = GetProperty<Primary>()?.Value?.ToImmutableList();
 
         if (Element == null)
@@ -73,14 +73,14 @@ public sealed class ArrayType: ValueType, IRelationProvider, INodeTypeReLoadHand
                 
                 // Gets the property type
                 var kind = (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(currentType.Kind);
-                PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_STRUCT_FIELD);
+                PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_STRUCT_FIELD).ConfigureAwait(false);
                 if (prop == null) continue;
                 
                 // Only work for constraint properties
                 Type? propType = prop.GetCsharpType();
                 if (propType == null) continue;
                 
-                RelationType relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_STRUCT_FIELD);
+                RelationType relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_STRUCT_FIELD).ConfigureAwait(false);
                 Error ??= relationType.Error;
                 
                 _relations ??= [];

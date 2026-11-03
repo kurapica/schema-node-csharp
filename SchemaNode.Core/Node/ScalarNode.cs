@@ -60,7 +60,8 @@ public abstract class ScalarNode : DataNode
     /// <summary>
     /// Gets the default display text for the current value
     /// </summary>
-    public async Task<string> GetDisplayValueAsync(string? separator = null, string? valuesSeparator = null)
+    public async Task<string> GetDisplayValueAsync(string? separator = null, string? valuesSeparator = null,
+        CancellationToken cancellationToken = default)
     {
         if (IsEmpty) return string.Empty;
         if (!HasEntrySource) return GetValueText();
@@ -71,7 +72,7 @@ public abstract class ScalarNode : DataNode
         foreach (object? item in items)
         {
             string text = ToKey(item) ?? string.Empty;
-            EntryAccess<string>[] access = await GetEntryAccessListAsync(text);
+            EntryAccess<string>[] access = await GetEntryAccessListAsync(text, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (access.Length == 0 || access[^1].Entry == null)
             {
                 result.Add(text);
@@ -99,8 +100,11 @@ public abstract class ScalarNode : DataNode
     /// <summary>
     /// Query the entry access list from entry source args
     /// </summary>
-    public async Task<EntryAccess<string>[]> GetEntryAccessListAsync(object? value = null, object? root = null)
+    public async Task<EntryAccess<string>[]> GetEntryAccessListAsync(object? value = null, object? root = null,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ScalarEntrySourceInfo? info = _entrySourceInfo;
         if (!FullMode || info?.RootEntry == null) return [];
 
@@ -110,7 +114,7 @@ public abstract class ScalarNode : DataNode
         if (accessList is not { Length: > 0 } && info.Source != null && info.Args != null)
         {
             // query access list
-            accessList = await QueryEntrySourceAsync(value);
+            accessList = await QueryEntrySourceAsync(value, cancellationToken).ConfigureAwait(false);
             if (accessList.Length > 0)
             {
                 info.RootEntry.SaveAccessList(accessList);
@@ -149,9 +153,10 @@ public abstract class ScalarNode : DataNode
     /// <summary>
     /// Gets the sub entry list of the given value
     /// </summary>
-    public async Task<Entry<string>[]> GetSubEntryListAsync(object? value = null)
+    public async Task<Entry<string>[]> GetSubEntryListAsync(object? value = null,
+        CancellationToken cancellationToken = default)
     {
-        EntryAccess<string>[] accessList = await GetEntryAccessListAsync(value);
+        EntryAccess<string>[] accessList = await GetEntryAccessListAsync(value, cancellationToken: cancellationToken).ConfigureAwait(false);
         return accessList.Length > 0 ? accessList[^1].Children ?? [] : [];
     }
 
@@ -183,13 +188,17 @@ public abstract class ScalarNode : DataNode
         _refreshEntryCts = cts;
         _ = Task.Run(async () =>
         {
-            try { await Task.Delay(10, cts.Token); }
+            try { await Task.Delay(10, cts.Token).ConfigureAwait(false); }
             catch (TaskCanceledException) { return; }
             if (_disposed || cts.IsCancellationRequested) return;
 
             try
             {
-                await RefreshEntrySourceAsync();
+                await RefreshEntrySourceAsync(cts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested)
+            {
+                // the refresh was superseded or the node was disposed
             }
             catch (Exception ex)
             {
@@ -201,8 +210,9 @@ public abstract class ScalarNode : DataNode
     /// <summary>
     /// Refresh the entry source info
     /// </summary>
-    private async Task RefreshEntrySourceAsync()
+    private async Task RefreshEntrySourceAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (_disposed) return;
         if (Context is not SchemaContext ctx) return;
 
@@ -243,7 +253,7 @@ public abstract class ScalarNode : DataNode
             }
         }
         FunctionType? entryFunc = !string.IsNullOrWhiteSpace(entrySource?.Func)
-            ? await ctx.GetNodeTypeAsync<FunctionType>(entrySource!.Func)
+            ? await ctx.GetNodeTypeAsync<FunctionType>(entrySource!.Func).ConfigureAwait(false)
             : null;
 
         // access value type handler
@@ -256,13 +266,13 @@ public abstract class ScalarNode : DataNode
                 if (accessValueTypeProvider is { HasValue: true, Value: { } providerCall })
                 {
                     info.ValueTypeProvider = !string.IsNullOrWhiteSpace(providerCall.Func)
-                        ? await ctx.GetNodeTypeAsync<FunctionType>(providerCall.Func)
+                        ? await ctx.GetNodeTypeAsync<FunctionType>(providerCall.Func).ConfigureAwait(false)
                         : null;
                     info.ValueTypeProviderArgs = providerCall.Args.Select(a => ToEntrySourceArg(accessValueTypeProvider.Source ?? parent, a)).ToArray();
 
                     FuncCall? consumerCall = accessValueTypeConsumer.Value;
                     info.ValueTypeConsumer = consumerCall != null && !string.IsNullOrWhiteSpace(consumerCall.Func)
-                        ? await ctx.GetNodeTypeAsync<FunctionType>(consumerCall.Func)
+                        ? await ctx.GetNodeTypeAsync<FunctionType>(consumerCall.Func).ConfigureAwait(false)
                         : null;
                     info.ValueTypeConsumerArgs = consumerCall?.Args.Select(a => ToEntrySourceArg(accessValueTypeConsumer.Source ?? parent, a)).ToArray() ?? [];
                     break;
@@ -299,7 +309,7 @@ public abstract class ScalarNode : DataNode
                 {
                     FuncCall? funcCall = item.Value;
                     FunctionType? func = funcCall != null && !string.IsNullOrWhiteSpace(funcCall.Func)
-                        ? await ctx.GetNodeTypeAsync<FunctionType>(funcCall.Func)
+                        ? await ctx.GetNodeTypeAsync<FunctionType>(funcCall.Func).ConfigureAwait(false)
                         : null;
                     if (func != null)
                         info.Valids.Add(new ScalarEntrySourceValid
@@ -312,7 +322,7 @@ public abstract class ScalarNode : DataNode
 
                 // init options
                 info.Initing = false;
-                await InitEntryOptionsAsync();
+                await InitEntryOptionsAsync(cancellationToken).ConfigureAwait(false);
             }
             return;
         }
@@ -354,8 +364,9 @@ public abstract class ScalarNode : DataNode
     /// <summary>
     /// Init the entry options with entry source args
     /// </summary>
-    private async Task InitEntryOptionsAsync()
+    private async Task InitEntryOptionsAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (_disposed) return;
         ScalarEntrySourceInfo? info = _entrySourceInfo;
         if (info == null || info.Initing) return;
@@ -370,7 +381,7 @@ public abstract class ScalarNode : DataNode
             // check root && cascade
             if (info.Root != null && info.Cascade is > 0)
             {
-                EntryAccess<string>[] rootAccess = await QueryEntrySourceAsync(info.Root);
+                EntryAccess<string>[] rootAccess = await QueryEntrySourceAsync(info.Root, cancellationToken).ConfigureAwait(false);
                 info.Cascade -= (Math.Max(rootAccess.Length, 1) - 1);
             }
 
@@ -380,7 +391,7 @@ public abstract class ScalarNode : DataNode
                 HashSet<string> passKeys = [];
                 foreach (string item in info.WhiteList.Where(a => info.BlackList?.Contains(a) != true))
                 {
-                    EntryAccess<string>[] queryAccessList = await QueryEntrySourceAsync(item);
+                    EntryAccess<string>[] queryAccessList = await QueryEntrySourceAsync(item, cancellationToken).ConfigureAwait(false);
                     if (queryAccessList.Length > 0 &&
                         (info.Root == null || queryAccessList.Any(a => a.Entry != null && string.Equals(ToKey(a.Entry.Value), info.Root))))
                     {
@@ -396,7 +407,7 @@ public abstract class ScalarNode : DataNode
             }
 
             // prepare entry tree and check single level
-            EntryAccess<string>[] root = await GetEntryAccessListAsync();
+            EntryAccess<string>[] root = await GetEntryAccessListAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
             Entry<string>[]? children = root.Length > 0 ? root[0].Children : null;
             info.SingleLevel = children is not { Length: > 0 } || children.All(a => a.HasChildren != true);
 
@@ -406,7 +417,7 @@ public abstract class ScalarNode : DataNode
             {
                 IEnumerable<object?> items = value is JsonArray array ? array.Select(item => (object?)item) : [value];
                 foreach (object? item in items)
-                    await GetEntryAccessListAsync(item);
+                    await GetEntryAccessListAsync(item, cancellationToken: cancellationToken).ConfigureAwait(false);
             }
 
             // notify version change
@@ -421,8 +432,11 @@ public abstract class ScalarNode : DataNode
     /// <summary>
     /// Query the entry access list from entry source args
     /// </summary>
-    private async Task<EntryAccess<string>[]> QueryEntrySourceAsync(object? value)
+    private async Task<EntryAccess<string>[]> QueryEntrySourceAsync(object? value,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ScalarEntrySourceInfo? info = _entrySourceInfo;
         if (info?.Source == null || info.Args == null || Context is not SchemaContext ctx) return [];
 
@@ -450,7 +464,12 @@ public abstract class ScalarNode : DataNode
         List<EntryAccess<string>> result;
         try
         {
-            result = await info.Source.CallAsync<List<EntryAccess<string>>>(ctx, callArgs.ToArray()) ?? [];
+            result = await AwaitCancellableAsync(
+                info.Source.CallAsync<List<EntryAccess<string>>>(ctx, callArgs.ToArray()), cancellationToken).ConfigureAwait(false) ?? [];
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -488,7 +507,8 @@ public abstract class ScalarNode : DataNode
                         // black list not allow children
                         if (info.BlackList?.Contains(c.Value) == true) continue;
 
-                        bool disable = c.GetProperty<Disable>()?.Value == true || !await IsValidEntryValueAsync(c.Value);
+                        bool disable = c.GetProperty<Disable>()?.Value == true ||
+                                       !await IsValidEntryValueAsync(c.Value, cancellationToken).ConfigureAwait(false);
                         if (!disable || c.HasChildren == true) // valid or has children
                         {
                             if (disable) c.SetProperty<Disable, bool>(true); // mark as disabled
@@ -509,7 +529,8 @@ public abstract class ScalarNode : DataNode
                 // reset hasChildren if no children passed
                 if (r.Entry == null) continue;
 
-                bool disabled = r.Entry.GetProperty<Disable>()?.Value == true || !await IsValidEntryValueAsync(r.Entry.Value);
+                bool disabled = r.Entry.GetProperty<Disable>()?.Value == true ||
+                                !await IsValidEntryValueAsync(r.Entry.Value, cancellationToken).ConfigureAwait(false);
                 if (r.Entry.HasChildren == true && r.Children is not { Length: > 0 })
                 {
                     r.Entry.HasChildren = false;
@@ -560,10 +581,27 @@ public abstract class ScalarNode : DataNode
     }
 
     /// <summary>
+    /// Await the given task but abort as soon as the token is canceled.
+    /// Core's function call pipeline currently has no cancellation parameter, so this keeps
+    /// the entry-query chain cancellable without changing the function API.
+    /// </summary>
+    private static async Task<T?> AwaitCancellableAsync<T>(Task<T?> task, CancellationToken cancellationToken)
+    {
+        if (!cancellationToken.CanBeCanceled) return await task.ConfigureAwait(false);
+
+        Task delay = Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        Task completed = await Task.WhenAny(task, delay).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        return await task.ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Check the entry value is valid
     /// </summary>
-    private async Task<bool> IsValidEntryValueAsync(string value)
+    private async Task<bool> IsValidEntryValueAsync(string value, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         ScalarEntrySourceInfo? info = _entrySourceInfo;
         if (info == null || Context is not SchemaContext ctx) return true;
         if (info.BlackList?.Contains(value) == true) return false;
@@ -577,7 +615,8 @@ public abstract class ScalarNode : DataNode
         {
             foreach (ScalarEntrySourceValid valid in info.Valids)
             {
-                bool? res = await valid.Func.CallAsync<bool?>(ctx, BuildEntryArgs(valid.Args, value));
+                bool? res = await AwaitCancellableAsync(
+                    valid.Func.CallAsync<bool?>(ctx, BuildEntryArgs(valid.Args, value)), cancellationToken).ConfigureAwait(false);
                 if (res != true)
                 {
                     isValid = false;
@@ -589,9 +628,13 @@ public abstract class ScalarNode : DataNode
         // validate access value type
         if (isValid && info.ValueTypeConsumer != null && info.ValueTypeProvider != null)
         {
-            string? valueType = await info.ValueTypeProvider.CallAsync<string>(ctx, BuildEntryArgs(info.ValueTypeProviderArgs, value));
+            string? valueType = await AwaitCancellableAsync(
+                info.ValueTypeProvider.CallAsync<string>(ctx, BuildEntryArgs(info.ValueTypeProviderArgs, value)),
+                cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(valueType) ||
-                await info.ValueTypeConsumer.CallAsync<bool?>(ctx, BuildEntryArgs(info.ValueTypeConsumerArgs, valueType)) != true)
+                await AwaitCancellableAsync(
+                    info.ValueTypeConsumer.CallAsync<bool?>(ctx, BuildEntryArgs(info.ValueTypeConsumerArgs, valueType)),
+                    cancellationToken).ConfigureAwait(false) != true)
             {
                 isValid = false;
             }
@@ -615,13 +658,13 @@ public abstract class ScalarNode : DataNode
         _delayEntryCts = cts;
         _ = Task.Run(async () =>
         {
-            try { await Task.Delay(50, cts.Token); }
+            try { await Task.Delay(50, cts.Token).ConfigureAwait(false); }
             catch (TaskCanceledException) { return; }
             if (_disposed || cts.IsCancellationRequested) return;
 
             try
             {
-                await InitEntryOptionsAsync();
+                await InitEntryOptionsAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {

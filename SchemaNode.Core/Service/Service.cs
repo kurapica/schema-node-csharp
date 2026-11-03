@@ -233,17 +233,17 @@ public static partial class SchemaNodeExtensions
 
         // System Schema
         runtime.Stage = Enum.RuntimeStage.SystemSchemaLoading;
-        await DispatchAsync("SystemSchemaLoading", h => h.OnSystemSchemaLoading(context, assemblies));
+        await DispatchAsync("SystemSchemaLoading", h => h.OnSystemSchemaLoading(context, assemblies)).ConfigureAwait(false);
 
         runtime.Stage = Enum.RuntimeStage.SystemSchemaLoaded;
-        await DispatchAsync("SystemSchemaLoaded",  h => h.OnSystemSchemaLoaded(context, assemblies));
+        await DispatchAsync("SystemSchemaLoaded",  h => h.OnSystemSchemaLoaded(context, assemblies)).ConfigureAwait(false);
         
         // Schema
         runtime.Stage = Enum.RuntimeStage.SchemaLoading;
-        await DispatchAsync("SchemaLoading", h => h.OnSchemaLoadingAsync(context));
+        await DispatchAsync("SchemaLoading", h => h.OnSchemaLoadingAsync(context)).ConfigureAwait(false);
 
         runtime.Stage = Enum.RuntimeStage.SchemaLoaded;
-        await DispatchAsync("SchemaLoaded",  h => h.OnSchemaLoadedAsync(context));
+        await DispatchAsync("SchemaLoaded",  h => h.OnSchemaLoadedAsync(context)).ConfigureAwait(false);
         
         return provider;
         
@@ -251,7 +251,7 @@ public static partial class SchemaNodeExtensions
         {
             logger.LogProcessingRuntimeStageStage(stage);
             foreach (var handler in handlers)
-                await invoke(handler);
+                await invoke(handler).ConfigureAwait(false);
         }
 
         // sort property types with depends & option depends
@@ -275,10 +275,10 @@ public static partial class SchemaNodeExtensions
         
         // Activate
         runtime.Stage = Enum.RuntimeStage.Activating;
-        await DispatchAsync("Activating", h => h.OnActivatingAsync(context));
+        await DispatchAsync("Activating", h => h.OnActivatingAsync(context)).ConfigureAwait(false);
 
         runtime.Stage = Enum.RuntimeStage.Activated;
-        await DispatchAsync("Activated",  h => h.OnActivatedAsync(context));
+        await DispatchAsync("Activated",  h => h.OnActivatedAsync(context)).ConfigureAwait(false);
 
         return provider;
         
@@ -286,7 +286,7 @@ public static partial class SchemaNodeExtensions
         {
             logger.LogProcessingRuntimeStageStage(stage);
             foreach (var handler in handlers)
-                await invoke(handler);
+                await invoke(handler).ConfigureAwait(false);
         }
     }
 
@@ -303,10 +303,10 @@ public static partial class SchemaNodeExtensions
         
         // Activate
         runtime.Stage = Enum.RuntimeStage.Deactivating;
-        await DispatchAsync("Deactivating", h => h.OnDeactivatingAsync(context));
+        await DispatchAsync("Deactivating", h => h.OnDeactivatingAsync(context)).ConfigureAwait(false);
 
         runtime.Stage = Enum.RuntimeStage.Deactivated;
-        await DispatchAsync("Deactivated",  h => h.OnDeactivatedAsync(context));
+        await DispatchAsync("Deactivated",  h => h.OnDeactivatedAsync(context)).ConfigureAwait(false);
 
         return provider;
         
@@ -314,7 +314,7 @@ public static partial class SchemaNodeExtensions
         {
             logger.LogProcessingRuntimeStageStage(stage);
             foreach (var handler in handlers)
-                await invoke(handler);
+                await invoke(handler).ConfigureAwait(false);
         }
     }
 

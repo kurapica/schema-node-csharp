@@ -43,7 +43,7 @@ public class ColAuths : Property<ColPolicy[]>, ILoadableProperty, IErrorProvider
             List<FunctionType> evaluators = [];
             foreach (string eva in item.Evaluators)
             {
-                FunctionType? func = await context.GetNodeTypeAsync<FunctionType>(eva);
+                FunctionType? func = await context.GetNodeTypeAsync<FunctionType>(eva).ConfigureAwait(false);
                 if (func == null)
                 {
                     Error ??= AppErrorCodes.APP_COL_AUTH_EVALUATOR_NOT_VALID;

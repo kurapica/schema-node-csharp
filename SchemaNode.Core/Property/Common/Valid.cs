@@ -53,7 +53,7 @@ public class Valid : FuncCallProperty, IConstraintProperty
         if (node is not StructNode && node.GetValue<object>() is null) return null;
 
         FunctionType? func = !string.IsNullOrWhiteSpace(Value?.Func)
-            ? await context.GetNodeTypeAsync<FunctionType>(Value.Func)
+            ? await context.GetNodeTypeAsync<FunctionType>(Value.Func).ConfigureAwait(false)
             : null;
         if (func == null)
         {
@@ -101,13 +101,13 @@ public class Valid : FuncCallProperty, IConstraintProperty
                 foreach (var dataNode in arrayNode)
                 {
                     args[arrayIndex] = dataNode;
-                    if (await func.CallAsync<bool?>(context, args) == false)
+                    if (await func.CallAsync<bool?>(context, args).ConfigureAwait(false) == false)
                         return false;
                 }
 
                 return true;
             }
-            return await func.CallAsync<bool?>(context, args);
+            return await func.CallAsync<bool?>(context, args).ConfigureAwait(false);
         }
         catch (Exception e)
         {

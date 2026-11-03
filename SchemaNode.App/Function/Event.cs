@@ -14,7 +14,7 @@ public static class SystemReflectEvent
     public static async Task<bool> hasargs(SchemaContext context,
         [Meta<SchemaType>(typeof(Schema.EventType))] string @event)
     {
-        var eventType = !string.IsNullOrWhiteSpace(@event) ? await context.GetNodeTypeAsync<Runtime.EventType>(@event) : null;
+        var eventType = !string.IsNullOrWhiteSpace(@event) ? await context.GetNodeTypeAsync<Runtime.EventType>(@event).ConfigureAwait(false) : null;
         return eventType != null && eventType?.Args?.Length > 0;
     }
 
@@ -25,9 +25,9 @@ public static class SystemReflectEvent
         [Meta<SchemaType>(typeof(Schema.EventType))] string @event,
         [Meta<SchemaType>(typeof(Schema.ValueType))] string? type = null)
     {
-        var returnType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        var returnType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type).ConfigureAwait(false) : null;
         if (returnType == null) return true;
-        var nodeType = !string.IsNullOrWhiteSpace(@event) ? await context.GetNodeTypeAsync<Runtime.EventType>(@event) : null;
+        var nodeType = !string.IsNullOrWhiteSpace(@event) ? await context.GetNodeTypeAsync<Runtime.EventType>(@event).ConfigureAwait(false) : null;
         if (nodeType == null) return false;
         return nodeType?.Payload != null && returnType != null && (nodeType.Payload.IsAssignableTo(returnType));
     }

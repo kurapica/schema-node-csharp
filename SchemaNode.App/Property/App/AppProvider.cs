@@ -34,7 +34,7 @@ public class AppProviderAccessPath : IValueAccessPathHandler
     /// <inheritdoc/>
     public async Task LoadAsync(ISchemaContext context)
         => _valueType = context is SchemaContext ctx
-                ? await ctx.GetNodeTypeAsync<StringType>($"{NS_SYSTEM_SCHEMA_APP}.type")
+                ? await ctx.GetNodeTypeAsync<StringType>($"{NS_SYSTEM_SCHEMA_APP}.type").ConfigureAwait(false)
                 : null;
 
     /// <inheritdoc/>

@@ -70,21 +70,21 @@ public sealed class WorkflowType: NodeType, IValueTypeAccess, IRelationProvider
 
         if (_workflowSchema.Payload != null)
         {
-            Payload = await context.GetNodeTypeAsync<ValueType>(_workflowSchema.Payload, Generics, GenericParams);
+            Payload = await context.GetNodeTypeAsync<ValueType>(_workflowSchema.Payload, Generics, GenericParams).ConfigureAwait(false);
             if (Payload == null)
                 Error ??= AppErrorCodes.WORKFLOW_PAYLOAD_NOT_VALID;
         }
 
         if (_workflowSchema.Settings != null)
         {
-            State = await context.GetNodeTypeAsync<ValueType>(_workflowSchema.Settings, Generics, GenericParams);
+            State = await context.GetNodeTypeAsync<ValueType>(_workflowSchema.Settings, Generics, GenericParams).ConfigureAwait(false);
             if (State == null)
                 Error ??= AppErrorCodes.WORKFLOW_STATE_NOT_VALID;
         }
 
         if (_workflowSchema.Session != null)
         {
-            Session = await context.GetNodeTypeAsync<ValueType>(_workflowSchema.Session, Generics, GenericParams);
+            Session = await context.GetNodeTypeAsync<ValueType>(_workflowSchema.Session, Generics, GenericParams).ConfigureAwait(false);
             if (Session == null)
                 Error ??= AppErrorCodes.WORKFLOW_SESSION_NOT_VALID;
         }
@@ -110,7 +110,7 @@ public sealed class WorkflowType: NodeType, IValueTypeAccess, IRelationProvider
                 return;
             }
 
-            arg.ValueType = !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetNodeTypeAsync<ValueType>(arg.Type, Generics) : null;
+            arg.ValueType = !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetNodeTypeAsync<ValueType>(arg.Type, Generics).ConfigureAwait(false) : null;
 
             if (arg.ValueType == null)
             {
@@ -129,14 +129,14 @@ public sealed class WorkflowType: NodeType, IValueTypeAccess, IRelationProvider
 
                     // Gets the property type
                     var kind = (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(currentType.Kind);
-                    PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_FUNC_ARG);
+                    PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_FUNC_ARG).ConfigureAwait(false);
                     if (prop == null) continue;
 
                     // Only work for constraint properties
                     Type? propType = prop.GetCsharpType();
                     if (propType == null) continue;
 
-                    var relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_FUNC_ARG);
+                    var relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_FUNC_ARG).ConfigureAwait(false);
                     Error ??= relationType.Error;
 
                     _relations ??= [];
