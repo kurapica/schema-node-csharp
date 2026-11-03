@@ -1,0 +1,165 @@
+using System;
+using System.Collections.Generic;
+using Microsoft.Extensions.DependencyInjection;
+using SchemaNode.Api.Client;
+using SchemaNode.Context;
+using SchemaNode.WPF.View.Localization;
+
+namespace SchemaNode.WPF.Man.Services;
+
+/// <summary>
+/// A Schema session exclusively owned by a single WPF screen.
+///
+/// Hard lifecycle constraints:
+///   1. After creating <see cref="SchemaContext"/>, set <c>FullMode = true</c> <b>immediately</b>; only afterwards may types be loaded and DataNodes created;
+///   2. Teardown happens in strict reverse order: the screen clears its bound nodes so the views dispose their wrappers,
+///      then calls <see cref="ReleaseNode"/> / this class fallback-disposes DataNodes, and finally disposes the SchemaContext and its scope;
+///   3. This class is responsible only for DataNodes, the context, and the scope; it never touches WPF view objects.
+/// </summary>
+public sealed class SchemaScreenSession : IDisposable
+{
+    private readonly IServiceScope _scope;
+    private readonly List<IDisposable> _nodes = [];
+    private readonly Action<SchemaContext> _unregister;
+    private bool _disposed;
+
+    internal SchemaScreenSession(IServiceScope scope, SchemaContext context, ISchemaApiProvider api, Action<SchemaContext> unregister)
+    {
+        _scope = scope;
+        _unregister = unregister;
+        Context = context;
+        Api = api;
+    }
+
+    /// <summary>Schema context exclusively owned by this screen (FullMode already enabled)</summary>
+    public SchemaContext Context { get; }
+
+    /// <summary>Data-access implementation for this screen (bound to this Context in local mode)</summary>
+    public ISchemaApiProvider Api { get; }
+
+    /// <summary>
+    /// Registers a DataNode created by this screen so it can be fallback-disposed in reverse order when the screen closes.
+    /// </summary>
+    public void TrackNode(IDisposable node)
+    {
+        if (_disposed || node is null) return;
+        _nodes.Add(node);
+    }
+
+    /// <summary>
+    /// Explicitly disposes a DataNode at the screen level.
+    /// Precondition: the corresponding Wrapper tree has already been disposed (unsubscribed), so no UI callbacks are triggered anymore.
+    /// </summary>
+    public void ReleaseNode(IDisposable node)
+    {
+        if (node is null) return;
+        _nodes.Remove(node);
+        node.Dispose();
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        // Remove from the live registry before disposing: a language switch must never touch a dead context.
+        _unregister(Context);
+
+        // Fallback: if the screen did not call ReleaseNode for each node, dispose DataNodes in reverse creation order.
+        for (int i = _nodes.Count - 1; i >= 0; i--)
+            _nodes[i].Dispose();
+        _nodes.Clear();
+
+        // After all DataNodes are disposed, finally dispose the Context and its scope.
+        Context.Dispose();
+        _scope.Dispose();
+    }
+}
+
+/// <summary>
+/// Screen-level SchemaContext factory.
+///
+/// The runtime (<c>ISchemaRuntime</c>) is a process-wide shared singleton; each screen only adds one
+/// <see cref="IServiceScope"/> and one scoped <see cref="SchemaContext"/>,
+/// and does not call <c>InitSchemaRuntimeAsync</c> again. This both isolates FullMode / Access / ContextItems /
+/// DataNode subscriptions and avoids paying the runtime initialization cost once per screen.
+///
+/// In local mode each screen gets its own <see cref="LocalSchemaApiProvider"/> (bound to the screen context);
+/// remote mode is stateless and can share a single <see cref="RemoteSchemaApiProvider"/>.
+/// </summary>
+public sealed class SchemaContextFactory
+{
+    private readonly IServiceProvider _runtimeServices;
+    private readonly ISchemaApiProvider? _sharedRemote;
+
+    // Live screen contexts. A language switch must reach every screen that still exists.
+    private readonly HashSet<SchemaContext> _liveContexts = [];
+    private readonly object _liveLock = new();
+    private string _locale = LocaleManager.ZH_CN;
+
+    public SchemaContextFactory(IServiceProvider runtimeServices, ISchemaApiProvider? sharedRemote = null)
+    {
+        _runtimeServices = runtimeServices ?? throw new ArgumentNullException(nameof(runtimeServices));
+        _sharedRemote = sharedRemote;
+    }
+
+    /// <summary>Locale applied to newly created screen contexts (the persisted setting)</summary>
+    public string CurrentLocale
+    {
+        get
+        {
+            lock (_liveLock) return _locale;
+        }
+    }
+
+    /// <summary>
+    /// Creates a screen session: scoped context → FullMode=true immediately → screen-level API provider.
+    /// The order must not be reversed: FullMode must be set before loading types or creating DataNodes.
+    /// The context is registered as live and its <see cref="SchemaContext.Locale"/> is initialized from
+    /// the persisted language, not from transient UI state.
+    /// </summary>
+    public SchemaScreenSession CreateSession()
+    {
+        IServiceScope scope = _runtimeServices.CreateScope();
+        SchemaContext context = scope.ServiceProvider.GetRequiredService<SchemaContext>();
+
+        // Enable full mode immediately after creation (DataNode.FullMode reads Context.FullMode directly)
+        context.FullMode = true;
+
+        string locale;
+        lock (_liveLock)
+        {
+            locale = _locale;
+            _liveContexts.Add(context);
+        }
+        context.Locale = locale;
+
+        ISchemaApiProvider api = _sharedRemote ?? new LocalSchemaApiProvider(context);
+        return new SchemaScreenSession(scope, context, api, Unregister);
+    }
+
+    /// <summary>
+    /// Applies the locale to every live screen context and remembers it for future sessions.
+    /// Core reads <see cref="SchemaContext.Locale"/> when it produces new text, so any error or
+    /// validation message generated afterwards uses the new language.
+    /// </summary>
+    public void ApplyLocale(string? locale)
+    {
+        string normalized = LocaleManager.Normalize(locale);
+        SchemaContext[] contexts;
+        lock (_liveLock)
+        {
+            _locale = normalized;
+            contexts = [.. _liveContexts];
+        }
+
+        foreach (SchemaContext context in contexts)
+            context.Locale = normalized;
+    }
+
+    private void Unregister(SchemaContext context)
+    {
+        lock (_liveLock) _liveContexts.Remove(context);
+    }
+}

@@ -1,0 +1,101 @@
+<UserControl x:Class="SchemaNode.WPF.Man.Views.TypeListView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prism="http://prismlibrary.com/"
+             xmlns:local="clr-namespace:SchemaNode.WPF.Man.Views"
+             xmlns:view="clr-namespace:SchemaNode.WPF.View;assembly=SchemaNode.WPF.View"
+             xmlns:loc="clr-namespace:SchemaNode.WPF.View.Localization;assembly=SchemaNode.WPF.View"
+             prism:ViewModelLocator.AutoWireViewModel="True">
+    <UserControl.Resources>
+        <view:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+    </UserControl.Resources>
+
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Namespace selector. It is a SchemaView over a system.schema.namespace.type node, so the
+             child namespaces come from the Core entry source and the selector drills down level by
+             level instead of a free-text box + load button. -->
+        <Border Grid.Row="0" Background="#F5F5F5" Padding="8" Margin="0,0,0,8">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.label.namespace}"
+                           VerticalAlignment="Center" Margin="0,0,8,0" />
+                <view:SchemaView Node="{Binding NamespaceWrapper}" VerticalAlignment="Center" />
+                <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.button.up}"
+                        Command="{Binding UpCommand}" Margin="8,0,0,0" VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+
+        <!-- List-level actions only: row creation is a list concern; field editing lives on the document screen. -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.new}"
+                    Command="{Binding NewCommand}" Margin="0,0,8,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.button.refresh}"
+                    Command="{Binding RefreshCommand}" />
+            <TextBlock Text="{Binding Status}" Foreground="DarkSlateGray" VerticalAlignment="Center"
+                       Margin="12,0,0,0" TextTrimming="CharacterEllipsis" MaxWidth="640" />
+        </StackPanel>
+
+        <Grid Grid.Row="2">
+            <ListView ItemsSource="{Binding Schemas}" BorderBrush="#DDDDDD" BorderThickness="1">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Width="260"
+                                        Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.column.name}"
+                                        DisplayMemberBinding="{Binding Name}" />
+                        <GridViewColumn Width="360"
+                                        Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.column.display}"
+                                        DisplayMemberBinding="{Binding DisplayText}" />
+                        <GridViewColumn Width="220"
+                                        Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.column.kind}"
+                                        DisplayMemberBinding="{Binding Kind}" />
+                        <GridViewColumn Width="260"
+                                        Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.column.actions}">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <!-- Types: view / edit open the document route (the vue el-drawer equivalent). -->
+                                        <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.button.view}"
+                                                Command="{Binding DataContext.ViewCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                                CommandParameter="{Binding}"
+                                                Visibility="{Binding IsType, Converter={StaticResource BoolToVisibility}}"
+                                                Margin="0,0,4,0" Padding="6,2" />
+                                        <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.button.edit}"
+                                                Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                                CommandParameter="{Binding}"
+                                                Visibility="{Binding IsType, Converter={StaticResource BoolToVisibility}}"
+                                                Margin="0,0,4,0" Padding="6,2" />
+                                        <!-- Namespaces: drill down. Only shown when kind = namespace. -->
+                                        <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.button.enter}"
+                                                Command="{Binding DataContext.EnterCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                                CommandParameter="{Binding}"
+                                                Visibility="{Binding IsNamespace, Converter={StaticResource BoolToVisibility}}"
+                                                Margin="0,0,4,0" Padding="6,2" />
+                                        <!-- Delete stays on the row; the Core API enforces IsUsed / namespace constraints. -->
+                                        <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.delete}"
+                                                Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                                CommandParameter="{Binding}"
+                                                Padding="6,2" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                    </GridView>
+                </ListView.View>
+            </ListView>
+
+            <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.status.empty}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="Gray"
+                       IsHitTestVisible="False"
+                       Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}" />
+        </Grid>
+
+        <TextBlock Grid.Row="3" Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.status.hint}"
+                   Foreground="Gray" Margin="0,8,0,0" />
+    </Grid>
+</UserControl>

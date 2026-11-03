@@ -745,6 +745,15 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                         throw new Exception($"The {i + 1} argument must be provided");
                 }
 
+                // A variadic (params) argument of a system function is packed into its array by
+                // CallSystemFuncAsync. Validating the bare element against the array type here
+                // always fails, so hand the raw value over untouched.
+                if (isCall && IsSystemCall && Args.ElementAtOrDefault(i) is { Variadic: true })
+                {
+                    callArgs[i] = argObj;
+                    continue;
+                }
+
                 // Parse argument
                 var eleType = arg.ValueType.GetCsharpType();
 

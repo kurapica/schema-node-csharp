@@ -647,7 +647,7 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
     {
         JsonArray array = [];
         foreach (var element in _elements)
-            if (element.TryGetValue(out JsonNode? jsonElement))
+            if (element.TryGetValue(out JsonNode? jsonElement) && jsonElement != null)
                 array.Add(jsonElement!.DeepClone());
         return array;
     }

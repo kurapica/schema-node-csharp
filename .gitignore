@@ -40,3 +40,9 @@ SchemaNode.Example/SchemaNode.Example.csproj.user
 /SchemaNode.Core/bin
 /SchemaNode.RefactorTest/obj
 /SchemaNode.RefactorTest/bin
+/SchemaNode.WPF.Man/bin
+/SchemaNode.WPF.Man/obj
+/SchemaNode.WPF.View/obj
+/SchemaNode.WPF.View/bin
+/SchemaNode.WPF.Test/bin
+/SchemaNode.WPF.Test/obj

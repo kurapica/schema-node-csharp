@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>SchemaNode.WPF.Man</RootNamespace>
+    <AssemblyName>SchemaNode.WPF.Man</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Prism.DryIoc" Version="9.0.537" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SchemaNode.Core\SchemaNode.Core.csproj" />
+    <ProjectReference Include="..\SchemaNode.App\SchemaNode.App.csproj" />
+    <ProjectReference Include="..\SchemaNode.WPF.View\SchemaNode.WPF.View.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Locale dictionaries merged by Core at startup (same convention as Core/App) -->
+    <EmbeddedResource Include="locale\*.json" />
+  </ItemGroup>
+
+</Project>

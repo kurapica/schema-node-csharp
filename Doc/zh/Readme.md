@@ -16,6 +16,7 @@ SchemaNode 不是低代码平台、表单引擎、ORM 或 API 文档工具。
     - [工作流配置](./useit/03-workflow.md)
     - [嵌入已有微服务](./useit/04-integration.md)
     - [前端视图定制和使用](./useit/05-views.md)
+    - [WPF 接入](./useit/06-wpf.md)
 
 📖 **[架构文档](./architecture/01-why.md)**
 

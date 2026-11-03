@@ -1,0 +1,72 @@
+<UserControl x:Class="SchemaNode.WPF.Man.Views.AppDefinitionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prism="http://prismlibrary.com/"
+             xmlns:view="clr-namespace:SchemaNode.WPF.View;assembly=SchemaNode.WPF.View"
+             xmlns:loc="clr-namespace:SchemaNode.WPF.View.Localization;assembly=SchemaNode.WPF.View"
+             prism:ViewModelLocator.AutoWireViewModel="True">
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="2*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="3*" />
+        </Grid.RowDefinitions>
+
+        <!-- Top: app full name + new / load / save / delete -->
+        <WrapPanel Grid.Row="0" Margin="0,0,0,4">
+            <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appdef.label.name}" VerticalAlignment="Center" />
+            <TextBox Width="240" Margin="4,0"
+                     Text="{Binding AppName, UpdateSourceTrigger=PropertyChanged}" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.load}" Command="{Binding LoadCommand}" Margin="4,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.new}" Command="{Binding NewCommand}" Margin="4,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.save}" Command="{Binding SaveCommand}" Margin="4,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.delete}" Command="{Binding DeleteCommand}" />
+        </WrapPanel>
+
+        <TextBlock Grid.Row="1" Text="{Binding Status}" Foreground="Gray"
+                   TextWrapping="Wrap" Margin="0,0,0,6" />
+
+        <!-- App property area: the field set comes from the real AppSchema structure;
+             Display / Description / Relations / SystemDefined / Auths / ScopePolicy / Data* etc.
+             are all mounted by Core's Attach (app kind); the view does not hard-code the property list. -->
+        <GroupBox Grid.Row="2" Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appdef.group.properties}" Margin="0,0,0,4">
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Auto">
+                <view:SchemaView Node="{Binding AppNode}" Registry="{Binding Registry}" />
+            </ScrollViewer>
+        </GroupBox>
+
+        <!-- App Fields toolbar: AppFieldSchema.Name is an immutable primary key that can only be written on creation, so it is entered in the toolbar. -->
+        <WrapPanel Grid.Row="3" Margin="0,0,0,4">
+            <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appdef.label.fieldname}" VerticalAlignment="Center" />
+            <TextBox Width="140" Margin="4,0"
+                     Text="{Binding NewFieldName, UpdateSourceTrigger=PropertyChanged}" />
+            <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appdef.label.fieldtype}" VerticalAlignment="Center" />
+            <TextBox Width="200" Margin="4,0"
+                     Text="{Binding NewFieldType, UpdateSourceTrigger=PropertyChanged}" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appdef.button.addfield}" Command="{Binding AddFieldCommand}" Margin="4,0" />
+        </WrapPanel>
+
+        <!-- App Fields area: the fields array renders through the registered table
+             (system.schema.app.field.schemas). Name is an immutable primary key, so its cell is
+             replaced here with a text plus a remove button; removal rebuilds the array node in
+             the view model (Core's DelRows does not dispose removed elements). -->
+        <GroupBox Grid.Row="4" Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appdef.group.fields}">
+            <GroupBox.Resources>
+                <DataTemplate x:Key="SchemaImmutableTextCell">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appdef.button.removefield}"
+                                VerticalAlignment="Center" Margin="6,0,0,0"
+                                Command="{Binding DataContext.RemoveFieldCommand,
+                                          RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}" />
+                        <TextBlock Text="{Binding Value}" VerticalAlignment="Center" />
+                    </DockPanel>
+                </DataTemplate>
+            </GroupBox.Resources>
+            <view:SchemaView Node="{Binding FieldsNode}" Registry="{Binding Registry}" />
+        </GroupBox>
+    </Grid>
+</UserControl>

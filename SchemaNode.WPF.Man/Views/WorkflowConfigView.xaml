@@ -1,0 +1,153 @@
+<UserControl x:Class="SchemaNode.WPF.Man.Views.WorkflowConfigView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prism="http://prismlibrary.com/"
+             xmlns:view="clr-namespace:SchemaNode.WPF.View;assembly=SchemaNode.WPF.View"
+             xmlns:loc="clr-namespace:SchemaNode.WPF.View.Localization;assembly=SchemaNode.WPF.View"
+             prism:ViewModelLocator.AutoWireViewModel="True">
+    <DockPanel Margin="8">
+        <!-- Workflow selection and saving -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
+            <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.label.app}" VerticalAlignment="Center" />
+            <TextBox Text="{Binding AppName, UpdateSourceTrigger=PropertyChanged}"
+                     Width="200" Margin="4,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.loadapp}" Command="{Binding LoadAppCommand}" Margin="4,0" />
+            <ComboBox ItemsSource="{Binding Workflows}" SelectedItem="{Binding SelectedWorkflow}"
+                      DisplayMemberPath="Name" Width="170" Margin="4,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.new}" Command="{Binding NewWorkflowCommand}" Margin="4,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.save}" Command="{Binding SaveCommand}" Margin="4,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.delete}" Command="{Binding DeleteWorkflowCommand}" />
+        </StackPanel>
+
+        <!-- Canvas operations -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.addnode}" Command="{Binding AddNodeCommand}" Margin="0,0,4,0" />
+            <ToggleButton Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.connectmode}" IsChecked="{Binding IsConnecting}" Margin="0,0,4,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.disconnect}" Command="{Binding DisconnectEdgeCommand}" Margin="0,0,4,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.deletenode}" Command="{Binding DeleteNodeCommand}" Margin="0,0,12,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.zoomout}" Command="{Binding ZoomOutCommand}" Margin="0,0,4,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.zoomin}" Command="{Binding ZoomInCommand}" Margin="0,0,4,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.zoomreset}" Command="{Binding ResetZoomCommand}" Margin="0,0,12,0" />
+            <TextBlock Text="{Binding Status}" VerticalAlignment="Center" Foreground="#555" />
+        </StackPanel>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="320" />
+            </Grid.ColumnDefinitions>
+
+            <!-- DAG canvas: edges are drawn first and nodes afterwards, so nodes stay on top and remain clickable -->
+            <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Auto"
+                          Background="#F7F9FB" BorderBrush="#DDE4EA" BorderThickness="1">
+                <Canvas Width="{Binding CanvasWidth}" Height="{Binding CanvasHeight}"
+                        Background="Transparent" MouseLeftButtonDown="OnCanvasMouseDown">
+                    <Canvas.LayoutTransform>
+                        <ScaleTransform ScaleX="{Binding Zoom}" ScaleY="{Binding Zoom}" />
+                    </Canvas.LayoutTransform>
+
+                    <ItemsControl ItemsSource="{Binding Edges}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <Canvas />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <!-- Thicken the invisible hit area with a transparent line so thin lines are easier to select -->
+                                <Grid>
+                                    <Line X1="{Binding X1}" Y1="{Binding Y1}"
+                                          X2="{Binding X2}" Y2="{Binding Y2}"
+                                          Stroke="Transparent" StrokeThickness="10"
+                                          MouseLeftButtonDown="OnEdgeMouseDown" />
+                                    <Line X1="{Binding X1}" Y1="{Binding Y1}"
+                                          X2="{Binding X2}" Y2="{Binding Y2}"
+                                          Stroke="#7F8C8D" StrokeThickness="2"
+                                          IsHitTestVisible="False">
+                                        <Line.Style>
+                                            <Style TargetType="Line">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                        <Setter Property="Stroke" Value="#E74C3C" />
+                                                        <Setter Property="StrokeThickness" Value="3" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Line.Style>
+                                    </Line>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <ItemsControl ItemsSource="{Binding Nodes}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <Canvas />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemContainerStyle>
+                            <Style TargetType="ContentPresenter">
+                                <Setter Property="Canvas.Left" Value="{Binding X}" />
+                                <Setter Property="Canvas.Top" Value="{Binding Y}" />
+                            </Style>
+                        </ItemsControl.ItemContainerStyle>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Thumb Width="180" Height="56" Cursor="Hand"
+                                       DragDelta="OnNodeDragDelta"
+                                       PreviewMouseLeftButtonDown="OnNodeMouseDown">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border x:Name="NodeBorder"
+                                                    Background="White"
+                                                    BorderBrush="#BDC3C7" BorderThickness="1"
+                                                    CornerRadius="4">
+                                                <StackPanel Margin="8,4">
+                                                    <TextBlock Text="{Binding Name}"
+                                                               FontWeight="Bold"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding Type}"
+                                                               Foreground="#7F8C8D"
+                                                               FontSize="11"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                    <Setter TargetName="NodeBorder" Property="BorderBrush" Value="#E74C3C" />
+                                                    <Setter TargetName="NodeBorder" Property="BorderThickness" Value="2" />
+                                                </DataTrigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Canvas>
+            </ScrollViewer>
+
+            <!-- Property panel: workflow fields + selected node fields (reuses SchemaView for recursive rendering) -->
+            <Border Grid.Column="1" Margin="8,0,0,0"
+                    BorderBrush="#DDE4EA" BorderThickness="1" Padding="8">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.label.properties}" FontWeight="Bold" Margin="0,0,0,8" />
+                        <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.label.name}" />
+                        <TextBox Text="{Binding WorkflowName, UpdateSourceTrigger=LostFocus}"
+                                 Margin="0,0,0,8" />
+                        <CheckBox Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.label.active}" IsChecked="{Binding WorkflowActive}"
+                                  Margin="0,0,0,8" />
+
+                        <Separator />
+
+                        <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.label.node}" FontWeight="Bold" Margin="0,8,0,8" />
+                        <view:SchemaView Node="{Binding SelectedNode.Node}" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+    </DockPanel>
+</UserControl>

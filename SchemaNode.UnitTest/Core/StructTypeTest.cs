@@ -130,6 +130,45 @@ public class StructTypeTest : Base.CoreTestBase
     }
 
     [TestMethod]
+    public async Task StructType_Load_AttachMultipleKinds()
+    {
+        var attachedType = await Context.GetNodeTypeAsync<StructType>("test.generator.attached");
+        Assert.IsNotNull(attachedType);
+
+        var fields = attachedType.GetFields().ToArray();
+
+        // The fields from both attached kinds must be merged without duplicates
+        Assert.AreEqual(fields.Length, fields.Select(f => f.Name.ToLowerInvariant()).Distinct().Count());
+        Assert.IsTrue(fields.Any(f => f.Name.Equals("valid", StringComparison.OrdinalIgnoreCase)));
+        Assert.IsTrue(fields.Any(f => f.Name.Equals("unit", StringComparison.OrdinalIgnoreCase)));
+
+        // "lowlimit"/"uplimit" are declared by both attached kinds. They must be mounted
+        // once, and the first kind (node.int.define) keeps ownership, so the field type
+        // stays system.int instead of being overwritten by node.string.define.
+        Assert.AreEqual(1, fields.Count(f => f.Name.Equals("lowlimit", StringComparison.OrdinalIgnoreCase)));
+        Assert.AreEqual(1, fields.Count(f => f.Name.Equals("uplimit", StringComparison.OrdinalIgnoreCase)));
+        Assert.AreEqual(NS_SYSTEM_INT,
+            fields.Single(f => f.Name.Equals("lowlimit", StringComparison.OrdinalIgnoreCase)).Type?.Name);
+
+        // Declared fields come first, attach fields follow the TS priority order
+        // (getAttachPropertyPriority from struct/runtime.ts, priority desc, then name):
+        //   csregex      string                      7000 + 3 forSchemas            = 7003
+        //   error/unit   localestring struct        3000 + STRUCT_TYPE_PRIORITY 900 = 3900 (struct: no forSchemas)
+        //   entrySource  funccall<entrysource>      3000 + 5 fields * -10          = 2950
+        //   valid        funccall<valid>            3000 + 5 fields * -10          = 2950
+        //   lowlimit/uplimit int has no VALUE_TYPE_PRIORITY entry, so only forSchemas = 3
+        // Same priority breaks by name, the first property schema keeps a shared field name
+        // (int.lowlimit wins over string.lowlimit because node.int.define comes first).
+        string[] expected = ["name", "csregex", "error", "unit", "entrysource", "valid", "lowlimit", "uplimit"];
+        string[] actual = fields.Select(f => f.Name.ToLowerInvariant()).ToArray();
+        Assert.AreEqual(expected.Length, actual.Length,
+            $"length mismatch, actual order: {string.Join(",", fields.Select(f => $"{f.Name}({f.Type?.Name})"))}");
+        for (int i = 0; i < expected.Length; i++)
+            Assert.AreEqual(expected[i], actual[i],
+                $"index {i}, actual order: {string.Join(",", fields.Select(f => $"{f.Name}({f.Type?.Name})"))}");
+    }
+
+    [TestMethod]
     public async Task StructType_Load_SystemContext_Fields()
     {
         var contextType = await Context.GetNodeTypeAsync<StructType>(NS_SYSTEM_CONTEXT);

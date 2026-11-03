@@ -1,0 +1,108 @@
+<UserControl x:Class="SchemaNode.WPF.View.Views.TableView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:SchemaNode.WPF.View"
+             xmlns:loc="clr-namespace:SchemaNode.WPF.View.Localization"
+             ToolTip="{Binding Error}">
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top"
+                    Orientation="Horizontal"
+                    Margin="0,0,0,4">
+            <Button Padding="8,2"
+                    MinHeight="24"
+                    Command="{Binding AddCommand}"
+                    Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.addrow}" />
+            <Button Padding="8,2"
+                    MinHeight="24"
+                    Margin="6,0,0,0"
+                    Command="{Binding RemoveLastCommand}"
+                    Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.remove}" />
+        </StackPanel>
+
+        <TextBlock DockPanel.Dock="Bottom"
+                   Margin="0,2,0,0"
+                   Foreground="#FFC62828"
+                   TextWrapping="Wrap"
+                   Text="{Binding Error}"
+                   Visibility="{Binding ShowError, Converter={x:Static local:Converters.BoolToVisibility}}" />
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- Header row; each column has the same fixed width as the matching cell. -->
+            <ScrollViewer Grid.Row="0"
+                          x:Name="HeaderScroll"
+                          HorizontalScrollBarVisibility="Hidden"
+                          VerticalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding Columns}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Width="180"
+                                    Height="28"
+                                    Padding="6,0"
+                                    Background="#FFF0F0F0"
+                                    BorderBrush="#FFD0D0D0"
+                                    BorderThickness="0,0,1,1">
+                                <TextBlock VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding Header}"
+                                           Text="{Binding Header}" />
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Virtualized rows. Each cell is re-dispatched through SchemaView with Role=Cell. -->
+            <ScrollViewer Grid.Row="1"
+                          x:Name="BodyScroll"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Auto"
+                          CanContentScroll="True"
+                          ScrollChanged="OnBodyScrollChanged">
+                <ItemsControl ItemsSource="{Binding Rows}"
+                              VirtualizingPanel.IsVirtualizing="True"
+                              VirtualizingPanel.VirtualizationMode="Recycling">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <VirtualizingStackPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <ItemsControl ItemsSource="{Binding Cells}" Height="30">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Width="180"
+                                                Height="30"
+                                                Padding="6,0"
+                                                BorderThickness="0,0,1,1"
+                                                BorderBrush="{Binding HasErrors, Converter={x:Static local:Converters.ErrorToBrush}}"
+                                                ToolTip="{Binding Error}">
+                                            <local:SchemaView VerticalAlignment="Center"
+                                                              Node="{Binding}"
+                                                              Role="Cell" />
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </DockPanel>
+</UserControl>

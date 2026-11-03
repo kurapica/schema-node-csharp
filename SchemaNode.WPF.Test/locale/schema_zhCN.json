@@ -1,0 +1,10 @@
+{
+  "VALUE_NOT_VALID": "值不合法",
+  "wpf.view.error.invalid": "值不合法",
+  "wpf.error.value.convert": "值 \"{0}\" 无法转换为类型 {1}",
+  "wpf.view.error.entries": "候选加载失败：{0}",
+  "wpf.entry.multi.none": "请选择…",
+  "wpf.entry.multi.count": "已选 {0} 项",
+  "wpf.button.addrow": "添加行",
+  "wpf.button.remove": "移除"
+}

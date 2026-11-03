@@ -16,6 +16,7 @@ It attempts to decouple semantic definitions from concrete execution, so that se
     - [Workflow Configuration](./useit/03-workflow.md)
     - [Integration](./useit/04-integration.md)
     - [Frontend View Customization and Usage](./useit/05-views.md)
+    - [WPF Host Integration](./useit/06-wpf.md)
 
 📖 **[Architecture Documentation](./architecture/01-why.md)**
 

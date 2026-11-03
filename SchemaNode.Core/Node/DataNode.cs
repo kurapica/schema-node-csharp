@@ -633,6 +633,39 @@ public abstract class DataNode : IValueAccess, IDisposable
     public IDisposable SubscribeProperty<P, T>(Action<(IValueAccess, Type, T?, T?)> handler, bool immediate = false) where P : Property<T>
         => SubscribeProperty<P, T>(Observer.Create(handler), immediate);
 
+
+    /// <summary>
+    /// Subscribe the property from all ancestor
+    /// </summary>
+    public IDisposable SubscribeAncestorProperty<P, T>(IObserver<(IValueAccess, Type, T[])> observer, bool immediate = false) where P : Property<T>
+    {
+        List<IValueAccess> nodes = [];
+        IValueAccess? node = this;
+        while (node != null && !nodes.Contains(node))
+        {
+            nodes.Add(node);
+            node = node.Parent;
+        }
+        nodes.Reverse();
+                
+        var multiSub = new MultiSub();
+        var ob = Observer.Create<(IValueAccess, Type, T?, T?)>(args =>
+        {
+            T[] values = nodes.Where(n => n.GetProperty<P>()?.HasValue == true).Select(n => n.GetProperty<P>()!.Value!).ToArray();
+            observer.OnNext((this, args.Item2, values));
+        });
+        foreach (var n in nodes) multiSub.Subscribe(n.SubscribeProperty<P, T>(ob));
+        if (immediate) ob.OnNext((this, typeof(P), default(T?), default(T?)));
+
+        return multiSub;
+    }
+
+    /// <summary>
+    /// Subscribe the property from all ancestor with handler
+    /// </summary>
+    public IDisposable SubscribeAncestorProperty<P, T>(Action<(IValueAccess, Type, T[])> handler, bool immediate = false) where P : Property<T>
+        => SubscribeAncestorProperty<P, T>(Observer.Create(handler), immediate);
+
     /// <summary>
     /// Convert the boxed property change payload to the typed property change
     /// </summary>
@@ -765,7 +798,6 @@ public abstract class DataNode : IValueAccess, IDisposable
     }
 
     #endregion
-
 
     #region Relation
 
@@ -1072,6 +1104,24 @@ public abstract class DataNode : IValueAccess, IDisposable
     class FakeSub: IDisposable    {
         public void Dispose()
         {
+        }
+    }
+
+    class MultiSub : IDisposable
+    {
+        private readonly List<IDisposable> _subscriptions = new();
+
+        public void Subscribe(IDisposable sub)
+        {
+            _subscriptions.Add(sub);
+        }
+
+        public void Dispose()
+        {
+            foreach (var subscription in _subscriptions)
+                subscription.Dispose();
+
+            _subscriptions.Clear();
         }
     }
 

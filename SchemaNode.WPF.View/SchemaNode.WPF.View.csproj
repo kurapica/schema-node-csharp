@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>SchemaNode.WPF.View</RootNamespace>
+    <AssemblyName>SchemaNode.WPF.View</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 仅依赖 SchemaNode.Core，不引入 App 层，保持渲染层纯净 -->
+    <ProjectReference Include="..\SchemaNode.Core\SchemaNode.Core.csproj" />
+  </ItemGroup>
+
+</Project>

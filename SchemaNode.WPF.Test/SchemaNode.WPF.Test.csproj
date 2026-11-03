@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.14" />
+    <PackageReference Include="Prism.DryIoc" Version="9.0.537" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SchemaNode.Core\SchemaNode.Core.csproj" />
+    <ProjectReference Include="..\SchemaNode.WPF.View\SchemaNode.WPF.View.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Locale resources for this host. Locale.TryLoad scans the registered schema assembly and
+         reads embedded resources whose file name ends with the locale code (schema_zhCN.json ->
+         zhCN), so the harness carries its own copy instead of borrowing the Man app's folder. -->
+    <EmbeddedResource Include="locale\*.json" />
+  </ItemGroup>
+
+</Project>

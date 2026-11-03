@@ -1,0 +1,48 @@
+<UserControl x:Class="SchemaNode.WPF.Man.Views.TypeDocumentView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prism="http://prismlibrary.com/"
+             xmlns:local="clr-namespace:SchemaNode.WPF.Man.Views"
+             xmlns:view="clr-namespace:SchemaNode.WPF.View;assembly=SchemaNode.WPF.View"
+             xmlns:loc="clr-namespace:SchemaNode.WPF.View.Localization;assembly=SchemaNode.WPF.View"
+             prism:ViewModelLocator.AutoWireViewModel="True">
+    <UserControl.Resources>
+        <view:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+    </UserControl.Resources>
+
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedoc.button.back}"
+                    Command="{Binding BackCommand}" Margin="0,0,12,0" />
+            <TextBlock Text="{Binding HeaderText}" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedoc.button.save}"
+                    Command="{Binding SaveCommand}" Margin="12,0,0,0"
+                    Visibility="{Binding IsEditable, Converter={StaticResource BoolToVisibility}}" />
+            <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedoc.status.loading}"
+                       Foreground="Gray" VerticalAlignment="Center" Margin="12,0,0,0"
+                       Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibility}}" />
+        </StackPanel>
+
+        <Border Grid.Row="1" Background="#FDECEA" Padding="8,4" Margin="0,0,0,8"
+                Visibility="{Binding Editor.Error, Converter={x:Static view:Converters.VisibleIfText}}">
+            <TextBlock Text="{Binding Editor.Error}" Foreground="#B71C1C" TextWrapping="Wrap" />
+        </Border>
+
+        <!-- The editor renders the definition node through the view library. The name bar is hidden
+             because the route already knows the subject; IsEditable is turned off for 查看. -->
+        <local:SchemaEditorView Grid.Row="2"
+                                DataContext="{Binding Editor}"
+                                HideNameBar="True"
+                                IsEditable="{Binding DataContext.IsEditable, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+
+        <TextBlock Grid.Row="3" Text="{Binding Status}" Foreground="DarkSlateGray" TextWrapping="Wrap"
+                   Margin="0,8,0,0" />
+    </Grid>
+</UserControl>

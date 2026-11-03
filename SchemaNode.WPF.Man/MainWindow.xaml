@@ -1,0 +1,58 @@
+<Window x:Class="SchemaNode.WPF.Man.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:prism="http://prismlibrary.com/"
+        xmlns:loc="clr-namespace:SchemaNode.WPF.View.Localization;assembly=SchemaNode.WPF.View"
+        xmlns:view="clr-namespace:SchemaNode.WPF.View;assembly=SchemaNode.WPF.View"
+        Title="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.title}"
+        Height="720" Width="1100"
+        prism:ViewModelLocator.AutoWireViewModel="True">
+    <DockPanel>
+        <!-- Top bar: localized title on the left, English/Chinese switch on the right -->
+        <Border DockPanel.Dock="Top" Background="#ECF0F1" Padding="10,6">
+            <DockPanel>
+                <TextBlock FontSize="16" FontWeight="Bold" VerticalAlignment="Center"
+                           Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.title}" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <RadioButton GroupName="LanguageSwitch" VerticalAlignment="Center" Margin="0,0,6,0"
+                                 IsChecked="{Binding IsEnglish, Mode=TwoWay}"
+                                 Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.language.en}" />
+                    <TextBlock Text="|" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <RadioButton GroupName="LanguageSwitch" VerticalAlignment="Center"
+                                 IsChecked="{Binding IsChinese, Mode=TwoWay}"
+                                 Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.language.zh}" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Left navigation bar -->
+        <Border DockPanel.Dock="Left" Width="180" Background="#2C3E50">
+            <StackPanel Margin="10">
+                <TextBlock Text="SchemaNode" Foreground="White" FontSize="18" FontWeight="Bold"
+                           Margin="0,0,0,20" />
+                <!-- Navigation buttons: Command is bound to the DelegateCommand of MainWindowViewModel -->
+                <Button Margin="0,4" Command="{Binding NavigateCommand}" CommandParameter="TypeListView"
+                        Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.nav.type.list}" />
+                <Button Margin="0,4" Command="{Binding NavigateCommand}" CommandParameter="TypeDemoView"
+                        Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.nav.type.demo}" />
+                <Button Margin="0,4" Command="{Binding NavigateCommand}" CommandParameter="AppDefinitionView"
+                        Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.nav.app.definition}" />
+                <Button Margin="0,4" Command="{Binding NavigateCommand}" CommandParameter="AppDemoView"
+                        Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.nav.app.demo}" />
+                <Button Margin="0,4" Command="{Binding NavigateCommand}" CommandParameter="WorkflowConfigView"
+                        Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.nav.workflow}" />
+                <Button Margin="0,4" Command="{Binding NavigateCommand}" CommandParameter="FunctionDefinitionView"
+                        Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.nav.function}" />
+            </StackPanel>
+        </Border>
+
+        <!-- Navigation failures are surfaced here instead of leaving the region unchanged -->
+        <Border DockPanel.Dock="Bottom" Background="#FDECEA" Padding="8,4"
+                Visibility="{Binding StatusMessage, Converter={x:Static view:Converters.VisibleIfText}}">
+            <TextBlock Text="{Binding StatusMessage}" Foreground="#B71C1C" TextWrapping="Wrap" />
+        </Border>
+
+        <!-- Main content area: a Prism Region; the navigation target View is injected here -->
+        <ContentControl prism:RegionManager.RegionName="MainContentRegion" />
+    </DockPanel>
+</Window>

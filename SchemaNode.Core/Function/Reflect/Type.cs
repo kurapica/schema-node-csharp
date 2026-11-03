@@ -147,7 +147,11 @@ public static class Type
         bool? matchArrayElement,
         [Meta<SchemaType>(typeof(SchemaNode.Enum.NodeKind))] params string[] kinds)
     {
-        var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name).ConfigureAwait(false);
+        // An empty name addresses the root namespace, which has no registered type entry but is
+        // still a namespace; look it up on the runtime instead of treating it as "not found".
+        Runtime.NodeType? nodeType = string.IsNullOrWhiteSpace(name)
+            ? (context.Runtime as SchemaRuntime)?.RootNamespace
+            : await context.GetNodeTypeAsync(name).ConfigureAwait(false);
         if (nodeType == null) return false;
         foreach (var kind in kinds)
         {

@@ -115,7 +115,7 @@ public static partial class SchemaNodeExtensions
         services.TryAddSingleton<ISchemaRuntime, SchemaRuntime>();
 
         // Default Schema context
-        services.AddScoped<SchemaContext>();
+        services.TryAddScoped<SchemaContext>();
         services.TryAddScoped<ISchemaContext>(sp => sp.GetRequiredService<SchemaContext>());
 
         // The schema runtime builder

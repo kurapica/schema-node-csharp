@@ -439,7 +439,7 @@ public class SchemaCandidateValidatorTest : Base.AppTestBase
         Assert.IsTrue(result.IsValid);
         var type = await Context.GetNodeTypeAsync("ai_untouched");
         Assert.IsNotNull(type);
-        var loaded = type!.GetNodeSchema();
+        var loaded = type!.GetNodeSchema()!;
         var fields = loaded.GetProperty<StructProperty>()!.Value!.Fields;
         Assert.AreEqual(1, fields.Length, "Validating a candidate must not update the stored schema.");
         Assert.AreEqual("keep", fields[0].Name);

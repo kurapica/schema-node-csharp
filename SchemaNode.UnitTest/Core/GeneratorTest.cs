@@ -1,5 +1,6 @@
 using SchemaNode.Attribute;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Struct;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 using ValueType = SchemaNode.Runtime.ValueType;
@@ -21,6 +22,17 @@ public class TestPerson
     public string? Name { get; set; }
     public int Age { get; set; }
     public string? Phone { get; set; }
+}
+
+/// <summary>
+/// Test struct with multiple attach kinds, the attach properties from both
+/// kinds must be merged and de-duplicated.
+/// </summary>
+[Meta<SchemaType>("test.generator.attached")]
+[Meta<Attach>("node.int.define,node.string.define")]
+public class TestAttached
+{
+    public string? Name { get; set; }
 }
 
 /// <summary>
