@@ -98,7 +98,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
 
         #region Arguments
 
-        // CallAsync arguments
+        // Process arguments
         for (int argIdx = 0; argIdx < Function.Args.Length; argIdx++)
         {
             FunctionNodeArgument arg = Function.Args[argIdx];

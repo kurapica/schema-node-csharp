@@ -555,7 +555,7 @@ public class WorkflowContext: SchemaContext
             {
                 LogInformation($"[WorkflowContext]{Id} Processing [BaseWorkflow] {workflow.Name}");
 
-                // CallAsync the workflow
+                // Process the workflow
                 state.Status = WorkflowStatus.Running;
                 await state.ProcessAsync(this, workflow).ConfigureAwait(false);
             }
@@ -715,7 +715,7 @@ public class WorkflowContext: SchemaContext
         public virtual bool HasSession => false;
 
         /// <summary>
-        /// CallAsync the workflow without session
+        /// Process the workflow without session
         /// </summary>
         public virtual async Task ProcessAsync(WorkflowContext context, BaseWorkflow workflow)
         {
@@ -761,7 +761,7 @@ public class WorkflowContext: SchemaContext
         public override bool HasSession => true;
 
         /// <summary>
-        /// CallAsync the workflow with session
+        /// Process the workflow with session
         /// </summary>
         public override async Task ProcessAsync(WorkflowContext context, BaseWorkflow workflow)
         {

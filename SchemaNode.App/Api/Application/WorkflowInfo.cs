@@ -34,7 +34,7 @@ public class WorkflowInfoApi : SchemaApi<WorkflowInfoRequest, WorkflowInfoRespon
 public static class WorkflowInfoExtensions
 {
     /// <summary>
-    /// CallAsync the interaction request
+    /// Process the interaction request
     /// </summary>
     public static async Task<WorkflowStatus?> GetWorkflowInfo(this SchemaContext context, WorkflowInfoRequest request)
     {

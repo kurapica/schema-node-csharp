@@ -43,7 +43,7 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
     public IRelationProcess? Process { get; private set; }
     
     /// <summary>
-    /// CallAsync the relation and return the property with the result
+    /// Process the relation and return the property with the result
     /// </summary>
     public async Task<IProperty?> CallAsync(SchemaContext context, IValueAccess owner, IValueAccess? target = null)
     {

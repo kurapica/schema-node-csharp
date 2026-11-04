@@ -143,7 +143,7 @@ public interface IRelationProcess
     void Detach(IRelation relation, IValueAccess owner, IValueAccess target);
 
     /// <summary>
-    /// CallAsync the relation and return the new property value
+    /// Process the relation and return the new property value
     /// </summary>
     Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner, IValueAccess target);
 }

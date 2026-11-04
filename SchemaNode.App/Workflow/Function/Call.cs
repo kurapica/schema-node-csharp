@@ -43,7 +43,7 @@ public class Call<T>: BaseWorkflow,
     }
 
     /// <summary>
-    /// CallAsync the func call
+    /// Process the func call
     /// </summary>
     public async Task ProcessAsync(WorkflowContext context)
     {

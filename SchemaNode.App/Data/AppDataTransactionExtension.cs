@@ -163,7 +163,7 @@ public static class AppDataTransactionExtension
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
         var transChangedData = context.GetOrAddContextItem<Dictionary<string, TransactionChangeData>>();
 
-        // CallAsync data field push
+        // Process data field push
         foreach (string target in transChangedData.Keys.ToArray())
             await ProcessDataPush(context, target, transChangedData[target]).ConfigureAwait(false);
 
@@ -346,7 +346,7 @@ public static class AppDataTransactionExtension
         context.SetContextItem<Dictionary<string, TransactionChangeData>>(null);
     }
 
-    // CallAsync the data push
+    // Process the data push
     static async Task ProcessDataPush(SchemaContext context, string target, TransactionChangeData changeData, bool pushAllFields = false, AppFieldType? pushNode = null)
     {
         #region Generate push orders
@@ -382,7 +382,7 @@ public static class AppDataTransactionExtension
                 baseFields = root.Fields;
         }
 
-        // CallAsync levels
+        // Process levels
         while (baseFields.Count > 0)
         {
             FieldDataPushLevel next = new();
@@ -421,7 +421,7 @@ public static class AppDataTransactionExtension
 
         #endregion
 
-        // CallAsync data push
+        // Process data push
         while (root?.Fields.Count is > 0)
         {
             foreach (AppFieldType field in root.Fields)
@@ -909,7 +909,7 @@ public static class AppDataTransactionExtension
                 }
             }
 
-            // CallAsync next level
+            // Process next level
             root = root.Next;
         }
     }

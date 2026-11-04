@@ -602,8 +602,9 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
             else
             {
                 Type? eleType = GetArgType(arg);
+                eleType = eleType?.GetElementType() ?? eleType;
                 ValueType? schemaType = argInfo.ValueType;
-                Array? array = eleType != null ? Array.CreateInstance(eleType.GetElementType() ?? eleType, Math.Max(0, args.Length - funcInfo.Args.Length + 1)) : null;
+                Array? array = eleType != null ? Array.CreateInstance(eleType, Math.Max(0, args.Length - funcInfo.Args.Length + 1)) : null;
                 int count = 0;
                 for (int j = funcInfo.Args.Length - 1; j < Math.Max(args.Length, funcInfo.Args.Length); j++)
                 {
@@ -720,6 +721,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
             for (int i = 0; i < cnt; i++)
             {
                 ArgumentExp arg = funcSchema.Args.ElementAtOrDefault(i) ?? funcSchema.Args.Last();
+                FunctionNodeArgument funcArg = Args.ElementAtOrDefault(i) ?? Args.Last();
 
                 // validate argument
                 object? argObj = args.ElementAtOrDefault(i);
@@ -745,17 +747,9 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                         throw new Exception($"The {i + 1} argument must be provided");
                 }
 
-                // A variadic (params) argument of a system function is packed into its array by
-                // CallSystemFuncAsync. Validating the bare element against the array type here
-                // always fails, so hand the raw value over untouched.
-                if (isCall && IsSystemCall && Args.ElementAtOrDefault(i) is { Variadic: true })
-                {
-                    callArgs[i] = argObj;
-                    continue;
-                }
 
                 // Parse argument
-                var eleType = arg.ValueType.GetCsharpType();
+                var eleType = funcArg.Variadic == true && arg.ValueType is ArrayType arrType ? arrType.Element?.GetCsharpType() :  arg.ValueType.GetCsharpType();
 
                 // indicate the array
                 if (!isCall && arg.ValueType is not ArrayType &&

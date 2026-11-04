@@ -522,4 +522,65 @@ public class FunctionTypeTest : Base.CoreTestBase
     }
 
     #endregion
+
+    [TestMethod]
+    public async Task VariadicProbe()
+    {
+        var sb = new System.Text.StringBuilder();
+        string[] names =
+        [
+            "system.schema.reflect.type.isnodekind",
+            "system.schema.reflect.type.isnodekindaccess",
+            "system.schema.reflect.type.isassignableto",
+            "system.schema.reflect.type.isgenericmatch",
+            "system.schema.reflect.array.isassignabletoelement",
+            "system.schema.reflect.func.iscallable",
+            "system.collection.newarray",
+            "system.math.add",
+        ];
+        foreach (string name in names)
+        {
+            var func = await Context.GetNodeTypeAsync<FunctionType>(name);
+            if (func == null)
+            {
+                sb.AppendLine($"{name}: NULL");
+                continue;
+            }
+            sb.AppendLine($"{name}: args={func.Args.Length}, exps={func.Exps.Length}, system={func.IsSystemCall}");
+            for (int i = 0; i < func.Args.Length; i++)
+            {
+                var a = func.Args[i];
+                sb.AppendLine($"  [{i}] {a.Name} type={a.Type} variadic={a.Variadic} vt={(a.ValueType?.GetType().Name ?? "null")} cs={(a.ValueType?.GetCsharpType()?.Name ?? "null")}");
+            }
+        }
+
+        async Task Probe(string label, string funcName, object?[] args)
+        {
+            var f = await Context.GetNodeTypeAsync<FunctionType>(funcName);
+            if (f == null) { sb.AppendLine($"{label}: FUNC NULL"); return; }
+            try
+            {
+                var r = await f.CallAsync<object?>(Context, args);
+                sb.AppendLine($"{label}: OK {r} ({r?.GetType().Name})");
+            }
+            catch (Exception e)
+            {
+                sb.AppendLine($"{label}: EX {e.GetType().Name}: {e.Message}");
+                Assert.Fail(e.Message);
+            }
+        }
+
+        await Probe("isnodekind json string", "system.schema.reflect.type.isnodekind",
+            [System.Text.Json.Nodes.JsonValue.Create("system.int"), System.Text.Json.Nodes.JsonValue.Create(false), System.Text.Json.Nodes.JsonValue.Create("int")]);
+        await Probe("isnodekind raw string", "system.schema.reflect.type.isnodekind",
+            ["system.int", false, "int"]);
+        await Probe("isnodekind zero kinds", "system.schema.reflect.type.isnodekind",
+            [System.Text.Json.Nodes.JsonValue.Create("system.int"), System.Text.Json.Nodes.JsonValue.Create(false)]);
+        await Probe("isgenericmatch json", "system.schema.reflect.type.isgenericmatch",
+            [System.Text.Json.Nodes.JsonValue.Create("system.list<system.int>"), System.Text.Json.Nodes.JsonValue.Create("system.list"), System.Text.Json.Nodes.JsonValue.Create("system.int")]);
+        await Probe("isassignableto json", "system.schema.reflect.type.isassignableto",
+            [System.Text.Json.Nodes.JsonValue.Create("system.int"), System.Text.Json.Nodes.JsonValue.Create(false), System.Text.Json.Nodes.JsonValue.Create("system.number")]);
+        await Probe("add raw longs", "system.math.add", [3L, 5L]);
+        await Probe("newarray raw", "system.collection.newarray", [1L, 2L, 3L]);
+    }
 }
