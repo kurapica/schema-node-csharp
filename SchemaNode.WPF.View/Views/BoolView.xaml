@@ -2,13 +2,23 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:SchemaNode.WPF.View"
-             xmlns:loc="clr-namespace:SchemaNode.WPF.View.Localization"
              MinHeight="24"
              ToolTip="{Binding Error}">
     <StackPanel>
+        <!-- Required bool: only true/false exist, so a plain two-state check box is enough. -->
         <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
                   IsEnabled="{Binding IsEditable}"
-                  MinHeight="24" />
+                  MinHeight="24"
+                  Visibility="{Binding IsRequired, Converter={x:Static local:Converters.BoolToVisibility}}" />
+
+        <!-- Optional bool / bool?: the unset state is an explicit option and writes a real null. -->
+        <ComboBox ItemsSource="{Binding Options}"
+                  DisplayMemberPath="Label"
+                  SelectedIndex="{Binding SelectedIndex, Mode=TwoWay}"
+                  IsEnabled="{Binding IsEditable}"
+                  MinHeight="24"
+                  Visibility="{Binding IsOptional, Converter={x:Static local:Converters.BoolToVisibility}}" />
+
         <TextBlock Margin="0,2,0,0"
                    Foreground="#FFC62828"
                    TextWrapping="Wrap"

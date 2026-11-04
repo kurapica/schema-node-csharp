@@ -59,7 +59,8 @@ public class ScalarWrapper : DataNodeWrapper
     /// <summary>Whether the plain text editor is used.</summary>
     public virtual bool IsPlainText => true;
 
-    private void OnRequireChanged((IValueAccess node, Type propertyType, bool value, bool oldValue) args)
+    /// <summary>Hook invoked when the required constraint changes, for editors that branch on it.</summary>
+    protected virtual void OnRequireChanged((IValueAccess node, Type propertyType, bool value, bool oldValue) args)
     {
         bool require = args.value;
         if (_require == require) return;

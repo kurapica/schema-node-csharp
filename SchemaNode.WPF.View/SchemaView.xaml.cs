@@ -34,33 +34,70 @@ public partial class SchemaView : UserControl
 
 #if DEBUG
         if (Debug.SchemaDebug.Enabled)
-        {
-            DebugToggle.Visibility = Visibility.Visible;
-            DebugToggle.Checked += OnDebugToggleChecked;
-            DebugToggle.Unchecked += OnDebugToggleUnchecked;
-        }
+            AttachDebugInspector();
 #endif
     }
 
 #if DEBUG
     private Debug.SchemaDebugPanel? _debugPanel;
+    private System.Windows.Controls.Primitives.ToggleButton? _debugToggle;
+    private System.Windows.Controls.Primitives.Popup? _debugPopup;
+
+    /// <summary>
+    /// Creates the inspector trigger at runtime. The whole method and every type it touches are
+    /// compiled only for Debug, so a Release build contains neither the element nor the panel.
+    /// </summary>
+    private void AttachDebugInspector()
+    {
+        _debugToggle = new System.Windows.Controls.Primitives.ToggleButton
+        {
+            Content = "\U0001F41E",
+            FontSize = 11,
+            Padding = new Thickness(2, 0, 2, 0),
+            MinWidth = 0,
+            VerticalAlignment = VerticalAlignment.Top,
+            Focusable = false,
+            ToolTip = "Node debug properties"
+        };
+        _debugToggle.Checked += OnDebugToggleChecked;
+        _debugToggle.Unchecked += OnDebugToggleUnchecked;
+
+        _debugPopup = new System.Windows.Controls.Primitives.Popup
+        {
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Right,
+            PlacementTarget = _debugToggle,
+            StaysOpen = false
+        };
+
+        Grid.SetColumn(_debugToggle, 0);
+        Grid.SetColumn(_debugPopup, 0);
+
+        // The Release layout is a single content column; the inspector adds its trigger column and
+        // a star-sized content column only in Debug builds, so no layout is reserved elsewhere.
+        Root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        Grid.SetColumn(Presenter, 1);
+
+        Root.Children.Add(_debugToggle);
+        Root.Children.Add(_debugPopup);
+    }
 
     private void OnDebugToggleChecked(object sender, RoutedEventArgs e)
     {
         DataNode? node = _observed?.Node ?? _pendingNode;
         if (node is null)
         {
-            DebugPopup.IsOpen = false;
+            _debugPopup!.IsOpen = false;
             return;
         }
 
         _debugPanel ??= new Debug.SchemaDebugPanel();
-        DebugPopup.Child = _debugPanel;
+        _debugPopup!.Child = _debugPanel;
         _debugPanel.Show(Debug.SchemaDebug.Describe(node));
-        DebugPopup.IsOpen = true;
+        _debugPopup!.IsOpen = true;
     }
 
-    private void OnDebugToggleUnchecked(object sender, RoutedEventArgs e) => DebugPopup.IsOpen = false;
+    private void OnDebugToggleUnchecked(object sender, RoutedEventArgs e) => _debugPopup!.IsOpen = false;
 #endif
 
     /// <summary>

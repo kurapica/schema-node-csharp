@@ -3,22 +3,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              HorizontalContentAlignment="Stretch"
              VerticalContentAlignment="Top">
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
+    <Grid x:Name="Root">
+        <!-- The DEBUG-only inspector trigger and its column are created in code behind under
+             #if DEBUG, so a Release build has no debug element and no debug layout at all. -->
 
-        <!-- DEBUG-only inspector trigger; collapsed (and inert) in Release. -->
-        <ToggleButton x:Name="DebugToggle" Grid.Column="0" Visibility="Collapsed"
-                      Content="&#x1F41E;" FontSize="11" Padding="2,0" MinWidth="0"
-                      VerticalAlignment="Top" Focusable="False"
-                      ToolTip="Node debug properties" />
-
-        <Popup x:Name="DebugPopup" Grid.Column="0" Placement="Right"
-               PlacementTarget="{Binding ElementName=DebugToggle}" StaysOpen="False" />
-
-        <ContentPresenter x:Name="Presenter" Grid.Column="1"
+        <ContentPresenter x:Name="Presenter"
                           HorizontalAlignment="Stretch"
                           VerticalAlignment="Top" />
     </Grid>

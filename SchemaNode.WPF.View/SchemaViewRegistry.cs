@@ -154,6 +154,10 @@ public sealed class SchemaViewRegistry
         if (node is not DataNode dataNode)
             return new SchemaViewRegistration(SchemaTemplateKeys.Fallback, null);
 
+        SchemaViewRegistration? nodeSpecific =
+            NodeRegistrationResolver?.Invoke(dataNode, role, NormalizeSkin(skin));
+        if (nodeSpecific is not null) return nodeSpecific;
+
         TypeRegistration? type = FindTypeRegistration(dataNode.Type, role, NormalizeSkin(skin));
         if (type is not null)
             return new SchemaViewRegistration(type.TemplateKey, type.WrapperFactory);
@@ -200,6 +204,10 @@ public sealed class SchemaViewRegistry
         if (node is not DataNode dataNode) return null;
 
         string normalizedSkin = NormalizeSkin(skin);
+        SchemaViewRegistration? nodeSpecific =
+            NodeRegistrationResolver?.Invoke(dataNode, role, normalizedSkin);
+        if (nodeSpecific is not null) return nodeSpecific.WrapperFactory;
+
         TypeRegistration? type = FindTypeRegistration(dataNode.Type, role, normalizedSkin);
         if (type is not null) return type.WrapperFactory;
 
@@ -239,16 +247,39 @@ public sealed class SchemaViewRegistry
     }
 
     /// <summary>
+    /// Optional host hook used by the table view instead of the built-in modal row editor.
+    /// The handler must block until the user finishes and return <see langword="true"/> when the
+    /// edit was confirmed; a confirmed add-row then inserts the node passed in the request.
+    /// </summary>
+    public Func<TableRowEditorRequest, bool>? RowEditorFactory { get; set; }
+
+    /// <summary>
+    /// Optional host hook consulted before type and kind registrations. It lets a host pick a
+    /// node-specific view that cannot be expressed by type name (for example a pageable array whose
+    /// paging state lives in the host), without hard-coding node kinds in the library.
+    /// Returning null falls through to the normal type/kind resolution.
+    /// </summary>
+    public Func<IValueAccess, SchemaViewRole, string, SchemaViewRegistration?>? NodeRegistrationResolver { get; set; }
+
+    /// <summary>
     /// Whether an array is rendered as a table. Explicit registration wins; otherwise a struct
     /// element that is not a single view becomes a table.
     /// </summary>
-    public bool ShouldUseTable(ArrayNode array)
+    public bool ShouldUseTable(IValueTypeAccess arrayType)
     {
-        string? typeView = GetTypeView(array.Type, SchemaViewRole.Field, DefaultSkin);
+        if (arrayType is not ArrayType array) return false;
+
+        string? typeView = GetTypeView(array, SchemaViewRole.Field, DefaultSkin);
         if (string.Equals(typeView, SchemaTemplateKeys.Table, StringComparison.Ordinal)) return true;
 
-        return array.ElementType is StructType element && !UseSingleView(element);
+        return array.Element is StructType element && !UseSingleView(element);
     }
+
+    /// <summary>
+    /// Whether an array is rendered as a table. Explicit registration wins; otherwise a struct
+    /// element that is not a single view becomes a table.
+    /// </summary>
+    public bool ShouldUseTable(ArrayNode array) => ShouldUseTable(array.Type);
 
     private TypeRegistration? FindTypeRegistration(IValueTypeAccess type, SchemaViewRole role, string skin)
     {

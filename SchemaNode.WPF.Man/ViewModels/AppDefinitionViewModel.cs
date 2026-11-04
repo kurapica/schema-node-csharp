@@ -11,6 +11,7 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Schema.Provider;
 using SchemaNode.WPF.Man.Services;
+using SchemaNode.WPF.Man.Views;
 using SchemaNode.WPF.View;
 using SchemaNode.WPF.View.Localization;
 using SchemaNode.WPF.View.NodeWrapper;
@@ -42,8 +43,19 @@ namespace SchemaNode.WPF.Man.ViewModels;
 /// </summary>
 public class AppDefinitionViewModel : BindableBase, INavigationAware, IDestructible
 {
+    public const string AppParameter = "app";
+    public const string ModeParameter = "mode";
+    public const string ContainerParameter = "container";
+
+    public const string ModeView = "view";
+    public const string ModeEdit = "edit";
+    public const string ModeNew = "new";
+
+    private const string MainContentRegion = "MainContentRegion";
+
     private readonly SchemaContextFactory _factory;
     private readonly SchemaViewRegistry _registry;
+    private readonly IRegionManager _regionManager;
     private SchemaScreenSession? _session;
 
     private string _appName = string.Empty;
@@ -51,6 +63,9 @@ public class AppDefinitionViewModel : BindableBase, INavigationAware, IDestructi
     private string _newFieldType = NS_SYSTEM_STRING;
     private string? _status;
     private bool _isBusy;
+    private bool _isNavigating;
+    private string _mode = ModeEdit;
+    private string _container = string.Empty;
 
     private IValueAccess? _appNode;
     private ArrayNode? _fieldsNode;
@@ -58,36 +73,63 @@ public class AppDefinitionViewModel : BindableBase, INavigationAware, IDestructi
     /// <summary>Field names present when loaded, used on save to find removed fields (Core does not delete fields when saving an app).</summary>
     private readonly List<string> _originalFieldNames = [];
 
-    public AppDefinitionViewModel(SchemaContextFactory factory, SchemaViewRegistry registry)
+    public AppDefinitionViewModel(SchemaContextFactory factory, SchemaViewRegistry registry, IRegionManager regionManager)
     {
         _factory = factory;
         _registry = registry;
+        _regionManager = regionManager;
 
         LoadCommand = new DelegateCommand(ExecuteLoad, () => !string.IsNullOrWhiteSpace(AppName) && !IsBusy)
             .ObservesProperty(() => AppName)
             .ObservesProperty(() => IsBusy);
-        NewCommand = new DelegateCommand(ExecuteNew, () => !string.IsNullOrWhiteSpace(AppName) && !IsBusy)
+        NewCommand = new DelegateCommand(ExecuteNew, () => IsEditable && !string.IsNullOrWhiteSpace(AppName) && !IsBusy)
             .ObservesProperty(() => AppName)
-            .ObservesProperty(() => IsBusy);
-        SaveCommand = new DelegateCommand(ExecuteSave, () => AppNode is not null && !IsBusy)
+            .ObservesProperty(() => IsBusy)
+            .ObservesProperty(() => IsEditable);
+        SaveCommand = new DelegateCommand(ExecuteSave, () => AppNode is not null && IsEditable && !IsBusy)
             .ObservesProperty(() => AppNode)
-            .ObservesProperty(() => IsBusy);
-        DeleteCommand = new DelegateCommand(ExecuteDelete, () => !string.IsNullOrWhiteSpace(AppName) && !IsBusy)
+            .ObservesProperty(() => IsBusy)
+            .ObservesProperty(() => IsEditable);
+        DeleteCommand = new DelegateCommand(ExecuteDelete, () => IsEditable && !string.IsNullOrWhiteSpace(AppName) && !IsBusy)
             .ObservesProperty(() => AppName)
-            .ObservesProperty(() => IsBusy);
-        AddFieldCommand = new DelegateCommand(ExecuteAddField, () => _fieldsNode is not null && !IsBusy)
+            .ObservesProperty(() => IsBusy)
+            .ObservesProperty(() => IsEditable);
+        AddFieldCommand = new DelegateCommand(ExecuteAddField, () => IsEditable && _fieldsNode is not null && !IsBusy)
             .ObservesProperty(() => FieldsNode)
-            .ObservesProperty(() => IsBusy);
-        RemoveFieldCommand = new DelegateCommand<DataNodeWrapper>(ExecuteRemoveField, _ => !IsBusy)
-            .ObservesProperty(() => IsBusy);
+            .ObservesProperty(() => IsBusy)
+            .ObservesProperty(() => IsEditable);
+        RemoveFieldCommand = new DelegateCommand<DataNodeWrapper>(ExecuteRemoveField, _ => IsEditable && !IsBusy)
+            .ObservesProperty(() => IsBusy)
+            .ObservesProperty(() => IsEditable);
+        BackCommand = new DelegateCommand(ExecuteBack);
     }
 
     /// <summary>Full app name (also used as the target full name when creating).</summary>
     public string AppName
     {
         get => _appName;
-        set => SetProperty(ref _appName, value);
+        set
+        {
+            if (!SetProperty(ref _appName, value)) return;
+            RaisePropertyChanged(nameof(HeaderText));
+        }
     }
+
+    /// <summary>Current document mode (view / edit / new).</summary>
+    public string Mode => _mode;
+
+    /// <summary>Whether the property and field areas accept input (false for 查看).</summary>
+    public bool IsEditable => _mode is ModeEdit or ModeNew;
+
+    /// <summary>Header text describing the mode and subject.</summary>
+    public string HeaderText => _mode switch
+    {
+        ModeNew => LocaleManager.Instance.Format(
+            "wpf.appdef.header.new",
+            _container.Length > 0 ? _container : LocaleManager.Instance.Get("wpf.applist.namespace.root")),
+        ModeView => LocaleManager.Instance.Format("wpf.appdef.header.view", _appName),
+        _ => LocaleManager.Instance.Format("wpf.appdef.header.edit", _appName),
+    };
 
     /// <summary>New field name</summary>
     public string NewFieldName
@@ -145,6 +187,7 @@ public class AppDefinitionViewModel : BindableBase, INavigationAware, IDestructi
     public ICommand DeleteCommand { get; }
     public ICommand AddFieldCommand { get; }
     public ICommand RemoveFieldCommand { get; }
+    public ICommand BackCommand { get; }
 
     #region Navigation
 
@@ -153,8 +196,40 @@ public class AppDefinitionViewModel : BindableBase, INavigationAware, IDestructi
     public void OnNavigatedTo(NavigationContext navigationContext)
     {
         Teardown();
-        _session = _factory.CreateSession();
-        Status = LocaleManager.Instance.Get("wpf.appdef.status.ready");
+        try
+        {
+            _session = _factory.CreateSession();
+
+            string? mode = navigationContext.Parameters.GetValue<string>(ModeParameter);
+            _mode = mode is ModeView or ModeEdit or ModeNew ? mode : ModeEdit;
+            _container = navigationContext.Parameters.GetValue<string>(ContainerParameter) ?? string.Empty;
+            string? app = navigationContext.Parameters.GetValue<string>(AppParameter);
+
+            RaisePropertyChanged(nameof(Mode));
+            RaisePropertyChanged(nameof(IsEditable));
+            RaisePropertyChanged(nameof(HeaderText));
+
+            if (_mode == ModeNew)
+            {
+                // Nav-driven creation: the container is fixed, the user completes the app name.
+                AppName = _container.Length > 0 ? _container + "." : string.Empty;
+                Status = LocaleManager.Instance.Get("wpf.appdef.status.newname");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(app))
+            {
+                Status = LocaleManager.Instance.Get("wpf.appdef.status.ready");
+                return;
+            }
+
+            AppName = app;
+            _ = LoadFromNavigationAsync(app);
+        }
+        catch (Exception ex)
+        {
+            Status = ex.Message;
+        }
     }
 
     public void OnNavigatedFrom(NavigationContext navigationContext) => Teardown();
@@ -167,8 +242,64 @@ public class AppDefinitionViewModel : BindableBase, INavigationAware, IDestructi
         _originalFieldNames.Clear();
         _session?.Dispose();
         _session = null;
+        _mode = ModeEdit;
+        _container = string.Empty;
+        _isNavigating = false;
         Status = null;
         IsBusy = false;
+    }
+
+    private async Task LoadFromNavigationAsync(string fullName)
+    {
+        IsBusy = true;
+        try
+        {
+            await LoadAppAsync(fullName);
+        }
+        catch (Exception ex)
+        {
+            Status = LocaleManager.Instance.Format("wpf.appdef.status.loadfailed", ex.Message);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// Navigates back to the app list with the current container preserved. Awaits the Prism
+    /// result so a missing route surfaces in the status instead of leaving a stale region.
+    /// </summary>
+    private async void ExecuteBack()
+    {
+        if (_isNavigating) return;
+        _isNavigating = true;
+        try
+        {
+            NavigationParameters parameters = new()
+            {
+                { AppListViewModel.NamespaceParameter, _container },
+            };
+
+            TaskCompletionSource<INavigationResult> completion = new();
+            _regionManager.RequestNavigate(
+                MainContentRegion,
+                nameof(AppListView),
+                result => completion.TrySetResult(result),
+                parameters);
+
+            INavigationResult outcome = await completion.Task;
+            if (!outcome.Success)
+            {
+                Status = LocaleManager.Instance.Format(
+                    "wpf.appdef.status.loadfailed",
+                    outcome.Exception?.Message ?? nameof(AppListView));
+            }
+        }
+        finally
+        {
+            _isNavigating = false;
+        }
     }
 
     #endregion
@@ -260,6 +391,9 @@ public class AppDefinitionViewModel : BindableBase, INavigationAware, IDestructi
             name = schema.Name;
         }
 
+        _container = container;
+        RaisePropertyChanged(nameof(HeaderText));
+
         StructType? appType = await _session.Context.GetNodeTypeAsync<StructType>($"{NS_SYSTEM_SCHEMA_APP}.schema");
         StructType? fieldType = await _session.Context.GetNodeTypeAsync<StructType>($"{NS_SYSTEM_SCHEMA_APP_FIELD}.schema");
         if (appType is null || fieldType is null)
@@ -344,6 +478,10 @@ public class AppDefinitionViewModel : BindableBase, INavigationAware, IDestructi
             // Saving invalidates AppType; rebuild it using the existing reload: true convention.
             await _session.Context.GetAppTypeAsync(app.FullName, reload: true);
             AppName = app.FullName;
+            _mode = ModeEdit;
+            RaisePropertyChanged(nameof(Mode));
+            RaisePropertyChanged(nameof(IsEditable));
+            RaisePropertyChanged(nameof(HeaderText));
             await LoadAppAsync(app.FullName);
             Status = LocaleManager.Instance.Format("wpf.appdef.status.saved", app.FullName);
         }

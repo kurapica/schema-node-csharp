@@ -48,6 +48,19 @@ internal class BoolCase
     public bool Flag { get; set; } = true;
 }
 
+/// <summary>
+/// Required bool next to an optional <c>bool?</c>, so the two editor branches render side by side.
+/// The required field uses a two-state check box; the optional field uses a select whose unset
+/// option writes a real null.
+/// </summary>
+[Meta<SchemaType>("test.boolpair")]
+internal class BoolPairCase
+{
+    public bool Required { get; set; } = true;
+
+    public bool? Optional { get; set; }
+}
+
 /// <summary>Single-level enum field.</summary>
 [Meta<SchemaType>("test.enum")]
 internal class EnumCase

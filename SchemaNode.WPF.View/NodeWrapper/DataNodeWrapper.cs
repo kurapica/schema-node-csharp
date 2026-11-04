@@ -35,6 +35,7 @@ public abstract class DataNodeWrapper : INotifyPropertyChanged, INotifyDataError
     private string? _templateKeyOverride;
     private bool _readOnly;
     private bool _disabled;
+    private bool _forcedReadOnly;
 
     protected DataNodeWrapper(DataNode node, SchemaViewRegistry? registry, string? fieldName, SchemaViewRole role)
     {
@@ -113,11 +114,17 @@ public abstract class DataNodeWrapper : INotifyPropertyChanged, INotifyDataError
     /// <summary>Whether any ancestor or the node itself disables the field.</summary>
     public bool IsDisabled => _disabled;
 
+    /// <summary>
+    /// Whether the owner of this wrapper (a table in row-editor mode, for example) forces the
+    /// subtree to render read-only without writing the Core <c>ReadOnly</c> property.
+    /// </summary>
+    public bool IsForcedReadOnly => _forcedReadOnly;
+
     /// <summary>The field is meant for display only.</summary>
     public bool IsDisplayOnly => NodeImpl.DisplayOnly;
 
-    /// <summary>Editors are enabled only when not read-only, disabled or display-only.</summary>
-    public bool IsEditable => !_readOnly && !_disabled && !NodeImpl.DisplayOnly;
+    /// <summary>Editors are enabled only when not read-only, disabled, forced read-only or display-only.</summary>
+    public bool IsEditable => !_readOnly && !_disabled && !_forcedReadOnly && !NodeImpl.DisplayOnly;
 
     /// <summary>Display label (localized Display property, schema name or field name).</summary>
     public string Label
@@ -293,6 +300,7 @@ public abstract class DataNodeWrapper : INotifyPropertyChanged, INotifyDataError
         _readOnly = readOnly;
         RaisePropertyChanged(nameof(IsReadOnly));
         RaisePropertyChanged(nameof(IsEditable));
+        OnEditableChanged();
     }
 
     private void OnDisabledChanged((IValueAccess node, Type propertyType, bool[] values) args)
@@ -303,6 +311,7 @@ public abstract class DataNodeWrapper : INotifyPropertyChanged, INotifyDataError
         _disabled = disabled;
         RaisePropertyChanged(nameof(IsDisabled));
         RaisePropertyChanged(nameof(IsEditable));
+        OnEditableChanged();
     }
 
     private void OnDisplayOnlyChanged((IValueAccess node, Type propertyType, bool value, bool oldValue) args)
@@ -310,6 +319,31 @@ public abstract class DataNodeWrapper : INotifyPropertyChanged, INotifyDataError
         if (_disposed) return;
         RaisePropertyChanged(nameof(IsDisplayOnly));
         RaisePropertyChanged(nameof(IsEditable));
+        OnEditableChanged();
+    }
+
+    /// <summary>
+    /// Forces this wrapper subtree to render read-only. Used by a table that switches to row-editor
+    /// mode: cells become display-only while the row editor still owns the real node.
+    /// </summary>
+    internal void SetForcedReadOnly(bool value)
+    {
+        if (_disposed || _forcedReadOnly == value) return;
+        _forcedReadOnly = value;
+        RaisePropertyChanged(nameof(IsForcedReadOnly));
+        RaisePropertyChanged(nameof(IsEditable));
+        OnForcedReadOnlyChanged(value);
+        OnEditableChanged();
+    }
+
+    /// <summary>Hook for composite wrappers that must forward the forced state to their children.</summary>
+    protected virtual void OnForcedReadOnlyChanged(bool value)
+    {
+    }
+
+    /// <summary>Hook invoked after any source of <see cref="IsEditable"/> changes.</summary>
+    protected virtual void OnEditableChanged()
+    {
     }
 
     /// <summary>Hook for wrappers that cache localized collections (for example table columns).</summary>

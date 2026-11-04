@@ -67,6 +67,7 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
         EditCommand = new DelegateCommand<TypeSchemaRowViewModel>(ExecuteEdit);
         EnterCommand = new DelegateCommand<TypeSchemaRowViewModel>(ExecuteEnter);
         DeleteCommand = new DelegateCommand<TypeSchemaRowViewModel>(ExecuteDelete);
+        DemoCommand = new DelegateCommand<TypeSchemaRowViewModel>(ExecuteDemo);
     }
 
     #region Bindable state
@@ -123,6 +124,7 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
     public ICommand EditCommand { get; }
     public ICommand EnterCommand { get; }
     public ICommand DeleteCommand { get; }
+    public ICommand DemoCommand { get; }
 
     #endregion
 
@@ -375,6 +377,19 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
         }
     }
 
+    private async void ExecuteDemo(TypeSchemaRowViewModel? row)
+    {
+        if (row is null) return;
+        try
+        {
+            await NavigateToDemoAsync(row.FullName);
+        }
+        catch (Exception ex)
+        {
+            Status = ex.Message;
+        }
+    }
+
     private async void ExecuteDelete(TypeSchemaRowViewModel? row)
     {
         SchemaScreenSession? session = _session;
@@ -458,6 +473,39 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
             Status = LocaleManager.Instance.Format(
                 "wpf.type.status.navfailed",
                 outcome.Exception?.Message ?? nameof(TypeDocumentView));
+        }
+        finally
+        {
+            _isNavigating = false;
+        }
+    }
+
+    /// <summary>
+    /// Opens the demo screen for the given type. The type name travels as a navigation parameter
+    /// (the demo screen used to be a fixed navigation entry with a hard-coded system.string).
+    /// </summary>
+    private async Task NavigateToDemoAsync(string fullName)
+    {
+        if (_isNavigating) return;
+        _isNavigating = true;
+        try
+        {
+            TaskCompletionSource<INavigationResult> completion = new();
+            _regionManager.RequestNavigate(
+                MainContentRegion,
+                nameof(TypeDemoView),
+                result => completion.TrySetResult(result),
+                new NavigationParameters
+                {
+                    { TypeDemoViewModel.TypeParameter, fullName },
+                });
+
+            INavigationResult outcome = await completion.Task;
+            if (outcome.Success) return;
+
+            Status = LocaleManager.Instance.Format(
+                "wpf.type.status.navfailed",
+                outcome.Exception?.Message ?? nameof(TypeDemoView));
         }
         finally
         {

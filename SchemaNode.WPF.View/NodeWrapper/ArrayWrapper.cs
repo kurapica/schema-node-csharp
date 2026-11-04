@@ -91,6 +91,7 @@ public sealed class ArrayWrapper : DataNodeWrapper
                 DataNodeWrapper wrapper = _childByNode.TryGetValue(element, out DataNodeWrapper? existing)
                     ? existing
                     : NodeWrapperFactory.Create(element, Registry, null, Role);
+                wrapper.SetForcedReadOnly(IsForcedReadOnly);
                 _childByNode[element] = wrapper;
                 wrapper.RemoveCommand = ArrayNodeImpl is null
                     ? null
@@ -113,6 +114,13 @@ public sealed class ArrayWrapper : DataNodeWrapper
         {
             _reconciling = false;
         }
+    }
+
+    /// <inheritdoc />
+    protected override void OnForcedReadOnlyChanged(bool value)
+    {
+        foreach (DataNodeWrapper child in Children)
+            child.SetForcedReadOnly(value);
     }
 
     /// <inheritdoc />

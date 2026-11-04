@@ -8,23 +8,26 @@
     <DockPanel Margin="8">
         <!-- Workflow selection and saving -->
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.back}"
+                    Command="{Binding BackCommand}" Margin="0,0,12,0" />
             <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.label.app}" VerticalAlignment="Center" />
             <TextBox Text="{Binding AppName, UpdateSourceTrigger=PropertyChanged}"
+                     IsEnabled="{Binding IsEditable}"
                      Width="200" Margin="4,0" />
-            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.loadapp}" Command="{Binding LoadAppCommand}" Margin="4,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.loadapp}" Command="{Binding LoadAppCommand}" IsEnabled="{Binding IsEditable}" Margin="4,0" />
             <ComboBox ItemsSource="{Binding Workflows}" SelectedItem="{Binding SelectedWorkflow}"
                       DisplayMemberPath="Name" Width="170" Margin="4,0" />
-            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.new}" Command="{Binding NewWorkflowCommand}" Margin="4,0" />
-            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.save}" Command="{Binding SaveCommand}" Margin="4,0" />
-            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.delete}" Command="{Binding DeleteWorkflowCommand}" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.new}" Command="{Binding NewWorkflowCommand}" IsEnabled="{Binding IsEditable}" Margin="4,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.save}" Command="{Binding SaveCommand}" IsEnabled="{Binding IsEditable}" Margin="4,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.delete}" Command="{Binding DeleteWorkflowCommand}" IsEnabled="{Binding IsEditable}" />
         </StackPanel>
 
         <!-- Canvas operations -->
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
-            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.addnode}" Command="{Binding AddNodeCommand}" Margin="0,0,4,0" />
-            <ToggleButton Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.connectmode}" IsChecked="{Binding IsConnecting}" Margin="0,0,4,0" />
-            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.disconnect}" Command="{Binding DisconnectEdgeCommand}" Margin="0,0,4,0" />
-            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.deletenode}" Command="{Binding DeleteNodeCommand}" Margin="0,0,12,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.addnode}" Command="{Binding AddNodeCommand}" IsEnabled="{Binding IsEditable}" Margin="0,0,4,0" />
+            <ToggleButton Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.connectmode}" IsChecked="{Binding IsConnecting}" IsEnabled="{Binding IsEditable}" Margin="0,0,4,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.disconnect}" Command="{Binding DisconnectEdgeCommand}" IsEnabled="{Binding IsEditable}" Margin="0,0,4,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.deletenode}" Command="{Binding DeleteNodeCommand}" IsEnabled="{Binding IsEditable}" Margin="0,0,12,0" />
             <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.zoomout}" Command="{Binding ZoomOutCommand}" Margin="0,0,4,0" />
             <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.zoomin}" Command="{Binding ZoomInCommand}" Margin="0,0,4,0" />
             <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.zoomreset}" Command="{Binding ResetZoomCommand}" Margin="0,0,12,0" />
@@ -137,8 +140,10 @@
                         <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.label.properties}" FontWeight="Bold" Margin="0,0,0,8" />
                         <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.label.name}" />
                         <TextBox Text="{Binding WorkflowName, UpdateSourceTrigger=LostFocus}"
+                                 IsEnabled="{Binding IsEditable}"
                                  Margin="0,0,0,8" />
                         <CheckBox Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.label.active}" IsChecked="{Binding WorkflowActive}"
+                                  IsEnabled="{Binding IsEditable}"
                                   Margin="0,0,0,8" />
 
                         <Separator />

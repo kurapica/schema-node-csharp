@@ -17,6 +17,8 @@
   <ItemGroup>
     <ProjectReference Include="..\SchemaNode.Core\SchemaNode.Core.csproj" />
     <ProjectReference Include="..\SchemaNode.WPF.View\SchemaNode.WPF.View.csproj" />
+    <!-- The pageable harness hosts the App-layer page table directly so it can drive page state. -->
+    <ProjectReference Include="..\SchemaNode.WPF.AppView\SchemaNode.WPF.AppView.csproj" />
   </ItemGroup>
 
   <ItemGroup>

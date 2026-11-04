@@ -15,6 +15,7 @@ using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.WPF.Man.Services;
+using SchemaNode.WPF.Man.Views;
 using SchemaNode.WPF.View.Localization;
 using static SchemaNode.Utility.AppConstant;
 
@@ -31,10 +32,24 @@ namespace SchemaNode.WPF.Man.ViewModels;
 ///
 /// The screen lifecycle matches other screens: navigation activation creates an independent SchemaContext; on leave,
 /// the Wrapper (selected property panel) → DataNode → Context/Scope are destroyed in reverse order.
+///
+/// Navigation contract: <c>app</c> (required), <c>workflow</c> (optional, selects an existing one) and
+/// <c>mode</c> (view / edit / new). View mode keeps the canvas inspectable but rejects every mutation.
 /// </summary>
 public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestructible
 {
+    public const string AppParameter = "app";
+    public const string WorkflowParameter = "workflow";
+    public const string ModeParameter = "mode";
+
+    public const string ModeView = "view";
+    public const string ModeEdit = "edit";
+    public const string ModeNew = "new";
+
+    private const string MainContentRegion = "MainContentRegion";
+
     private readonly SchemaContextFactory _factory;
+    private readonly IRegionManager _regionManager;
     private SchemaScreenSession? _session;
 
     private string _appName = string.Empty;
@@ -42,6 +57,9 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
     private double _zoom = 1.0;
     private double _canvasWidth = 600;
     private double _canvasHeight = 400;
+    private string _mode = ModeEdit;
+    private string _pendingWorkflowName = string.Empty;
+    private bool _isNavigating;
 
     private readonly ObservableCollection<AppWorkflowSchema> _workflows = new();
     private AppWorkflowSchema? _selectedWorkflow;
@@ -62,9 +80,10 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
     private WorkflowEdgeViewModel? _selectedEdge;
     private bool _isConnecting;
 
-    public WorkflowConfigViewModel(SchemaContextFactory factory)
+    public WorkflowConfigViewModel(SchemaContextFactory factory, IRegionManager regionManager)
     {
         _factory = factory;
+        _regionManager = regionManager;
 
         LoadAppCommand = new DelegateCommand(ExecuteLoadApp, () => !string.IsNullOrWhiteSpace(AppName))
             .ObservesProperty(() => AppName);
@@ -74,6 +93,7 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         AddNodeCommand = new DelegateCommand(ExecuteAddNode);
         DeleteNodeCommand = new DelegateCommand(ExecuteDeleteNode);
         DisconnectEdgeCommand = new DelegateCommand(ExecuteDisconnectEdge);
+        BackCommand = new DelegateCommand(ExecuteBack);
         ZoomInCommand = new DelegateCommand(() => Zoom = Math.Min(2.0, Zoom + 0.1));
         ZoomOutCommand = new DelegateCommand(() => Zoom = Math.Max(0.4, Zoom - 0.1));
         ResetZoomCommand = new DelegateCommand(() => Zoom = 1.0);
@@ -87,6 +107,12 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         get => _appName;
         set => SetProperty(ref _appName, value);
     }
+
+    /// <summary>Current document mode (view / edit / new).</summary>
+    public string Mode => _mode;
+
+    /// <summary>Whether the canvas accepts mutations; false for 查看.</summary>
+    public bool IsEditable => _mode is ModeEdit or ModeNew;
 
     /// <summary>Workflow list under the current application</summary>
     public ObservableCollection<AppWorkflowSchema> Workflows => _workflows;
@@ -108,6 +134,7 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         get => _nameField?.GetValue<string>() ?? string.Empty;
         set
         {
+            if (!IsEditable) return;
             if (_nameField is null) return;
             if (_nameField.TrySetValue(value))
                 RaisePropertyChanged();
@@ -122,6 +149,7 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         get => _activeField?.GetValue<bool>() ?? false;
         set
         {
+            if (!IsEditable) return;
             if (_activeField is null) return;
             if (_activeField.TrySetValue(value))
                 RaisePropertyChanged();
@@ -174,6 +202,7 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         get => _isConnecting;
         set
         {
+            if (!IsEditable) return;
             if (!SetProperty(ref _isConnecting, value)) return;
             _pendingSource = null;
             Status = value
@@ -221,6 +250,7 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
     public ICommand ZoomInCommand { get; }
     public ICommand ZoomOutCommand { get; }
     public ICommand ResetZoomCommand { get; }
+    public ICommand BackCommand { get; }
 
     #endregion
 
@@ -232,7 +262,19 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
     {
         Teardown();
         _session = _factory.CreateSession();
+
+        string? mode = navigationContext.Parameters.GetValue<string>(ModeParameter);
+        _mode = mode is ModeView or ModeEdit or ModeNew ? mode : ModeEdit;
+        _pendingWorkflowName = navigationContext.Parameters.GetValue<string>(WorkflowParameter) ?? string.Empty;
+
+        AppName = navigationContext.Parameters.GetValue<string>(AppParameter) ?? string.Empty;
+        RaisePropertyChanged(nameof(Mode));
+        RaisePropertyChanged(nameof(IsEditable));
+
         Status = LocaleManager.Instance.Get("wpf.workflow.status.ready");
+
+        if (!string.IsNullOrWhiteSpace(AppName))
+            _ = InitializeFromNavigationAsync();
     }
 
     public void OnNavigatedFrom(NavigationContext navigationContext) => Teardown();
@@ -248,6 +290,68 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
 
         _session?.Dispose();
         _session = null;
+        _mode = ModeEdit;
+        _pendingWorkflowName = string.Empty;
+        _isNavigating = false;
+    }
+
+    /// <summary>
+    /// Loads the app carried by the navigation parameter, then selects the requested workflow
+    /// (or creates a new one when mode=new). Runs after the view is bound so status updates are visible.
+    /// </summary>
+    private async Task InitializeFromNavigationAsync()
+    {
+        await LoadAppAsync();
+        if (_session is null) return;
+
+        if (_mode == ModeNew)
+        {
+            ExecuteNewWorkflow();
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_pendingWorkflowName)) return;
+
+        AppWorkflowSchema? target = _workflows.FirstOrDefault(
+            workflow => workflow.Name.Equals(_pendingWorkflowName, StringComparison.OrdinalIgnoreCase));
+        if (target is null)
+        {
+            Status = LocaleManager.Instance.Format("wpf.workflow.status.notfound", _pendingWorkflowName);
+            return;
+        }
+
+        SelectedWorkflow = target;
+    }
+
+    /// <summary>Navigates back to the workflow list with the app identity preserved.</summary>
+    private async void ExecuteBack()
+    {
+        if (_isNavigating) return;
+        _isNavigating = true;
+        try
+        {
+            TaskCompletionSource<INavigationResult> completion = new();
+            _regionManager.RequestNavigate(
+                MainContentRegion,
+                nameof(AppWorkflowListView),
+                result => completion.TrySetResult(result),
+                new NavigationParameters
+                {
+                    { AppWorkflowListViewModel.AppParameter, AppName },
+                });
+
+            INavigationResult outcome = await completion.Task;
+            if (!outcome.Success)
+            {
+                Status = LocaleManager.Instance.Format(
+                    "wpf.workflow.status.backfailed",
+                    outcome.Exception?.Message ?? nameof(AppWorkflowListView));
+            }
+        }
+        finally
+        {
+            _isNavigating = false;
+        }
     }
 
     #endregion
@@ -266,6 +370,17 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
             Status = LocaleManager.Instance.Get("wpf.workflow.status.noappname");
             return;
         }
+
+        await LoadAppAsync();
+    }
+
+    /// <summary>
+    /// Loads the workflow list of <see cref="AppName"/> and selects the first workflow when nothing
+    /// was requested through navigation.
+    /// </summary>
+    private async Task LoadAppAsync()
+    {
+        if (_session is null) return;
 
         try
         {
@@ -343,6 +458,11 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
 
     private void ExecuteSave()
     {
+        if (!IsEditable)
+        {
+            Status = LocaleManager.Instance.Get("wpf.workflow.status.readonly");
+            return;
+        }
         if (_session is null || _workflowNode is null)
         {
             Status = LocaleManager.Instance.Get("wpf.workflow.status.loadfirst");
@@ -395,6 +515,11 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
 
     private void ExecuteNewWorkflow()
     {
+        if (!IsEditable)
+        {
+            Status = LocaleManager.Instance.Get("wpf.workflow.status.readonly");
+            return;
+        }
         if (_session is null)
         {
             Status = LocaleManager.Instance.Get("wpf.workflow.status.nosession");
@@ -421,6 +546,11 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
 
     private async void ExecuteDeleteWorkflow()
     {
+        if (!IsEditable)
+        {
+            Status = LocaleManager.Instance.Get("wpf.workflow.status.readonly");
+            return;
+        }
         if (_session is null || SelectedWorkflow is null)
         {
             Status = LocaleManager.Instance.Get("wpf.workflow.status.selectworkflow");
@@ -667,7 +797,7 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
     {
         if (node is null) return;
 
-        if (IsConnecting)
+        if (IsConnecting && IsEditable)
         {
             if (_pendingSource is null)
             {
@@ -723,7 +853,7 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
     /// </summary>
     public void MoveNode(WorkflowNodeViewModel node, double deltaX, double deltaY)
     {
-        if (node is null) return;
+        if (!IsEditable || node is null) return;
 
         node.X = Math.Max(0, node.X + deltaX);
         node.Y = Math.Max(0, node.Y + deltaY);
@@ -733,6 +863,11 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
 
     private void ExecuteAddNode()
     {
+        if (!IsEditable)
+        {
+            Status = LocaleManager.Instance.Get("wpf.workflow.status.readonly");
+            return;
+        }
         if (_nodesArray is null)
         {
             Status = LocaleManager.Instance.Get("wpf.workflow.status.loadfirst");
@@ -765,6 +900,11 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
 
     private void ExecuteDeleteNode()
     {
+        if (!IsEditable)
+        {
+            Status = LocaleManager.Instance.Get("wpf.workflow.status.readonly");
+            return;
+        }
         if (_nodesArray is null || SelectedNode is null)
         {
             Status = LocaleManager.Instance.Get("wpf.workflow.status.node.selectfirst");
@@ -795,6 +935,11 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
 
     private void ExecuteDisconnectEdge()
     {
+        if (!IsEditable)
+        {
+            Status = LocaleManager.Instance.Get("wpf.workflow.status.readonly");
+            return;
+        }
         if (SelectedEdge is null)
         {
             Status = LocaleManager.Instance.Get("wpf.workflow.status.edge.selectfirst");

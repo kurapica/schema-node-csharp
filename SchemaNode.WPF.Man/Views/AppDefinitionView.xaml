@@ -14,10 +14,14 @@
             <RowDefinition Height="3*" />
         </Grid.RowDefinitions>
 
-        <!-- Top: app full name + new / load / save / delete -->
+        <!-- Top: back + mode header + app full name + new / load / save / delete -->
         <WrapPanel Grid.Row="0" Margin="0,0,0,4">
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appdef.button.back}"
+                    Command="{Binding BackCommand}" Margin="0,0,12,0" />
+            <TextBlock Text="{Binding HeaderText}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0" />
             <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appdef.label.name}" VerticalAlignment="Center" />
             <TextBox Width="240" Margin="4,0"
+                     IsEnabled="{Binding IsEditable}"
                      Text="{Binding AppName, UpdateSourceTrigger=PropertyChanged}" />
             <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.load}" Command="{Binding LoadCommand}" Margin="4,0" />
             <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.new}" Command="{Binding NewCommand}" Margin="4,0" />
@@ -31,7 +35,8 @@
         <!-- App property area: the field set comes from the real AppSchema structure;
              Display / Description / Relations / SystemDefined / Auths / ScopePolicy / Data* etc.
              are all mounted by Core's Attach (app kind); the view does not hard-code the property list. -->
-        <GroupBox Grid.Row="2" Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appdef.group.properties}" Margin="0,0,0,4">
+        <GroupBox Grid.Row="2" Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appdef.group.properties}" Margin="0,0,0,4"
+                  IsEnabled="{Binding IsEditable}">
             <ScrollViewer VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Auto">
                 <view:SchemaView Node="{Binding AppNode}" Registry="{Binding Registry}" />
@@ -39,7 +44,7 @@
         </GroupBox>
 
         <!-- App Fields toolbar: AppFieldSchema.Name is an immutable primary key that can only be written on creation, so it is entered in the toolbar. -->
-        <WrapPanel Grid.Row="3" Margin="0,0,0,4">
+        <WrapPanel Grid.Row="3" Margin="0,0,0,4" IsEnabled="{Binding IsEditable}">
             <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appdef.label.fieldname}" VerticalAlignment="Center" />
             <TextBox Width="140" Margin="4,0"
                      Text="{Binding NewFieldName, UpdateSourceTrigger=PropertyChanged}" />
@@ -53,7 +58,8 @@
              (system.schema.app.field.schemas). Name is an immutable primary key, so its cell is
              replaced here with a text plus a remove button; removal rebuilds the array node in
              the view model (Core's DelRows does not dispose removed elements). -->
-        <GroupBox Grid.Row="4" Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appdef.group.fields}">
+        <GroupBox Grid.Row="4" Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appdef.group.fields}"
+                  IsEnabled="{Binding IsEditable}">
             <GroupBox.Resources>
                 <DataTemplate x:Key="SchemaImmutableTextCell">
                     <DockPanel>

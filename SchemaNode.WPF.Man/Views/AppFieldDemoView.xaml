@@ -1,0 +1,38 @@
+<UserControl x:Class="SchemaNode.WPF.Man.Views.AppFieldDemoView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prism="http://prismlibrary.com/"
+             xmlns:loc="clr-namespace:SchemaNode.WPF.View.Localization;assembly=SchemaNode.WPF.View"
+             xmlns:view="clr-namespace:SchemaNode.WPF.View;assembly=SchemaNode.WPF.View"
+             prism:ViewModelLocator.AutoWireViewModel="True">
+    <DockPanel Margin="8">
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+            <WrapPanel Orientation="Horizontal" Margin="0,0,0,4">
+                <TextBlock VerticalAlignment="Center"
+                           Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appfield.label.app}" />
+                <TextBox Width="220" Margin="4,0,12,0"
+                         Text="{Binding AppName, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock VerticalAlignment="Center"
+                           Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appfield.label.field}" />
+                <TextBox Width="150" Margin="4,0,12,0"
+                         Text="{Binding FieldName, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock VerticalAlignment="Center"
+                           Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appfield.label.pagesize}" />
+                <TextBox Width="48" Margin="4,0,12,0"
+                         Text="{Binding PageSize, UpdateSourceTrigger=LostFocus}" />
+                <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.load}"
+                        Command="{Binding LoadCommand}" Padding="12,2" />
+                <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appfield.button.seed}"
+                        Command="{Binding SeedCommand}" Padding="12,2" Margin="6,0,0,0" />
+            </WrapPanel>
+
+            <TextBlock Text="{Binding PresentationText}" FontWeight="SemiBold" Margin="0,2,0,0" />
+            <TextBlock Text="{Binding HintText}" Foreground="Gray" TextWrapping="Wrap" Margin="0,2,0,0" />
+            <TextBlock Text="{Binding Status}" Foreground="Gray" TextWrapping="Wrap" Margin="0,4,0,0" />
+        </StackPanel>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+            <view:SchemaView Node="{Binding PreviewNode}" Registry="{Binding Registry}" />
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

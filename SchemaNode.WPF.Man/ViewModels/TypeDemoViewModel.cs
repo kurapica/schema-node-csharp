@@ -12,6 +12,11 @@ namespace SchemaNode.WPF.Man.ViewModels;
 /// </summary>
 public class TypeDemoViewModel : BindableBase, INavigationAware, IDestructible
 {
+    /// <summary>Navigation parameter carrying the type to demo (defaults to system.string).</summary>
+    public const string TypeParameter = "type";
+
+    private const string DefaultDemoType = "system.string";
+
     private readonly SchemaContextFactory _factory;
     private SchemaScreenSession? _session;
 
@@ -30,7 +35,12 @@ public class TypeDemoViewModel : BindableBase, INavigationAware, IDestructible
         Teardown();
         _session = _factory.CreateSession();
         Editor.Attach(_session);
-        _ = Editor.ReloadAsync("system.string");
+
+        string typeName = navigationContext.Parameters.GetValue<string>(TypeParameter)
+                          is { Length: > 0 } value
+            ? value
+            : DefaultDemoType;
+        _ = Editor.ReloadAsync(typeName);
     }
 
     public void OnNavigatedFrom(NavigationContext navigationContext) => Teardown();

@@ -30,19 +30,13 @@
             <StackPanel Margin="10">
                 <TextBlock Text="SchemaNode" Foreground="White" FontSize="18" FontWeight="Bold"
                            Margin="0,0,0,20" />
-                <!-- Navigation buttons: Command is bound to the DelegateCommand of MainWindowViewModel -->
+                <!-- Administrator surface: exactly two entries. The type demo now lives on the
+                     type row, and app definitions / fields / workflows are entered from the app
+                     list through per-row actions. -->
                 <Button Margin="0,4" Command="{Binding NavigateCommand}" CommandParameter="TypeListView"
                         Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.nav.type.list}" />
-                <Button Margin="0,4" Command="{Binding NavigateCommand}" CommandParameter="TypeDemoView"
-                        Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.nav.type.demo}" />
-                <Button Margin="0,4" Command="{Binding NavigateCommand}" CommandParameter="AppDefinitionView"
-                        Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.nav.app.definition}" />
-                <Button Margin="0,4" Command="{Binding NavigateCommand}" CommandParameter="AppDemoView"
-                        Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.nav.app.demo}" />
-                <Button Margin="0,4" Command="{Binding NavigateCommand}" CommandParameter="WorkflowConfigView"
-                        Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.nav.workflow}" />
-                <Button Margin="0,4" Command="{Binding NavigateCommand}" CommandParameter="FunctionDefinitionView"
-                        Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.nav.function}" />
+                <Button Margin="0,4" Command="{Binding NavigateCommand}" CommandParameter="AppListView"
+                        Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.nav.app.list}" />
             </StackPanel>
         </Border>
 

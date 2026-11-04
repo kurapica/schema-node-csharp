@@ -24,8 +24,7 @@ public static class SchemaDebug
         {
             // Schema-definition bookkeeping is not user-visible value state; the Vue debug view
             // hides the same set.
-            if (property.GetType().GetMetaProperty<ForSchema>() is not null) continue;
-            if (!property.HasValue) continue;
+            if (!property.HasValue || !property.Savable) continue;
 
             string source = property.Source is { } access
                 ? $"{access.Access} ({access.Type?.Name})"

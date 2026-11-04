@@ -14,4 +14,11 @@
     <ProjectReference Include="..\SchemaNode.Core\SchemaNode.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(Configuration)' != 'Debug'">
+    <!-- The per-node inspector is a Debug-only diagnostic surface. Excluding its source, XAML and
+         generated BAML keeps every Debug type out of Release binaries. -->
+    <Compile Remove="Debug\**\*.cs" />
+    <Page Remove="Debug\**\*.xaml" />
+  </ItemGroup>
+
 </Project>

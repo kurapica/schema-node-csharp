@@ -3,7 +3,9 @@ using SchemaNode.Context;
 using SchemaNode.Service;
 using SchemaNode.WPF.Test.ViewModels;
 using SchemaNode.WPF.View;
+#if DEBUG
 using SchemaNode.WPF.View.Debug;
+#endif
 using SchemaNode.WPF.View.Localization;
 using System.Windows;
 

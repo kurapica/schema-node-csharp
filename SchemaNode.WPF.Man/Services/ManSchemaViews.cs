@@ -1,3 +1,4 @@
+using SchemaNode.WPF.AppView;
 using SchemaNode.WPF.View;
 
 namespace SchemaNode.WPF.Man.Services;
@@ -54,6 +55,11 @@ public static class ManSchemaViews
         registry.RegisterTable(AppFieldSchemasArray);
 
         registry.RegisterType("system.identifier", "SchemaImmutableTextCell", role: SchemaViewRole.Cell);
+
+        // Node-specific hook: an array node that a host page source was attached to renders as the
+        // pageable table instead of the plain table. The dispatch stays in the registry, so no
+        // screen needs to test "is this pageable" itself.
+        PageTableSchemaViews.Enable(registry);
         return registry;
     }
 }

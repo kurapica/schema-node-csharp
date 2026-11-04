@@ -45,4 +45,12 @@ public sealed class TypeSchemaRowViewModel
 
     /// <summary>Whether other definitions reference this one; a used definition cannot be deleted.</summary>
     public bool IsUsed => Schema.UsedBy is { Length: > 0 };
+
+    /// <summary>
+    /// Demo is offered for the kinds that schema.vue exposes through "try it" (struct and array).
+    /// The demo entry no longer exists in the shell navigation; it lives on the type's own row.
+    /// </summary>
+    public bool IsDemoable =>
+        Kind.Equals(NODE_KIND_STRUCT, StringComparison.OrdinalIgnoreCase)
+        || Kind.Equals(NODE_KIND_ARRAY, StringComparison.OrdinalIgnoreCase);
 }

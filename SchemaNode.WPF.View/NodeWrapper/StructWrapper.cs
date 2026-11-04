@@ -61,6 +61,7 @@ public sealed class StructWrapper : DataNodeWrapper
                 DataNodeWrapper wrapper = _childByNode.TryGetValue(child, out DataNodeWrapper? existing)
                     ? existing
                     : NodeWrapperFactory.Create(child, Registry, field.Name, Role);
+                wrapper.SetForcedReadOnly(IsForcedReadOnly);
                 _childByNode[child] = wrapper;
                 desired.Add((field, wrapper));
             }
@@ -81,6 +82,13 @@ public sealed class StructWrapper : DataNodeWrapper
         {
             _reconciling = false;
         }
+    }
+
+    /// <inheritdoc />
+    protected override void OnForcedReadOnlyChanged(bool value)
+    {
+        foreach (DataNodeWrapper child in Children)
+            child.SetForcedReadOnly(value);
     }
 
     /// <inheritdoc />

@@ -80,6 +80,14 @@
                                         <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.delete}"
                                                 Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
                                                 CommandParameter="{Binding}"
+                                                Margin="0,0,4,0" Padding="6,2" />
+                                        <!-- Demo collapsed into the row (struct / array only) and uses the vue
+                                             "primary" accent so it is visually distinguished from structural actions. -->
+                                        <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.button.demo}"
+                                                Command="{Binding DataContext.DemoCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                                CommandParameter="{Binding}"
+                                                Visibility="{Binding IsDemoable, Converter={StaticResource BoolToVisibility}}"
+                                                Background="#1976D2" Foreground="White" BorderBrush="#1565C0"
                                                 Padding="6,2" />
                                     </StackPanel>
                                 </DataTemplate>

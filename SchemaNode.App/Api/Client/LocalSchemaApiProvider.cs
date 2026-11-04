@@ -142,7 +142,8 @@ public sealed class LocalSchemaApiProvider : ISchemaApiProvider
         string? format = null,
         CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(app)) return null;
+        // The empty name is the root app: the server API accepts it and enumerates root-level apps.
+        // Keeping it here lets the administrator app list browse from the root like appSchema.vue.
         ct.ThrowIfCancellationRequested();
 
         // Mirror GetAppSchemaApi: resolve the app type first, then serialize its schema.

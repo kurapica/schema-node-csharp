@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>SchemaNode.WPF.AppView</RootNamespace>
+    <AssemblyName>SchemaNode.WPF.AppView</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- App layer view components extend the generic WPF view machinery instead of forking it. -->
+    <ProjectReference Include="..\SchemaNode.WPF.View\SchemaNode.WPF.View.csproj" />
+    <ProjectReference Include="..\SchemaNode.App\SchemaNode.App.csproj" />
+  </ItemGroup>
+
+</Project>
