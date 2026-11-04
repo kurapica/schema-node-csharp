@@ -378,7 +378,7 @@ public abstract class DataNode : IValueAccess, IDisposable
         foreach (var provider in this._propertyProviders)
         {
             var prop = provider.GetProperty<T>();
-            if (prop != null && prop.HasValue) return prop;
+            if (prop != null && prop.HasValue && prop.Inheritable) return prop;
         }
         return Type?.GetProperty<T>();
     }
@@ -386,7 +386,7 @@ public abstract class DataNode : IValueAccess, IDisposable
     /// <inheritdoc/>
     public IEnumerable<T> GetProperties<T>() where T : IProperty
     {
-        return JoinProperties(_FilterProperties<T>(), _propertyProviders.SelectMany(p => p.GetProperties<T>()), Type?.GetProperties<T>() ?? []);
+        return JoinProperties(_FilterProperties<T>(), _propertyProviders.SelectMany(p => p.GetProperties<T>()).Where(p => p.Inheritable), Type?.GetProperties<T>().Where(p => p.Inheritable) ?? []);
     }
 
     /// <summary>

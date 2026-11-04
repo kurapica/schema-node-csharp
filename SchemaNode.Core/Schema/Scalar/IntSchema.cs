@@ -24,7 +24,7 @@ namespace SchemaNode.Schema;
 [Meta<NodeType>(typeof(Runtime.IntType))]
 [Meta<SchemaUsage>(typeof(IntUsage))]
 [Meta<Append>(typeof(EntrySource), typeof(AsSuggest), typeof(Default), typeof(BlackList), typeof(WhiteList), typeof(Unit), typeof(Error), typeof(StackUpLimit), typeof(Valid))]
-[Meta<IntValue>]
+[Meta<IntValue>(true)]
 public sealed class IntKind;
 
 /// <summary>
@@ -61,6 +61,7 @@ public sealed class IntUsage;
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_INT}.{NODE_KIND_INT}")]
+[Meta<NoInherit>(true)]
 [Relation<Visible, Call>(NODE_KIND_INT, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", NODE_KIND_INT)]
 public sealed class IntProperty : Property<IntSchema>
 {

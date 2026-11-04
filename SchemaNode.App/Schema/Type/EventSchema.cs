@@ -47,6 +47,7 @@ public sealed class EventSchema: PropertyOwner
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_EVENT}.event")]
 [Meta<ReadOnly>(true)] // Only system event schema allowed
+[Meta<NoInherit>(true)]
 [Relation<Visible, Relation.Call>("event", NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", NODE_KIND_EVENT)]
 public sealed class EventProperty: Property<EventSchema>;
 

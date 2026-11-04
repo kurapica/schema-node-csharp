@@ -46,3 +46,5 @@ SchemaNode.Example/SchemaNode.Example.csproj.user
 /SchemaNode.WPF.View/bin
 /SchemaNode.WPF.Test/bin
 /SchemaNode.WPF.Test/obj
+/SchemaNode.WPF.AppView/bin
+/SchemaNode.WPF.AppView/obj

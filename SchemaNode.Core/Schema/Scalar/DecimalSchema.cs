@@ -24,7 +24,7 @@ namespace SchemaNode.Schema;
 [Meta<NodeType>(typeof(Runtime.DecimalType))]
 [Meta<SchemaUsage>(typeof(DecimalUsage))]
 [Meta<Append>(typeof(EntrySource), typeof(AsSuggest), typeof(Default), typeof(BlackList), typeof(WhiteList), typeof(Unit), typeof(Error), typeof(StackUpLimit), typeof(Valid))]
-[Meta<DecimalValue>]
+[Meta<DecimalValue>(true)]
 public sealed class DecimalKind;
 
 /// <summary>
@@ -61,6 +61,7 @@ public sealed class DecimalUsage;
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_DECIMAL}.{NODE_KIND_DECIMAL}")]
+[Meta<NoInherit>(true)]
 [Relation<Visible, Call>(NODE_KIND_DECIMAL, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", NODE_KIND_DECIMAL)]
 public sealed class DecimalProperty : Property<DecimalSchema>
 {

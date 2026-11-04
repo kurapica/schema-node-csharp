@@ -1,8 +1,40 @@
 ﻿using SchemaNode.Context;
 using SchemaNode.Node;
+using SchemaNode.Property.Common;
+using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
+using SchemaNode.Struct;
 
 namespace SchemaNode.Property;
+
+/// <summary>
+/// Stores the localized error message declared by each constraint property schema.
+/// <para>
+/// The schema generator records the key while building the property type, but runtime constraint
+/// instances are created on demand from the CLR class and have no reference back to their
+/// <c>PropertyType</c>. Keeping the message here, keyed by the constraint class, mirrors the
+/// TypeScript implementation, which stores it on the class constructor (<c>ctor.error</c>).
+/// </para>
+/// </summary>
+internal static class ConstraintErrorMessages
+{
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, LocaleString> Messages = new();
+
+    /// <summary>
+    /// Records the schema-declared error message for the constraint class.
+    /// </summary>
+    public static void Register(Type constraintType, LocaleString? message)
+    {
+        if (message is null || string.IsNullOrEmpty(message.Key)) return;
+        Messages[constraintType] = message;
+    }
+
+    /// <summary>
+    /// Gets the schema-declared error message for the constraint class, if any.
+    /// </summary>
+    public static LocaleString? Get(Type constraintType)
+        => Messages.TryGetValue(constraintType, out LocaleString? message) ? message : null;
+}
 
 /// <summary>
 /// The interface for constraint property components that can be attached to schemas. 
@@ -13,8 +45,25 @@ public interface IConstraintProperty : IProperty
 {
     /// <summary>
     /// Ges the error message for node
+    /// <para>
+    /// Mirrors schema-node-core's constraint property: format the schema-declared message with the
+    /// violated node's display (or name) and the constraint value. When the message cannot be
+    /// translated, return <see langword="null"/> so the node falls back to <c>VALUE_NOT_VALID</c>
+    /// instead of exposing a raw locale key.
+    /// </para>
     /// </summary>
-    public virtual string? GetErrorMessage(IValueAccess node) => null;
+    public virtual string? GetErrorMessage(IValueAccess node)
+    {
+        LocaleString? error = ConstraintErrorMessages.Get(GetType());
+        if (error is null || node is not DataNode dataNode) return null;
+
+        object label = (object?)dataNode.GetPropertyValue<Display, LocaleString>()
+            ?? dataNode.GetPropertyValue<Name, string>()
+            ?? dataNode.Name
+            ?? dataNode.Type.Name;
+        string message = error.Format(dataNode.Context, label, GetValue<object>() ?? string.Empty);
+        return string.Equals(message, error.Key, StringComparison.Ordinal) ? null : message;
+    }
 
     /// <summary>
     /// Validate the data node with the constraint rule. Return true if valid, false if invalid, null if not applicable.

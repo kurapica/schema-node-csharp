@@ -28,7 +28,7 @@ namespace SchemaNode.Schema;
 [Meta<NodeType>(typeof(RuntimeArrayType))]
 [Meta<SchemaUsage>(typeof(ArrayUsage))]
 [Meta<Append>(typeof(Generics), typeof(Relations))]
-[Meta<ArrayValue>]
+[Meta<ArrayValue>(true)]
 public sealed class ArrayKind;
 
 /// <summary>
@@ -69,6 +69,7 @@ public sealed class ArrayUsage;
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ARRAY}.{NODE_KIND_ARRAY}")]
+[Meta<NoInherit>(true)]
 [Relation<Visible, Call>(NODE_KIND_ARRAY, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", NODE_KIND_ARRAY)]
 [Relation<Default, Call>($"@{nameof(NodeSchema.Name)}", $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.genarrayname", $"@array.{nameof(ArraySchema.Element)}")]
 [Relation<Default, Call>($"@{nameof(Display)}.{nameof(LocaleString.Key)}", $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.genarraydisplay", $"@array.{nameof(ArraySchema.Element)}")]

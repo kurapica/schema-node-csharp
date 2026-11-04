@@ -33,7 +33,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaUsage>(typeof(EnumUsage))]
 [Meta<SchemaGenerator>(typeof(EnumGenerator))]
 [Meta<Append>(typeof(EntrySource), typeof(Default), typeof(BlackList), typeof(WhiteList), typeof(Valid))]
-[Meta<EnumValue>]
+[Meta<EnumValue>(true)]
 public sealed class EnumKind;
 
 /// <summary>
@@ -98,6 +98,7 @@ public sealed class EnumUsage;
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ENUM}.{NODE_KIND_ENUM}")]
+[Meta<NoInherit>(true)]
 [Relation<Visible, Call>(NODE_KIND_ENUM, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", NODE_KIND_ENUM)]
 public sealed class EnumProperty : Property<EnumSchema>
 {

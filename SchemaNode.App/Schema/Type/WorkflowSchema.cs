@@ -65,6 +65,7 @@ public sealed class WorkflowSchema: PropertyOwner
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_WORKFLOW}.workflow")]
 [Meta<ReadOnly>(true)] // only system workflow schema allowed
+[Meta<NoInherit>(true)]
 [Relation<Visible, Relation.Call>("workflow", NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", NODE_KIND_WORKFLOW)]
 public sealed class WorkflowProperty: Property<WorkflowSchema>;
 

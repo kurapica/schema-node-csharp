@@ -70,6 +70,7 @@ public sealed class FunctionSchema: PropertyOwner
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_FUNC}.{NODE_KIND_FUNCTION}")]
+[Meta<NoInherit>(true)]
 [Relation<Visible, Call>(NODE_KIND_FUNCTION, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", NODE_KIND_FUNCTION)]
 public sealed class FunctionProperty : Property<FunctionSchema>
 {

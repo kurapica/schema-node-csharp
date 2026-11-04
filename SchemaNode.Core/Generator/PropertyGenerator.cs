@@ -45,8 +45,17 @@ internal class PropertyGenerator : INodeSchemaGenerator
         List<RelationSchema> relations = [];
         
         // Default error
+        // The message stays on the property schema and is also recorded for the constraint class,
+        // because runtime constraint instances are created from the class alone and cannot reach
+        // their property type. Formatting happens later in IConstraintProperty.GetErrorMessage.
+        // The schema name may be PascalCase (e.g. "common.Require") while the locale key is
+        // lowercase, so normalize it the same way schema-node-core declares its keys.
         if (type.IsAssignableTo(typeof(IConstraintProperty)))
-            schema.SetProperty<Error, LocaleString>($"{schema.FullName}.error");
+        {
+            LocaleString error = $"{schema.FullName.ToLowerInvariant()}.error";
+            schema.SetProperty<Error, LocaleString>(error);
+            ConstraintErrorMessages.Register(type, error);
+        }
         
         // Direct [Relation<T>] attributes declared on the field itself are aggregated to struct relations.
         // Do not inspect Property-type relations here; those are dynamically assembled later.

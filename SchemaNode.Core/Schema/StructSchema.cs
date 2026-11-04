@@ -22,7 +22,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaGenerator>(typeof(StructGenerator))]
 [Meta<SchemaUsage>(typeof(StructUsage))]
 [Meta<Append>(typeof(Generics), typeof(Relations), typeof(EntrySourceProvider), typeof(AccessValueTypeProvider), typeof(TypeProvider), typeof(KindProvider), typeof(Valid))]
-[Meta<StructValue>]
+[Meta<StructValue>(true)]
 public sealed class StructKind;
 
 /// <summary>
@@ -61,6 +61,7 @@ public sealed class StructUsage;
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_STRUCT}.{NODE_KIND_STRUCT}")]
 [Relation<Visible, Relation.Call>(NODE_KIND_STRUCT, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", NODE_KIND_STRUCT)]
+[Meta<NoInherit>(true)]
 public sealed class StructProperty : Property<StructSchema>
 {
     /// <inheritdoc/>
