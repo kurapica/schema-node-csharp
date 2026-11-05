@@ -9,7 +9,7 @@ namespace SchemaNode.WPF.View.NodeWrapper;
 /// Wraps boolean scalars. A required bool renders as a two-state check box; an optional bool or
 /// <c>bool?</c> renders as a select so the unset state stays a real, explicitly selectable null.
 /// </summary>
-public sealed class BoolWrapper : ScalarWrapper
+public sealed class BoolWrapper : DataNodeWrapper
 {
     /// <inheritdoc />
     public override string? DefaultTemplateKey => SchemaTemplateKeys.Boolean;
@@ -53,12 +53,6 @@ public sealed class BoolWrapper : ScalarWrapper
             Value = value;
         }
     }
-
-    /// <summary>Whether the field is required and therefore edited with the check box.</summary>
-    public bool IsRequired => Require;
-
-    /// <summary>Whether the field accepts an unset value and therefore edited with the select.</summary>
-    public bool IsOptional => !Require;
 
     /// <summary>Options of the optional select: unset, yes, no. Their labels follow the locale.</summary>
     public IReadOnlyList<BoolOption> Options { get; }

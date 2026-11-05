@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using SchemaNode.WPF.View.NodeWrapper;
 
 namespace SchemaNode.WPF.View.Views;
@@ -29,11 +30,41 @@ public partial class TableView : UserControl
         typeof(TableView),
         new PropertyMetadata(null, OnSettingsChanged));
 
+    /// <summary>
+    /// Skin used by this table's cell views. Null (the default) lets the cells inherit the skin in
+    /// effect on the table; a value overrides it for the cell subtree only.
+    /// </summary>
+    public static readonly DependencyProperty CellSkinProperty = DependencyProperty.Register(
+        nameof(CellSkin),
+        typeof(string),
+        typeof(TableView),
+        new PropertyMetadata(null, OnSettingsChanged));
+
+    /// <summary>
+    /// Effective skin of the hosting <see cref="SchemaView"/>, mirrored here so it can be forwarded
+    /// to the row editor window, which is a separate tree and cannot inherit it. Populated by a
+    /// binding to the nearest ancestor view rather than by inheritance: a control cannot read a
+    /// property it does not own, and an <c>AddOwner</c> alias does not share inherited values.
+    /// </summary>
+    public static readonly DependencyProperty SkinProperty = DependencyProperty.Register(
+        nameof(Skin),
+        typeof(string),
+        typeof(TableView),
+        new PropertyMetadata(SchemaViewRegistry.DefaultSkin, OnSettingsChanged));
+
     public TableView()
     {
         InitializeComponent();
         Loaded += (_, _) => ApplySettings();
         DataContextChanged += (_, _) => ApplySettings();
+        BindingOperations.SetBinding(
+            this,
+            SkinProperty,
+            new Binding(nameof(SchemaView.Skin))
+            {
+                RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(SchemaView), 1),
+                Mode = BindingMode.OneWay,
+            });
     }
 
     /// <summary>Comma-separated field-path whitelist; null or empty keeps derived columns.</summary>
@@ -49,6 +80,16 @@ public partial class TableView : UserControl
         get => (bool?)GetValue(ReadOnlyProperty);
         set => SetValue(ReadOnlyProperty, value);
     }
+
+    /// <summary>Skin used by the cell views; null inherits the table's skin.</summary>
+    public string? CellSkin
+    {
+        get => (string?)GetValue(CellSkinProperty);
+        set => SetValue(CellSkinProperty, value);
+    }
+
+    /// <summary>Skin inherited from the hosting view, forwarded to the row editor window.</summary>
+    public string Skin => (string)GetValue(SkinProperty);
 
     private static void OnSettingsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         => ((TableView)d).ApplySettings();
@@ -67,6 +108,9 @@ public partial class TableView : UserControl
 
         if (ReadOnly.HasValue)
             wrapper.ReadOnly = ReadOnly.Value;
+
+        wrapper.CellSkin = CellSkin;
+        wrapper.EditorSkin = Skin;
 
         Window? owner = Window.GetWindow(this);
         if (owner is not null) wrapper.OwnerWindow = owner;

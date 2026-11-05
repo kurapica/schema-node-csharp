@@ -1,4 +1,3 @@
-using System.Runtime.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Property.Core;
 
@@ -7,10 +6,21 @@ namespace SchemaNode.WPF.Test.Type;
 /// <summary>Enum used by the enum and enum-array cases.</summary>
 [Meta<SchemaType>("test.mode")]
 internal enum TestMode
-{
-    [EnumMember(Value = "alpha")] Alpha,
-    [EnumMember(Value = "beta")] Beta,
-    [EnumMember(Value = "gamma")] Gamma,
+{    
+    /// <summary>
+    /// Alpha Mode
+    /// </summary>
+    Alpha,
+
+    /// <summary>
+    /// Beta Mode
+    /// </summary>
+    Beta,
+
+    /// <summary>
+    /// Gamma Mode
+    /// </summary>
+    Gamma,
 }
 
 /// <summary>Single string field.</summary>

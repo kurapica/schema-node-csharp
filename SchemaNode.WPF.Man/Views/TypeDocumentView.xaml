@@ -11,6 +11,12 @@
     </UserControl.Resources>
 
     <Grid Margin="8">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <Grid Grid.Column="0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -25,6 +31,10 @@
             <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedoc.button.save}"
                     Command="{Binding SaveCommand}" Margin="12,0,0,0"
                     Visibility="{Binding IsEditable, Converter={StaticResource BoolToVisibility}}" />
+            <!-- Assistant entry: only shown when the backend declared the "ai_chat" feature. -->
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedoc.chat.open}"
+                    Command="{Binding ToggleChatCommand}" Margin="12,0,0,0"
+                    Visibility="{Binding CanShowAiChat, Converter={StaticResource BoolToVisibility}}" />
             <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedoc.status.loading}"
                        Foreground="Gray" VerticalAlignment="Center" Margin="12,0,0,0"
                        Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibility}}" />
@@ -44,5 +54,89 @@
 
         <TextBlock Grid.Row="3" Text="{Binding Status}" Foreground="DarkSlateGray" TextWrapping="Wrap"
                    Margin="0,8,0,0" />
+        </Grid>
+
+        <!-- Assistant pane: screen-owned state. When open it splits the screen, the definition
+             editor stays on the left and the assistant takes the right side. -->
+        <Border Grid.Column="1" Width="360" Margin="12,0,0,0" Padding="8"
+                Background="#F7F8FA" BorderBrush="#DDE1E6" BorderThickness="1"
+                Visibility="{Binding IsChatVisible, Converter={StaticResource BoolToVisibility}}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <DockPanel Grid.Row="0">
+                    <Button DockPanel.Dock="Right" Padding="8,2"
+                            Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedoc.chat.close}"
+                            Command="{Binding ToggleChatCommand}" />
+                    <Button DockPanel.Dock="Right" Padding="8,2" Margin="0,0,8,0"
+                            Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedoc.chat.clear}"
+                            Command="{Binding ClearChatCommand}" />
+                    <TextBlock FontWeight="SemiBold" VerticalAlignment="Center"
+                               Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedoc.chat.title}" />
+                </DockPanel>
+
+                <TextBlock Grid.Row="1" Text="{Binding ChatContextText}" Foreground="Gray"
+                           TextWrapping="Wrap" Margin="0,4,0,6" />
+
+                <Border Grid.Row="2" Background="White" BorderBrush="#E1E5EA" BorderThickness="1">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+                        <StackPanel>
+                            <TextBlock Foreground="Gray" TextWrapping="Wrap" Margin="0,2,0,6"
+                                       Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedoc.chat.hint}" />
+                            <ItemsControl ItemsSource="{Binding ChatMessages}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Margin="0,4" Padding="8,6" CornerRadius="4">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#EEF3FB" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsUser}" Value="True">
+                                                            <Setter Property="Background" Value="#E8F5E9" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="{Binding Text}" TextWrapping="Wrap">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsError}" Value="True">
+                                                                <Setter Property="Foreground" Value="#B71C1C" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+
+                <TextBox Grid.Row="3" Height="64" Margin="0,6,0,0" AcceptsReturn="True"
+                         TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                         Text="{Binding ChatInput, UpdateSourceTrigger=PropertyChanged}" />
+
+                <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,6,0,0">
+                    <Button Padding="12,3" Command="{Binding SendChatCommand}"
+                            Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedoc.chat.send}" />
+                    <Button Padding="12,3" Margin="8,0,0,0" Command="{Binding StopChatCommand}"
+                            Visibility="{Binding IsChatBusy, Converter={StaticResource BoolToVisibility}}"
+                            Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedoc.chat.stop}" />
+                    <TextBlock Foreground="Gray" VerticalAlignment="Center" Margin="8,0,0,0"
+                               Visibility="{Binding IsChatBusy, Converter={StaticResource BoolToVisibility}}"
+                               Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedoc.chat.thinking}" />
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>

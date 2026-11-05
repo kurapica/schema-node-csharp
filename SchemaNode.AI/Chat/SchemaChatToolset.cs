@@ -23,6 +23,15 @@ internal static class SchemaChatToolset
         "Read a schema type or namespace definition from the SchemaNode runtime. " +
         "Use it to inspect prototypes, existing schemas, their real properties and type names before constructing a candidate.";
 
+    private const string ListSchemasDescription =
+        "List the direct child types of a namespace as compact { name, kind } entries. " +
+        "Cheap way to discover system namespaces: system.intrinsic holds functions, " +
+        "system.schema.prop.int holds integer field properties.";
+
+    private const string GetFunctionDescription =
+        "Read a function's argument names, argument types and return type. " +
+        "Pass a concrete generic instantiation when the function declares generic parameters.";
+
     private const string ValidateSchemaDescription =
         "Validate a candidate node schema on the server without saving it. " +
         "Returns blocking errors and warnings. Fix the errors and validate again before proposing.";
@@ -40,12 +49,19 @@ internal static class SchemaChatToolset
 
         // For a brand new schema the model tends to query the target that does not exist yet.
         // The prompt already contains the complete format, so only expose the read tool for
-        // existing schemas.
+        // existing schemas. The namespace browsers below are always available: they read
+        // system types, not the schema being created.
         if (!isNew)
         {
             MethodInfo getSchema = typeof(SchemaChatToolset).GetMethod(nameof(GetSchemaSafe), BindingFlags.NonPublic | BindingFlags.Static)!;
             tools.Add(CreateMcpFunction(getSchema, context, SchemaChatPrompt.ToolGetSchema, GetSchemaDescription));
         }
+
+        MethodInfo listSchemas = typeof(SchemaChatToolset).GetMethod(nameof(ListSchemasSafe), BindingFlags.NonPublic | BindingFlags.Static)!;
+        tools.Add(CreateMcpFunction(listSchemas, context, SchemaChatPrompt.ToolListSchemas, ListSchemasDescription));
+
+        MethodInfo getFunction = typeof(SchemaChatToolset).GetMethod(nameof(GetFunctionSafe), BindingFlags.NonPublic | BindingFlags.Static)!;
+        tools.Add(CreateMcpFunction(getFunction, context, SchemaChatPrompt.ToolGetFunction, GetFunctionDescription));
 
         MethodInfo validateSchema = typeof(SchemaTools).GetMethod(nameof(SchemaTools.ValidateSchema))!;
         tools.Add(CreateMcpFunction(validateSchema, context, SchemaChatPrompt.ToolValidateSchema, ValidateSchemaDescription));
@@ -58,6 +74,45 @@ internal static class SchemaChatToolset
             ProposeSchemaDescription));
 
         return tools;
+    }
+
+    private static async Task<object> ListSchemasSafe(
+        SchemaContext context,
+        [Description("Full namespace name to browse, e.g. system.intrinsic. Empty lists the root namespace.")]
+        string? name = null)
+    {
+        try
+        {
+            return await SchemaTools.ListSchemas(context, name);
+        }
+        catch (Exception ex)
+        {
+            // Return a normal tool result instead of throwing, so small models can recover.
+            return new Dictionary<string, string>
+            {
+                ["error"] = ex.Message,
+                ["hint"] = "Pass the full name of an existing namespace, for example system.intrinsic.",
+            };
+        }
+    }
+
+    private static async Task<object> GetFunctionSafe(
+        SchemaContext context,
+        [Description("Function schema name, with concrete generic arguments when the function is generic.")]
+        string name)
+    {
+        try
+        {
+            return await SchemaTools.GetFunction(context, name);
+        }
+        catch (Exception ex)
+        {
+            return new Dictionary<string, string>
+            {
+                ["error"] = ex.Message,
+                ["hint"] = "Call list_schemas on the namespace first to find the real function name.",
+            };
+        }
     }
 
     private static async Task<object> GetSchemaSafe(
@@ -217,6 +272,32 @@ internal static class SchemaChatToolset
                         SchemaValidationErrorCodes.NoChange,
                         "The candidate is identical to the schema currently open in the editor. " +
                         "Apply the change the user asked for, then propose the modified schema.");
+                }
+            }
+
+            // The namespace is editor owned, not model owned. When the editor supplies a namespace
+            // (including the empty root namespace), the candidate must keep it exactly. This is a
+            // hard rule: report it instead of rewriting the candidate.
+            if (currentJson != null)
+            {
+                string currentNamespace = currentJson["namespace"]?.GetValue<string>() ?? string.Empty;
+                string candidateNamespace = candidateJson!["namespace"]?.GetValue<string>() ?? string.Empty;
+                if (!string.Equals(candidateNamespace, currentNamespace, StringComparison.Ordinal))
+                {
+                    validation.AddError(
+                        SchemaValidationErrorCodes.NamespaceImmutable,
+                        $"The namespace must stay '{currentNamespace}'. It is part of the editor context " +
+                        $"and the assistant may not change it; the candidate used '{candidateNamespace}'.");
+                }
+            }
+            else if (string.IsNullOrWhiteSpace(expectedTarget))
+            {
+                string candidateNamespace = candidateJson!["namespace"]?.GetValue<string>() ?? string.Empty;
+                if (!string.Empty.Equals(candidateNamespace))
+                {
+                    validation.AddError(
+                        SchemaValidationErrorCodes.NamespaceImmutable,
+                        "The editor has no namespace context, so the candidate must leave the namespace empty.");
                 }
             }
 

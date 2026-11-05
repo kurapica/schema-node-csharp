@@ -56,6 +56,30 @@ public class ChatSchemaRequest : SchemaApiRequest
 
     /// <summary>Whether the editor is creating a new schema.</summary>
     public bool? IsNew { get; set; }
+
+    /// <summary>An optional extra system instruction appended to the built prompt.</summary>
+    public string? SystemContent { get; set; }
+
+    /// <summary>
+    /// Concrete validation errors from a previous attempt. Added to the prompt so the assistant
+    /// can correct them.
+    /// </summary>
+    public string? ValidationFeedback { get; set; }
+
+    /// <summary>Optional turns for a stateless caller. Only used when no conversation identifier is set.</summary>
+    public AIChatTurn[]? History { get; set; }
+
+    /// <summary>Overrides the configured model for this turn.</summary>
+    public string? ModelId { get; set; }
+
+    /// <summary>Overrides the configured sampling temperature for this turn.</summary>
+    public float? Temperature { get; set; }
+
+    /// <summary>Overrides the configured maximum output tokens for this turn.</summary>
+    public int? MaxTokens { get; set; }
+
+    /// <summary>Overrides the configured turn timeout for this turn.</summary>
+    public int? TimeoutSeconds { get; set; }
 }
 
 /// <summary>

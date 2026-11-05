@@ -27,6 +27,8 @@ public static class SchemaValidationErrorCodes
     public const string SystemSchemaProtected = "system_schema_protected";
     /// <summary>The candidate identity differs from the editor target.</summary>
     public const string TargetNameMismatch = "target_name_mismatch";
+    /// <summary>The candidate changed the namespace supplied by the editor.</summary>
+    public const string NamespaceImmutable = "namespace_immutable";
     /// <summary>The candidate kind-specific payload is missing or malformed.</summary>
     public const string MissingDefinition = "missing_definition";
     /// <summary>A referenced type could not be resolved.</summary>

@@ -68,7 +68,7 @@
                                         <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.button.edit}"
                                                 Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
                                                 CommandParameter="{Binding}"
-                                                Visibility="{Binding IsType, Converter={StaticResource BoolToVisibility}}"
+                                                Visibility="{Binding CanEdit, Converter={StaticResource BoolToVisibility}}"
                                                 Margin="0,0,4,0" Padding="6,2" />
                                         <!-- Namespaces: drill down. Only shown when kind = namespace. -->
                                         <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.button.enter}"
@@ -76,10 +76,12 @@
                                                 CommandParameter="{Binding}"
                                                 Visibility="{Binding IsNamespace, Converter={StaticResource BoolToVisibility}}"
                                                 Margin="0,0,4,0" Padding="6,2" />
-                                        <!-- Delete stays on the row; the Core API enforces IsUsed / namespace constraints. -->
+                                        <!-- Delete: hidden for system-defined, referenced or delete-forbidden
+                                             schemas (the row model mirrors schema.vue's isSchemaDeletable). -->
                                         <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.delete}"
                                                 Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
                                                 CommandParameter="{Binding}"
+                                                Visibility="{Binding CanDelete, Converter={StaticResource BoolToVisibility}}"
                                                 Margin="0,0,4,0" Padding="6,2" />
                                         <!-- Demo collapsed into the row (struct / array only) and uses the vue
                                              "primary" accent so it is visually distinguished from structural actions. -->

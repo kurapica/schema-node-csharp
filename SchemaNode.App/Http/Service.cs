@@ -159,6 +159,20 @@ public static class Service
         }
     }
 
+    /// <summary>
+    /// Gets all enabled features
+    /// </summary>
+    public static string[]? GetEnableFeatures() => EnableFeatures.Count > 0 ? EnableFeatures.ToArray() : null;
+
+    /// <summary>
+    /// Enable feature
+    /// </summary>
+    public static void EnableFeature(string feature)
+    {
+        if (!string.IsNullOrWhiteSpace(feature) && !EnableFeatures.Contains(feature, StringComparer.OrdinalIgnoreCase))
+            EnableFeatures.Add(feature.ToLowerInvariant());
+    }
+
     static string GetRequestUrl(Type type)
     {
         string name = type.Name.EndsWith("request", StringComparison.OrdinalIgnoreCase)
@@ -200,8 +214,12 @@ public static class Service
 
         ApiTypes.Add(new SchemaApiType(type, requestType, responseType,
             type.GetCustomAttribute<NoProtocolAttribute>() != null));
+
+        if (apiBaseType.GetCustomAttribute<FeatureAttribute>() is { } feature && !string.IsNullOrWhiteSpace(feature.Feature))
+            EnableFeatures.Add(feature.Feature.ToLowerInvariant());
     }
 
     static readonly List<SchemaApiType> ApiTypes = new();
+    static readonly List<string> EnableFeatures = new();
     internal record SchemaApiType(Type Api, Type Request, Type Response, bool UseDefaultProtocol);
 }

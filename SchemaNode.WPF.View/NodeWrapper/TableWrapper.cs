@@ -204,7 +204,8 @@ public sealed class TableRowGroup
         IReadOnlyList<TableCell> cells,
         IReadOnlyList<DataNode>[] innerElements,
         int layoutVersion,
-        bool isDeleted = false)
+        bool isDeleted = false,
+        string? cellSkin = null)
     {
         Index = index;
         Element = element;
@@ -214,6 +215,7 @@ public sealed class TableRowGroup
         InnerElements = innerElements;
         LayoutVersion = layoutVersion;
         IsDeleted = isDeleted;
+        CellSkin = cellSkin;
     }
 
     /// <summary>Zero-based element index in the array.</summary>
@@ -242,6 +244,9 @@ public sealed class TableRowGroup
     /// while the deletion is still pending in the host tracker; plain tables always report false.
     /// </summary>
     public bool IsDeleted { get; }
+
+    /// <summary>Skin the row's cell views resolve through; null means inherit from the table.</summary>
+    public string? CellSkin { get; }
 }
 
 /// <summary>
@@ -265,6 +270,7 @@ public class TableWrapper : DataNodeWrapper
     private readonly List<TableColumn> _arrayColumns = [];
     private readonly List<TableLeafColumn> _leafColumns = [];
     private string[] _viewColumns = [];
+    private string? _cellSkin;
     private bool _tableReadOnly;
     private bool _reconciling;
     private bool _bulkUpdating;
@@ -312,6 +318,31 @@ public class TableWrapper : DataNodeWrapper
 
     /// <summary>Window used to own the built-in row editor; set by the table view when it loads.</summary>
     public Window? OwnerWindow { get; set; }
+
+    /// <summary>
+    /// Skin the cell views resolve through. Null keeps the skin the cells inherit from the table,
+    /// which is what the surrounding form uses. Changing it rebuilds the row groups (and therefore
+    /// the cell views) but reuses the cached cell wrappers.
+    /// </summary>
+    public string? CellSkin
+    {
+        get => _cellSkin;
+        set
+        {
+            string? normalized = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+            if (string.Equals(_cellSkin, normalized, StringComparison.OrdinalIgnoreCase)) return;
+
+            _cellSkin = normalized;
+            RaisePropertyChanged(nameof(CellSkin));
+            RunOnUiThread(ReconcileRows);
+        }
+    }
+
+    /// <summary>
+    /// Skin forwarded to the built-in row editor. A separate window does not inherit dependency
+    /// property values, so the table hands its effective skin to the editor explicitly.
+    /// </summary>
+    public string EditorSkin { get; set; } = SchemaViewRegistry.DefaultSkin;
 
     /// <summary>
     /// Field-path whitelist. An empty list keeps the derived column set. A non-empty list renders
@@ -578,6 +609,7 @@ public class TableWrapper : DataNodeWrapper
 
             if (!ReferenceEquals(current.Element, candidate.Element)) return false;
             if (current.IsDeleted != candidate.IsDeleted) return false;
+            if (!string.Equals(current.CellSkin, candidate.CellSkin, StringComparison.OrdinalIgnoreCase)) return false;
             if (current.LayoutVersion != candidate.LayoutVersion) return false;
             if (current.VisualRowCount != candidate.VisualRowCount) return false;
             if (current.InnerElements.Length != candidate.InnerElements.Length) return false;
@@ -685,7 +717,8 @@ public class TableWrapper : DataNodeWrapper
             cells,
             innerElements.ToArray(),
             _layoutVersion,
-            IsRowDeleted(element));
+            IsRowDeleted(element),
+            _cellSkin);
     }
 
     /// <summary>
@@ -856,7 +889,9 @@ public class TableWrapper : DataNodeWrapper
     {
         string title = LocaleManager.Instance.Get(
             isNew ? "wpf.table.title.new" : "wpf.table.title.editor");
-        TableRowEditorRequest request = new(node, isNew, title, OwnerWindow, Registry);
+        // A separate window does not inherit the table's dependency property values, so the skin
+        // is carried in the request instead of silently falling back to the default skin.
+        TableRowEditorRequest request = new(node, isNew, title, OwnerWindow, Registry, EditorSkin);
         Func<TableRowEditorRequest, bool> editor = Registry.RowEditorFactory ?? TableRowEditorWindow.Show;
         return editor(request);
     }

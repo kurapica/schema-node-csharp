@@ -18,6 +18,7 @@ namespace SchemaNode.WPF.View;
 /// </summary>
 public partial class SchemaView : UserControl
 {
+    private readonly SchemaTemplateSelector _templateSelector = new SchemaTemplateSelector();
     private DataNodeWrapper? _observed;
     private DataNodeWrapper? _owned;
     private DataNode? _pendingNode;
@@ -27,7 +28,6 @@ public partial class SchemaView : UserControl
     {
         InitializeComponent();
 
-        Presenter.ContentTemplateSelector = new SchemaTemplateSelector();
         DataContextChanged += OnDataContextChanged;
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
@@ -152,12 +152,18 @@ public partial class SchemaView : UserControl
         set => SetValue(RoleProperty, value);
     }
 
-    /// <summary>Skin name forwarded to the registry resolver.</summary>
+    /// <summary>
+    /// Skin name forwarded to the registry resolver. Inherited like <see cref="Registry"/>, so a
+    /// host sets it once on the root view and every nested view resolves through the same skin.
+    /// </summary>
     public static readonly DependencyProperty SkinProperty = DependencyProperty.Register(
         nameof(Skin),
         typeof(string),
         typeof(SchemaView),
-        new PropertyMetadata(SchemaViewRegistry.DefaultSkin, OnSkinChanged));
+        new FrameworkPropertyMetadata(
+            SchemaViewRegistry.DefaultSkin,
+            FrameworkPropertyMetadataOptions.Inherits,
+            OnSkinChanged));
 
     /// <summary>Skin used by type-specific registrations.</summary>
     public string Skin
@@ -204,7 +210,11 @@ public partial class SchemaView : UserControl
             view.RefreshContent();
     }
 
-    /// <summary>Re-runs the template selector without touching the wrapper.</summary>
+    /// <summary>
+    /// Re-runs template resolution without touching the applied wrapper. The presenter only gets a
+    /// new template when the resolved one actually differs, so an inherited skin change that still
+    /// resolves the same view never dismisses or rebuilds the presenter subtree.
+    /// </summary>
     private void RefreshContent() => ApplyContent(_observed);
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -219,6 +229,10 @@ public partial class SchemaView : UserControl
         // Containers may be recycled after Unloaded detached the wrapper. A bare node recorded while
         // unloaded is wrapped here, at materialization time.
         Attach(Node ?? DataContext);
+
+        // The first selection can run before this control reaches a window, where host resources
+        // are not reachable yet. Re-resolving now is a no-op unless the selected template changed.
+        if (_observed is not null) ApplyContent(_observed);
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
@@ -302,10 +316,17 @@ public partial class SchemaView : UserControl
         if (_observed is not null)
             _observed.PropertyChanged -= OnWrapperPropertyChanged;
         _observed = null;
+        DismissContent();
+    }
+
+    private void DismissContent()
+    {
         _hasContent = false;
+        if (Presenter.Content is null && Presenter.ContentTemplate is null) return;
 
         BindingOperations.ClearBinding(Presenter, VisibilityProperty);
         Presenter.Content = null;
+        Presenter.ContentTemplate = null;
     }
 
     private void DisposeOwned()
@@ -314,15 +335,31 @@ public partial class SchemaView : UserControl
         _owned = null;
     }
 
-    /// <summary>Forces the ContentPresenter to run the template selector again.</summary>
+    /// <summary>
+    /// Applies the wrapper and the template selected for the view's current role and skin.
+    /// Both are compared with what the presenter already holds: a re-resolution only swaps the
+    /// template when the result actually differs, so a change that resolves the same view never
+    /// detaches the content or rebuilds the presenter subtree.
+    /// </summary>
     private void ApplyContent(DataNodeWrapper? wrapper)
     {
-        Presenter.Content = null;
-        _hasContent = false;
-        if (wrapper is null || wrapper.IsDisposed) return;
+        if (wrapper is null || wrapper.IsDisposed)
+        {
+            DismissContent();
+            return;
+        }
 
-        Presenter.Content = wrapper;
+        DataTemplate? template = _templateSelector.SelectTemplate(wrapper, this);
+        bool sameContent = ReferenceEquals(Presenter.Content, wrapper);
+        bool sameTemplate = ReferenceEquals(Presenter.ContentTemplate, template);
         _hasContent = true;
+
+        if (sameContent && sameTemplate) return;
+
+        // Assigning a different template re-applies it in place; the content object itself and
+        // every wrapper behind it stay attached.
+        Presenter.ContentTemplate = template;
+        Presenter.Content = wrapper;
 
         Binding visibility = new(nameof(DataNodeWrapper.IsVisible))
         {

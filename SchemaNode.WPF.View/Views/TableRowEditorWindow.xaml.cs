@@ -24,6 +24,10 @@ public partial class TableRowEditorWindow : Window
     {
         Window? owner = request.Owner ?? Application.Current?.MainWindow;
         TableRowEditorWindow window = new(request.Node, request.Registry, request.Title);
+
+        // The row view lives in its own window, outside the table's inheritance tree, so the
+        // request carries the skin explicitly.
+        window.RowView.Skin = request.Skin;
         if (owner is not null && owner != window)
             window.Owner = owner;
 

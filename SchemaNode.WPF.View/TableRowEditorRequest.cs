@@ -13,9 +13,14 @@ namespace SchemaNode.WPF.View;
 /// <param name="Title">Editor title, already localized.</param>
 /// <param name="Owner">Window that should own the editor, when known.</param>
 /// <param name="Registry">Registry the editor view should use for nested nodes.</param>
+/// <param name="Skin">
+/// Skin the editor view resolves through. A window is a separate tree and cannot inherit the
+/// table's skin, so the current value travels with the request.
+/// </param>
 public sealed record TableRowEditorRequest(
     DataNode Node,
     bool IsNew,
     string Title,
     Window? Owner,
-    SchemaViewRegistry Registry);
+    SchemaViewRegistry Registry,
+    string Skin = SchemaViewRegistry.DefaultSkin);

@@ -1,8 +1,6 @@
 using System.Globalization;
-using SchemaNode.Attribute;
 using SchemaNode.Node;
 using SchemaNode.Property;
-using SchemaNode.Property.Property;
 using SchemaNode.Runtime;
 
 namespace SchemaNode.WPF.View.Debug;
@@ -63,47 +61,34 @@ public static class SchemaDebug
 }
 
 /// <summary>One row of the node property table.</summary>
-public sealed class DebugPropertyRow
+public sealed class DebugPropertyRow(string name, string value, string source)
 {
-    public DebugPropertyRow(string name, string value, string source)
-    {
-        Name = name;
-        Value = value;
-        Source = source;
-    }
 
     /// <summary>Property name.</summary>
-    public string Name { get; }
+    public string Name { get; } = name;
 
     /// <summary>Current value.</summary>
-    public string Value { get; }
+    public string Value { get; } = value;
 
     /// <summary>Access that supplied the value (node access path and type).</summary>
-    public string Source { get; }
+    public string Source { get; } = source;
 }
 
 /// <summary>One row of the node relation table.</summary>
-public sealed class DebugRelationRow
+public sealed class DebugRelationRow(string property, string mode, string data, string source)
 {
-    public DebugRelationRow(string property, string mode, string data, string source)
-    {
-        Property = property;
-        Mode = mode;
-        Data = data;
-        Source = source;
-    }
 
     /// <summary>Target property the relation writes.</summary>
-    public string Property { get; }
+    public string Property { get; } = property;
 
     /// <summary>Relation process type.</summary>
-    public string Mode { get; }
+    public string Mode { get; } = mode;
 
     /// <summary>Dependency summary.</summary>
-    public string Data { get; }
+    public string Data { get; } = data;
 
     /// <summary>Owner access path.</summary>
-    public string Source { get; }
+    public string Source { get; } = source;
 }
 
 /// <summary>Snapshot displayed by the node inspector.</summary>

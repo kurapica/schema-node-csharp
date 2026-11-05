@@ -36,6 +36,8 @@ public abstract class DataNodeWrapper : INotifyPropertyChanged, INotifyDataError
     private bool _readOnly;
     private bool _disabled;
     private bool _forcedReadOnly;
+    private bool _require;
+    private bool _visible;
 
     protected DataNodeWrapper(DataNode node, SchemaViewRegistry? registry, string? fieldName, SchemaViewRole role)
     {
@@ -47,11 +49,19 @@ public abstract class DataNodeWrapper : INotifyPropertyChanged, INotifyDataError
 
         Track(NodeImpl.Subscribe(OnDataChanged, immediate: true));
         Track(NodeImpl.SubscribeViolated(OnViolatedChanged, immediate: true));
-        Track(NodeImpl.SubscribeProperty<Visible, bool>(OnVisibleChanged, immediate: true));
-        Track(NodeImpl.SubscribeProperty<InVisible, bool>(OnVisibleChanged, immediate: true));
+        // Visibility is caller-facing rather than node-local: a relation that hides a struct or
+        // array element must also hide the cells it owns, and a table renders those leaf nodes
+        // directly. Subscribe to every ancestor so an inherited hide reaches this wrapper too.
+        _visible = IsNodeVisible(NodeImpl);
+        Track(NodeImpl.SubscribeAncestorProperty<Visible, bool>(OnVisibleChanged, immediate: true));
+        Track(NodeImpl.SubscribeAncestorProperty<InVisible, bool>(OnVisibleChanged, immediate: true));
         Track(NodeImpl.SubscribeAncestorProperty<ReadOnly, bool>(OnReadOnlyChanged, immediate: true));
         Track(NodeImpl.SubscribeAncestorProperty<Disable, bool>(OnDisabledChanged, immediate: true));
         Track(NodeImpl.SubscribeProperty<DisplayOnly, bool>(OnDisplayOnlyChanged, immediate: true));
+
+        // Require is a permission-style constraint, not an entry-source concern: Date and Bool
+        // need it too, so it belongs to the common base instead of an input-only wrapper.
+        Track(NodeImpl.SubscribeProperty<Require, bool>(OnRequireChanged, immediate: true));
 
         // Cached labels must follow a language switch without rebuilding the visual tree.
         _languageChangedHandler = OnLanguageChangedHandler;
@@ -103,10 +113,11 @@ public abstract class DataNodeWrapper : INotifyPropertyChanged, INotifyDataError
     }
 
     /// <summary>
-    /// Whether the node should be rendered. Core computes it from Visible / InVisible and from
-    /// relation-derived Attach properties, so reacting to both property streams is enough.
+    /// Whether the node should be rendered. Core computes each node from Visible / InVisible, and
+    /// a hidden ancestor hides everything it owns, which matches how nested views (and flattened
+    /// table cells) are rendered.
     /// </summary>
-    public bool IsVisible => NodeImpl.Visible;
+    public bool IsVisible => _visible;
 
     /// <summary>Whether any ancestor or the node itself marks the field read-only.</summary>
     public bool IsReadOnly => _readOnly;
@@ -125,6 +136,15 @@ public abstract class DataNodeWrapper : INotifyPropertyChanged, INotifyDataError
 
     /// <summary>Editors are enabled only when not read-only, disabled, forced read-only or display-only.</summary>
     public bool IsEditable => !_readOnly && !_disabled && !_forcedReadOnly && !NodeImpl.DisplayOnly;
+
+    /// <summary>Whether the field is required.</summary>
+    public bool Require => _require;
+
+    /// <summary>Whether the field requires a value.</summary>
+    public bool IsRequired => _require;
+
+    /// <summary>Whether the field accepts an unset value.</summary>
+    public bool IsOptional => !_require;
 
     /// <summary>Display label (localized Display property, schema name or field name).</summary>
     public string Label
@@ -286,10 +306,21 @@ public abstract class DataNodeWrapper : INotifyPropertyChanged, INotifyDataError
         RaiseErrorsChanged();
     }
 
-    private void OnVisibleChanged((IValueAccess node, Type propertyType, bool value, bool oldValue) args)
+    private void OnVisibleChanged((IValueAccess node, Type propertyType, bool[] values) args)
     {
         if (_disposed) return;
+        bool visible = IsNodeVisible(NodeImpl);
+        if (_visible == visible) return;
+        _visible = visible;
         RaisePropertyChanged(nameof(IsVisible));
+    }
+
+    /// <summary>Whether the node and all of its ancestors allow rendering.</summary>
+    private static bool IsNodeVisible(DataNode node)
+    {
+        for (DataNode? current = node; current is not null; current = current.Parent as DataNode)
+            if (!current.Visible) return false;
+        return true;
     }
 
     private void OnReadOnlyChanged((IValueAccess node, Type propertyType, bool[] values) args)
@@ -344,6 +375,18 @@ public abstract class DataNodeWrapper : INotifyPropertyChanged, INotifyDataError
     /// <summary>Hook invoked after any source of <see cref="IsEditable"/> changes.</summary>
     protected virtual void OnEditableChanged()
     {
+    }
+
+    /// <summary>Hook invoked when the required constraint changes, for editors that branch on it.</summary>
+    protected virtual void OnRequireChanged((IValueAccess node, Type propertyType, bool value, bool oldValue) args)
+    {
+        if (_disposed) return;
+        bool require = args.value;
+        if (_require == require) return;
+        _require = require;
+        RaisePropertyChanged(nameof(Require));
+        RaisePropertyChanged(nameof(IsRequired));
+        RaisePropertyChanged(nameof(IsOptional));
     }
 
     /// <summary>Hook for wrappers that cache localized collections (for example table columns).</summary>

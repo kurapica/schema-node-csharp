@@ -395,6 +395,12 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
         SchemaScreenSession? session = _session;
         if (row is null || session is null) return;
 
+        if (row.IsSystemDefined)
+        {
+            Status = LocaleManager.Instance.Format("wpf.type.status.protected", row.FullName);
+            return;
+        }
+
         if (row.IsUsed)
         {
             Status = LocaleManager.Instance.Format("wpf.type.status.inuse", row.FullName);
@@ -498,6 +504,8 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
                 new NavigationParameters
                 {
                     { TypeDemoViewModel.TypeParameter, fullName },
+                    // Return to the namespace the demo was opened from, not to the default level.
+                    { TypeDemoViewModel.NamespaceParameter, _namespace },
                 });
 
             INavigationResult outcome = await completion.Task;

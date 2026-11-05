@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Prism.DryIoc;
 using Prism.Ioc;
 using Prism.Navigation.Regions;
+using SchemaNode.AI;
+using SchemaNode.AI.Chat;
 using SchemaNode.Api.Client;
 using SchemaNode.Data;
 using SchemaNode.Schema.Provider;
@@ -31,6 +33,37 @@ public partial class App : PrismApplication
     /// <summary>The shell ViewModel, kept so startup navigation failures can be reported in the shell.</summary>
     private MainWindowViewModel? _shellViewModel;
 
+    /// <summary>
+    /// Reads the provider from the environment; the mock keeps the screen usable until a model is
+    /// actually running. Switching to Ollama or a cloud provider is configuration only.
+    /// </summary>
+    private static SchemaChatProvider ResolveSchemaChatProvider()
+    {
+        string? value = Environment.GetEnvironmentVariable("SCHEMA_CHAT_PROVIDER");
+        return System.Enum.TryParse(value, ignoreCase: true, out SchemaChatProvider provider)
+            ? provider
+            : SchemaChatProvider.Mock;
+    }
+
+    private static void ApplySchemaChatConfiguration(SchemaChatOptions options)
+    {
+        if (Environment.GetEnvironmentVariable("SCHEMA_CHAT_MODEL") is { Length: > 0 } model)
+            options.ModelId = model;
+        if (Environment.GetEnvironmentVariable("SCHEMA_CHAT_ENDPOINT") is { Length: > 0 } endpoint)
+            options.Endpoint = endpoint;
+        if (Environment.GetEnvironmentVariable("SCHEMA_CHAT_API_KEY") is { Length: > 0 } key)
+            options.ApiKey = key;
+        if (Environment.GetEnvironmentVariable("SCHEMA_CHAT_MAX_TOKENS") is { Length: > 0 } tokens
+            && int.TryParse(tokens, out int parsed))
+            options.MaxOutputTokens = parsed;
+        if (Environment.GetEnvironmentVariable("SCHEMA_CHAT_TIMEOUT_SECONDS") is { Length: > 0 } timeout
+            && int.TryParse(timeout, out int parsedTimeout))
+            options.RequestTimeoutSeconds = parsedTimeout;
+        if (Environment.GetEnvironmentVariable("SCHEMA_CHAT_THINKING") is { Length: > 0 } thinking
+            && bool.TryParse(thinking, out bool thinkingEnabled))
+            options.DisableThinking = !thinkingEnabled;
+    }
+
     /// <inheritdoc />
     protected override void RegisterTypes(IContainerRegistry containerRegistry)
     {
@@ -42,6 +75,20 @@ public partial class App : PrismApplication
         services.AddSchemaStorageProvider<DynamicAppEntryStorageProvider>();
         // App-data storage is required by the schema storage provider and by "system.wpf" setting
         services.AddAppDataProvider<InMemoryAppDataProvider>();
+        // Schema assistant: the local in-process implementation bound to each screen's scoped
+        // SchemaContext. Mock is the default; switching provider needs configuration only.
+        services.AddSchemaChatCore(options =>
+        {
+            options.Provider = ResolveSchemaChatProvider();
+            ApplySchemaChatConfiguration(options);
+            if (options.Provider is SchemaChatProvider.Ollama)
+            {
+                // A local 8B model on a small GPU needs room for tool rounds; keep it bounded.
+                if (Environment.GetEnvironmentVariable("SCHEMA_CHAT_TIMEOUT_SECONDS") is not { Length: > 0 })
+                    options.RequestTimeoutSeconds = 300;
+                options.MaxOutputTokens ??= 2048;
+            }
+        });
         services.PrepareSchemaRuntime();      // Register ISchemaRuntime (Singleton) / SchemaContext (Scoped)
         _schemaServices = services.BuildServiceProvider();
 

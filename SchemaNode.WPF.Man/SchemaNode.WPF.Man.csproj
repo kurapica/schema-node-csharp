@@ -17,6 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="..\SchemaNode.Core\SchemaNode.Core.csproj" />
     <ProjectReference Include="..\SchemaNode.App\SchemaNode.App.csproj" />
+    <ProjectReference Include="..\SchemaNode.AI\SchemaNode.AI.csproj" />
     <ProjectReference Include="..\SchemaNode.WPF.View\SchemaNode.WPF.View.csproj" />
     <ProjectReference Include="..\SchemaNode.WPF.AppView\SchemaNode.WPF.AppView.csproj" />
   </ItemGroup>

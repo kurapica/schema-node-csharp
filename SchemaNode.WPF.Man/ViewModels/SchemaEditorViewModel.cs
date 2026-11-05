@@ -1,7 +1,10 @@
+using System.Text.Json.Nodes;
 using System.Windows.Input;
 using Prism.Commands;
 using Prism.Mvvm;
+using SchemaNode.Node;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.WPF.Man.Services;
@@ -36,6 +39,8 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
     private string? _typeName;
     private bool _isNew;
     private string? _error;
+    private CancellationTokenSource? _publishCancellation;
+    private bool _disposed;
 
     public SchemaEditorViewModel(SchemaViewRegistry registry)
     {
@@ -43,6 +48,18 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
         LoadCommand = new DelegateCommand(ExecuteLoad, CanLoad)
             .ObservesProperty(() => TypeName);
     }
+
+    /// <summary>
+    /// Optional non-blocking delay between building the node on the thread pool and publishing it
+    /// to the view. Relations write their properties asynchronously (the call process is debounced),
+    /// so a screen that binds the root view immediately materializes elements for fields that are
+    /// about to be hidden. Zero by default; only the type-definition screen opts in.
+    ///
+    /// The wait is a <see cref="Task.Delay(TimeSpan, CancellationToken)"/> and is abandoned by
+    /// <see cref="DisposeNode"/> / <see cref="Dispose"/>, so navigation or a newer reload never
+    /// publishes (or leaks) the node it was about to show.
+    /// </summary>
+    public TimeSpan NodePublishDelay { get; set; }
 
     /// <summary>Full name of the type to load</summary>
     public string? TypeName
@@ -95,6 +112,10 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
     public void Attach(SchemaScreenSession session)
     {
         _session = session ?? throw new ArgumentNullException(nameof(session));
+        // A screen may attach again after a teardown (same instance reuse); a fresh session
+        // always starts with a live editor.
+        _disposed = false;
+        CancelPendingPublish();
     }
 
     /// <summary>
@@ -119,7 +140,7 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
         {
             try
             {
-                NodeType? type = await session.Context.GetNodeTypeAsync(name, reload: reload).ConfigureAwait(false);
+                SchemaNode.Runtime.NodeType? type = await session.Context.GetNodeTypeAsync(name, reload: reload).ConfigureAwait(false);
                 if (type is not IValueTypeAccess valueType)
                     return BuiltNode.Missing(LocaleManager.Instance.Format("wpf.typedoc.status.notfound", name));
                 return Build(valueType, session, () => null, null, kinds: null);
@@ -129,6 +150,12 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
                 return new BuiltNode(null, null, false, ex);
             }
         });
+
+        if (!await DelayPublishAsync())
+        {
+            DisposeUnpublished(built);
+            return;
+        }
 
         Apply(built, isNew: false);
     }
@@ -179,6 +206,12 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
             }
         });
 
+        if (!await DelayPublishAsync())
+        {
+            DisposeUnpublished(built);
+            return;
+        }
+
         Apply(built, isNew: false);
     }
 
@@ -220,9 +253,69 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
             return;
         }
 
+        if (!await DelayPublishAsync())
+        {
+            DisposeUnpublished(built);
+            return;
+        }
+
         // The new schema has no saved identity yet, so the screen must not address it by name.
         TypeName = null;
         Apply(built, isNew: true);
+    }
+
+    /// <summary>
+    /// Replaces the definition node with a complete NodeSchema payload produced by the assistant.
+    /// <para>
+    /// The payload is used as a <see cref="JsonNode"/> seed, not as a materialized
+    /// <see cref="NodeSchema"/> instance, so the Attach driven property fields are rebuilt the same
+    /// way as a normal schema reload. The whole node is replaced, so fields and relations refresh
+    /// together. The new node is tracked by the screen session and disposed in reverse order.
+    /// </para>
+    /// </summary>
+    /// <param name="schemaJson">The complete normalized NodeSchema payload.</param>
+    /// <param name="isNew">Whether the editor stays in the new-schema flow.</param>
+    /// <returns>True when the node was rebuilt.</returns>
+    public async Task<bool> ApplySchemaAsync(JsonNode schemaJson, bool isNew)
+    {
+        ArgumentNullException.ThrowIfNull(schemaJson);
+
+        DisposeNode();
+        Error = null;
+
+        SchemaScreenSession? session = _session;
+        if (session is null) return false;
+
+        BuiltNode built = await Task.Run(async () =>
+        {
+            try
+            {
+                StructType? schemaType = await session.Context
+                    .GetNodeTypeAsync<StructType>(DefinitionTypeName).ConfigureAwait(false);
+                if (schemaType is null)
+                    return BuiltNode.Missing(LocaleManager.Instance.Get("wpf.typedoc.status.notype"));
+
+                string[] kinds = await SchemaKindCatalog.GetNodeKindsAsync(session.Context).ConfigureAwait(false);
+                return Build(schemaType, session, () => schemaJson, null, kinds);
+            }
+            catch (Exception ex)
+            {
+                return new BuiltNode(null, null, false, ex);
+            }
+        });
+
+        if (!await DelayPublishAsync())
+        {
+            DisposeUnpublished(built);
+            return false;
+        }
+
+        Apply(built, isNew);
+        if (built.Node is null) return false;
+
+        // Adopt the generated identity so the save path and the header address the new type.
+        TypeName = built.Schema?.FullName;
+        return true;
     }
 
     /// <summary>
@@ -251,12 +344,71 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
+        _disposed = true;
+        CancelPendingPublish();
         DisposeNode();
         EnumEditor.Dispose();
         _session = null; // The session is disposed centrally by the screen ViewModel
     }
 
+    private void CancelPendingPublish()
+    {
+        _publishCancellation?.Cancel();
+        _publishCancellation = null;
+    }
+
+    /// <summary>
+    /// Waits for the relation writes to settle before the node is published to the view.
+    /// Returns false when the wait was abandoned (navigation, newer reload, disposed editor);
+    /// the caller then disposes the never-published node.
+    /// </summary>
+    private async Task<bool> DelayPublishAsync()
+    {
+        if (NodePublishDelay <= TimeSpan.Zero)
+            return !_disposed;
+
+        CancellationTokenSource cancellation = new();
+        _publishCancellation = cancellation;
+        try
+        {
+            await Task.Delay(NodePublishDelay, cancellation.Token);
+            return !_disposed;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+        finally
+        {
+            if (ReferenceEquals(_publishCancellation, cancellation))
+                _publishCancellation = null;
+            cancellation.Dispose();
+        }
+    }
+
+    /// <summary>Releases a node that was built but never handed to the screen session.</summary>
+    private static void DisposeUnpublished(BuiltNode built)
+    {
+        if (built.Node is IDisposable disposable)
+            disposable.Dispose();
+    }
+
     private bool CanLoad() => !string.IsNullOrWhiteSpace(_typeName);
+
+    /// <summary>
+    /// Marks every definition field except <c>namespace</c> as read-only on the node instance.
+    /// The flag is instance-scoped: it is not written back to the type metadata, so the system
+    /// schema definition stays untouched and other screens are unaffected.
+    /// </summary>
+    private static void RestrictDefinitionToNamespace(IValueAccess node)
+    {
+        if (node is not StructNode structNode) return;
+        foreach ((StructFieldType field, IValueAccess value) in structNode.GetFields())
+        {
+            if (field.Name.Equals("namespace", StringComparison.OrdinalIgnoreCase)) continue;
+            value.SetPropertyValue<ReadOnly, bool>(true, null, null);
+        }
+    }
 
     private async void ExecuteLoad() => await ReloadAsync(_typeName);
 
@@ -279,6 +431,13 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
         {
             if (kinds is not null && node.GetAccessValue("kind") is { } kindField)
                 kindField.SetPropertyValue<WhiteList, object[]>(kinds.Cast<object>().ToArray(), null, null);
+
+            // A system-defined definition is owned by the host: it can be moved to another
+            // namespace, but none of its content fields may be edited. This is a per-field gate
+            // (each field wrapper derives its IsEditable from the node's ReadOnly property),
+            // not a whole-screen switch, so the namespace field stays editable in edit mode.
+            if (schema?.GetProperty<SystemDefined>() is { Value: true })
+                RestrictDefinitionToNamespace(node);
 
             // The view materializes the wrapper when it renders this node; the editor only owns the node.
             return new BuiltNode(
@@ -359,6 +518,7 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
     /// </summary>
     private void DisposeNode()
     {
+        CancelPendingPublish();
         ShowEnumEditor = false;
         EnumEditor.Detach();
 

@@ -1,0 +1,58 @@
+<UserControl x:Class="SchemaNode.WPF.View.Views.TypeSelectorView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:SchemaNode.WPF.View"
+             xmlns:views="clr-namespace:SchemaNode.WPF.View.Views">
+    <!--
+        Counterpart of schema-node-man/src/view/namespace.vue: the path editor (namespace / type
+        cascade, namespace.vue delegates it to input-view) followed by the generic arguments.
+        The path editor is the shared InputView, so the cascade popup, path formatting and commit
+        rules live in CascaderView / InputWrapper and are not duplicated here.
+    -->
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition x:Name="GenericColumn" Width="0" />
+        </Grid.ColumnDefinitions>
+
+        <views:InputView Grid.Column="0" DataContext="{Binding Main}" MinWidth="0" />
+
+        <Grid Grid.Column="1"
+              Margin="2,0,0,0"
+              VerticalAlignment="Center"
+              Visibility="{Binding HasGenerics, Converter={x:Static local:Converters.BoolToVisibility}}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" Text="&lt;" VerticalAlignment="Center" />
+
+            <ItemsControl Grid.Column="1" ItemsSource="{Binding Arguments}" VerticalAlignment="Center">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Rows="1" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="1,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <views:TypeSelectorView Grid.Column="0" DataContext="{Binding Wrapper}" MinWidth="0" />
+                            <TextBlock Grid.Column="1"
+                                       Text=","
+                                       VerticalAlignment="Center"
+                                       Visibility="{Binding ShowComma, Converter={x:Static local:Converters.BoolToVisibility}}" />
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <TextBlock Grid.Column="2" Text="&gt;" VerticalAlignment="Center" />
+        </Grid>
+    </Grid>
+</UserControl>

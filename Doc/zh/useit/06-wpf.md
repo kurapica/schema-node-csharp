@@ -166,7 +166,7 @@ schemaView.Node = node;   // 视图在加载时解析并包装
 | `TableWrapper` | `TableView.xaml` | `SchemaTable` | 结构体数组表格 |
 | `FallbackWrapper` | 内联只读 `TextBox` | `SchemaFallback` | 未知节点形状 |
 
-`DataNodeWrapper` 是公共基类，承担 `INotifyPropertyChanged`、`INotifyDataErrorInfo`、线程调度与一次性退订；`ScalarWrapper` 在其上补齐 `Require` / `AsSuggest` / `LeafOnly`，`InputWrapper` 再叠加候选与多选状态。所有 Wrapper 共享同一个 `Registry`、`Role` 与 `FieldName`。
+`DataNodeWrapper` 是公共基类，承担 `INotifyPropertyChanged`、`INotifyDataErrorInfo`、线程调度、一次性退订，以及权限状态（`Require`、`ReadOnly`、`Disable`、`DisplayOnly`）与派生的 `IsEditable` / `IsRequired` / `IsOptional`。`InputWrapper` 负责全部入口相关内容：候选、级联层级、多选状态与 `AsSuggest` / `LeafOnly`。Date 与 Bool 直接继承 `DataNodeWrapper`：它们需要权限状态，但从不带入口来源。所有 Wrapper 共享同一个 `Registry`、`Role` 与 `FieldName`。
 
 ### 3.3 按节点形状分流
 
@@ -178,10 +178,10 @@ schemaView.Node = node;   // 视图在加载时解析并包装
 4. `StructNode` → `StructWrapper`；
 5. `DateNode` → `DateWrapper`；
 6. `BoolNode` → `BoolWrapper`；
-7. `ScalarNode` → `HasEntrySource` 或类型/上游声明了 entry source 契约时 `InputWrapper`，否则 `ScalarWrapper`；
+7. `ScalarNode` → `InputWrapper`（没有候选时退化为普通文本编辑）；
 8. 其它形状 → `FallbackWrapper`。
 
-入口来源由 Core 异步解析并去抖，节点刚创建时 `HasEntrySource` 可能仍为 false；工厂因此同步检查 `EntrySource`、`EntrySourceProvider`、`EntrySourceConsumer` 与 `AccessEntryConsumer`，避免命名空间、类型这类级联选择器退化成普通 TextBox。
+入口来源由 Core 异步解析并去抖；`EntrySourceVersion` 每次变化，`InputWrapper` 都会发起可取消的加载，因此命名空间、类型这类级联选择器会在快照到达后从普通文本自动升级为下拉。
 
 ### 3.4 候选条目：单层、级联与多选
 

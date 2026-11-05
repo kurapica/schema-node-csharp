@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Enum;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Struct;
@@ -129,11 +130,15 @@ public sealed class MultiEntryItem : INotifyPropertyChanged
 /// <summary>
 /// Entry-source wrapper (single value, cascaded levels and multi-value enum arrays).
 ///
+/// Everything entry-related lives here: candidate lists, selection, levels and multi-value
+/// summaries. Permission constraints such as <c>Require</c> are inherited from
+/// <see cref="DataNodeWrapper"/> so Date and Bool do not duplicate them.
+///
 /// Candidate lists are loaded asynchronously from Core. Every Core notification (including
 /// <c>EntrySourceVersion</c>) starts a cancellable load; results are applied on the dispatcher in
 /// one bulk collection update. Nothing blocks the UI thread in the constructor.
 /// </summary>
-public sealed class InputWrapper : ScalarWrapper
+public sealed class InputWrapper : DataNodeWrapper
 {
     private CancellationTokenSource? _entryCts;
     private EntryItem? _selectedEntry;
@@ -142,6 +147,8 @@ public sealed class InputWrapper : ScalarWrapper
     private bool _isPopupOpen;
     private bool _isMulti;
     private bool _isCascading;
+    private bool _asSuggest;
+    private bool _leafOnly;
 
     /// <inheritdoc />
     public override string? DefaultTemplateKey => SchemaTemplateKeys.Input;
@@ -149,19 +156,33 @@ public sealed class InputWrapper : ScalarWrapper
     public InputWrapper(DataNode node, SchemaViewRegistry? registry, string? fieldName, SchemaViewRole role)
         : base(node, registry, fieldName, role)
     {
+        ScalarNodeImpl = node as ScalarNode
+            ?? throw new ArgumentException($"Node '{node.Type.Name}' is not a scalar node.", nameof(node));
+
         _isMulti = node is EnumArrayNode;
         Track(node.SubscribeProperty<EntrySourceVersion, long>(OnEntrySourceVersionChanged, immediate: true));
+        Track(node.SubscribeProperty<AsSuggest, bool>(OnAsSuggestChanged, immediate: true));
+        Track(node.SubscribeProperty<LeafOnly, bool>(OnLeafOnlyChanged, immediate: true));
         RefreshEntries();
     }
 
+    /// <summary>The typed scalar node behind the entry source.</summary>
+    private ScalarNode ScalarNodeImpl { get; }
+
+    /// <summary>Whether the drop-down allows free text input.</summary>
+    public bool AsSuggest => _asSuggest;
+
+    /// <summary>Whether only leaf entries are selectable.</summary>
+    public bool LeafOnly => _leafOnly;
+
     /// <summary>Whether the node is an enum array rendered as a multi-value popup.</summary>
-    public override bool IsMulti => _isMulti;
+    public bool IsMulti => _isMulti;
 
     /// <summary>
     /// Whether the entry source has multiple cascaded levels. Core resolves the entry source
     /// asynchronously, so this value is decided when a snapshot is applied, not at construction.
     /// </summary>
-    public override bool IsCascading => _isCascading;
+    public bool IsCascading => _isCascading;
 
     /// <summary>Single-level candidates.</summary>
     public BulkObservableCollection<EntryItem> Entries { get; } = new();
@@ -176,10 +197,10 @@ public sealed class InputWrapper : ScalarWrapper
     public bool HasEntries => IsCascading ? Levels.Count > 0 : IsMulti ? MultiEntries.Count > 0 : Entries.Count > 0;
 
     /// <summary>Use the single-level drop-down.</summary>
-    public override bool IsDropDown => !IsMulti && !IsCascading && HasEntries;
+    public bool IsDropDown => !IsMulti && !IsCascading && HasEntries;
 
     /// <summary>Use the plain text editor (no candidates at all).</summary>
-    public override bool IsPlainText => !IsMulti && !IsCascading && !HasEntries;
+    public bool IsPlainText => !IsMulti && !IsCascading && !HasEntries;
 
     /// <summary>Currently selected single-level candidate.</summary>
     public EntryItem? SelectedEntry
@@ -194,6 +215,33 @@ public sealed class InputWrapper : ScalarWrapper
                 Value = value.Value;
         }
     }
+
+    /// <summary>
+    /// Closed-state text of the cascaded selector: the display of every selected level joined by
+    /// <c> / </c>, root first. When an existing value no longer resolves against the current entry
+    /// tree the raw value is shown instead, so a removed branch degrades to readable text rather
+    /// than a blank field or an exception.
+    /// </summary>
+    public string CascadeSummary
+    {
+        get
+        {
+            List<string> parts = [];
+            foreach (EntryLevel level in Levels)
+            {
+                if (level.Selected is { } selected)
+                    parts.Add(selected.Display);
+            }
+            if (parts.Count > 0) return string.Join(" / ", parts);
+
+            string? raw = ToKey(NodeImpl.GetValue<object>());
+            if (!string.IsNullOrWhiteSpace(raw)) return raw;
+            return LocaleManager.Instance.Get("wpf.entry.multi.none");
+        }
+    }
+
+    /// <summary>Whether the node currently holds a value the cascader can clear.</summary>
+    public bool HasCascadeValue => !NodeImpl.IsEmpty;
 
     /// <summary>Compact closed-state summary for the multi-value popup.</summary>
     public string MultiSummary
@@ -223,7 +271,12 @@ public sealed class InputWrapper : ScalarWrapper
     /// <inheritdoc />
     protected override void OnValueChanged()
     {
-        Post(SyncSelectionFromNode);
+        Post(() =>
+        {
+            SyncSelectionFromNode();
+            RaisePropertyChangedNow(nameof(HasCascadeValue));
+            RaisePropertyChangedNow(nameof(CascadeSummary));
+        });
     }
 
     /// <inheritdoc />
@@ -232,13 +285,50 @@ public sealed class InputWrapper : ScalarWrapper
         Post(() =>
         {
             RaisePropertyChangedNow(nameof(MultiSummary));
+            RaisePropertyChangedNow(nameof(CascadeSummary));
             RefreshEntries();
         });
+    }
+
+    /// <summary>
+    /// Reloads the level tree from the node's current value. The cascader calls this when a popup
+    /// closes without a leaf commit, so in-progress parent selections are discarded and the closed
+    /// field again shows the committed value.
+    /// </summary>
+    public void ReloadCascadeSelection() => RefreshEntries();
+
+    /// <summary>
+    /// Clears the node value and rebuilds the level tree. Used by the cascader's clear affordance;
+    /// optional fields end up empty, required fields surface their usual validation error.
+    /// </summary>
+    public void ClearCascade()
+    {
+        if (IsDisposed || !IsCascading) return;
+
+        NodeImpl.ClearValue();
+        _selectedEntry = null;
+        RaisePropertyChangedNow(nameof(SelectedEntry));
+        RaisePropertyChangedNow(nameof(HasCascadeValue));
+        RefreshEntries();
     }
 
     private void OnEntrySourceVersionChanged((IValueAccess node, Type propertyType, long value, long oldValue) args)
     {
         RefreshEntries();
+    }
+
+    private void OnAsSuggestChanged((IValueAccess node, Type propertyType, bool value, bool oldValue) args)
+    {
+        if (_asSuggest == args.value) return;
+        _asSuggest = args.value;
+        RaisePropertyChanged(nameof(AsSuggest));
+    }
+
+    private void OnLeafOnlyChanged((IValueAccess node, Type propertyType, bool value, bool oldValue) args)
+    {
+        if (_leafOnly == args.value) return;
+        _leafOnly = args.value;
+        RaisePropertyChanged(nameof(LeafOnly));
     }
 
     private void RefreshEntries()
@@ -300,11 +390,33 @@ public sealed class InputWrapper : ScalarWrapper
             }
             else
             {
+                // The two Core access shapes (a freshly queried entry source and a cached
+                // GetAccessList) offset Entry differently, so resolve the selected path from the
+                // node's own value against each level's candidates. Cascaded entry values are
+                // dotted full paths, so an ancestor is either the key itself or a dotted prefix.
+                string? keyText = ToKey(raw);
+                if (string.IsNullOrEmpty(keyText)) keyText = null;
                 for (int i = 0; i < access.Length; i++)
                 {
-                    string? selected = ToKey(access[i].Entry?.Value);
-                    levels.Add(new LevelSnapshot(
-                        (access[i].Children ?? []).Select(ToItem).ToArray(), selected));
+                    EntryItem[] items = (access[i].Children ?? []).Select(ToItem).ToArray();
+                    string? selected = null;
+                    if (keyText is not null)
+                    {
+                        selected = items.FirstOrDefault(x => string.Equals(x.Value, keyText, StringComparison.Ordinal))?.Value;
+                        if (selected is not null)
+                        {
+                            keyText = null; // the key is consumed at this level
+                        }
+                        else
+                        {
+                            selected = items
+                                .Where(x => keyText.StartsWith(x.Value + ".", StringComparison.Ordinal))
+                                .OrderByDescending(x => x.Value.Length)
+                                .Select(x => x.Value)
+                                .FirstOrDefault();
+                        }
+                    }
+                    levels.Add(new LevelSnapshot(items, selected));
                 }
             }
             return EntrySnapshot.ForCascade(levels);
@@ -336,6 +448,7 @@ public sealed class InputWrapper : ScalarWrapper
                 {
                     LevelSnapshot levelSnapshot = snapshot.Levels[i];
                     EntryLevel level = new(i, OnLevelSelected);
+                    level.PropertyChanged += OnLevelPropertyChanged;
                     level.Entries.ReplaceAll(levelSnapshot.Items);
                     level.SetSelectedSilently(
                         levelSnapshot.Selected is null
@@ -364,6 +477,14 @@ public sealed class InputWrapper : ScalarWrapper
         RaisePropertyChangedNow(nameof(IsDropDown));
         RaisePropertyChangedNow(nameof(IsPlainText));
         RaisePropertyChangedNow(nameof(MultiSummary));
+        RaisePropertyChangedNow(nameof(CascadeSummary));
+        RaisePropertyChangedNow(nameof(HasCascadeValue));
+    }
+
+    private void OnLevelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (!string.Equals(e.PropertyName, nameof(EntryLevel.Selected), StringComparison.Ordinal)) return;
+        RaisePropertyChangedNow(nameof(CascadeSummary));
     }
 
     private void SyncSelectionFromNode()
@@ -390,6 +511,19 @@ public sealed class InputWrapper : ScalarWrapper
             if (IsCascading)
             {
                 string? key = ToKey(NodeImpl.GetValue<object>());
+
+                // The value was replaced from outside (a host restore, a relation, another
+                // editor): the level selections no longer describe it, so rebuild the tree.
+                bool resolved = key is null
+                    ? Levels.All(level => level.Selected is null)
+                    : Levels.Any(level => level.Selected is { } selected &&
+                                          string.Equals(selected.Value, key, StringComparison.Ordinal));
+                if (!resolved)
+                {
+                    RefreshEntries();
+                    return;
+                }
+
                 EntryLevel? last = Levels.LastOrDefault();
                 if (last is not null)
                 {
@@ -417,7 +551,13 @@ public sealed class InputWrapper : ScalarWrapper
 
         bool selectable = !item.HasChildren || LeafOnly || ScalarNodeImpl.IsNonLeafNodeSelectable;
         if (selectable)
+        {
             Value = item.Value;
+            _selectedEntry = item;
+            RaisePropertyChangedNow(nameof(SelectedEntry));
+        }
+
+        RaisePropertyChangedNow(nameof(CascadeSummary));
 
         if (item.HasChildren)
             _ = LoadNextLevelAsync(index, item);
@@ -441,6 +581,7 @@ public sealed class InputWrapper : ScalarWrapper
                 if (levels.Count == 0) return;
 
                 EntryLevel next = new(levels.Count, OnLevelSelected);
+                next.PropertyChanged += OnLevelPropertyChanged;
                 next.Entries.ReplaceAll(children.Select(ToItem));
                 _suppressSelection = true;
                 try
@@ -452,6 +593,8 @@ public sealed class InputWrapper : ScalarWrapper
                     _suppressSelection = false;
                 }
                 RaisePropertyChangedNow(nameof(HasEntries));
+                RaisePropertyChangedNow(nameof(CascadeSummary));
+                RaisePropertyChangedNow(nameof(HasCascadeValue));
             });
         }
         catch (Exception ex)
@@ -472,6 +615,7 @@ public sealed class InputWrapper : ScalarWrapper
         {
             _suppressSelection = false;
         }
+        RaisePropertyChangedNow(nameof(CascadeSummary));
     }
 
     private void OnMultiChanged(MultiEntryItem item, bool isSelected)

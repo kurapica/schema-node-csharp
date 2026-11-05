@@ -1,4 +1,5 @@
 using SchemaNode.Property.App;
+using SchemaNode.Property.Core;
 using SchemaNode.Schema;
 
 namespace SchemaNode.WPF.Man.ViewModels;
@@ -30,9 +31,14 @@ public sealed class AppSchemaRowViewModel
 
         CanView = schema.GetProperty<SchemaRead>()?.Value != false;
         CanEdit = schema.GetProperty<SchemaUpdate>()?.Value == true;
-        CanDelete = !hasApps && !hasFields && !hasWorkflows
+        // System-defined apps are owned by the host code and must never be deleted; the
+        // remaining leaf/no-workflow rule is the appSchema.vue delete predicate.
+        CanDelete = !IsSystemDefined && !hasApps && !hasFields && !hasWorkflows
                     && schema.GetProperty<SchemaDelete>()?.Value == true;
     }
+
+    /// <summary>Whether the app is defined by the host code rather than by the user.</summary>
+    public bool IsSystemDefined => Schema.GetProperty<SystemDefined>() is { Value: true };
 
     /// <summary>The underlying definition; used for navigation and deletion.</summary>
     public AppSchema Schema { get; }

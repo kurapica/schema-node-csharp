@@ -26,6 +26,11 @@
         <views:TableView />
     </DataTemplate>
 
+    <!-- Namespace / type path with generic arguments (counterpart of namespace.vue). -->
+    <DataTemplate x:Key="SchemaTypeSelector">
+        <views:TypeSelectorView />
+    </DataTemplate>
+
     <!-- Last-resort read-only rendering for node shapes without a dedicated view. -->
     <DataTemplate x:Key="SchemaFallback">
         <TextBox Text="{Binding DisplayText, Mode=OneWay}" IsReadOnly="True"

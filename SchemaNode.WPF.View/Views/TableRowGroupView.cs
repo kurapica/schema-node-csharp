@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Media;
 using SchemaNode.WPF.View.NodeWrapper;
 
@@ -40,7 +41,7 @@ public sealed class TableRowGroupView : Grid
 
         foreach (TableCell cell in group.Cells)
         {
-            FrameworkElement element = CreateCell(cell);
+            FrameworkElement element = CreateCell(cell, group.CellSkin);
             SetRow(element, cell.Row);
             SetRowSpan(element, cell.RowSpan);
             SetColumn(element, cell.ColumnIndex);
@@ -48,7 +49,7 @@ public sealed class TableRowGroupView : Grid
         }
     }
 
-    private static FrameworkElement CreateCell(TableCell cell)
+    private static FrameworkElement CreateCell(TableCell cell, string? cellSkin)
     {
         if (cell.Kind == TableCellKind.Value)
         {
@@ -61,13 +62,28 @@ public sealed class TableRowGroupView : Grid
 
             if (cell.Wrapper is not null)
             {
+                // A relation can hide the cell's node (or a structured parent it belongs to).
+                // Collapse the cell rather than rebuilding rows or columns, so an inherited
+                // visibility change never replaces the content subtree.
+                value.SetBinding(UIElement.VisibilityProperty, new Binding(nameof(DataNodeWrapper.IsVisible))
+                {
+                    Source = cell.Wrapper,
+                    Mode = BindingMode.OneWay,
+                    Converter = Converters.BoolToVisibility,
+                });
+
                 value.ToolTip = cell.Wrapper.Error;
-                value.Child = new SchemaView
+                SchemaView view = new()
                 {
                     Node = cell.Wrapper,
                     Role = SchemaViewRole.Cell,
                     VerticalAlignment = VerticalAlignment.Center,
                 };
+
+                // A cell skin set on the table overrides the inherited one; null keeps inheriting
+                // from the table view, so nothing changes when no cell skin was configured.
+                if (cellSkin is not null) view.Skin = cellSkin;
+                value.Child = view;
             }
 
             return value;

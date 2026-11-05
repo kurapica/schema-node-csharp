@@ -1,4 +1,5 @@
 using System.ClientModel;
+using System.ClientModel.Primitives;
 using System.Reflection;
 using System.Text.Json;
 using Azure.AI.OpenAI;
@@ -12,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using OpenAI;
 using SchemaNode.AI.Chat;
 using SchemaNode.Context;
+using SchemaNode.Http;
 using SchemaNode.Service;
 using SchemaNode.Utility;
 
@@ -38,6 +40,21 @@ public static class SchemaNodeChatInjection
         this IServiceCollection services,
         Action<SchemaChatOptions>? configure = null)
     {
+        return services
+            .AddSchemaChatCore(configure)
+            .AddAppSchemaAssemblies(Assembly.GetExecutingAssembly());
+    }
+
+    /// <summary>
+    /// Registers the schema assistant services without exposing the HTTP endpoints. Hosts that only
+    /// consume <see cref="IAIChat"/> in-process, such as the WPF host, use this overload.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configure">Optional configuration; see <see cref="AddSchemaChat"/>.</param>
+    public static IServiceCollection AddSchemaChatCore(
+        this IServiceCollection services,
+        Action<SchemaChatOptions>? configure = null)
+    {
         var options = new SchemaChatOptions();
         configure?.Invoke(options);
         services.AddSingleton(options);
@@ -50,7 +67,40 @@ public static class SchemaNodeChatInjection
         // specific client lazily. The provider is not contacted until the first chat request.
         services.TryAddSingleton<IChatClient>(_ => CreateChatClient(options));
 
-        return services.AddAppSchemaAssemblies(Assembly.GetExecutingAssembly());
+        // The default in-process implementation shares prompt assembly and validation with the
+        // HTTP endpoints.
+        services.TryAddScoped<IAIChat, LocalAIChat>();
+
+        // The feature gate and the registry share one source, so in-process hosts (WPF local mode)
+        // answer the same question as HTTP hosts reading ProtocolApi.EnableFeatures.
+        Http.Service.EnableFeature("ai_chat");
+        services.TryAddSingleton<ISchemaFeatures, SchemaFeatures>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers <see cref="IAIChat"/> as an HTTP client for hosts that do not own a
+    /// <see cref="SchemaContext"/>. Register either this overload or
+    /// <see cref="AddSchemaChatCore"/>, not both.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="baseAddress">
+    /// The schema API base address including the prefix, e.g. <c>http://localhost:5000/schema</c>.
+    /// </param>
+    /// <param name="configure">Optional transport configuration.</param>
+    public static IServiceCollection AddSchemaChatWebClient(
+        this IServiceCollection services,
+        string baseAddress,
+        Action<AIChatWebApiOptions>? configure = null)
+    {
+        var options = new AIChatWebApiOptions { BaseAddress = baseAddress };
+        configure?.Invoke(options);
+        services.AddSingleton(options);
+        services.TryAddSingleton<HttpClient>();
+        services.TryAddSingleton<IAIChat>(serviceProvider => new HttpAIChat(
+            serviceProvider.GetRequiredService<HttpClient>(), options));
+        return services;
     }
 
     /// <summary>
@@ -244,6 +294,9 @@ public static class SchemaNodeChatInjection
                 return client.GetChatClient(options.DeploymentName ?? options.ModelId).AsIChatClient();
             }
 
+            case SchemaChatProvider.Mock:
+                return new MockChatClient();
+
             case SchemaChatProvider.Ollama:
             {
                 string baseUrl = string.IsNullOrWhiteSpace(options.Endpoint)
@@ -253,9 +306,16 @@ public static class SchemaNodeChatInjection
                     baseUrl += "/v1";
 
                 // Ollama ignores the API key but the OpenAI SDK requires a non empty credential.
-                OpenAIClient client = new(
-                    new ApiKeyCredential("ollama"),
-                    new OpenAIClientOptions { Endpoint = new Uri(baseUrl) });
+                OpenAIClientOptions clientOptions = new() { Endpoint = new Uri(baseUrl) };
+                if (options.DisableThinking)
+                {
+                    // Ollama maps reasoning_effort=none to think:false. qwen3 otherwise spends the
+                    // output budget on reasoning and can return empty content.
+                    clientOptions.Transport = new HttpClientPipelineTransport(
+                        new HttpClient(new OllamaThinkingHandler(new SocketsHttpHandler())));
+                }
+
+                OpenAIClient client = new(new ApiKeyCredential("ollama"), clientOptions);
 
                 return client.GetChatClient(options.ModelId).AsIChatClient();
             }

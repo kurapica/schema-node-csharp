@@ -23,7 +23,8 @@
 
                         <local:SchemaView Grid.Column="1"
                                           HorizontalAlignment="Stretch"
-                                          Node="{Binding}" />
+                                          Node="{Binding}"
+                                          SizeChanged="OnFieldSizeChanged" />
                     </Grid>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>

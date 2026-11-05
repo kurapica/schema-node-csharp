@@ -1,5 +1,7 @@
 using SchemaNode.Node;
+using SchemaNode.Property.Common;
 using SchemaNode.Runtime;
+using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.UnitTest.Core;
@@ -180,5 +182,54 @@ public class StructTypeTest : Base.CoreTestBase
         // system.context has fields like Target, Items etc.
         var targetField = node!.GetAccessValue("Target");
         Console.WriteLine($"system.context Target field: {targetField?.GetType().Name ?? "null"}");
+    }
+
+    /// <summary>
+    /// A definition node exposes only the attach fields of its own kind. The visibility comes
+    /// from the type relations (<c>eq(@kind, "int")</c> etc.), so this covers the relation
+    /// process end to end instead of writing the property directly.
+    /// </summary>
+    [TestMethod]
+    public async Task StructNode_DefinitionKind_RelationDerivedVisible()
+    {
+        Context.FullMode = true;
+
+        var definitionType = await Context.GetNodeTypeAsync<StructType>($"{NS_SYSTEM_SCHEMA_NODE}.schema");
+        Assert.IsNotNull(definitionType);
+
+        JsonObject seed = new()
+        {
+            ["namespace"] = "unit",
+            ["name"] = "unit.int",
+            ["kind"] = NODE_KIND_INT
+        };
+        var node = definitionType.Create(Context, seed) as StructNode;
+        Assert.IsNotNull(node);
+
+        DataNode intField = (DataNode)node!.GetAccessValue(NODE_KIND_INT)!;
+        DataNode stringField = (DataNode)node.GetAccessValue(NODE_KIND_STRING)!;
+
+        // The eq relation must have evaluated and written Visible on both groups.
+        Assert.AreEqual(true, intField.GetProperty<Visible>()?.Value, "the int group should stay visible");
+        Assert.AreEqual(false, stringField.GetProperty<Visible>()?.Value, "the string group should be hidden");
+        Assert.IsTrue(intField.Visible);
+        Assert.IsFalse(stringField.Visible);
+
+        // Switching the kind re-evaluates the relations and flips the records.
+        node.GetAccessValue("kind")!.TrySetValue(NODE_KIND_STRING);
+        await WaitUntilAsync(() => !intField.Visible && stringField.Visible);
+        Assert.IsTrue(stringField.Visible, "the string group should become visible after the kind switch");
+        Assert.IsFalse(intField.Visible, "the int group should be hidden after the kind switch");
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        // Relation processes are debounced on the thread pool.
+        for (int i = 0; i < 200; i++)
+        {
+            if (condition()) return;
+            await Task.Delay(10);
+        }
+        Assert.Fail("relation result was not applied in time");
     }
 }

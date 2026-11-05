@@ -166,7 +166,7 @@ Every concrete wrapper has its own `UserControl` and `DataTemplate` resource key
 | `TableWrapper` | `TableView.xaml` | `SchemaTable` | Struct-array table |
 | `FallbackWrapper` | Inline read-only `TextBox` | `SchemaFallback` | Unknown node shape |
 
-`DataNodeWrapper` is the common base class: `INotifyPropertyChanged`, `INotifyDataErrorInfo`, dispatcher hand-off, and exactly-once unsubscription. `ScalarWrapper` adds `Require` / `AsSuggest` / `LeafOnly` on top, and `InputWrapper` layers candidate and multi-value state on that. All wrappers share the same `Registry`, `Role`, and `FieldName`.
+`DataNodeWrapper` is the common base class: `INotifyPropertyChanged`, `INotifyDataErrorInfo`, dispatcher hand-off, exactly-once unsubscription, and the permission states (`Require`, `ReadOnly`, `Disable`, `DisplayOnly`) with their derived `IsEditable` / `IsRequired` / `IsOptional`. `InputWrapper` adds everything entry-related: candidates, cascading levels, multi-value state and `AsSuggest` / `LeafOnly`. Date and Bool inherit `DataNodeWrapper` directly; they need the permission states but never carry an entry source. All wrappers share the same `Registry`, `Role`, and `FieldName`.
 
 ### 3.3 Dispatch by Node Shape
 
@@ -178,10 +178,10 @@ Every concrete wrapper has its own `UserControl` and `DataTemplate` resource key
 4. `StructNode` → `StructWrapper`;
 5. `DateNode` → `DateWrapper`;
 6. `BoolNode` → `BoolWrapper`;
-7. `ScalarNode` → `InputWrapper` when `HasEntrySource` or the type/ancestor declares an entry-source contract, otherwise `ScalarWrapper`;
+7. `ScalarNode` → `InputWrapper` (with no candidates it degrades to the plain text editor);
 8. Any other shape → `FallbackWrapper`.
 
-Core resolves entry sources asynchronously with debounce, so `HasEntrySource` may still be false right after the node is created. The factory therefore checks `EntrySource`, `EntrySourceProvider`, `EntrySourceConsumer`, and `AccessEntryConsumer` synchronously, preventing namespace and type cascades from degrading into a plain TextBox.
+Core resolves entry sources asynchronously with debounce. `InputWrapper` starts a cancellable load whenever `EntrySourceVersion` changes, so a namespace or type cascade upgrades from plain text to a drop-down as soon as the snapshot arrives.
 
 ### 3.4 Candidate Entries: Single Level, Cascade, and Multi-Value
 

@@ -124,7 +124,36 @@ public sealed class SchemaChatService
         List<ChatMessage> messages = [];
         string prompt = SchemaChatPrompt.Build(request.Locale, target, currentJson, request.IsNew, _options);
         messages.Add(new ChatMessage(ChatRole.System, prompt));
+
+        if (!string.IsNullOrWhiteSpace(request.SystemContent))
+            messages.Add(new ChatMessage(ChatRole.System, request.SystemContent.Trim()));
+
+        // A stateless caller may supply the turns itself; the conversation store is authoritative
+        // whenever a conversation identifier is present.
+        if (request.History is { Length: > 0 } && string.IsNullOrWhiteSpace(request.ConversationId))
+        {
+            foreach (AIChatTurn turn in request.History)
+            {
+                if (string.IsNullOrWhiteSpace(turn.Content)) continue;
+                ChatRole role = turn.Role switch
+                {
+                    AIChatRole.System => ChatRole.System,
+                    AIChatRole.Assistant => ChatRole.Assistant,
+                    _ => ChatRole.User,
+                };
+                messages.Add(new ChatMessage(role, turn.Content.Trim()));
+            }
+        }
+
         messages.AddRange(_store.Get(owner, conversationId));
+
+        if (!string.IsNullOrWhiteSpace(request.ValidationFeedback))
+        {
+            messages.Add(new ChatMessage(ChatRole.System,
+                "The editor rejected the previous candidate with these validation errors. "
+                + "Fix them in the next proposal:\n" + request.ValidationFeedback.Trim()));
+        }
+
         messages.Add(new ChatMessage(ChatRole.User, request.Message.Trim()));
         _store.Append(owner, conversationId, new ChatMessage(ChatRole.User, request.Message.Trim()));
 
@@ -132,13 +161,15 @@ public sealed class SchemaChatService
         var chatOptions = new ChatOptions
         {
             Tools = tools,
-            Temperature = _options.Temperature,
-            ModelId = _options.ModelId,
+            Temperature = request.Temperature ?? _options.Temperature,
+            ModelId = request.ModelId ?? _options.ModelId,
+            MaxOutputTokens = request.MaxTokens ?? _options.MaxOutputTokens,
             AllowMultipleToolCalls = true,
         };
+        int timeoutSeconds = request.TimeoutSeconds ?? _options.RequestTimeoutSeconds;
         using CancellationTokenSource timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        if (_options.RequestTimeoutSeconds > 0)
-            timeoutCts.CancelAfter(TimeSpan.FromSeconds(_options.RequestTimeoutSeconds));
+        if (timeoutSeconds > 0)
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
         CancellationToken token = timeoutCts.Token;
 
         FunctionInvokingChatClient client = CreateFunctionClient();
@@ -196,12 +227,12 @@ public sealed class SchemaChatService
                 yield return new SchemaChatCompleted(BuildError(
                     conversationId,
                     "timeout",
-                    $"The assistant did not answer within {_options.RequestTimeoutSeconds} seconds."));
+                    $"The assistant did not answer within {timeoutSeconds} seconds."));
                 yield break;
             }
 
             response = BuildResponse(conversationId, streamedText.ToString(), currentSchema, currentJson);
-            ApplyStreamingFailure(response, failure);
+            ApplyStreamingFailure(response, failure, timeoutSeconds);
         }
         else
         {
@@ -234,12 +265,12 @@ public sealed class SchemaChatService
                 yield return new SchemaChatCompleted(BuildError(
                     conversationId,
                     "timeout",
-                    $"The assistant did not answer within {_options.RequestTimeoutSeconds} seconds."));
+                    $"The assistant did not answer within {timeoutSeconds} seconds."));
                 yield break;
             }
 
             response = BuildResponse(conversationId, text, currentSchema, currentJson);
-            ApplyStreamingFailure(response, failure);
+            ApplyStreamingFailure(response, failure, timeoutSeconds);
         }
 
         if (response.Kind == SchemaChatResultKind.Error && response.ErrorCode == "empty_response"
@@ -324,7 +355,7 @@ public sealed class SchemaChatService
         }
     }
 
-    private void ApplyStreamingFailure(ChatSchemaResponse response, string? failure)
+    private void ApplyStreamingFailure(ChatSchemaResponse response, string? failure, int timeoutSeconds)
     {
         if (failure == null) return;
         if (response.Kind is SchemaChatResultKind.SchemaChange or SchemaChatResultKind.ValidationFailed) return;
@@ -332,7 +363,7 @@ public sealed class SchemaChatService
         response.Kind = SchemaChatResultKind.Error;
         response.ErrorCode = failure;
         response.Message = failure == "timeout"
-            ? $"The assistant did not answer within {_options.RequestTimeoutSeconds} seconds."
+            ? $"The assistant did not answer within {timeoutSeconds} seconds."
             : $"The assistant failed: {_agentFailureMessage ?? "unknown error"}";
     }
 
@@ -474,6 +505,18 @@ public sealed class SchemaChatService
 
         SchemaValidationResult validation = await _context.ValidateNodeSchemaAsync(
             node, target, checkAuthorization: true, token);
+
+        // The namespace is editor owned; this fallback path must enforce the same rule as the
+        // proposal tool instead of silently accepting a model-invented namespace.
+        string currentNamespace = currentJson["namespace"]?.GetValue<string>() ?? string.Empty;
+        string candidateNamespace = node!["namespace"]?.GetValue<string>() ?? string.Empty;
+        if (!string.Equals(currentNamespace, candidateNamespace, StringComparison.Ordinal))
+        {
+            validation.AddError(
+                SchemaValidationErrorCodes.NamespaceImmutable,
+                $"The namespace must stay '{currentNamespace}'. The assistant may not change it; " +
+                $"the candidate used '{candidateNamespace}'.");
+        }
 
         _session.Proposal = new SchemaChangeCandidate
         {

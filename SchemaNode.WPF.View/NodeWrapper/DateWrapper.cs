@@ -6,7 +6,7 @@ namespace SchemaNode.WPF.View.NodeWrapper;
 /// Wraps <c>system.date</c>. Core stores <see cref="DateTimeOffset"/>; the editor binds a
 /// <see cref="DateTime"/> because that is what WPF's DatePicker exposes.
 /// </summary>
-public sealed class DateWrapper : ScalarWrapper
+public sealed class DateWrapper : DataNodeWrapper
 {
     /// <inheritdoc />
     public override string? DefaultTemplateKey => SchemaTemplateKeys.Date;

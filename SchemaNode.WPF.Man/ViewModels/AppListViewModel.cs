@@ -429,6 +429,11 @@ public class AppListViewModel : BindableBase, INavigationAware, IDestructible
         SchemaScreenSession? session = _session;
         if (row is null || session is null) return;
 
+        if (row.IsSystemDefined)
+        {
+            Status = LocaleManager.Instance.Format("wpf.applist.status.protected", row.FullName);
+            return;
+        }
         if (!row.CanDelete)
         {
             Status = LocaleManager.Instance.Format("wpf.applist.status.inuse", row.FullName);

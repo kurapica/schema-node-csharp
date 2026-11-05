@@ -6,8 +6,15 @@
              xmlns:loc="clr-namespace:SchemaNode.WPF.View.Localization;assembly=SchemaNode.WPF.View"
              prism:ViewModelLocator.AutoWireViewModel="True">
     <DockPanel Margin="8">
-        <TextBlock DockPanel.Dock="Top" Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedemo.header}"
-                   FontSize="14" Margin="0,0,0,8" />
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+            <!-- Returns to the type list at the namespace the demo row was listed in. -->
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedoc.button.back}"
+                    Command="{Binding BackCommand}" Margin="0,0,12,0" />
+            <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedemo.header}"
+                       FontSize="14" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding Status}" Foreground="DarkSlateGray"
+                       VerticalAlignment="Center" Margin="12,0,0,0" />
+        </StackPanel>
         <!-- Reuse the generic editor; its DataContext is bound to the Editor property of this VM -->
         <local:SchemaEditorView DataContext="{Binding Editor}" />
     </DockPanel>

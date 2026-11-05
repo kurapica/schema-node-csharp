@@ -10,6 +10,10 @@ internal static class SchemaChatPrompt
 {
     /// <summary>The tool names exposed to the model.</summary>
     public const string ToolGetSchema = "get_schema";
+    /// <summary>The namespace browsing tool name.</summary>
+    public const string ToolListSchemas = "list_schemas";
+    /// <summary>The function signature tool name.</summary>
+    public const string ToolGetFunction = "get_function";
     /// <summary>The MCP validation tool name.</summary>
     public const string ToolValidateSchema = "validate_schema_candidate";
     /// <summary>The terminal proposal tool name.</summary>
@@ -35,6 +39,12 @@ You can call these tools:
   prototypes, existing schemas and their real properties before you construct anything.
   Never call it on the target you are about to create; a new schema does not exist yet. Use
   system.schema.node.schema, system.schema.struct.schema or an existing type as a reference.
+  It is only available while editing an existing schema.
+- list_schemas(namespace): lists the direct child types of a namespace as { name, kind } entries.
+  This is the cheap way to discover a system namespace; use it before reading full definitions.
+- get_function(name): reads a function's argument names, argument types and return type. Pass a
+  concrete generic instantiation when the function declares generic parameters,
+  for example system.intrinsic.<function><system.int>.
 - validate_schema_candidate(schema, targetName): validates a candidate node schema on the server.
   It is read-only and never persists. Returns blocking errors and warnings.
 - propose_schema_change(schema, summary?): submits the final complete node schema as a change
@@ -72,6 +82,24 @@ Kind specific definitions (only use what the runtime declares; query it if unsur
   when they are declared by the runtime.
 - namespace: no kind payload; it may contain "schemas": [ ... ].
 
+# Relations
+A kind payload can attach relations to a field. For a struct the relations sit next to the fields:
+"struct": { "fields": [ ... ], "relations": [ ... ] }.
+A relation object has this shape:
+{ "target": "<owner field name>", "property": "<property alias>", "kind": "call",
+  "call": { "func": "<function type name>",
+            "args": [ { "type": "<value type>", "source": "<source field>" } ],
+            "mode": "call" } }
+Do not guess the alias or the function. Discover them with the tools, in this order:
+1. list_schemas("system.schema.prop.<value kind>") lists the prototype properties declared for
+   that field's value type (for an integer field: system.schema.prop.int).
+2. list_schemas("system.intrinsic") lists the semantic functions. Pick a candidate by name,
+   then call get_function with concrete generic types to read its argument types and return type.
+3. Use only a function whose return type matches the property's value type and whose argument
+   type matches the source field type. Put the returned function name in call.func and the
+   source field name in call.args[0].source.
+If no reported function fits, say so instead of inventing one.
+
 # Built-in value type names
 Primitive value types already exist in the system namespace. Use these exact names in `type`,
 `element` and `return`:
@@ -91,9 +119,9 @@ Do NOT use bare names such as "string", "int" or "decimal" as a field type. A st
 
 # Example: struct with localized labels
 For the Chinese request "创建 example.IntegerRange 结构体，包含两个整数字段 min 和 max，范围限制在 0-100 之间",
-the candidate is:
+the candidate is (assuming the editor namespace is empty):
 {
-  "namespace": "example",
+  "namespace": "",
   "name": "IntegerRange",
   "kind": "struct",
   "display": { "key": "整数范围", "trans": [] },
@@ -105,6 +133,7 @@ the candidate is:
   }
 }
 Note the nesting: fields are inside "struct", and each field has a localized display.
+Copy the editor namespace exactly; the example uses "" only because that editor had none.
 
 If the user asks for English defaults with Chinese translations, write each label as:
 "display": { "key": "Minimum", "trans": [ { "lang": "zhCN", "tran": "最小值" } ] }
@@ -142,14 +171,19 @@ confirmed, tell the user instead of guessing.
    block. Mention the important changes and whether validation passed.
 
 # Rules
-- The candidate target is the schema currently open in the editor. Keep the same namespace and
-  name when modifying an existing schema. Do not rename it unless the user explicitly asks; a
-  rename is a different operation and may be rejected.
+- The namespace is editor owned and IMMUTABLE: copy it exactly from the current editor content.
+  Never add, remove, translate or rename a namespace. If the current editor content has no
+  namespace, the candidate uses "". A candidate with a different namespace is rejected.
+- The candidate target is the schema currently open in the editor. When the editor already has a
+  name, keep it unless the user explicitly asks to rename it. A rename is a different operation
+  and may be rejected.
+- When the editor has no name yet, choose one short identifier yourself from the user's request;
+  do not ask the user for it.
 - Never propose a schema in the system namespace. System schemas are read-only for this assistant.
 - Do not use numeric enum values for kinds; use the kind name, e.g. "struct", not a number.
 - Use type names returned by get_schema. Do not guess type names.
-- If the editor content is incomplete (for example a new schema without a name), ask for the
-  missing information instead of fabricating it.
+- Ask only for information the editor does not provide, for example the intended fields when the
+  request is vague. Never ask for the namespace or the name when the editor already fixes them.
 - Answer in the same language as the user's message.
 - Keep the final answer concise and factual. Never claim that a change was saved or persisted.
 """);
@@ -161,6 +195,9 @@ confirmed, tell the user instead of guessing.
 
         if (currentSchema != null)
         {
+            string currentNamespace = currentSchema["namespace"]?.GetValue<string>() ?? string.Empty;
+            sb.AppendLine($"- Namespace (immutable): {(currentNamespace.Length == 0 ? "(empty root namespace)" : currentNamespace)}");
+
             string json = currentSchema.ToJsonString(SchemaChatJson.Options);
             bool truncated = json.Length > options.MaxPromptSchemaChars;
             if (truncated) json = json[..options.MaxPromptSchemaChars];
@@ -182,7 +219,7 @@ confirmed, tell the user instead of guessing.
         else
         {
             sb.AppendLine();
-            sb.AppendLine("The editor has no current schema. When creating one, choose a namespace that already exists unless the user asks otherwise.");
+            sb.AppendLine("The editor has no current schema. Leave the namespace empty; choose a name from the user's request.");
         }
 
         if (!string.IsNullOrWhiteSpace(locale))

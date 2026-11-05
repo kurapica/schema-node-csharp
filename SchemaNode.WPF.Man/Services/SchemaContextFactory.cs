@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
+using SchemaNode.AI.Chat;
 using SchemaNode.Api.Client;
 using SchemaNode.Context;
+using SchemaNode.Http;
 using SchemaNode.WPF.View.Localization;
 
 namespace SchemaNode.WPF.Man.Services;
@@ -23,12 +25,20 @@ public sealed class SchemaScreenSession : IDisposable
     private readonly Action<SchemaContext> _unregister;
     private bool _disposed;
 
-    internal SchemaScreenSession(IServiceScope scope, SchemaContext context, ISchemaApiProvider api, Action<SchemaContext> unregister)
+    internal SchemaScreenSession(
+        IServiceScope scope,
+        SchemaContext context,
+        ISchemaApiProvider api,
+        Action<SchemaContext> unregister,
+        IAIChat? chat,
+        ISchemaFeatures features)
     {
         _scope = scope;
         _unregister = unregister;
         Context = context;
         Api = api;
+        Chat = chat;
+        Features = features;
     }
 
     /// <summary>Schema context exclusively owned by this screen (FullMode already enabled)</summary>
@@ -36,6 +46,19 @@ public sealed class SchemaScreenSession : IDisposable
 
     /// <summary>Data-access implementation for this screen (bound to this Context in local mode)</summary>
     public ISchemaApiProvider Api { get; }
+
+    /// <summary>
+    /// The schema assistant resolved from the same scope as <see cref="Context"/>, so the local
+    /// implementation sees exactly this screen's definitions. Null when the host did not register
+    /// an assistant.
+    /// </summary>
+    public IAIChat? Chat { get; }
+
+    /// <summary>
+    /// The enabled server features, answered in process from the same registry that HTTP hosts
+    /// publish through the protocol response. The WPF shell never fetches the protocol.
+    /// </summary>
+    public ISchemaFeatures Features { get; }
 
     /// <summary>
     /// Registers a DataNode created by this screen so it can be fallback-disposed in reverse order when the screen closes.
@@ -136,7 +159,12 @@ public sealed class SchemaContextFactory
         context.Locale = locale;
 
         ISchemaApiProvider api = _sharedRemote ?? new LocalSchemaApiProvider(context);
-        return new SchemaScreenSession(scope, context, api, Unregister);
+
+        // Resolve from the screen scope, never from the root provider: LocalAIChat must use the
+        // scoped SchemaContext and must be disposed with the session.
+        IAIChat? chat = scope.ServiceProvider.GetService<IAIChat>();
+        ISchemaFeatures features = scope.ServiceProvider.GetService<ISchemaFeatures>() ?? new SchemaFeatures();
+        return new SchemaScreenSession(scope, context, api, Unregister, chat, features);
     }
 
     /// <summary>

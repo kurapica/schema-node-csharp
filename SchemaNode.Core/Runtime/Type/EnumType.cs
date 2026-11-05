@@ -48,13 +48,23 @@ public sealed class EnumType: ValueType
     public LocaleString[]? Cascade => _enumSchema?.Cascade;
 
     /// <inheritdoc/>
-    public override Type? GetCsharpType(bool nullable = false) => base.GetCsharpType() ?? Type switch
+    public override Type? GetCsharpType(bool nullable = false)
     {
-        EnumValueType.String => typeof(string),
-        EnumValueType.Int => typeof(long),
-        EnumValueType.Flags => typeof(long),
-        _ => null
-    };
+        Type? csharpType = base.GetCsharpType();
+        // A record enum is declared as a member-less C# enum: the marker type only carries the
+        // schema metadata, while the node stores the record value (string or number). Reporting
+        // the marker type as the CLR type makes value conversion and generic function binding
+        // target a type that can never hold the actual value, so fall back to the value type.
+        if (csharpType is { IsEnum: true } && csharpType.GetEnumNames().Length == 0)
+            csharpType = null;
+        return csharpType ?? Type switch
+        {
+            EnumValueType.String => typeof(string),
+            EnumValueType.Int => typeof(long),
+            EnumValueType.Flags => typeof(long),
+            _ => null
+        };
+    }
 
     #endregion
     

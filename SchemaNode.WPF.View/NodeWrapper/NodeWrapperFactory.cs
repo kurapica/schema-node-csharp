@@ -1,6 +1,4 @@
 using SchemaNode.Node;
-using SchemaNode.Property.Core;
-using SchemaNode.Property.String;
 using SchemaNode.Runtime;
 
 namespace SchemaNode.WPF.View.NodeWrapper;
@@ -52,30 +50,15 @@ public static class NodeWrapperFactory
         if (dataNode is BoolNode)
             return new BoolWrapper(dataNode, effectiveRegistry, fieldName, role);
 
-        if (dataNode is ScalarNode scalar)
+        if (dataNode is ScalarNode)
         {
-            // Core resolves entry sources asynchronously (debounced refresh), so HasEntrySource is
-            // still false right after the node is created. The entry-source contract declared by
-            // the type or by an ancestor provider is available synchronously; checking it prevents
-            // a cascade selector (namespace / type selectors) from degrading into a plain TextBox.
-            return scalar.HasEntrySource || ExpectsEntrySource(scalar)
-                ? new InputWrapper(dataNode, effectiveRegistry, fieldName, role)
-                : new ScalarWrapper(dataNode, effectiveRegistry, fieldName, role);
+            // Any value input can grow entry candidates through relations, so every scalar uses the
+            // entry-capable wrapper. With no candidates it degrades to the plain text editor.
+            return new InputWrapper(dataNode, effectiveRegistry, fieldName, role);
         }
 
         // Unknown shapes must not abort the parent tree (which would leave the whole pane blank):
         // degrade to a read-only text view and keep the rest of the form usable.
         return new FallbackWrapper(dataNode, effectiveRegistry, fieldName, role);
     }
-
-    /// <summary>
-    /// Whether the node is declared to have an entry source, even though Core has not resolved it
-    /// yet. Mirrors the lookups <c>ScalarNode.RefreshEntrySourceAsync</c> performs: a direct
-    /// <c>EntrySource</c>, a provider on an ancestor composite, or the consumer flags.
-    /// </summary>
-    private static bool ExpectsEntrySource(DataNode node)
-        => node.GetProperty<EntrySource>()?.HasValue == true
-           || node.GetProperty<EntrySourceProvider>()?.HasValue == true
-           || node.GetProperty<EntrySourceConsumer>()?.Value == true
-           || node.GetProperty<AccessEntryConsumer>()?.HasValue == true;
 }

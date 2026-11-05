@@ -40,6 +40,99 @@ public class SchemaTools
             ?? throw new InvalidOperationException($"Schema type '{name}' not found.");
         return await context.GetNodeSchemasAsync(schemaType);
     }
+
+    [McpServerTool, Description(
+         "List the direct child schema types of a namespace. " +
+         "Returns a compact array of { name, kind } entries, so it is much cheaper than reading " +
+         "the full node schemas. Use it to discover system namespaces and their members, " +
+         "for example the functions in system.intrinsic or the integer properties in " +
+         "system.schema.prop.int. Empty name lists the root namespaces. " +
+         "Follow up with get_schema or get_function for the entries you need.")]
+    public static async Task<JsonNode> ListSchemas(
+        SchemaContext context,
+        [Description(
+            "Full name of the namespace to browse, e.g. 'system.intrinsic' or " +
+            "'system.schema.prop.int'. Leave empty for the root namespace."
+        )] string? name = null)
+    {
+        SchemaRuntime runtime = context.Runtime as SchemaRuntime
+            ?? throw new InvalidOperationException("The schema runtime is not available.");
+
+        NodeType namespaceType = string.IsNullOrWhiteSpace(name)
+            ? runtime.RootNamespace
+            : await context.GetNodeTypeAsync(name.Trim())
+              ?? throw new InvalidOperationException($"Namespace '{name}' not found.");
+
+        if (namespaceType is not SchemaNode.Runtime.NamespaceType ns)
+            throw new InvalidOperationException($"'{name}' is not a namespace. Use get_schema to read a type definition.");
+
+        JsonArray schemas = new();
+        foreach (NodeSchema schema in ns.GetNodeSchemas(context))
+            schemas.Add(new JsonObject { ["name"] = schema.FullName, ["kind"] = schema.Kind });
+
+        return new JsonObject
+        {
+            ["namespace"] = ns.Name,
+            ["schemas"] = schemas,
+        };
+    }
+
+    [McpServerTool, Description(
+         "Read the signature of a function schema type without reading its whole node schema. " +
+         "Returns the function name, the argument names, argument types and required flags, and the return type. " +
+         "Pass a concrete generic instantiation when the function declares generic parameters so " +
+         "the argument and return types are resolved. Use list_schemas first to discover function names.")]
+    public static async Task<JsonNode> GetFunction(
+        SchemaContext context,
+        [Description(
+            "Function schema type name, optionally with concrete generic arguments, " +
+            "e.g. 'system.intrinsic.<function><system.int>'."
+        )] string name)
+    {
+        FunctionType function = await context.GetNodeTypeAsync<FunctionType>(name.Trim())
+            ?? throw new InvalidOperationException(
+                $"Function '{name}' not found. Use list_schemas to browse the namespace and find the function name.");
+
+        JsonArray args = new();
+        foreach (FunctionNodeArgument arg in function.Args)
+        {
+            args.Add(new JsonObject
+            {
+                ["name"] = arg.Name,
+                ["type"] = ResolveArgumentType(function, arg),
+                ["required"] = arg.Require,
+            });
+        }
+
+        return new JsonObject
+        {
+            ["name"] = function.Name,
+            ["returns"] = function.Return?.Name,
+            ["args"] = args,
+        };
+    }
+
+    /// <summary>
+    /// Resolves a generic argument type such as "T" against the instantiated generic parameters.
+    /// <see cref="FunctionType.Args"/> keeps the template type strings; the instantiated types
+    /// live in <see cref="NodeType.GenericParams"/>.
+    /// </summary>
+    private static string ResolveArgumentType(FunctionType function, FunctionNodeArgument arg)
+    {
+        if (string.IsNullOrWhiteSpace(arg.Type))
+            return arg.ValueType?.Name ?? string.Empty;
+
+        if (function.Generics is { Count: > 0 } generics && function.GenericParams is { Count: > 0 } instantiated)
+        {
+            for (int i = 0; i < generics.Count && i < instantiated.Count; i++)
+            {
+                if (string.Equals(generics[i].Name, arg.Type, StringComparison.Ordinal))
+                    return instantiated[i].Name;
+            }
+        }
+
+        return arg.Type;
+    }
     
     [McpServerTool, Description(
          "Validate a candidate schema node definition without saving it. " +

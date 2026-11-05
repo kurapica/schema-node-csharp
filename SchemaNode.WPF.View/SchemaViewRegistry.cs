@@ -27,6 +27,7 @@ public static class SchemaTemplateKeys
     public const string Struct = "SchemaStruct";
     public const string Array = "SchemaArray";
     public const string Table = "SchemaTable";
+    public const string TypeSelector = "SchemaTypeSelector";
     public const string Fallback = "SchemaFallback";
 }
 
@@ -94,6 +95,17 @@ public sealed class SchemaViewRegistry
         registry.RegisterKind(Constant.SCHEMA_KIND_NODE_DATE, SchemaTemplateKeys.Date);
         registry.RegisterKind(Constant.SCHEMA_KIND_NODE_STRUCT, SchemaTemplateKeys.Struct);
         registry.RegisterKind(Constant.SCHEMA_KIND_NODE_ARRAY, null, registry.ResolveArray);
+
+        // Type path nodes (namespace / type / value type / array element / function type, and the
+        // schema kind subclasses of system.schema.node.type) use the namespace.vue counterpart: the
+        // plain path cascade plus generic argument editors. Registering the base type covers every
+        // subclass through the BaseType walk.
+        string typePath = $"{Constant.NS_SYSTEM_SCHEMA_NODE}.type";
+        foreach (SchemaViewRole role in new[] { SchemaViewRole.Field, SchemaViewRole.Cell, SchemaViewRole.RowEditor })
+        {
+            registry.RegisterType(typePath, SchemaTemplateKeys.TypeSelector, role, DefaultSkin,
+                wrapperFactory: node => new TypeSelectorWrapper((DataNode)node, registry, null, role));
+        }
 
         return registry;
     }

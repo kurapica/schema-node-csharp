@@ -13,6 +13,12 @@ public enum SchemaChatProvider
 
     /// <summary>Local Ollama server through its OpenAI compatible <c>/v1</c> endpoint.</summary>
     Ollama,
+
+    /// <summary>
+    /// Deterministic in-process provider used when no model is available. It returns a valid
+    /// NodeSchema payload for schema change requests so the editor flow can be exercised.
+    /// </summary>
+    Mock,
 }
 
 /// <summary>
@@ -75,6 +81,17 @@ public class SchemaChatOptions
 
     /// <summary>The sampling temperature.</summary>
     public float? Temperature { get; set; } = 0.2f;
+
+    /// <summary>The maximum number of output tokens. Null uses the provider default.</summary>
+    public int? MaxOutputTokens { get; set; }
+
+    /// <summary>
+    /// Adds <c>reasoning_effort: "none"</c> to Ollama chat completion requests. Ollama maps it to
+    /// its native <c>think: false</c> switch; thinking consumes the output budget and can leave
+    /// the content empty. Ignored by the other providers.
+    /// </summary>
+    public bool DisableThinking { get; set; } = true;
+
     /// <summary>Whether the streaming endpoint is enabled.</summary>
     public bool EnableStreaming { get; set; } = true;
 }
