@@ -29,6 +29,14 @@ It attempts to decouple semantic definitions from concrete execution, so that se
 
 ---
 
+## Example
+
+Here is a simple MinMax struct type, the relation will use min value as max value's low-limit property as constraint, it works both WPF and web, also the backend, those types are platform in-dependent.
+
+![minmax](./Doc/pic/minmax.gif)
+
+---
+
 ## Core Idea
 
 **SchemaNode is not about writing business rules faster — it attempts to make business semantics themselves become structures that can be described, composed, and executed.**
