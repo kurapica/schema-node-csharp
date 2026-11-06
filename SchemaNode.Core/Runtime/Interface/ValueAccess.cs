@@ -233,12 +233,12 @@ public interface IValueAccess
     /// <summary>
     /// Sets the property value to the value access
     /// </summary>
-    void SetPropertyValue<P, T>(T? value, IValueAccess? source, IRelation? relation) where P : Property<T>;
+    void SetPropertyValue<P, T>(T? value, IValueAccess? source = null, IRelation? relation = null) where P : Property<T>;
 
     /// <summary>
     /// Sets the property value to the value access by the runtime property constructor
     /// </summary>
-    void SetPropertyValue(Type propertyCtor, object? value, IValueAccess? source, IRelation? relation);
+    void SetPropertyValue(Type propertyCtor, object? value, IValueAccess? source = null, IRelation? relation = null);
 
     #endregion
 

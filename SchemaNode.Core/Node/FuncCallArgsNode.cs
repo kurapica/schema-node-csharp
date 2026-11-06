@@ -78,7 +78,7 @@ public class FuncCallArgsNode : DataNode, IEnumerable<StructNode>
         {
             _initData = null;
             RebuildArgs();
-            OnNext(BuildJsonArray());
+            OnNext(this);
             return true;
         }
 
@@ -217,7 +217,7 @@ public class FuncCallArgsNode : DataNode, IEnumerable<StructNode>
         _args.Clear();
         _varArg = null;
         _preColIdx = -1;
-        OnNext(BuildJsonArray());
+        OnNext(this);
     }
 
     /// <inheritdoc/>
@@ -543,7 +543,7 @@ public class FuncCallArgsNode : DataNode, IEnumerable<StructNode>
     private static string GetArgName(FunctionNodeArgument arg)
         => (arg.GetProperty<Display>()?.Value ?? new LocaleString(arg.Name)).ToString();
 
-    private void WriteBackRawValue() => OnNext(BuildJsonArray());
+    private void WriteBackRawValue() => OnNext(this);
 
     private CallArg[] BuildCallArgs()
     {

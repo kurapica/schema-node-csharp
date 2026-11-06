@@ -1,5 +1,6 @@
 ﻿using SchemaNode.Attribute;
 using SchemaNode.Context;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Struct;
 using SchemaNode.Runtime;
@@ -185,7 +186,7 @@ public class StructNode : DataNode
     public override bool IsEmpty => _csharpObject == null && _fields.All(f => f.IsEmpty);
 
     /// <inheritdoc/>
-    public override bool IsValid => _fields.All(f => f.IsValid) && base.IsValid;
+    public override bool IsValid => this.GetPropertyValue<DisableConstraint, bool>() == true || _fields.All(f => f.GetProperty<DisplayOnly>()?.Value == true || f.IsValid) && base.IsValid;
 
     /// <inheritdoc/>
     public override JsonNode? Violated
@@ -345,7 +346,7 @@ public class StructNode : DataNode
                 break;
             }
         }
-        OnNext(GetJsonObject());
+        OnNext(this);
         return true;
     }
 
@@ -398,7 +399,7 @@ public class StructNode : DataNode
         _csharpObject = null;
         foreach (var field in _fields)
             field.ClearValue();
-        OnNext(GetJsonObject());
+        OnNext(this);
     }
 
     /// <inheritdoc/>
@@ -633,7 +634,23 @@ public class StructNode : DataNode
     private void WriteBackRawValue(IValueAccess field, object? value)
     {
         _csharpObject = null;
-        OnNext(GetJsonObject());
+        if (Parent != null && GetPropertyValue<Require, bool>() != true)
+        {
+            if (value is null || value is IValueAccess access && access.IsEmpty)
+            {
+                if (IsEmpty && GetPropertyValue<DisableConstraint, bool>() != true)
+                {
+                    SetPropertyValue<DisableConstraint, bool>(true);
+                    ClearConstraints();
+                }
+            }
+            else if (GetPropertyValue<DisableConstraint, bool>() == true)
+            {
+                SetPropertyValue<DisableConstraint, bool>(false);
+                ClearConstraints();
+            }
+        }
+        OnNext(this);
     }
 
     private JsonObject GetJsonObject()

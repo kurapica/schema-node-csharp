@@ -407,7 +407,7 @@ public abstract class DataNode : IValueAccess, IDisposable
     }
 
     /// <inheritdoc/>
-    public void SetPropertyValue(Type propertyCtor, object? value, IValueAccess? source, IRelation? relation)
+    public void SetPropertyValue(Type propertyCtor, object? value, IValueAccess? source = null, IRelation? relation = null)
     {
         Type? valueType = propertyCtor.BaseType?.IsGenericType == true ? propertyCtor.BaseType.GetGenericArguments().FirstOrDefault() : null;
         if (valueType == null) return;
@@ -423,7 +423,7 @@ public abstract class DataNode : IValueAccess, IDisposable
     }
 
     /// <inheritdoc/>
-    public void SetPropertyValue<P, T>(T? value, IValueAccess? source, IRelation? relation) where P : Property<T>
+    public void SetPropertyValue<P, T>(T? value, IValueAccess? source = null, IRelation? relation = null) where P : Property<T>
     {
         source ??= this;
         var isClear = value is null;
@@ -551,7 +551,8 @@ public abstract class DataNode : IValueAccess, IDisposable
     #region Subscription
 
     /// <summary>
-    /// Publish the value change
+    /// Publish the value change. Scalar nodes publish the raw value, composite nodes publish the node
+    /// itself so subscribers (and semantic functions) can consume it without a JSON projection.
     /// </summary>
     protected void OnNext<T>(T? value)
     {

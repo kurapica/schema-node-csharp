@@ -85,7 +85,7 @@ public class FuncCallVarNode : DataNode, IEnumerable<StructNode>
             if (item is null) continue;
             AddRow(item);
         }
-        OnNext(BuildJsonArray());
+        OnNext(this);
         return true;
     }
 
@@ -184,7 +184,7 @@ public class FuncCallVarNode : DataNode, IEnumerable<StructNode>
     public override void ClearValue()
     {
         _args.Clear();
-        OnNext(BuildJsonArray());
+        OnNext(this);
     }
 
     /// <inheritdoc/>
@@ -409,7 +409,7 @@ public class FuncCallVarNode : DataNode, IEnumerable<StructNode>
     {
         if (!FullMode || GetProperty<ParamsList>()?.HasValue == true) return;
 
-        OnNext(BuildJsonArray());
+        OnNext(this);
         if (GetPropertyValue<ReadOnly, bool>()) return;
 
         int argCount = _args.Count;

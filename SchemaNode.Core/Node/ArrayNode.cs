@@ -245,7 +245,7 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
     public override void ClearValue()
     {
         _elements.Clear();
-        OnNext(GetJsonArray());
+        OnNext(this);
     }
 
     /// <summary>
@@ -436,7 +436,7 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
     {
         if (!FullMode) return;
         _arrayDataOb?.OnNext((this, GetJsonArray(), index));
-        OnNext(GetJsonArray());
+        OnNext(this);
     }
 
     #endregion
@@ -755,10 +755,9 @@ public class SliceArrayNode : DataNode
         if (_sourceNode is null) return _arrayNode.Subscribe(observer, immediate);
         return _arrayNode.SubscribeItem(items =>
         {
-            (IValueAccess node, object? item, int index) = items;
             int sourceIndex = _arrayNode.IndexOf(_sourceNode);
-            if (sourceIndex <= 0 || index >= sourceIndex) return;
-            observer.OnNext((node, SliceValue(item, index + 1)));
+            if (sourceIndex <= 0 || items.Item3 >= sourceIndex) return;
+            observer.OnNext((this, this));
         });
     }
 
@@ -778,11 +777,5 @@ public class SliceArrayNode : DataNode
     {
         if (!_arrayNode.TryGetValue(out JsonArray? array) || array is null) return [];
         return new JsonArray(array.Skip(_start).Take(_end - _start).Select(n => n?.DeepClone()).ToArray());
-    }
-
-    private static object? SliceValue(object? item, int count)
-    {
-        if (item is not JsonArray array) return item;
-        return new JsonArray(array.Take(count).Select(n => n?.DeepClone()).ToArray());
     }
 }
