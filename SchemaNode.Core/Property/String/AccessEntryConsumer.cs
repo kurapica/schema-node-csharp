@@ -59,7 +59,7 @@ public class AccessEntryConsumer: FuncCallProperty, IConstraintProperty
                 object?[] typeArgs = providerCall.Args.Select(a => string.IsNullOrWhiteSpace(a.Source)
                     ? a.Value
                     : (provider.Source ?? node).GetAccessValue(a.Source, node)?.GetValue<object>()).ToArray();
-                string? type = typeFunc is null ? null : await typeFunc.CallAsync<string>(context, typeArgs).ConfigureAwait(false);
+                string? type = typeFunc is null ? null : await typeFunc.CallAsync<string>(context, typeArgs, token: token).ConfigureAwait(false);
                 valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<ValueType>(type, token: token).ConfigureAwait(false) : null;
                 break;
             }
@@ -83,7 +83,7 @@ public class AccessEntryConsumer: FuncCallProperty, IConstraintProperty
                 IValueAccess? source = owner.GetAccessValue(a.Source, node);
                 return ReferenceEquals(source, node) ? valueType.Name : source?.GetValue<object>();
             }).ToArray();
-            return await func.CallAsync<bool?>(context, args).ConfigureAwait(false);
+            return await func.CallAsync<bool?>(context, args, token: token).ConfigureAwait(false);
         }
         catch (Exception e)
         {

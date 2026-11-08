@@ -16,5 +16,5 @@ public interface IFunctionSchemaProvider
     /// <param name="retType">The return type</param>
     /// <param name="mode">The apply mode</param>
     /// <returns>The result</returns>
-    Task<JsonNode?> CallFunctionAsync(string schemaName, JsonArray args, string? retType = null, ApplyMode? mode = ApplyMode.Call);
+    Task<JsonNode?> CallFunctionAsync(string schemaName, JsonArray args, string? retType = null, ApplyMode? mode = ApplyMode.Call, CancellationToken token = default);
 }

@@ -616,7 +616,7 @@ public abstract class ScalarNode : DataNode
             foreach (ScalarEntrySourceValid valid in info.Valids)
             {
                 bool? res = await AwaitCancellableAsync(
-                    valid.Func.CallAsync<bool?>(ctx, BuildEntryArgs(valid.Args, value)), cancellationToken).ConfigureAwait(false);
+                    valid.Func.CallAsync<bool?>(ctx, BuildEntryArgs(valid.Args, value), token: cancellationToken), cancellationToken).ConfigureAwait(false);
                 if (res != true)
                 {
                     isValid = false;
@@ -629,11 +629,11 @@ public abstract class ScalarNode : DataNode
         if (isValid && info.ValueTypeConsumer != null && info.ValueTypeProvider != null)
         {
             string? valueType = await AwaitCancellableAsync(
-                info.ValueTypeProvider.CallAsync<string>(ctx, BuildEntryArgs(info.ValueTypeProviderArgs, value)),
+                info.ValueTypeProvider.CallAsync<string>(ctx, BuildEntryArgs(info.ValueTypeProviderArgs, value), token: cancellationToken),
                 cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(valueType) ||
                 await AwaitCancellableAsync(
-                    info.ValueTypeConsumer.CallAsync<bool?>(ctx, BuildEntryArgs(info.ValueTypeConsumerArgs, valueType)),
+                    info.ValueTypeConsumer.CallAsync<bool?>(ctx, BuildEntryArgs(info.ValueTypeConsumerArgs, valueType), token: cancellationToken),
                     cancellationToken).ConfigureAwait(false) != true)
             {
                 isValid = false;

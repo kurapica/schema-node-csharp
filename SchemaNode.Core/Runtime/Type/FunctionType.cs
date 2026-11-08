@@ -472,7 +472,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
     /// <summary>
     /// Call the system function asynchronously
     /// </summary>
-    private async Task<object?> CallSystemFuncAsync(SchemaContext context, object?[] args, string? rType = null)
+    private async Task<object?> CallSystemFuncAsync(SchemaContext context, object?[] args, string? rType = null, CancellationToken token = default)
     {
         // Cache
         bool enableCache = this.GetProperty<ServerOnly>()?.Value == true && this.GetProperty<NoCache>()?.Value != true && args.All(a => a is null || Type.GetTypeCode(a.GetType()) != TypeCode.Object);
@@ -522,7 +522,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
         // parse return type
         if (!string.IsNullOrWhiteSpace(rType) && funcInfo.Return.IsGenericParameter)
         {
-            Type? rCsharpType = (await context.GetNodeTypeAsync(rType).ConfigureAwait(false))?.GetCsharpType();
+            Type? rCsharpType = (await context.GetNodeTypeAsync(rType, token: token).ConfigureAwait(false))?.GetCsharpType();
             if (rCsharpType != null) GetArgType(funcInfo.Return, rCsharpType);
         }
         
@@ -690,7 +690,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
     /// <summary>
     /// Call the function asynchronously
     /// </summary>
-    public async Task<T?> CallAsync<T, TC>(SchemaContext context, object?[] args, string? rType = null, ApplyMode mode = ApplyMode.Call)
+    public async Task<T?> CallAsync<T, TC>(SchemaContext context, object?[] args, string? rType = null, ApplyMode mode = ApplyMode.Call, CancellationToken token = default)
         where TC: CompileContext
     {
         object? result = null;
@@ -704,7 +704,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
 
             // ReSharper disable once SuspiciousTypeConversion.Global
             result = Provider != null && Provider.IsAssignableTo(typeof(IFunctionSchemaProvider))
-                ? await (context.GetRequiredService(Provider) as IFunctionSchemaProvider)!.CallFunctionAsync(Name, cArgs, rType, mode).ConfigureAwait(false)
+                ? await (context.GetRequiredService(Provider) as IFunctionSchemaProvider)!.CallFunctionAsync(Name, cArgs, rType, mode, token).ConfigureAwait(false)
                 : null;
         }
         else
@@ -862,7 +862,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
             {
                 if (!isCall)
                 {
-                    var returnType = !string.IsNullOrWhiteSpace(rType) ? await context.GetNodeTypeAsync<ValueType>(rType).ConfigureAwait(false) : null;
+                    var returnType = !string.IsNullOrWhiteSpace(rType) ? await context.GetNodeTypeAsync<ValueType>(rType, token: token).ConfigureAwait(false) : null;
                     switch (mode)
                     {
                         case ApplyMode.Map:
@@ -903,7 +903,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                                 if (results[0] is IValueAccess n)
                                 {
                                     var arrayNode =
-                                        ((await context.GetArrayNodeTypeAsync(n.Type).ConfigureAwait(false))!.Create(context) as ArrayNode)!;
+                                        ((await context.GetArrayNodeTypeAsync(n.Type, token).ConfigureAwait(false))!.Create(context) as ArrayNode)!;
                                     arrayNode.AddRange(results);
                                     result = arrayNode;
                                 }
@@ -937,7 +937,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                                 if (results[0] is IValueAccess n)
                                 {
                                     var arrayNode =
-                                        ((await context.GetArrayNodeTypeAsync(n.Type).ConfigureAwait(false))!.Create(context) as ArrayNode)!;
+                                        ((await context.GetArrayNodeTypeAsync(n.Type, token).ConfigureAwait(false))!.Create(context) as ArrayNode)!;
                                     arrayNode.AddRange(results);
                                     result = arrayNode;
                                 }
@@ -1065,7 +1065,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
 
             async Task<object?> getResult()
             {
-                if (IsSystemCall) return await CallSystemFuncAsync(context, callArgs, rType).ConfigureAwait(false);
+                if (IsSystemCall) return await CallSystemFuncAsync(context, callArgs, rType, token).ConfigureAwait(false);
                 return method!.DynamicInvoke(callArgs);
             }
         }
@@ -1075,7 +1075,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
         if (result is T r) return r;
         if (typeof(T).IsAssignableTo(typeof(IValueAccess)))
         {
-            return await context.GetSchemaNodeAsync(result).ConfigureAwait(false) is T rNode ? rNode : default(T?);
+            return await context.GetSchemaNodeAsync(result, token: token).ConfigureAwait(false) is T rNode ? rNode : default(T?);
         }
         return result.TryConvertTo<T>(out var f) ? f : default(T?);
     }
@@ -1083,8 +1083,8 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
     /// <summary>
     /// Call the function asynchronously with default compile context
     /// </summary>
-    public Task<T?> CallAsync<T>(SchemaContext context, object?[] args, string? rType = null, ApplyMode mode = ApplyMode.Call )
-        => CallAsync<T, CompileContext>(context, args, rType, mode);
+    public Task<T?> CallAsync<T>(SchemaContext context, object?[] args, string? rType = null, ApplyMode mode = ApplyMode.Call, CancellationToken token = default)
+        => CallAsync<T, CompileContext>(context, args, rType, mode, token);
 
     #endregion
 
@@ -1278,8 +1278,8 @@ public static class FunctionTypeExtensions
     /// <param name="rType">The return type</param>
     /// <param name="mode">The function apply mode</param>
     /// <returns>The result</returns>
-    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, FunctionType node, JsonArray args, string? rType = null, ApplyMode mode = ApplyMode.Call)
-        => node.CallAsync<JsonNode>(context, args.Select(object? (p) => p).ToArray(), rType, mode);
+    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, FunctionType node, JsonArray args, string? rType = null, ApplyMode mode = ApplyMode.Call, CancellationToken token = default)
+        => node.CallAsync<JsonNode>(context, args.Select(object? (p) => p).ToArray(), rType, mode, token);
 
     /// <summary>
     /// Call the function with arguments and given generic type
@@ -1290,8 +1290,8 @@ public static class FunctionTypeExtensions
     /// <param name="rType">The return types</param>
     /// <param name="mode">The function apply mode</param>
     /// <returns>The result</returns>
-    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, string name, JsonArray args, string? rType = null, ApplyMode mode = ApplyMode.Call)
-        => CallFunctionAsync<JsonNode>(context, name,  args.Select(object? (p) => p).ToArray(), rType, mode);
+    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, string name, JsonArray args, string? rType = null, ApplyMode mode = ApplyMode.Call, CancellationToken token = default)
+        => CallFunctionAsync<JsonNode>(context, name,  args.Select(object? (p) => p).ToArray(), rType, mode, token);
     
     /// <summary>
     /// Call the function with arguments and given generic type
@@ -1302,8 +1302,8 @@ public static class FunctionTypeExtensions
     /// <param name="rType">The return type</param>
     /// <param name="mode">The function apply mode</param>
     /// <returns>The result</returns>
-    public static Task<T?> CallFunctionAsync<T>(this SchemaContext context, string name, object?[] args, string? rType = null, ApplyMode mode = ApplyMode.Call)
-        => CallFunctionAsync<T, CompileContext>(context, name, args, rType, mode);
+    public static Task<T?> CallFunctionAsync<T>(this SchemaContext context, string name, object?[] args, string? rType = null, ApplyMode mode = ApplyMode.Call, CancellationToken token = default)
+        => CallFunctionAsync<T, CompileContext>(context, name, args, rType, mode, token);
     
     /// <summary>
     /// Call the function with arguments and given generic type
@@ -1314,10 +1314,10 @@ public static class FunctionTypeExtensions
     /// <param name="rType">The return type</param>
     /// <param name="mode">The function apply mode</param>
     /// <returns>The result</returns>
-    public static async Task<T?> CallFunctionAsync<T, TC>(this SchemaContext context, string name, object?[] args, string? rType = null, ApplyMode mode = ApplyMode.Call)
+    public static async Task<T?> CallFunctionAsync<T, TC>(this SchemaContext context, string name, object?[] args, string? rType = null, ApplyMode mode = ApplyMode.Call, CancellationToken token = default)
         where TC: CompileContext
     {
-        FunctionType node = await context.GetNodeTypeAsync<FunctionType>(name).ConfigureAwait(false) ?? throw new Exception($"Function {name} not found");
-        return await node.CallAsync<T, TC>(context, args, rType, mode).ConfigureAwait(false);
+        FunctionType node = await context.GetNodeTypeAsync<FunctionType>(name, token: token).ConfigureAwait(false) ?? throw new Exception($"Function {name} not found");
+        return await node.CallAsync<T, TC>(context, args, rType, mode, token).ConfigureAwait(false);
     }
 }
