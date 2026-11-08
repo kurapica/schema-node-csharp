@@ -10,7 +10,7 @@ public static class AppDataTableExtension
     /// <summary>
     /// Prepare the dynamic table for the field
     /// </summary>
-   internal static async Task<DynamicTableSchema> PrepareFieldDataAsync(this SchemaContext context, AppFieldType field)
+   internal static async Task<DynamicTableSchema> PrepareFieldDataAsync(this SchemaContext context, AppFieldType field, CancellationToken token = default)
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable) return field.GetDynamicTableSchema(context);
@@ -31,19 +31,19 @@ public static class AppDataTableExtension
             // Makes sure the source field is prepared
             if (field.IsForeignView)
             {
-                AppFieldType foreignField = (await context.GetAppTypeAsync(field.View!.App).ConfigureAwait(false))?.GetField(field.View.Field) ?? throw new InvalidOperationException($"Foreign view field {field.View.App}.{field.View.Field} not exist");
-                await context.PrepareFieldDataAsync(foreignField).ConfigureAwait(false);
+                AppFieldType foreignField = (await context.GetAppTypeAsync(field.View!.App, token: token).ConfigureAwait(false))?.GetField(field.View.Field) ?? throw new InvalidOperationException($"Foreign view field {field.View.App}.{field.View.Field} not exist");
+                await context.PrepareFieldDataAsync(foreignField, token).ConfigureAwait(false);
             }
             else
             {
                 // Prepare the dynamic table and join fields
-                await dataProvider.EnsureDynamicTableAsync(schema).ConfigureAwait(false);
+                await dataProvider.EnsureDynamicTableAsync(schema, token).ConfigureAwait(false);
                 if (schema.Joins is { Length: > 0 })
                 {
                     foreach (DynamicTableJoin join in schema.Joins)
                     {
                         AppFieldType joinField = field.Application.GetField(join.Field) ?? throw new InvalidOperationException($"Join field {join.Field} not exist");
-                        await context.PrepareFieldDataAsync(joinField).ConfigureAwait(false);
+                        await context.PrepareFieldDataAsync(joinField, token).ConfigureAwait(false);
                     }
                 }
             }

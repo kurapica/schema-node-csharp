@@ -32,9 +32,9 @@ public class AppProviderAccessPath : IValueAccessPathHandler
     public LocaleString Display => nameof(APP_PROVIDER);
 
     /// <inheritdoc/>
-    public async Task LoadAsync(ISchemaContext context)
+    public async Task LoadAsync(ISchemaContext context, CancellationToken token = default)
         => _valueType = context is SchemaContext ctx
-                ? await ctx.GetNodeTypeAsync<StringType>($"{NS_SYSTEM_SCHEMA_APP}.type").ConfigureAwait(false)
+                ? await ctx.GetNodeTypeAsync<StringType>($"{NS_SYSTEM_SCHEMA_APP}.type", token: token).ConfigureAwait(false)
                 : null;
 
     /// <inheritdoc/>

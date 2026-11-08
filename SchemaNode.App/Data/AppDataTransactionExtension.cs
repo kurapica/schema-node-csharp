@@ -26,13 +26,13 @@ public static class AppDataTransactionExtension
     /// <summary>
     /// Save field data
     /// </summary>
-    public static Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, JsonNode? value = null)
-        => context.SaveFieldDataAsync(field, field.ValueType!.Create(context, value) ?? throw new NotSupportedException());
+    public static Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, JsonNode? value = null, CancellationToken token = default)
+        => context.SaveFieldDataAsync(field, field.ValueType!.Create(context, value) ?? throw new NotSupportedException(), token: token);
 
     /// <summary>
     /// Save the field data by data
     /// </summary>
-    public static async Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, IValueAccess? value = null, bool innerCall = false, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null)
+    public static async Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, IValueAccess? value = null, bool innerCall = false, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null, CancellationToken token = default)
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable || field.IsForeignView) return false;
@@ -41,11 +41,11 @@ public static class AppDataTransactionExtension
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
 
         // Prepare
-        DynamicTableSchema schema = await context.PrepareFieldDataAsync(field).ConfigureAwait(false);
+        DynamicTableSchema schema = await context.PrepareFieldDataAsync(field, token).ConfigureAwait(false);
 
         try
         {
-            (bool result, IValueAccess? update, IValueAccess? origin) = await dataProvider.SaveDynamicTableDataAsync(schema, value, canAdd, onlyAdd, overrides).ConfigureAwait(false);
+            (bool result, IValueAccess? update, IValueAccess? origin) = await dataProvider.SaveDynamicTableDataAsync(schema, value, canAdd, onlyAdd, overrides, token).ConfigureAwait(false);
             if (result) OnFieldDataChanged(context, field, TransactionChangeOperation.Modify, update, origin);
             return result;
         }
@@ -56,7 +56,7 @@ public static class AppDataTransactionExtension
         }
     }
 
-    public static async Task<bool> ClearFieldDataAsync(this SchemaContext context, AppFieldType field, bool innerCall = false)
+    public static async Task<bool> ClearFieldDataAsync(this SchemaContext context, AppFieldType field, bool innerCall = false, CancellationToken token = default)
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable || field.IsForeignView) return false;
@@ -65,11 +65,11 @@ public static class AppDataTransactionExtension
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
 
         // Prepare
-        DynamicTableSchema schema = await context.PrepareFieldDataAsync(field).ConfigureAwait(false);
+        DynamicTableSchema schema = await context.PrepareFieldDataAsync(field, token).ConfigureAwait(false);
 
         try
         {
-            (bool result, IValueAccess? origin) = await dataProvider.ClearDynamicTableDataAsync(schema).ConfigureAwait(false);
+            (bool result, IValueAccess? origin) = await dataProvider.ClearDynamicTableDataAsync(schema, token).ConfigureAwait(false);
             if (result) OnFieldDataChanged(context, field, TransactionChangeOperation.DropAll, null, origin);
             return result;
         }
@@ -87,21 +87,21 @@ public static class AppDataTransactionExtension
     /// <summary>
     /// Delete the list from a list-struct type field data
     /// </summary>
-    public static async Task<bool> DeleteFieldListDataAsync(this SchemaContext context, AppFieldType field, IValueAccess nodes)
+    public static async Task<bool> DeleteFieldListDataAsync(this SchemaContext context, AppFieldType field, IValueAccess nodes, CancellationToken token = default)
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable || field.IsForeignView) return false;
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
 
         // Prepare
-        DynamicTableSchema schema = await context.PrepareFieldDataAsync(field).ConfigureAwait(false);
+        DynamicTableSchema schema = await context.PrepareFieldDataAsync(field, token).ConfigureAwait(false);
 
         // Only non-single schema can be used
         if (schema.Single) return false;
         try
         {
             if (nodes is ArrayNode { Count: 0 }) return false; // pass if no node to delete
-            (bool result, IValueAccess? origin) = await dataProvider.DeleteSchemaNodeAsync(context, schema, nodes).ConfigureAwait(false);
+            (bool result, IValueAccess? origin) = await dataProvider.DeleteSchemaNodeAsync(context, schema, nodes, token).ConfigureAwait(false);
             if (result) OnFieldDataChanged(context, field, TransactionChangeOperation.Delete, null, origin);
         }
         catch (Exception ex)
@@ -116,20 +116,20 @@ public static class AppDataTransactionExtension
     /// <summary>
     /// Delete the list from a list-struct type field data by filter
     /// </summary>
-    public static async Task<bool> DeleteFieldListDataAsync(this SchemaContext context, AppFieldType field, AppSchemaDataFilter filter)
+    public static async Task<bool> DeleteFieldListDataAsync(this SchemaContext context, AppFieldType field, AppSchemaDataFilter filter, CancellationToken token = default)
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable || field.IsForeignView) return false;
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
 
         // Prepare
-        DynamicTableSchema schema = await context.PrepareFieldDataAsync(field).ConfigureAwait(false);
+        DynamicTableSchema schema = await context.PrepareFieldDataAsync(field, token).ConfigureAwait(false);
 
         // Only non-single schema can be used
         if (schema.Single) return false;
         try
         {
-            (bool result, IValueAccess? origin) = await dataProvider.DeleteDynamicTableDataAsync(schema, filter).ConfigureAwait(false);
+            (bool result, IValueAccess? origin) = await dataProvider.DeleteDynamicTableDataAsync(schema, filter, token).ConfigureAwait(false);
             if (result) OnFieldDataChanged(context, field, TransactionChangeOperation.Delete, null, origin);
         }
         catch (Exception ex)
@@ -148,27 +148,27 @@ public static class AppDataTransactionExtension
     /// <summary>
     /// Begin transaction.
     /// </summary>
-    public static async Task BeginTransactionAsync(this SchemaContext context)
+    public static async Task BeginTransactionAsync(this SchemaContext context, CancellationToken token = default)
     {
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
-        await dataProvider.BeginTransactionAsync().ConfigureAwait(false);
+        await dataProvider.BeginTransactionAsync(token).ConfigureAwait(false);
         context.SetContextItem(new Dictionary<string, TransactionChangeData>()); // keep track
     }
 
     /// <summary>
     /// Commit transaction.
     /// </summary>
-    public static async Task CommitTransactionAsync(this SchemaContext context, bool noEvent = false)
+    public static async Task CommitTransactionAsync(this SchemaContext context, bool noEvent = false, CancellationToken token = default)
     {
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
         var transChangedData = context.GetOrAddContextItem<Dictionary<string, TransactionChangeData>>();
 
         // Process data field push
         foreach (string target in transChangedData.Keys.ToArray())
-            await ProcessDataPush(context, target, transChangedData[target]).ConfigureAwait(false);
+            await ProcessDataPush(context, target, transChangedData[target], token: token).ConfigureAwait(false);
 
         // Commit
-        await dataProvider.CommitTransactionAsync().ConfigureAwait(false);
+        await dataProvider.CommitTransactionAsync(token).ConfigureAwait(false);
 
         // No data event
         if (noEvent) return;
@@ -339,15 +339,15 @@ public static class AppDataTransactionExtension
     /// <summary>
     /// Rollback transaction.
     /// </summary>
-    public static async Task RollbackTransactionAsync(this SchemaContext context)
+    public static async Task RollbackTransactionAsync(this SchemaContext context, CancellationToken token = default)
     {
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
-        await dataProvider.RollbackTransactionAsync().ConfigureAwait(false);
+        await dataProvider.RollbackTransactionAsync(token).ConfigureAwait(false);
         context.SetContextItem<Dictionary<string, TransactionChangeData>>(null);
     }
 
     // Process the data push
-    static async Task ProcessDataPush(SchemaContext context, string target, TransactionChangeData changeData, bool pushAllFields = false, AppFieldType? pushNode = null)
+    static async Task ProcessDataPush(SchemaContext context, string target, TransactionChangeData changeData, bool pushAllFields = false, AppFieldType? pushNode = null, CancellationToken token = default)
     {
         #region Generate push orders
 
@@ -359,7 +359,7 @@ public static class AppDataTransactionExtension
             baseFields.Clear();
             foreach (string app in changeData.Changes.Keys.Select(p => p.App).Distinct())
             {
-                AppType? appNode = await context.GetAppTypeAsync(app).ConfigureAwait(false);
+                AppType? appNode = await context.GetAppTypeAsync(app, token: token).ConfigureAwait(false);
                 if (appNode != null && appNode.GetFields().Any())
                 {
                     // Add all the base fields with observers and no function
@@ -567,7 +567,7 @@ public static class AppDataTransactionExtension
                         
                         // Fill unchange data
                         ArrayNode? fetchData = await context.GetSchemaDataAsync(thirdAppField.App, fromField.Name,
-                            target, AppSchemaDataResult.List, filter).ConfigureAwait(false) as ArrayNode;
+                            target, AppSchemaDataResult.List, filter, token: token).ConfigureAwait(false) as ArrayNode;
                         if (fetchData == null) continue;
                         
                         // Fill unchange data
@@ -597,7 +597,7 @@ public static class AppDataTransactionExtension
                 if (oldResult.IsEmpty && newResult.IsEmpty) continue;
 
                 // Save the incremental data
-                await context.SaveIncrementalData(field, newResult, oldResult).ConfigureAwait(false);
+                await context.SaveIncrementalData(field, newResult, oldResult, token).ConfigureAwait(false);
 
                 continue;
 
@@ -729,7 +729,7 @@ public static class AppDataTransactionExtension
 
                             // Fetch and fill unchange data
                             if (filter != null && await context.GetSchemaDataAsync(thirdAppField.App, thirdAppField.Name,
-                                    target, AppSchemaDataResult.List, filter).ConfigureAwait(false) is ArrayNode fetchData)
+                                    target, AppSchemaDataResult.List, filter, token: token).ConfigureAwait(false) is ArrayNode fetchData)
                             {
                                 foreach (IValueAccess node in fetchData)
                                 {
@@ -917,7 +917,7 @@ public static class AppDataTransactionExtension
     /// <summary>
     /// Save the incremental data
     /// </summary>
-    static async Task SaveIncrementalData(this SchemaContext context, AppFieldType field, IValueAccess? newResult, IValueAccess? oldResult)
+    static async Task SaveIncrementalData(this SchemaContext context, AppFieldType field, IValueAccess? newResult, IValueAccess? oldResult, CancellationToken token = default)
     {
         // Join the result
         IValueAccess? result = null;
@@ -926,7 +926,7 @@ public static class AppDataTransactionExtension
             case EnumType:
                 {
                     DataCombineType method = field.Combine ?? DataCombineType.Newest;
-                    (IValueAccess? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List).ConfigureAwait(false);
+                    (IValueAccess? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List, token: token).ConfigureAwait(false);
                     IValueAccess? now = DataDeriveExtensions.GroupJoin(newResult, method);
 
                     // Update with join method
@@ -951,7 +951,7 @@ public static class AppDataTransactionExtension
                     DataCombineType method = field.Combine ?? (scalar is IntType or DecimalType ? DataCombineType.Sum : DataCombineType.Newest);
 
                     // Part
-                    (IValueAccess? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List).ConfigureAwait(false);
+                    (IValueAccess? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List, token: token).ConfigureAwait(false);
                     IValueAccess? old = scalar.GroupJoin(context, oldResult, method);
                     IValueAccess? now = scalar.GroupJoin(context, newResult, method);
 
@@ -997,7 +997,7 @@ public static class AppDataTransactionExtension
                     }
 
                     // Gets the result
-                    (IValueAccess? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List).ConfigureAwait(false);
+                    (IValueAccess? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List, token: token).ConfigureAwait(false);
                     IValueAccess? old = @struct.GroupJoin(context, oldResult, joinMethodMap);
                     IValueAccess? now = @struct.GroupJoin(context, newResult, joinMethodMap);
 
@@ -1095,15 +1095,15 @@ public static class AppDataTransactionExtension
                     Dictionary<string, StructNode> nowMap = DataDeriveExtensions.GroupJoinObjectMap(array, newResult, joinMethodMap);
 
                     // Query the original data
-                    var origins = await context.GetAppFieldDataAsync(field,oldMap.Values.Concat(nowMap.Values)).ConfigureAwait(false);
+                    var origins = await context.GetAppFieldDataAsync(field,oldMap.Values.Concat(nowMap.Values), token: token).ConfigureAwait(false);
                     
                     // Gets the original data
                     Dictionary<string, StructNode> resultMap = new Dictionary<string, StructNode>();
                     if (origins is ArrayNode arr)
                     {
-                        foreach (IValueAccess token in arr)
+                        foreach (IValueAccess nodeAccess in arr)
                         {
-                            if (token is not StructNode obj) continue;
+                            if (nodeAccess is not StructNode obj) continue;
                             string? key = array.GetPrimaryKey(obj);
                             if (string.IsNullOrWhiteSpace(key)) continue;
                             resultMap[key] = obj;
@@ -1230,7 +1230,7 @@ public static class AppDataTransactionExtension
         }
 
         // Save
-        await context.SaveFieldDataAsync(field, result as IValueAccess, true).ConfigureAwait(false);
+        await context.SaveFieldDataAsync(field, result as IValueAccess, true, token: token).ConfigureAwait(false);
     }
 
     // Record the changed fields with changed values

@@ -102,21 +102,21 @@ public sealed class AppWorkflowType: IDisposable
     /// <summary>
     /// Load the workflow schema
     /// </summary>
-    public async Task LoadAsync(SchemaContext context)
+    public async Task LoadAsync(SchemaContext context, CancellationToken token = default)
     {
         _props = _appWorkflowSchema.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_APP_WORKFLOW)).ToArray();
-        (_refTypes, Error) = await _appWorkflowSchema.LoadPropertiesAsync(context, _props).ConfigureAwait(false);
+        (_refTypes, Error) = await _appWorkflowSchema.LoadPropertiesAsync(context, _props, token: token).ConfigureAwait(false);
 
         // Resolve payload types for all nodes
         foreach (var node in Nodes)
         {
-            var (_subRefTypes, err) = await node.LoadPropertiesAsync(context, node.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_APP_WORKFLOW_NODE)).ToArray()).ConfigureAwait(false);
+            var (_subRefTypes, err) = await node.LoadPropertiesAsync(context, node.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_APP_WORKFLOW_NODE)).ToArray(), token: token).ConfigureAwait(false);
             Error ??= err;
             if (_subRefTypes is { Length: > 0 })
                 _refTypes = _refTypes == null ? _subRefTypes : _refTypes.Concat(_subRefTypes).ToArray();
 
             if (string.IsNullOrWhiteSpace(node.Payload)) continue;
-            node.PayloadValueType = await context.GetNodeTypeAsync<ValueType>(node.Payload).ConfigureAwait(false);
+            node.PayloadValueType = await context.GetNodeTypeAsync<ValueType>(node.Payload, token: token).ConfigureAwait(false);
             if (node.PayloadValueType == null)
                 Error ??= AppErrorCodes.WORKFLOW_NODE_VALUE_TYPE_NOT_VALID;
         }

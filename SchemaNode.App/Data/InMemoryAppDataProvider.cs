@@ -10,7 +10,7 @@ namespace SchemaNode.Data;
 /// </summary>
 public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
 {
-    public async Task<bool> EnsureDynamicTableAsync(DynamicTableSchema schema)
+    public async Task<bool> EnsureDynamicTableAsync(DynamicTableSchema schema, CancellationToken token = default)
     {
         // Yield to a thread-pool thread without capturing the caller's synchronization context
         // (Task.Yield() has no ConfigureAwait and would marshal the continuation back to a UI context).
@@ -20,7 +20,7 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
 
     public async Task<(IValueAccess? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, AppSchemaDataResult type,
         AppSchemaDataFilter? filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null,
-        string? dataField = null, bool forUpdate = false)
+        string? dataField = null, bool forUpdate = false, CancellationToken token = default)
     {
         SchemaContext schemaContext = context as  SchemaContext ?? throw new ArgumentNullException(nameof(context));
         
@@ -87,7 +87,7 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
         }
     }
 
-    public async Task<(bool result, IValueAccess? update, IValueAccess? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, IValueAccess? data = null, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null)
+    public async Task<(bool result, IValueAccess? update, IValueAccess? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, IValueAccess? data = null, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null, CancellationToken token = default)
     {
         // Yield to a thread-pool thread without capturing the caller's synchronization context
         // (Task.Yield() has no ConfigureAwait and would marshal the continuation back to a UI context).
@@ -169,7 +169,7 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
     /// <summary>
     /// Clear all dynamic table data
     /// </summary>
-    public async Task<(bool result, IValueAccess? origin)> ClearDynamicTableDataAsync(DynamicTableSchema schema)
+    public async Task<(bool result, IValueAccess? origin)> ClearDynamicTableDataAsync(DynamicTableSchema schema, CancellationToken token = default)
     {
         // Yield to a thread-pool thread without capturing the caller's synchronization context
         // (Task.Yield() has no ConfigureAwait and would marshal the continuation back to a UI context).
@@ -184,7 +184,7 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
         return (false, null);
     }
     
-    public async Task<(bool result, IValueAccess? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, AppSchemaDataFilter? filter)
+    public async Task<(bool result, IValueAccess? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, AppSchemaDataFilter? filter, CancellationToken token = default)
     {
         SchemaContext schemaContext = context as  SchemaContext ?? throw new ArgumentNullException(nameof(context));
         
@@ -219,7 +219,7 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
         }
     }
     
-    public async Task DropDynamicTableAsync(DynamicTableSchema schema)
+    public async Task DropDynamicTableAsync(DynamicTableSchema schema, CancellationToken token = default)
     {
         // Yield to a thread-pool thread without capturing the caller's synchronization context
         // (Task.Yield() has no ConfigureAwait and would marshal the continuation back to a UI context).
@@ -227,17 +227,17 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
         _dynamicTables.TryRemove(schema.AppField.DynamicTableName, out _);
     }
 
-    public Task BeginTransactionAsync()
+    public Task BeginTransactionAsync(CancellationToken token = default)
     {
         return Task.CompletedTask;
     }
 
-    public Task CommitTransactionAsync()
+    public Task CommitTransactionAsync(CancellationToken token = default)
     {
         return Task.CompletedTask;
     }
 
-    public Task RollbackTransactionAsync()
+    public Task RollbackTransactionAsync(CancellationToken token = default)
     {
         return Task.CompletedTask;
     }

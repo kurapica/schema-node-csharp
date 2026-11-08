@@ -31,12 +31,12 @@ public class Auths : Property<PolicyItem[]>, ILoadableProperty, IErrorProvider, 
 {
     public string? Error { get; set; }
     
-    public async Task LoadAsync(SchemaContext context, Runtime.ValueType? ownerType = null)
+    public async Task LoadAsync(SchemaContext context, Runtime.ValueType? ownerType = null, CancellationToken token = default)
     {
         if (Value == null) return;
         foreach (PolicyItem item in Value)
         {
-            item.Function = await context.GetNodeTypeAsync<FunctionType>(item.Evaluator).ConfigureAwait(false);
+            item.Function = await context.GetNodeTypeAsync<FunctionType>(item.Evaluator, token: token).ConfigureAwait(false);
             if (item.Function is { Args.Length: 0 } && item.Function.Return.IsAssignableTo(context.System.Bool)) continue;
             Error ??= AppErrorCodes.APP_POLICY_EVALUATOR_NOT_VALID;
         }

@@ -34,7 +34,7 @@ public class Filters : Property<FieldFilter[]>, ILoadableProperty, IErrorProvide
 {
     public string? Error { get; set; }
 
-    public async Task LoadAsync(SchemaContext context, Runtime.ValueType? ownerType = null)
+    public async Task LoadAsync(SchemaContext context, Runtime.ValueType? ownerType = null, CancellationToken token = default)
     {
         if (Value == null) return;
         StructType? structType = ((ownerType as ArrayType)?.Element ?? ownerType) as StructType;
@@ -48,7 +48,7 @@ public class Filters : Property<FieldFilter[]>, ILoadableProperty, IErrorProvide
         {
             if (filter.Mode == FieldFilterMode.Filter)
             {
-                filter.FilterFunction = string.IsNullOrWhiteSpace(filter.FilterFunc) ? null : await context.GetNodeTypeAsync<FunctionType>(filter.FilterFunc).ConfigureAwait(false);
+                filter.FilterFunction = string.IsNullOrWhiteSpace(filter.FilterFunc) ? null : await context.GetNodeTypeAsync<FunctionType>(filter.FilterFunc, token: token).ConfigureAwait(false);
                 if (filter.FilterFunction == null ||
                     filter.FilterFunction.Args.Length < 2 ||
                     filter.FilterFunction.Args[0].ValueType == null ||

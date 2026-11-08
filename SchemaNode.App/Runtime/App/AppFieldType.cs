@@ -220,15 +220,15 @@ public sealed class AppFieldType
     /// <summary>
     /// Load the app field schema
     /// </summary>
-    public async Task LoadAsync(SchemaContext context)
+    public async Task LoadAsync(SchemaContext context, CancellationToken token = default)
     {
         Error = null;
         
-        ValueType = await context.GetNodeTypeAsync<ValueType>(Type).ConfigureAwait(false);
+        ValueType = await context.GetNodeTypeAsync<ValueType>(Type, token: token).ConfigureAwait(false);
         if (ValueType == null) Error = AppErrorCodes.APP_FIELD_TYPE_NOT_VALID;
 
         _props = _appFieldSchema.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_APP_FIELD)).ToArray();
-        (_refTypes, Error) = await _appFieldSchema.LoadPropertiesAsync(context, _props, ValueType).ConfigureAwait(false);
+        (_refTypes, Error) = await _appFieldSchema.LoadPropertiesAsync(context, _props, ValueType, token).ConfigureAwait(false);
 
         _appFieldSchema.Error = Error;
         

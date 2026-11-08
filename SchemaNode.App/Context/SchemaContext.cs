@@ -14,13 +14,14 @@ using SchemaNode.Struct;
 namespace SchemaNode.Context;
 
 public static class AppSchemaContextExtension
-{
+{    const int LOCK_WAITING_DELAY = 5000;
+
     extension(SchemaContext context)
     {
         /// <summary>
         /// Gets the application node
         /// </summary>
-        public async Task<RuntimeAppType?> GetAppTypeAsync(string fullName, bool reload = false)
+        public async Task<RuntimeAppType?> GetAppTypeAsync(string fullName, bool reload = false, CancellationToken token = default)
         {
             AppSchemaRuntime runtime = context.Runtime as AppSchemaRuntime ??
                                        throw new Exception("The schema run time is not an AppSchemaRuntime.");
@@ -58,7 +59,7 @@ public static class AppSchemaContextExtension
                 // Load the schema
                 context.LogDebug("[Runtime]App Type {schemaName} loading", schema.FullName);
                 result.Loaded = true;
-                await result.LoadAsync(context, schema).ConfigureAwait(false);
+                await result.LoadAsync(context, schema, token).ConfigureAwait(false);
 
                 // Namespace
                 if (apps is { Length: > 0 })
@@ -84,7 +85,9 @@ public static class AppSchemaContextExtension
                 {
                     try
                     {
-                        AppSchema? loadSchema = await provider.GetAppSchemaAsync(schemaName).ConfigureAwait(false);
+                        using CancellationTokenSource cts = new(LOCK_WAITING_DELAY);
+                        using CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, token);
+                        AppSchema? loadSchema = await provider.GetAppSchemaAsync(schemaName, linkedCts.Token).ConfigureAwait(false);
                         if (loadSchema == null) continue;
                         loadSchema = SetSchemaState(loadSchema, SchemaLoadState.Service, provider)!;
 

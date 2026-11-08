@@ -58,7 +58,7 @@ public sealed class WorkflowType: NodeType, IValueTypeAccess, IRelationProvider
     #region Method
 
     /// <inheritdoc />
-    public override async Task LoadAsync(SchemaContext context)
+    public override async Task LoadAsync(SchemaContext context, CancellationToken token = default)
     {
         _workflowSchema = GetProperty<WorkflowProperty>()?.Value;
 
@@ -70,21 +70,21 @@ public sealed class WorkflowType: NodeType, IValueTypeAccess, IRelationProvider
 
         if (_workflowSchema.Payload != null)
         {
-            Payload = await context.GetNodeTypeAsync<ValueType>(_workflowSchema.Payload, Generics, GenericParams).ConfigureAwait(false);
+            Payload = await context.GetNodeTypeAsync<ValueType>(_workflowSchema.Payload, Generics, GenericParams, token: token).ConfigureAwait(false);
             if (Payload == null)
                 Error ??= AppErrorCodes.WORKFLOW_PAYLOAD_NOT_VALID;
         }
 
         if (_workflowSchema.Settings != null)
         {
-            State = await context.GetNodeTypeAsync<ValueType>(_workflowSchema.Settings, Generics, GenericParams).ConfigureAwait(false);
+            State = await context.GetNodeTypeAsync<ValueType>(_workflowSchema.Settings, Generics, GenericParams, token: token).ConfigureAwait(false);
             if (State == null)
                 Error ??= AppErrorCodes.WORKFLOW_STATE_NOT_VALID;
         }
 
         if (_workflowSchema.Session != null)
         {
-            Session = await context.GetNodeTypeAsync<ValueType>(_workflowSchema.Session, Generics, GenericParams).ConfigureAwait(false);
+            Session = await context.GetNodeTypeAsync<ValueType>(_workflowSchema.Session, Generics, GenericParams, token: token).ConfigureAwait(false);
             if (Session == null)
                 Error ??= AppErrorCodes.WORKFLOW_SESSION_NOT_VALID;
         }
@@ -110,7 +110,7 @@ public sealed class WorkflowType: NodeType, IValueTypeAccess, IRelationProvider
                 return;
             }
 
-            arg.ValueType = !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetNodeTypeAsync<ValueType>(arg.Type, Generics).ConfigureAwait(false) : null;
+            arg.ValueType = !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetNodeTypeAsync<ValueType>(arg.Type, Generics, token: token).ConfigureAwait(false) : null;
 
             if (arg.ValueType == null)
             {
@@ -129,14 +129,14 @@ public sealed class WorkflowType: NodeType, IValueTypeAccess, IRelationProvider
 
                     // Gets the property type
                     var kind = (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(currentType.Kind);
-                    PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_FUNC_ARG).ConfigureAwait(false);
+                    PropertyType? prop = await context.GetPropertyType(relation.Property, token, kind, SCHEMA_KIND_NODE_FUNC_ARG).ConfigureAwait(false);
                     if (prop == null) continue;
 
                     // Only work for constraint properties
                     Type? propType = prop.GetCsharpType();
                     if (propType == null) continue;
 
-                    var relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_FUNC_ARG).ConfigureAwait(false);
+                    var relationType = await relation.LoadAsync(context, this, [kind, SCHEMA_KIND_NODE_FUNC_ARG], token).ConfigureAwait(false);
                     Error ??= relationType.Error;
 
                     _relations ??= [];
@@ -234,7 +234,7 @@ public sealed class WorkflowType: NodeType, IValueTypeAccess, IRelationProvider
 
 
     /// <inheritdoc/>
-    public Task<IValueAccess?> ValidateValueAsync(ISchemaContext context, object? value)
+    public Task<IValueAccess?> ValidateValueAsync(ISchemaContext context, object? value, CancellationToken token = default)
     {
         return Task.FromResult<IValueAccess?>(null);
     }

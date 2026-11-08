@@ -25,20 +25,20 @@ public class RowAuths : Property<RowPolicy[]>, ILoadableProperty, IErrorProvider
 {
     public string? Error { get; set; }
     
-    public async Task LoadAsync(SchemaContext context, Runtime.ValueType? ownerType = null)
+    public async Task LoadAsync(SchemaContext context, Runtime.ValueType? ownerType = null, CancellationToken token = default)
     {
         if (Value == null) return;
         if (ownerType is Runtime.ArrayType arr) ownerType = arr.Element;
         
         foreach (RowPolicy item in Value)
         {
-            item.EvaluatorFunc = await context.GetNodeTypeAsync<FunctionType>(item.Evaluator).ConfigureAwait(false);
+            item.EvaluatorFunc = await context.GetNodeTypeAsync<FunctionType>(item.Evaluator, token: token).ConfigureAwait(false);
             if (item.EvaluatorFunc == null || item.EvaluatorFunc.Args.Length != 0 || !item.EvaluatorFunc.Return.IsAssignableTo(context.System.Bool))
             {
                 Error ??= AppErrorCodes.APP_ROW_AUTH_EVALUATOR_NOT_VALID;
                 continue;
             }
-            item.FilterFunc = await  context.GetNodeTypeAsync<FunctionType>(item.Filter).ConfigureAwait(false);
+            item.FilterFunc = await  context.GetNodeTypeAsync<FunctionType>(item.Filter, token: token).ConfigureAwait(false);
             if (item.FilterFunc is { Args.Length: 1 } && item.FilterFunc.Return.IsAssignableTo(context.System.Bool) && 
                 (ownerType == null || (item.FilterFunc.Args[0].ValueType != null && item.FilterFunc.Args[0].ValueType!.IsAssignableTo(ownerType)))) continue;
             Error ??= AppErrorCodes.APP_ROW_AUTH_FILTER_NOT_VALID;

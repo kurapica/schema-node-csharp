@@ -717,13 +717,13 @@ public class DynamicTableSchema
     /// <summary>
     /// Generate display only fields
     /// </summary>
-    public Task GenerateDisplayOnlyFields(SchemaContext context, IValueAccess? pack)
+    public Task GenerateDisplayOnlyFields(SchemaContext context, IValueAccess? pack, CancellationToken token = default)
     {
         // Generate the display only fields
         return ValueType switch
         {
-            StructType @struct => GenerateDisplayOnlyFields(context, @struct, pack),
-            ArrayType { Element: StructType structEle } => GenerateDisplayOnlyFields(context, structEle, pack),
+            StructType @struct => GenerateDisplayOnlyFields(context, @struct, pack, false, token),
+            ArrayType { Element: StructType structEle } => GenerateDisplayOnlyFields(context, structEle, pack, false, token),
             _ => Task.CompletedTask
         };
     }
@@ -735,7 +735,7 @@ public class DynamicTableSchema
     internal static bool IsReferenceFunc(string func) => $"{NS_SYSTEM_DATA_APP}.{nameof(SystemAppData.getfield)}".Equals(func.Split('<', 2).First(), StringComparison.OrdinalIgnoreCase);
 
     // Generate the display only fields
-    private static async Task GenerateDisplayOnlyFields(SchemaContext context, StructType type, IValueAccess? node, bool joinHandled = false)
+    private static async Task GenerateDisplayOnlyFields(SchemaContext context, StructType type, IValueAccess? node, bool joinHandled = false, CancellationToken token = default)
     {
         switch (node)
         {
@@ -757,7 +757,7 @@ public class DynamicTableSchema
                         // app
                         string? app = call.Args.FirstOrDefault()?.Value?.ToValue<string>();
                         if (string.IsNullOrWhiteSpace(app)) continue; // no app
-                        AppType? appType = await context.GetAppTypeAsync(app).ConfigureAwait(false);
+                        AppType? appType = await context.GetAppTypeAsync(app, token: token).ConfigureAwait(false);
                         if (appType == null) continue; // app not exist
 
                         // app field
@@ -831,7 +831,8 @@ public class DynamicTableSchema
                         if (filter == null) continue; // no valid data to query
 
                         // query the dynamic data
-                        (IValueAccess? value, _) = await context.GetAppFieldDataAsync(appField, AppSchemaDataResult.List, filter).ConfigureAwait(false);
+                        (IValueAccess? value, _) = await context.GetAppFieldDataAsync(appField, AppSchemaDataResult.List, filter, token: token).ConfigureAwait(false);
+                        if (token.IsCancellationRequested) break;
 
                         // set the display only field value
                         switch (primary.Count)
@@ -902,7 +903,7 @@ public class DynamicTableSchema
                 
                 // generate for each row
                 foreach (IValueAccess row in array)
-                    await GenerateDisplayOnlyFields(context, type, row, true).ConfigureAwait(false);
+                    await GenerateDisplayOnlyFields(context, type, row, true, token).ConfigureAwait(false);
                 break;
             }
             case StructNode pack:
@@ -938,10 +939,10 @@ public class DynamicTableSchema
                     else switch (field.Type)
                     {
                         case StructType @struct:
-                            await GenerateDisplayOnlyFields(context, @struct, fld).ConfigureAwait(false);
+                            await GenerateDisplayOnlyFields(context, @struct, fld, false, token).ConfigureAwait(false);
                             break;
                         case ArrayType { Element: StructType arrayStruct }:
-                            await GenerateDisplayOnlyFields(context, arrayStruct, fld).ConfigureAwait(false);
+                            await GenerateDisplayOnlyFields(context, arrayStruct, fld, false, token).ConfigureAwait(false);
                             break;
                         // Fill empty field with default value
                         default:

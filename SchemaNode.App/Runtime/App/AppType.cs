@@ -183,7 +183,7 @@ public sealed class AppType : IValueTypeAccess, INodeTypeReLoadHandler
     /// <summary>
     /// Load the data
     /// </summary>
-    internal async Task LoadAsync(SchemaContext context, AppSchema schema)
+    internal async Task LoadAsync(SchemaContext context, AppSchema schema, CancellationToken token = default)
     {
         // Release old usages
         Release();
@@ -193,7 +193,7 @@ public sealed class AppType : IValueTypeAccess, INodeTypeReLoadHandler
         _schema  = schema;
         _props = schema.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_APP)).ToArray();
 
-        (_refTypes, Error) = await schema.LoadPropertiesAsync(context, _props).ConfigureAwait(false);
+        (_refTypes, Error) = await schema.LoadPropertiesAsync(context, _props, token: token).ConfigureAwait(false);
         ScopePolicy = GetProperty<ScopePolicy>()?.Value;
 
         // Load the application fields
@@ -201,7 +201,7 @@ public sealed class AppType : IValueTypeAccess, INodeTypeReLoadHandler
 
         foreach (AppFieldType appFieldType in _fields)
         {
-            await appFieldType.LoadAsync(context).ConfigureAwait(false);
+            await appFieldType.LoadAsync(context, token).ConfigureAwait(false);
             Error ??= appFieldType.Error;
         }
         
@@ -216,14 +216,14 @@ public sealed class AppType : IValueTypeAccess, INodeTypeReLoadHandler
                 
                 // Gets the property type
                 var kind = (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(currentType.Kind);
-                PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_STRUCT_FIELD).ConfigureAwait(false);
+                PropertyType? prop = await context.GetPropertyType(relation.Property, token, kind, SCHEMA_KIND_NODE_STRUCT_FIELD).ConfigureAwait(false);
                 if (prop == null) continue;
                 
                 // Only work for constraint properties
                 Type? propType = prop.GetCsharpType();
                 if (propType == null) continue;
                 
-                var relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_STRUCT_FIELD).ConfigureAwait(false);
+                var relationType = await relation.LoadAsync(context, this, [kind, SCHEMA_KIND_NODE_STRUCT_FIELD], token).ConfigureAwait(false);
                 Error ??= relationType.Error;
 
                 _relations ??= [];
@@ -246,7 +246,7 @@ public sealed class AppType : IValueTypeAccess, INodeTypeReLoadHandler
         {
             // Runtime already activated, need to load workflow immediately, otherwise it will be loaded in app activation
             if (context.Runtime.Stage == RuntimeStage.Activated)
-                await wf.LoadAsync(context).ConfigureAwait(false);
+                await wf.LoadAsync(context, token).ConfigureAwait(false);
             else
                 (context.Runtime as SchemaRuntime)?.GetOrAddRuntimeItem<AppWorkflowQueue>().Enqueue(wf);
         }
@@ -448,7 +448,7 @@ public sealed class AppType : IValueTypeAccess, INodeTypeReLoadHandler
     }
 
     /// <inheritdoc/>
-    public Task<IValueAccess?> ValidateValueAsync(ISchemaContext context, object? value)
+    public Task<IValueAccess?> ValidateValueAsync(ISchemaContext context, object? value, CancellationToken token = default)
     {
         throw new NotImplementedException();
     }

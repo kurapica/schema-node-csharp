@@ -428,7 +428,7 @@ public static class SystemAppData
         if (fieldType.ValueType is ArrayType { Primary: { Count: > 0 }})
             await context.DeleteFieldListDataAsync(fieldType, dataNode).ConfigureAwait(false);
         else
-            await context.SaveFieldDataAsync(fieldType, null).ConfigureAwait(false);
+            await context.SaveFieldDataAsync(fieldType, (JsonNode?)null).ConfigureAwait(false);
         await context.CommitTransactionAsync(!raiseEvent).ConfigureAwait(false);
         return true;
     }

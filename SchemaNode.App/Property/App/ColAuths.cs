@@ -25,7 +25,7 @@ public class ColAuths : Property<ColPolicy[]>, ILoadableProperty, IErrorProvider
 {
     public string? Error { get; set; }
     
-    public async Task LoadAsync(SchemaContext context, Runtime.ValueType? ownerType = null)
+    public async Task LoadAsync(SchemaContext context, Runtime.ValueType? ownerType = null, CancellationToken token = default)
     {
         if (Value == null) return;
         if (ownerType is ArrayType arr) ownerType = arr.Element;
@@ -43,7 +43,7 @@ public class ColAuths : Property<ColPolicy[]>, ILoadableProperty, IErrorProvider
             List<FunctionType> evaluators = [];
             foreach (string eva in item.Evaluators)
             {
-                FunctionType? func = await context.GetNodeTypeAsync<FunctionType>(eva).ConfigureAwait(false);
+                FunctionType? func = await context.GetNodeTypeAsync<FunctionType>(eva, token: token).ConfigureAwait(false);
                 if (func == null)
                 {
                     Error ??= AppErrorCodes.APP_COL_AUTH_EVALUATOR_NOT_VALID;
