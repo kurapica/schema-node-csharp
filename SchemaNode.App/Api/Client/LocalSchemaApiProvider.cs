@@ -1,12 +1,15 @@
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Property.App;
+using SchemaNode.Property.Function;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Schema.Provider;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
 using RuntimeAppType = SchemaNode.Runtime.AppType;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Api.Client;
 
@@ -15,31 +18,89 @@ namespace SchemaNode.Api.Client;
 /// Keeps the TS contract of <see cref="ISchemaApiProvider"/> but reuses the hosting process's
 /// <see cref="SchemaContext"/> directly, without going through HTTP.
 ///
-/// Lifetime: constructed by the screen-level <c>SchemaContextFactory</c> when a screen session is created;
-/// the constructor argument is that screen's own scoped <see cref="SchemaContext"/>.
-/// Therefore <c>SetAccess(app, target)</c> in <see cref="CallFunctionAsync"/>
-/// only writes to this screen's context and does not leak across screens.
+/// Every method mirrors the server-side API implementation in <c>SchemaNode.Api.Schema.Edit</c>
+/// and <c>SchemaNode.Api.Schema.Info</c>: it performs the same <see cref="SchemaContext"/> call,
+/// including authorization, storage-provider writes and runtime reloads, instead of inventing
+/// an alternative storage layout. The low-level provider is never bypassed or reimplemented here.
 ///
-/// Construction still ensures <see cref="SchemaContext.FullMode"/> is true (idempotent):
-/// this is a prerequisite for DataNode subscription/cascade/EntrySource to take effect; the factory has
-/// already set it beforehand, and this is only a defensive assertion.
+/// Lifetime: constructed by the screen-level <c>SchemaContextFactory</c> when a screen session is created.
+/// The constructor argument is the screen's own FullMode <see cref="SchemaContext"/>, but it is used
+/// only as the anchor for services and as the locale source. Every method runs on a dedicated,
+/// lazily created, non-FullMode <see cref="SchemaContext"/> owned by this provider:
+/// a FullMode context propagates relations to DataNodes while saving, which can leave the Core
+/// load lock held and make the subsequent forced reload a no-op. Schema API work needs no DataNode
+/// propagation, so it runs on the non-FullMode context.
+///
+/// The temporary context lives in its own DI scope created from the process root, so it shares the
+/// singleton <c>ISchemaRuntime</c> and the same backing store, while getting its own scoped services
+/// (storage provider, context items) bound to it. It is not registered in the screen factory's live
+/// context list and owns no UI node; only schema data crosses the API boundary. The scope is disposed
+/// with this provider, which the screen session disposes.
 /// </summary>
-public sealed class LocalSchemaApiProvider : ISchemaApiProvider
+public sealed class LocalSchemaApiProvider : ISchemaApiProvider, IDisposable
 {
-    private readonly SchemaContext _context;
+    private readonly SchemaContext _host;
+    private readonly IServiceScopeFactory _scopeFactory;
+
+    private IServiceScope? _scope;
+    private SchemaContext? _context;
+    private bool _disposed;
+    private readonly object _gate = new();
 
     /// <summary>
-    /// Constructs the provider and ensures full mode is enabled (idempotent: repeated assignment has no side effects).
+    /// Stores the hosting screen context and the scope factory used to create the temporary context.
     /// </summary>
-    public LocalSchemaApiProvider(SchemaContext context)
+    public LocalSchemaApiProvider(SchemaContext host)
     {
-        _context = context ?? throw new ArgumentNullException(nameof(context));
+        _host = host ?? throw new ArgumentNullException(nameof(host));
+        _scopeFactory = host.GetRequiredService<IServiceScopeFactory>();
+    }
 
-        // The screen factory must complete the FullMode=true setup before constructing this provider;
-        // perform one more idempotent safeguard here to avoid silently losing reactive capabilities when
-        // other hosts misuse it.
-        if (!_context.FullMode)
-            _context.FullMode = true;
+    /// <summary>
+    /// The temporary non-FullMode context. Created on first use; its locale follows the host
+    /// context so that messages produced after a language switch use the new language.
+    /// </summary>
+    private SchemaContext Context
+    {
+        get
+        {
+            SchemaContext context;
+            lock (_gate)
+            {
+                if (_disposed) throw new ObjectDisposedException(nameof(LocalSchemaApiProvider));
+
+                if (_context is null)
+                {
+                    _scope = _scopeFactory.CreateScope();
+                    _context = _scope.ServiceProvider.GetRequiredService<SchemaContext>();
+                }
+
+                context = _context;
+            }
+
+            // The temporary context keeps its own Locale; syncing per call makes it follow the host
+            // context, so errors raised after a language switch use the new language.
+            context.Locale = _host.Locale;
+            return context;
+        }
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        IServiceScope? scope;
+        lock (_gate)
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            // Disposing the scope disposes the scoped temporary SchemaContext and every service bound to it.
+            _context = null;
+            scope = _scope;
+            _scope = null;
+        }
+
+        scope?.Dispose();
     }
 
     /// <inheritdoc />
@@ -47,28 +108,43 @@ public sealed class LocalSchemaApiProvider : ISchemaApiProvider
     {
         ArgumentNullException.ThrowIfNull(names);
 
-        // The local implementation does not filter by includeRefs: Core already resolves and registers
-        // referenced types while loading types; the value returned here is only used for list display,
-        // with semantics matching TS's `?.schemas || []`.
-        var result = new List<NodeSchema>();
+        // Same implementation as GetSchemaApi: build a root namespace schema, resolve each requested
+        // node with a SchemaRead check, and let GetNodeSchemasAsync install the full namespace path.
+        // A namespace is therefore expanded into its definition plus its direct children, matching
+        // exactly what a remote client receives; the result is a tree, not a flat child list.
+        NodeSchema root = new()
+        {
+            Name = "",
+            Kind = NODE_KIND_NAMESPACE,
+            Schemas = [],
+        };
+        HashSet<string> types = [];
+
         foreach (string name in names)
         {
             ct.ThrowIfCancellationRequested();
-            NodeType? node = await _context.GetNodeTypeAsync(name).ConfigureAwait(false);
-            if (node == null) continue;
-
-            // Namespace: return all of its child types together, matching the front-end schema.vue list display
-            if (node is NamespaceType ns)
-            {
-                result.AddRange(ns.GetNodeSchemas(_context));
-            }
-            else
-            {
-                NodeSchema? schema = node.GetNodeSchema(_context.Runtime);
-                if (schema != null) result.Add(schema);
-            }
+            NodeType? node = await Context.GetNodeTypeAsync(name, token: ct).ConfigureAwait(false);
+            await GetNodeSchemas(node, true).ConfigureAwait(false);
         }
-        return [.. result];
+
+        return root.Schemas ?? [];
+
+        async Task GetNodeSchemas(NodeType? node, bool first = false)
+        {
+            if (node == null) return;
+            if (await Context.AuthorizeAsync(node, PolicyScope.SchemaRead, true, ct).ConfigureAwait(false) == false) return;
+
+            await Context.GetNodeSchemasAsync(node, root, types, includeRefs, cancellationToken: ct).ConfigureAwait(false);
+
+            if (node is NamespaceType ns && first)
+                foreach (var pair in ns.GetNodeSchemas())
+                {
+                    ct.ThrowIfCancellationRequested();
+                    NodeType? nodeType = await Context.GetNodeTypeAsync(pair.FullName, token: ct).ConfigureAwait(false);
+                    if (nodeType != null)
+                        await GetNodeSchemas(nodeType).ConfigureAwait(false);
+                }
+        }
     }
 
     /// <inheritdoc />
@@ -77,13 +153,9 @@ public sealed class LocalSchemaApiProvider : ISchemaApiProvider
         ArgumentNullException.ThrowIfNull(schema);
         ct.ThrowIfCancellationRequested();
 
-        // Locate the parent namespace and write the schema into it; SaveNodeSchema marks the corresponding
-        // type's Loaded as false so it can be reloaded
-        NamespaceType? ns = await _context.GetNodeTypeAsync<NamespaceType>(schema.Namespace ?? string.Empty).ConfigureAwait(false);
-        if (ns == null) return false;
-
-        ns.SaveNodeSchema(schema);
-        return true;
+        // Same implementation as SaveSchemaApi: authorize, persist through the storage provider,
+        // refresh the runtime node from the reload path, raise the schema-change event.
+        return await Context.SaveSchemaAsync(schema, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -92,20 +164,13 @@ public sealed class LocalSchemaApiProvider : ISchemaApiProvider
         if (string.IsNullOrWhiteSpace(name)) return false;
         ct.ThrowIfCancellationRequested();
 
-        NodeType? node = await _context.GetNodeTypeAsync(name).ConfigureAwait(false);
-        if (node == null) return false;
-        if (node.IsUsed) return false; // Referenced types cannot be deleted, matching the front-end constraint
-
-        string? nsName = node.GetNodeSchema(_context.Runtime)?.Namespace;
-        if (string.IsNullOrEmpty(nsName)) return false;
-
-        NamespaceType? ns = await _context.GetNodeTypeAsync<NamespaceType>(nsName).ConfigureAwait(false);
-        ns?.RemoveNodeSchema(node.Name);
-        return true;
+        // Same implementation as DeleteSchemaApi: the Core extension owns the IsUsed check,
+        // SchemaDelete authorization, provider deletion and runtime removal.
+        return await Context.DeleteSchemaAsync(name, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public Task<JsonNode?> CallFunctionAsync(
+    public async Task<JsonNode?> CallFunctionAsync(
         string schemaName,
         JsonArray? args = null,
         string? retType = null,
@@ -117,14 +182,17 @@ public sealed class LocalSchemaApiProvider : ISchemaApiProvider
         ct.ThrowIfCancellationRequested();
         args ??= new JsonArray();
 
-        // Set up the invocation context (associated app / target data).
-        // This context is a screen-level instance, so the settings only affect the current screen;
-        // the semantics match the server-side CallFunctionApi.
-        if (!string.IsNullOrWhiteSpace(app) || !string.IsNullOrWhiteSpace(target))
-            _context.SetAccess(app, target);
+        // Same implementation as CallFunctionApi: reject non-function nodes and workflow-only
+        // functions, then set the access context and authorize FuncExecute before invoking.
+        NodeType? node = await Context.GetNodeTypeAsync(schemaName, token: ct).ConfigureAwait(false);
+        if (node is not FunctionType func || func.HasFlag<WorkflowOnly>() == true) return null;
 
-        // Extension method on FunctionType: resolves and executes the function internally
-        return _context.CallFunctionAsync(schemaName, args, retType, applyMode)!;
+        if (!string.IsNullOrWhiteSpace(app) || !string.IsNullOrWhiteSpace(target))
+            Context.SetAccess(app, target);
+
+        await Context.AuthorizeAsync(node, PolicyScope.FuncExecute, token: ct).ConfigureAwait(false);
+
+        return await Context.CallFunctionAsync(func, args, retType, applyMode, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -132,7 +200,7 @@ public sealed class LocalSchemaApiProvider : ISchemaApiProvider
     {
         ArgumentNullException.ThrowIfNull(app);
         ct.ThrowIfCancellationRequested();
-        return _context.SaveAppSchemaAsync(app);
+        return Context.SaveAppSchemaAsync(app, ct);
     }
 
     /// <inheritdoc />
@@ -149,27 +217,27 @@ public sealed class LocalSchemaApiProvider : ISchemaApiProvider
         // Mirror GetAppSchemaApi: resolve the app type first, then serialize its schema.
         // This also covers built-in (system-defined) apps, which are created by the runtime
         // and are not visible through IAppEntryProvider enumeration.
-        RuntimeAppType? node = await _context.GetAppTypeAsync(app).ConfigureAwait(false);
+        RuntimeAppType? node = await Context.GetAppTypeAsync(app, token: ct).ConfigureAwait(false);
         if (node is null) return null;
 
         // Same authorization step as the server API (throws when no policy grants SchemaRead).
-        await _context.AuthorizeAsync(node, PolicyScope.SchemaRead).ConfigureAwait(false);
+        await Context.AuthorizeAsync(node, PolicyScope.SchemaRead, token: ct).ConfigureAwait(false);
 
         // The format branch of the server API streams a file; this provider can only return
         // the schema itself, so a requested format is ignored here.
-        AppSchema schema = await node.GetSchemaAsync(_context).ConfigureAwait(false);
+        AppSchema schema = await node.GetSchemaAsync(Context, token: ct).ConfigureAwait(false);
 
         if (includeTypes)
-            schema.NodeSchemas = await _context.GetNodeSchemasAsync(node, includeUsedBy: true, cancellationToken: ct).ConfigureAwait(false);
+            schema.NodeSchemas = await Context.GetNodeSchemasAsync(node, includeUsedBy: true, cancellationToken: ct).ConfigureAwait(false);
 
         if (schema.Fields is not { Length: > 0 })
         {
             List<AppSchema> apps = [];
             foreach (AppSchema sub in node.GetSubAppSchemas())
             {
-                RuntimeAppType? subApp = await _context.GetAppTypeAsync(sub.FullName).ConfigureAwait(false);
+                RuntimeAppType? subApp = await Context.GetAppTypeAsync(sub.FullName, token: ct).ConfigureAwait(false);
                 if (subApp is not null)
-                    apps.Add(await subApp.GetSchemaAsync(_context).ConfigureAwait(false));
+                    apps.Add(await subApp.GetSchemaAsync(Context, token: ct).ConfigureAwait(false));
             }
             schema.Apps = apps.ToArray();
         }
@@ -182,7 +250,7 @@ public sealed class LocalSchemaApiProvider : ISchemaApiProvider
     {
         if (string.IsNullOrWhiteSpace(app)) return Task.FromResult(false);
         ct.ThrowIfCancellationRequested();
-        return _context.DeleteAppSchemaAsync(app);
+        return Context.DeleteAppSchemaAsync(app, ct);
     }
 
     /// <inheritdoc />
@@ -190,7 +258,7 @@ public sealed class LocalSchemaApiProvider : ISchemaApiProvider
     {
         ArgumentNullException.ThrowIfNull(workflow);
         ct.ThrowIfCancellationRequested();
-        return _context.SaveAppWorkflowSchemaAsync(app, workflow);
+        return Context.SaveAppWorkflowSchemaAsync(app, workflow, token: ct);
     }
 
     /// <inheritdoc />
@@ -198,6 +266,6 @@ public sealed class LocalSchemaApiProvider : ISchemaApiProvider
     {
         if (string.IsNullOrWhiteSpace(workflow)) return Task.FromResult(false);
         ct.ThrowIfCancellationRequested();
-        return _context.DeleteAppWorkflowSchemaAsync(app, workflow);
+        return Context.DeleteAppWorkflowSchemaAsync(app, workflow, ct);
     }
 }

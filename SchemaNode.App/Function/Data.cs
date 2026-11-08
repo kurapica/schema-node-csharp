@@ -66,7 +66,7 @@ public static class SystemAppData
 
         // Check the app access is contained, only allow access in the same app or system depth app
         Access? access = context.GetContextItem<Access>();
-        if ((access == null || !app.Equals(access.App)) && appType!.ScopeType != AppScopeType.SystemLevel)
+        if ((access == null || !string.Equals(app, access.App, StringComparison.OrdinalIgnoreCase)) && appType!.ScopeType != AppScopeType.SystemLevel)
             return default;
 
         // get the key type
@@ -217,7 +217,7 @@ public static class SystemAppData
         string? target = access?.Target;
 
         // Check the app access is contained, only allow access in the same app or system depth app
-        if ((access == null || !app.Equals(access.App)) && appType.ScopeType != AppScopeType.SystemLevel) return null;
+        if ((access == null || !string.Equals(app, access.App, StringComparison.OrdinalIgnoreCase)) && appType.ScopeType != AppScopeType.SystemLevel) return null;
         if (string.IsNullOrEmpty(target) && appType.ScopeType != AppScopeType.SystemLevel) return null;
 
         AppFieldType? fieldType = appType.GetField(field);
@@ -368,7 +368,7 @@ public static class SystemAppData
         string? target = access?.Target;
 
         // Check the app access is contained, only allow access in the same app or system depth app
-        if ((access == null || !app.Equals(access.App)) && appType.ScopeType != AppScopeType.SystemLevel) return false;
+        if ((access == null || !string.Equals(app, access.App, StringComparison.OrdinalIgnoreCase)) && appType.ScopeType != AppScopeType.SystemLevel) return false;
         if (string.IsNullOrEmpty(target) && appType.ScopeType != AppScopeType.SystemLevel) return false;
 
         AppFieldType? fieldType = appType.GetField(field);
@@ -413,7 +413,7 @@ public static class SystemAppData
         string? target = access?.Target;
 
         // Check the app access is contained, only allow access in the same app or system depth app
-        if ((access == null || !app.Equals(access.App)) && appType.ScopeType != AppScopeType.SystemLevel) return false;
+        if ((access == null || !string.Equals(app, access.App, StringComparison.OrdinalIgnoreCase)) && appType.ScopeType != AppScopeType.SystemLevel) return false;
         if (string.IsNullOrEmpty(target) && appType.ScopeType != AppScopeType.SystemLevel) return false;
 
         AppFieldType? fieldType = appType.GetField(field);

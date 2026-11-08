@@ -108,13 +108,26 @@ public static class PushDataExtenstion
                             rowChecker = policy.FilterFunc;
                             break;
                         }
+                        catch (OperationCanceledException)
+                        {
+                            // Cancellation is neither an allow nor a deny, propagate it as-is
+                            throw;
+                        }
+                        catch (UnauthorizedAccessException)
+                        {
+                            throw;
+                        }
                         catch (Exception e)
                         {
+                            // A configured row policy that can't be evaluated must reject the write,
+                            // never fall back to "no row checking" (fail-open)
                             context.LogError(e, $"PushAppDataAsync row access check error for func ${policy.Evaluator}");
-                            rowChecker = null;
+                            throw new UnauthorizedAccessException($"Row access policy evaluation failed for {policy.Evaluator}.", e);
                         }
                     }
 
+                    // rowChecker == null only when no row policy is configured (or none applies),
+                    // which is the legitimate "no row filtering" case
                     if (rowChecker != null)
                     {
                         // check data row access permission

@@ -926,25 +926,26 @@ public abstract class DataNode : IValueAccess, IDisposable
     {
         if (DisableConstraint) return;
         if (Context is not SchemaContext ctx) return;
-        var tasks = new List<Task>();
 
-        // validate static constraints
-        tasks = _propertyProviders.SelectMany(p => p.GetProperties<IConstraintProperty>())
+        // validate static constraints sequentially, constraints are few and lightweight
+        var staticConstraints = _propertyProviders.SelectMany(p => p.GetProperties<IConstraintProperty>())
             .Concat(Type.GetProperties<IConstraintProperty>())
-            .Select(p => Task.Run(async () =>
+            .ToList();
+        foreach (var p in staticConstraints)
+        {
+            if (cancellationToken.IsCancellationRequested) return;
+            try
             {
-                try
-                {
-                    var res = await p.ValidateAsync(ctx, this).ConfigureAwait(false);
-                    RecordConstraint(p, res, true);
-                }
-                catch (Exception ex)
-                {
-                    ctx.LogError(ex, "Validation failed {0}", p.Name);
-                }
-            }, cancellationToken)).ToList();
+                var res = await p.ValidateAsync(ctx, this, cancellationToken).ConfigureAwait(false);
+                RecordConstraint(p, res, true);
+            }
+            catch (Exception ex)
+            {
+                ctx.LogError(ex, "Validation failed {0}", p.Name);
+            }
+        }
 
-        // valdiate dynamic constraints
+        // validate dynamic constraints sequentially
         if (_props is not null)
         {
             foreach (var props in _props.Values)
@@ -952,26 +953,23 @@ public abstract class DataNode : IValueAccess, IDisposable
                 if (props.Count == 0 || props.First().Property is not IConstraintProperty) continue;
                 foreach (var record in props)
                 {
-                    tasks.Add(Task.Run(async () =>
+                    if (cancellationToken.IsCancellationRequested) return;
+                    try
                     {
-                        try
-                        {
-                            var prop = (record.Property as IConstraintProperty)!;
-                            var res = await prop.ValidateAsync(ctx, this).ConfigureAwait(false);
-                            if (res != record.Valid)
-                                record.Valid = res;
-                        }
-                        catch (Exception ex)
-                        {
-                            ctx.LogError(ex, "Validation failed {0}", record.Property.Name);
-                        }
-                    }, cancellationToken));
+                        var prop = (record.Property as IConstraintProperty)!;
+                        var res = await prop.ValidateAsync(ctx, this, cancellationToken).ConfigureAwait(false);
+                        if (res != record.Valid)
+                            record.Valid = res;
+                    }
+                    catch (Exception ex)
+                    {
+                        ctx.LogError(ex, "Validation failed {0}", record.Property.Name);
+                    }
                     if (!record.Property.Stackable) break; // only validate the top one for non-stackable
                 }
             }
         }
-        if (tasks.Count > 0 && !cancellationToken.IsCancellationRequested)
-            await Task.WhenAll(tasks).ConfigureAwait(false);
+        if (cancellationToken.IsCancellationRequested) return;
         OnNextViolated();
     }
 

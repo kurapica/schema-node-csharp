@@ -597,8 +597,13 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 await using DbDataReader totalReader = await totalCommand.ExecuteReaderAsync(token).ConfigureAwait(false);
                 try
                 {
+                    // COUNT(*) is BIGINT while the EXISTS expression returns an integer,
+                    // so read as object and normalize to long before narrowing to int.
                     if (totalReader.HasRows && await totalReader.ReadAsync(token).ConfigureAwait(false))
-                        total = totalReader.GetInt32(0);
+                    {
+                        long count = Convert.ToInt64(totalReader.GetValue(0));
+                        total = count > int.MaxValue ? int.MaxValue : (int)count;
+                    }
                     switch (type)
                     {
                         case AppSchemaDataResult.Exist:

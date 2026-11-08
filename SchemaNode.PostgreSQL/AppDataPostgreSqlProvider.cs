@@ -372,7 +372,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
 
             if (schema.Fields.Last().Name.Equals(DYNAMIC_TABLE_VALUE_FIELD))
             {
-                DbCommand command = GetDbCommand();
+                await using DbCommand command = GetDbCommand();
                 command.CommandText = $"SELECT {sqlProvider.QuoteField(DYNAMIC_TABLE_VALUE_FIELD)} FROM {tableName} t0{wherePrefix}{TrueCond}{querySuffix}";
                 Logger.LogDebug(command.CommandText);
                 DbDataReader reader = await command.ExecuteReaderAsync(token).ConfigureAwait(false);
@@ -490,7 +490,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                 sb.Append(querySuffix);
 
                 // Get data
-                DbCommand command = GetDbCommand();
+                await using DbCommand command = GetDbCommand();
                 command.CommandText = sb.ToString();
                 Logger.LogDebug(command.CommandText);
                 DbDataReader reader = await command.ExecuteReaderAsync(token).ConfigureAwait(false);
@@ -718,7 +718,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
             select.Append(querySuffix);
 
             ArrayNode? value = null;
-            DbCommand command = GetDbCommand();
+            await using DbCommand command = GetDbCommand();
             command.CommandText = select.ToString();
             Logger.LogDebug(command.CommandText);
             DbDataReader reader = await command.ExecuteReaderAsync(token).ConfigureAwait(false);
@@ -958,7 +958,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
             {
                 if (origin != null)
                 {
-                    DbCommand command = GetDbCommand();
+                    await using DbCommand command = GetDbCommand();
                     command.CommandText = $"DELETE FROM {tableName}{wherePrefix}{TrueCond};";
                     Logger.LogInformation(command.CommandText);
                     await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
@@ -978,7 +978,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                 {
                     try
                     {
-                        DbCommand command = GetDbCommand();
+                        await using DbCommand command = GetDbCommand();
                         command.CommandText = string.Format(insertTemplate, sqlProvider.Literal(value));
                         Logger.LogInformation(command.CommandText);
                         await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
@@ -996,7 +996,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                     if (origin == null)
                         (origin, _) = await QueryDynamicTableAsync(schema, AppSchemaDataResult.First, token: token).ConfigureAwait(false);
 
-                    DbCommand command = GetDbCommand();
+                    await using DbCommand command = GetDbCommand();
                     command.CommandText = $"UPDATE {tableName} SET {sqlProvider.QuoteField(DYNAMIC_TABLE_VALUE_FIELD)} = {sqlProvider.Literal(value)}{wherePrefix}{TrueCond};";
                     Logger.LogInformation(command.CommandText);
                     await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
@@ -1012,7 +1012,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                 {
                     try
                     {
-                        DbCommand command = GetDbCommand();
+                        await using DbCommand command = GetDbCommand();
                         command.CommandText = string.Format(insertTemplate, string.Join(',', schema.GetFieldValues(pack).Select(p => sqlProvider.Literal(p.value))));
                         Logger.LogInformation(command.CommandText);
                         await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
@@ -1042,7 +1042,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
 
                     sb.Append($"{wherePrefix}{TrueCond};");
 
-                    DbCommand command = GetDbCommand();
+                    await using DbCommand command = GetDbCommand();
                     command.CommandText = sb.ToString();
                     Logger.LogInformation(command.CommandText);
                     await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
@@ -1130,7 +1130,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                 {
                     try
                     {
-                        DbCommand command = GetDbCommand();
+                        await using DbCommand command = GetDbCommand();
                         command.CommandText = string.Format(insertTemplate, string.Join(',', schema.GetFieldValues(pack).Select(p => sqlProvider.Literal(p.value))));
                         Logger.LogInformation(command.CommandText);
                         await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
@@ -1175,7 +1175,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                         sb.Append(" ");
                         sb.Append(where);
 
-                        DbCommand command = GetDbCommand();
+                        await using DbCommand command = GetDbCommand();
                         command.CommandText = sb.ToString();
                         Logger.LogInformation(command.CommandText);
                         await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
@@ -1224,7 +1224,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
             (IValueAccess? origin, _) = await QueryDynamicTableAsync(schema, AppSchemaDataResult.First, forUpdate: true, token: token).ConfigureAwait(false);
             if (origin is null) return (false, null);
 
-            DbCommand command = GetDbCommand();
+            await using DbCommand command = GetDbCommand();
             command.CommandText = $"DELETE FROM {tableName}{wherePrefix}{TrueCond};";
             Logger.LogInformation(command.CommandText);
             await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
@@ -1241,7 +1241,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
             (IValueAccess? origin, _) = await QueryDynamicTableAsync(schema, AppSchemaDataResult.List, filter, forUpdate: true, token: token).ConfigureAwait(false);
             if (origin is not ArrayNode arr || arr.Count == 0) return (false, null);
 
-            DbCommand command = GetDbCommand();
+            await using DbCommand command = GetDbCommand();
             command.CommandText = $"DELETE FROM {tableName}{wherePrefix}{sql};";
             Logger.LogInformation(command.CommandText);
             await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
@@ -1261,13 +1261,16 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
         (IValueAccess? origin, _) = await QueryDynamicTableAsync(schema, schema.Single ? AppSchemaDataResult.First : AppSchemaDataResult.List, forUpdate: true, token: token).ConfigureAwait(false);
         if (origin is null || origin is ArrayNode { Count: 0 }) return (false, null);
 
-        DbCommand command = GetDbCommand();
-        command.CommandText = $"DELETE FROM {sqlProvider.QuoteTable(schema.AppField.DynamicTableName)}{wherePrefix}{TrueCond};";
-        Logger.LogInformation(command.CommandText);
-        await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
+        {
+            await using DbCommand command = GetDbCommand();
+            command.CommandText = $"DELETE FROM {sqlProvider.QuoteTable(schema.AppField.DynamicTableName)}{wherePrefix}{TrueCond};";
+            Logger.LogInformation(command.CommandText);
+            await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
+        }
+
         if (schema.AppField.Topology == FieldStorageTopology.AttributeBased)
         {
-            command = GetDbCommand();
+            await using DbCommand command = GetDbCommand();
             command.CommandText = $"DELETE FROM {sqlProvider.QuoteTable(schema.AppField.AttributeTableName)}{wherePrefix}{TrueCond};";
             Logger.LogInformation(command.CommandText);
             await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
@@ -1285,7 +1288,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
         string tableName = sqlProvider.QuoteTable(schema.AppField.DynamicTableName);
         await EnsureOpenConnectionAsync(token).ConfigureAwait(false);
 
-        DbCommand command = GetDbCommand();
+        await using DbCommand command = GetDbCommand();
         command.CommandText = $"DROP TABLE IF EXISTS {tableName};";
         Logger.LogInformation(command.CommandText);
         await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
@@ -1293,7 +1296,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
         if (schema.AppField.Topology == FieldStorageTopology.AttributeBased)
         {
             string attrTableName = sqlProvider.QuoteTable(schema.AppField.AttributeTableName);
-            DbCommand attrCommand = GetDbCommand();
+            await using DbCommand attrCommand = GetDbCommand();
             attrCommand.CommandText = $"DROP TABLE IF EXISTS {attrTableName};";
             Logger.LogInformation(attrCommand.CommandText);
             await attrCommand.ExecuteNonQueryAsync(token).ConfigureAwait(false);
