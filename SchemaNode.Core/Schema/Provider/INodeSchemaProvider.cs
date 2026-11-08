@@ -14,5 +14,5 @@ public interface INodeSchemaProvider
     /// </summary>
     /// <param name="names">The schema names</param>
     /// <returns>The schema</returns>
-    Task<NodeSchema[]> GetSchemaAsync(string[] names);
+    Task<NodeSchema[]> GetSchemaAsync(string[] names, CancellationToken token = default);
 }

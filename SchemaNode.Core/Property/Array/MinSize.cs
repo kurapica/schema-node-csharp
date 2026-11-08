@@ -46,5 +46,5 @@ public class MinSize : Property<long>, IConstraintProperty
     /// <summary>
     /// Validate the array data node with async mode
     /// </summary>
-    public Task<bool?> ValidateArrayAsync(SchemaContext context, ArrayNode node) => Task.FromResult(ValidateArray(context, node));
+    public Task<bool?> ValidateArrayAsync(SchemaContext context, ArrayNode node, CancellationToken token = default) => Task.FromResult(ValidateArray(context, node));
 }

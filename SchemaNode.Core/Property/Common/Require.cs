@@ -25,7 +25,7 @@ public class Require : Property<bool>, IConstraintProperty
     }
 
     /// <inheritdoc/>
-    public virtual Task<bool?> ValidateAsync(SchemaContext context, IValueAccess node)
+    public virtual Task<bool?> ValidateAsync(SchemaContext context, IValueAccess node, CancellationToken token = default)
         => Task.FromResult(Validate(context, node));
 
     /// <inheritdoc/>

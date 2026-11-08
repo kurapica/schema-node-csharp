@@ -15,13 +15,13 @@ namespace SchemaNode.Property.Enum;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ENUM}.{nameof(Root)}")]
 public class Root: Property<string>, IConstraintProperty
 {
-    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)
+    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, CancellationToken token = default)
     {
         string? nodeValue = node.GetValue<string>();
         if (string.IsNullOrWhiteSpace(Value) || string.IsNullOrWhiteSpace(nodeValue)) return null;
         if (Value.Equals(nodeValue)) return true;
 
-        var access = await (node.Type as Runtime.EnumType)!.GetEnumEntryAccessAsync(context, nodeValue).ConfigureAwait(false);
+        var access = await (node.Type as Runtime.EnumType)!.GetEnumEntryAccessAsync(context, nodeValue, token: token).ConfigureAwait(false);
         return access.Any(a =>Value.Equals(a.Entry?.Value));
     }
 }

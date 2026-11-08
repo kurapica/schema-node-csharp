@@ -103,7 +103,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
     #region Implementation
     
     /// <inheritdoc />
-    public override async Task LoadAsync(SchemaContext context)
+    public override async Task LoadAsync(SchemaContext context, CancellationToken token = default)
     {
         FunctionSchema? func = GetProperty<FunctionProperty>()?.Value;
         
@@ -119,7 +119,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
 
         // Return type
         ValueType? retType = !string.IsNullOrWhiteSpace(func.Return)
-            ? await context.GetNodeTypeAsync<ValueType>(func.Return, Generics, GenericParams).ConfigureAwait(false)
+            ? await context.GetNodeTypeAsync<ValueType>(func.Return, Generics, GenericParams, token: token).ConfigureAwait(false)
             : null;
         if (retType == null || retType is GenericType && !IsSystemCall)
         {
@@ -150,7 +150,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                 return;
             }
 
-            arg.ValueType = !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetNodeTypeAsync<ValueType>(arg.Type, Generics).ConfigureAwait(false) : null;
+            arg.ValueType = !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetNodeTypeAsync<ValueType>(arg.Type, Generics, token: token).ConfigureAwait(false) : null;
 
             if (arg.ValueType == null || arg.ValueType is GenericType && !IsSystemCall)
             {
@@ -170,14 +170,14 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
 
                 // Gets the property type
                 var kind = (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(currentType.Kind);
-                PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_FUNC_ARG).ConfigureAwait(false);
+                PropertyType? prop = await context.GetPropertyType(relation.Property, token, kind, SCHEMA_KIND_NODE_FUNC_ARG).ConfigureAwait(false);
                 if (prop == null) continue;
 
                 // Only work for constraint properties
                 Type? propType = prop.GetCsharpType();
                 if (propType == null) continue;
 
-                var relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_FUNC_ARG).ConfigureAwait(false);
+                var relationType = await relation.LoadAsync(context, this, [kind, SCHEMA_KIND_NODE_FUNC_ARG], token).ConfigureAwait(false);
                 Error ??= relationType.Error;
 
                 _relations ??= [];
@@ -308,7 +308,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
     }
 
     /// <inheritdoc/>
-    public Task<IValueAccess?> ValidateValueAsync(ISchemaContext context, object? value)
+    public Task<IValueAccess?> ValidateValueAsync(ISchemaContext context, object? value, CancellationToken token = default)
     {
         return Task.FromResult<IValueAccess?>(null);
     }
@@ -720,13 +720,24 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
             object?[] callArgs = new object[cnt];
             for (int i = 0; i < cnt; i++)
             {
-                ArgumentExp arg = funcSchema.Args.ElementAtOrDefault(i) ?? funcSchema.Args.Last();
-                FunctionNodeArgument funcArg = Args.ElementAtOrDefault(i) ?? Args.Last();
+                ArgumentExp? arg =
+                    funcSchema.Args.ElementAtOrDefault(i) ?? (funcSchema.Args.Length > 0 ? funcSchema.Args.Last() : null);
+                FunctionNodeArgument? funcArg =
+                    Args.ElementAtOrDefault(i) ?? (Args.Length > 0 ? Args.Last() : null);
 
                 // validate argument
                 object? argObj = args.ElementAtOrDefault(i);
                 JsonNode? argJson = argObj as JsonNode;
                 IValueAccess? argNode = argObj as IValueAccess;
+
+                // A function that declares no arguments can still be invoked with values supplied by
+                // the caller. Pass those through untouched instead of indexing an empty declaration
+                // (Last() on the empty arrays used to throw "Sequence contains no elements").
+                if (arg is null || funcArg is null)
+                {
+                    callArgs[i] = argObj;
+                    continue;
+                }
 
                 // check null or empty
                 if (argObj == null || (argJson != null && argJson.IsEmpty()) || argNode is { IsEmpty: true } && argNode.Type.Kind != NODE_KIND_ARRAY)

@@ -17,14 +17,14 @@ namespace SchemaNode.Property.Enum;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ENUM}.{nameof(CascadeDepth)}")]
 public class CascadeDepth : Property<long>, IConstraintProperty
 {
-    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)
+    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, CancellationToken token = default)
     {
         var effectiveValue = Value;
         if (effectiveValue <= 0 || node.IsEmpty) return null;
         EnumType? enumType = node.Type as EnumType;
         if (enumType?.Cascade == null || enumType.Cascade.Length <= effectiveValue) return null;
 
-        EntryAccess<string>[] access = await enumType.GetEnumEntryAccessAsync(context, node.GetValue<string>()).ConfigureAwait(false);
+        EntryAccess<string>[] access = await enumType.GetEnumEntryAccessAsync(context, node.GetValue<string>(), token: token).ConfigureAwait(false);
         return access.Length - 1 <= effectiveValue;
     }
 }

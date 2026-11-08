@@ -42,7 +42,7 @@ public sealed class ArrayType: ValueType, IRelationProvider, INodeTypeReLoadHand
     #region Implementation
 
     /// <inheritdoc />
-    public override async Task LoadAsync(SchemaContext context)
+    public override async Task LoadAsync(SchemaContext context, CancellationToken token = default)
     {
         ArraySchema? array = GetProperty<ArrayProperty>()?.Value;
         if (array == null)
@@ -52,7 +52,7 @@ public sealed class ArrayType: ValueType, IRelationProvider, INodeTypeReLoadHand
         }
         
         // load properties
-        Element = !string.IsNullOrWhiteSpace(array.Element) ? await context.GetNodeTypeAsync<ValueType>(array.Element, Generics, GenericParams).ConfigureAwait(false) : null;
+        Element = !string.IsNullOrWhiteSpace(array.Element) ? await context.GetNodeTypeAsync<ValueType>(array.Element, Generics, GenericParams, token: token).ConfigureAwait(false) : null;
         Primary = GetProperty<Primary>()?.Value?.ToImmutableList();
 
         if (Element == null)
@@ -73,14 +73,14 @@ public sealed class ArrayType: ValueType, IRelationProvider, INodeTypeReLoadHand
                 
                 // Gets the property type
                 var kind = (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(currentType.Kind);
-                PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_STRUCT_FIELD).ConfigureAwait(false);
+                PropertyType? prop = await context.GetPropertyType(relation.Property, token, kind, SCHEMA_KIND_NODE_STRUCT_FIELD).ConfigureAwait(false);
                 if (prop == null) continue;
                 
                 // Only work for constraint properties
                 Type? propType = prop.GetCsharpType();
                 if (propType == null) continue;
                 
-                RelationType relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_STRUCT_FIELD).ConfigureAwait(false);
+                RelationType relationType = await relation.LoadAsync(context, this, [kind, SCHEMA_KIND_NODE_STRUCT_FIELD], token).ConfigureAwait(false);
                 Error ??= relationType.Error;
                 
                 _relations ??= [];

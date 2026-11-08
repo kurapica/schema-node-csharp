@@ -76,6 +76,7 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
                     throw new InvalidCastException($"Invalid array element value type '{value?.GetType()}'.");
                 _elements.Add(TrackElement(node));
                 RefreshElementNames();
+                OnNextItem(index);
                 return;
             }
 
@@ -118,7 +119,9 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
         if (value is ArrayNode arrayNode)
         {
             if (ReferenceEquals(arrayNode, this)) return true;
-            return ReplaceTypedRange(arrayNode._elements.Cast<object?>());
+            if (!ReplaceTypedRange(arrayNode._elements.Cast<object?>())) return false;
+            OnNext(this);
+            return true;
         }
 
         if (value == null)
@@ -128,13 +131,25 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
         }
 
         if (value is JsonElement { ValueKind: JsonValueKind.Array } jsonElement)
-            return ReplaceTypedRange(jsonElement.EnumerateArray().Select(static item => (object?)item));
+        {
+            if (!ReplaceTypedRange(jsonElement.EnumerateArray().Select(static item => (object?)item))) return false;
+            OnNext(this);
+            return true;
+        }
 
         if (value is JsonArray jsonArray)
-            return ReplaceTypedRange(jsonArray);
+        {
+            if (!ReplaceTypedRange(jsonArray)) return false;
+            OnNext(this);
+            return true;
+        }
 
         if (value is not string && value is not JsonObject && value is IEnumerable enumerable)
-            return ReplaceTypedRange(enumerable.Cast<object?>());
+        {
+            if (!ReplaceTypedRange(enumerable.Cast<object?>())) return false;
+            OnNext(this);
+            return true;
+        }
 
         // for single value
         ClearValue();
@@ -299,7 +314,7 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
     {
         ArrayNode node = new(Context, ElementType, null, null, PropertyProviders.ToArray());
         foreach (var element in _elements)
-            node.Add(element.Clone());
+            node.AddElement(element.Clone());
         node._original = _original?.DeepClone() as JsonArray;
         return node;
     }
@@ -314,9 +329,11 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
     /// <param name="nodes"></param>
     public void AddRange(IEnumerable nodes)
     {
+        bool changed = false;
         foreach (object? node in nodes.Cast<object?>())
-            Add(node);
+            changed |= AddElement(node);
         RefreshElementNames();
+        if (changed) OnNextItem(_elements.Count - 1);
     }
 
     /// <summary>
@@ -324,11 +341,20 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
     /// </summary>
     public void Add(object? node)
     {
-        if (node is null or IValueAccess { IsEmpty: true }) return;
+        if (AddElement(node)) OnNextItem(_elements.Count - 1);
+    }
+
+    /// <summary>
+    /// Append the element without publishing the change, so bulk callers can publish once.
+    /// </summary>
+    private bool AddElement(object? node)
+    {
+        if (node is null or IValueAccess { IsEmpty: true }) return false;
 
         if (!TryCreateElement(node, out var element))
             throw new InvalidCastException($"Invalid array element value type '{node.GetType()}'.");
         _elements.Add(TrackElement(element));
+        return true;
     }
 
     /// <summary>

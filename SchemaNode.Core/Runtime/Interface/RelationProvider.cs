@@ -14,7 +14,7 @@ public interface IRelationProvider
 
 public static class RelationProviderExtension
 {
-    public static async Task ValidateWithRelationsAsync(this IRelationProvider provider, SchemaContext context, IValueAccess node)
+    public static async Task ValidateWithRelationsAsync(this IRelationProvider provider, SchemaContext context, IValueAccess node, CancellationToken token = default)
     {
         // Validate by relations
         foreach (RelationType process in provider.GetRelations().Where(r => r.Property?.GetCsharpType()?.IsAssignableTo(typeof(IConstraintProperty)) == true))
@@ -62,7 +62,7 @@ public static class RelationProviderExtension
                         }
 
                         if (prop == null) continue;
-                        bool? result = await prop.ValidateAsync(context, currNode).ConfigureAwait(false);
+                        bool? result = await prop.ValidateAsync(context, currNode, token).ConfigureAwait(false);
                         if (result.HasValue) currNode.RecordConstraint(prop, result.Value);
                     }
                     break;

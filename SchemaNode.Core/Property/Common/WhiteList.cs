@@ -18,10 +18,10 @@ namespace SchemaNode.Property.Common;
 public class WhiteList : Property<object[]>, IConstraintProperty
 {
     /// <inheritdoc/>
-    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)
+    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, CancellationToken token = default)
     {
         if (Value == null || Value.Length == 0 || node.IsEmpty || node.Type.GetProperty<AsSuggest>()?.Value == true) return null;
-        var accessList = await (node.Type as EnumType)!.GetEnumEntryAccessAsync(context, node.GetValue<string>()).ConfigureAwait(false);
+        var accessList = await (node.Type as EnumType)!.GetEnumEntryAccessAsync(context, node.GetValue<string>(), token: token).ConfigureAwait(false);
         return accessList.Any(a => Value.Any(v => v.Equals(a.Entry?.Value)));
     }
 

@@ -25,11 +25,11 @@ public class PropertyType : NodeType
     public ValueType? ValueType { get; private set; }
 
     /// <inheritdoc/>
-    public override async Task LoadAsync(SchemaContext context)
+    public override async Task LoadAsync(SchemaContext context, CancellationToken token = default)
     {
         _property = GetProperty<PropertyProperty>()?.Value;
         ValueType = !string.IsNullOrWhiteSpace(_property?.Type) 
-            ? await context.GetNodeTypeAsync<ValueType>(_property.Type).ConfigureAwait(false)
+            ? await context.GetNodeTypeAsync<ValueType>(_property.Type, token: token).ConfigureAwait(false)
             : null;
         if (ValueType == null)
             Error = ErrorCodes.NO_DEFINITION;

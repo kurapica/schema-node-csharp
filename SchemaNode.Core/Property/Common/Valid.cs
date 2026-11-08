@@ -47,13 +47,13 @@ public class Valid : FuncCallProperty, IConstraintProperty
         target.RecordConstraint(this, ValidateAsync(context, target).GetAwaiter().GetResult());
     }
 
-    public async Task<bool?> ValidateAsync(SchemaContext context, IValueAccess node)
+    public async Task<bool?> ValidateAsync(SchemaContext context, IValueAccess node, CancellationToken token = default)
     {
         if (node.IsEmpty) return null;
         if (node is not StructNode && node.GetValue<object>() is null) return null;
 
         FunctionType? func = !string.IsNullOrWhiteSpace(Value?.Func)
-            ? await context.GetNodeTypeAsync<FunctionType>(Value.Func).ConfigureAwait(false)
+            ? await context.GetNodeTypeAsync<FunctionType>(Value.Func, token: token).ConfigureAwait(false)
             : null;
         if (func == null)
         {

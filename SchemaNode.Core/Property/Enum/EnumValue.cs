@@ -20,12 +20,12 @@ public class EnumValue: Property<bool>, IConstraintProperty
 {
     public override bool HasValue => true;
 
-    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)
+    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, CancellationToken token = default)
     {
         if (node.IsEmpty) return null;
         var type = (node.Type as Runtime.EnumType)!;
         return type.Type == EnumValueType.Flags
             ? node.TryGetValue(out long flagsValue) && flagsValue >= 0 && flagsValue <= type.MaxFlags
-            : await type.GetEnumEntryAccessAsync(context, node.GetValue<string>()).ConfigureAwait(false) is { Length: > 0};
+            : await type.GetEnumEntryAccessAsync(context, node.GetValue<string>(), token: token).ConfigureAwait(false) is { Length: > 0};
     }
 }

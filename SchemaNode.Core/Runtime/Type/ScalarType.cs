@@ -28,14 +28,14 @@ public abstract class ScalarType : ValueType
     #region Implementations
 
     /// <inheritdoc />
-    public override async Task LoadAsync(SchemaContext context)
+    public override async Task LoadAsync(SchemaContext context, CancellationToken token = default)
     {
         BaseType = null;
         ScalarSchema? scalar = GetScalarSchema();
 
         if (!string.IsNullOrWhiteSpace(scalar?.Base))
         {
-            BaseType = await context.GetNodeTypeAsync<ScalarType>(scalar.Base).ConfigureAwait(false);
+            BaseType = await context.GetNodeTypeAsync<ScalarType>(scalar.Base, token: token).ConfigureAwait(false);
             if (BaseType == null || !BaseType.Kind.Equals(Kind, StringComparison.OrdinalIgnoreCase))
                 Error = ErrorCodes.SCALAR_WRONG_BASE;
         }

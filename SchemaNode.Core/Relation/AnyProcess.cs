@@ -57,14 +57,14 @@ public class AnyProcess : IRelationProcess, INodeReferences, IErrorProvider
     private FuncCall[]? _calls;
 
     /// <inheritdoc/>
-    public async Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner, params string?[] kinds)
+    public async Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner, string?[] kinds, CancellationToken token = default)
     {
         FuncCall[]? calls = schema.GetProperty<Any>()?.GetValue<FuncCall[]>();
         if (calls == null || calls.Length == 0) return;
         List<FunctionType> types = [];
         foreach(var call in calls)
         {
-            var funcType = await context.GetNodeTypeAsync<FunctionType>(call.Func, null, null, true).ConfigureAwait(false);
+            var funcType = await context.GetNodeTypeAsync<FunctionType>(call.Func, null, null, true, token).ConfigureAwait(false);
             if (funcType == null)
             {
                 Error ??= ErrorCodes.RELATION_FUNC_NOT_EXIST;

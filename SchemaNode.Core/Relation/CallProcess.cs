@@ -45,7 +45,7 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
     public FunctionType? FuncType { get; private set; }
 
     /// <inheritdoc/>
-    public async Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner, params string?[] kinds)
+    public async Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner, string?[] kinds, CancellationToken token = default)
     {
         FuncCall? call = schema.GetProperty<Call>()?.GetValue<FuncCall>();
         if (call == null)
@@ -59,7 +59,7 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
         Args = call.Args;
         
         // load & check
-        FuncType = !string.IsNullOrWhiteSpace(Func) ? await context.GetNodeTypeAsync<FunctionType>(Func).ConfigureAwait(false): null;
+        FuncType = !string.IsNullOrWhiteSpace(Func) ? await context.GetNodeTypeAsync<FunctionType>(Func, token: token).ConfigureAwait(false): null;
         Error = FuncType == null ? ErrorCodes.RELATION_FUNC_NOT_EXIST : null;
         
         // check args

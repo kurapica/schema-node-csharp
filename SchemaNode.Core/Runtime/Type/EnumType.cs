@@ -71,7 +71,7 @@ public sealed class EnumType: ValueType
     #region Method
 
     /// <inheritdoc />
-    public override Task LoadAsync(SchemaContext context)
+    public override Task LoadAsync(SchemaContext context, CancellationToken token = default)
     {
         _enumSchema = GetProperty<EnumProperty>()?.Value;
 
@@ -153,7 +153,7 @@ public sealed class EnumType: ValueType
     /// <param name="value">The enum value to be queried</param>
     /// <param name="start">The start value of the access path</param>
     /// <returns></returns>
-    public async Task<EntryAccess<string>[]> GetEnumEntryAccessAsync(SchemaContext context, string? value, string? start = null)
+    public async Task<EntryAccess<string>[]> GetEnumEntryAccessAsync(SchemaContext context, string? value, string? start = null, CancellationToken token = default)
     {
         if (string.IsNullOrWhiteSpace(start)) start = null;
         if (string.IsNullOrWhiteSpace(value)) value = null;
@@ -167,7 +167,7 @@ public sealed class EnumType: ValueType
         if (Provider != null && Provider.IsAssignableTo(typeof(IEnumEntryProvider)))
         {
             EntryAccess<string>[] accessList = await (context.GetRequiredService(Provider) as IEnumEntryProvider)!
-                .GetEnumEntryAccessAsync(Name, value, !root.IsRoot ? root.Value : null).ConfigureAwait(false);
+                .GetEnumEntryAccessAsync(Name, value, !root.IsRoot ? root.Value : null, token).ConfigureAwait(false);
             if (accessList.Length > 0)
             {
                 lock (_lock) root.SaveAccessList(accessList);

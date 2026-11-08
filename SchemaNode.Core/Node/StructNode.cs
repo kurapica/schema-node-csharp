@@ -324,7 +324,10 @@ public class StructNode : DataNode
                             f.ClearValue();
                         else
                         {
-                            object? v = (isSameType ? field.Property : value.GetType().GetProperty(field.Property.Name)!).GetValue(_csharpObject);
+                            // Read from the assigned object, not from _csharpObject: a field write-back
+                            // (FullMode relation assign) clears _csharpObject midway through the loop,
+                            // and GetValue(null) would then throw "Non-static method requires a target".
+                            object? v = (isSameType ? field.Property : value.GetType().GetProperty(field.Property.Name)!).GetValue(value);
                             if (v != null)
                             {
                                 if (f is AnyNode && v is IValueAccess vNode)

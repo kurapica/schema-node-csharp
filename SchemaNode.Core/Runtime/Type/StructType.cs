@@ -125,7 +125,7 @@ public sealed class StructType: ValueType, IRelationProvider, INodeTypeReLoadHan
     }
 
     /// <inheritdoc />
-    public override async Task LoadAsync(SchemaContext context)
+    public override async Task LoadAsync(SchemaContext context, CancellationToken token = default)
     {
         // reset, invalidate deferred mounts scheduled by a previous load
         int version = ++_loadVersion;
@@ -152,7 +152,7 @@ public sealed class StructType: ValueType, IRelationProvider, INodeTypeReLoadHan
         {
             field.Error = null;
             StructFieldType fieldType = new();
-            await fieldType.LoadAsync(context, field, Generics, GenericParams, cType?.GetProperty(field.Name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)).ConfigureAwait(false);
+            await fieldType.LoadAsync(context, field, Generics, GenericParams, cType?.GetProperty(field.Name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase), token).ConfigureAwait(false);
             Error ??= field.Error;
             _fields.Add(fieldType);
         }
@@ -174,7 +174,7 @@ public sealed class StructType: ValueType, IRelationProvider, INodeTypeReLoadHan
                     string? schemaType = propCtor.GetSchemaType();
                     if (string.IsNullOrWhiteSpace(schemaType) || !handledTypes.Add(schemaType)) continue;
 
-                    PropertyType? propType = await context.GetNodeTypeAsync<PropertyType>(schemaType).ConfigureAwait(false) as PropertyType;
+                    PropertyType? propType = await context.GetNodeTypeAsync<PropertyType>(schemaType, token: token).ConfigureAwait(false) as PropertyType;
                     if (propType == null || propType.ValueType == null || string.IsNullOrEmpty(propType.Name))
                     {
                         // The property type is not ready: its schema is unresolved,
@@ -184,10 +184,10 @@ public sealed class StructType: ValueType, IRelationProvider, INodeTypeReLoadHan
                         // Mounting now would freeze an arbitrary field type and
                         // priority. Retry through the deferred queue instead of
                         // dropping the attached property permanently.
-                        context.DeferLoadTask(() => MountAttachFieldAsync(context, schemaType, version));
+                        context.DeferLoadTask(deferToken => MountAttachFieldAsync(context, schemaType, version, deferToken), token);
                         continue;
                     }
-                    await BuildAttachFieldAsync(context, propType, schemaType, attachFields, attachRelations).ConfigureAwait(false);
+                    await BuildAttachFieldAsync(context, propType, schemaType, attachFields, attachRelations, token).ConfigureAwait(false);
                 }
             }
         }
@@ -201,12 +201,12 @@ public sealed class StructType: ValueType, IRelationProvider, INodeTypeReLoadHan
         if (@struct.GetProperty<Relations>()?.Value is { Length: > 0 } relations)
         {
             foreach (RelationSchema relation in relations)
-                await AddRelationAsync(context, relation).ConfigureAwait(false);
+                await AddRelationAsync(context, relation, token).ConfigureAwait(false);
         }
 
         // Relations declared by the attached property types
         foreach (RelationSchema relation in attachRelations)
-            await AddRelationAsync(context, relation).ConfigureAwait(false);
+            await AddRelationAsync(context, relation, token).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -421,7 +421,7 @@ public sealed class StructType: ValueType, IRelationProvider, INodeTypeReLoadHan
     /// Mount one attach field after the deferred property type is fully loaded.
     /// Idempotent, the field is skipped when it is already present.
     /// </summary>
-    private async Task MountAttachFieldAsync(SchemaContext context, string schemaType, int version)
+    private async Task MountAttachFieldAsync(SchemaContext context, string schemaType, int version, CancellationToken token = default)
     {
         if (version != _loadVersion) return;
 
@@ -429,14 +429,14 @@ public sealed class StructType: ValueType, IRelationProvider, INodeTypeReLoadHan
         if (@struct == null) return;
         _structSchema ??= @struct;
 
-        PropertyType? propType = await context.GetNodeTypeAsync<PropertyType>(schemaType).ConfigureAwait(false) as PropertyType;
+        PropertyType? propType = await context.GetNodeTypeAsync<PropertyType>(schemaType, token: token).ConfigureAwait(false) as PropertyType;
         if (version != _loadVersion) return;
         if (propType?.ValueType == null || string.IsNullOrEmpty(propType.Name) || string.IsNullOrWhiteSpace(propType.Property)) return;
         if (IsDeclaredField(propType.Property)) return;
 
         List<(StructFieldType Field, PropertyType PropertyType, string SchemaType)> attachFields = [];
         List<RelationSchema> attachRelations = [];
-        await BuildAttachFieldAsync(context, propType, schemaType, attachFields, attachRelations).ConfigureAwait(false);
+        await BuildAttachFieldAsync(context, propType, schemaType, attachFields, attachRelations, token).ConfigureAwait(false);
         if (version != _loadVersion) return;
 
         foreach (var item in attachFields)
@@ -452,19 +452,20 @@ public sealed class StructType: ValueType, IRelationProvider, INodeTypeReLoadHan
             {
                 if (!relation.Target.Equals(propType.Property, StringComparison.OrdinalIgnoreCase) &&
                     !relation.Target.StartsWith($"{propType.Property}.", StringComparison.OrdinalIgnoreCase)) continue;
-                await AddRelationAsync(context, relation).ConfigureAwait(false);
+                await AddRelationAsync(context, relation, token).ConfigureAwait(false);
             }
         }
 
         foreach (RelationSchema relation in attachRelations)
-            await AddRelationAsync(context, relation).ConfigureAwait(false);
+            await AddRelationAsync(context, relation, token).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Build the runtime field for an attach property type and collect its relations.
     /// </summary>
     private async Task BuildAttachFieldAsync(SchemaContext context, PropertyType propType, string schemaType,
-        List<(StructFieldType Field, PropertyType PropertyType, string SchemaType)> attachFields, List<RelationSchema> attachRelations)
+        List<(StructFieldType Field, PropertyType PropertyType, string SchemaType)> attachFields, List<RelationSchema> attachRelations,
+        CancellationToken token = default)
     {
         ValueType? valueType = propType.ValueType;
         if (valueType == null || string.IsNullOrWhiteSpace(propType.Property)) return;
@@ -490,7 +491,7 @@ public sealed class StructType: ValueType, IRelationProvider, INodeTypeReLoadHan
         }
 
         StructFieldType fieldType = new();
-        await fieldType.LoadAsync(context, fieldSchema).ConfigureAwait(false);
+        await fieldType.LoadAsync(context, fieldSchema, token: token).ConfigureAwait(false);
         attachFields.Add((fieldType, propType, schemaType));
 
         // Save the property relations, stackable fields are list fields so the
@@ -510,7 +511,7 @@ public sealed class StructType: ValueType, IRelationProvider, INodeTypeReLoadHan
     /// <summary>
     /// Add a relation to the struct type, skip if the same relation was applied.
     /// </summary>
-    private async Task AddRelationAsync(SchemaContext context, RelationSchema relation)
+    private async Task AddRelationAsync(SchemaContext context, RelationSchema relation, CancellationToken token = default)
     {
         _relationSchemas ??= [];
         if (_relationSchemas.Any(r => r.Equals((PropertyOwner)relation))) return;
@@ -521,13 +522,13 @@ public sealed class StructType: ValueType, IRelationProvider, INodeTypeReLoadHan
 
         // Gets the property type
         string? kind = (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(currentType.Kind);
-        PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_STRUCT_FIELD).ConfigureAwait(false);
+        PropertyType? prop = await context.GetPropertyType(relation.Property, token, kind, SCHEMA_KIND_NODE_STRUCT_FIELD).ConfigureAwait(false);
         if (prop == null) return;
 
         // Only work for constraint properties
         if (prop.GetCsharpType() == null) return;
 
-        RelationType relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_STRUCT_FIELD).ConfigureAwait(false);
+        RelationType relationType = await relation.LoadAsync(context, this, [kind, SCHEMA_KIND_NODE_STRUCT_FIELD], token).ConfigureAwait(false);
         Error ??= relationType.Error;
 
         _relations ??= [];
@@ -715,10 +716,10 @@ public class StructFieldType : INodeReferences, IPropertyProvider
     /// <summary>
     /// Load struct field schema
     /// </summary>
-    internal async Task LoadAsync(SchemaContext context, StructFieldSchema field, IReadOnlyList<GenericParameter>? generics = null, IReadOnlyList<NodeType>? genericParams = null, PropertyInfo? property = null)
+    internal async Task LoadAsync(SchemaContext context, StructFieldSchema field, IReadOnlyList<GenericParameter>? generics = null, IReadOnlyList<NodeType>? genericParams = null, PropertyInfo? property = null, CancellationToken token = default)
     {
         Property = property;
-        Type = await context.GetNodeTypeAsync<ValueType>(field.Type, generics, genericParams).ConfigureAwait(false);
+        Type = await context.GetNodeTypeAsync<ValueType>(field.Type, generics, genericParams, token: token).ConfigureAwait(false);
 
         if (Type == null)
         {
@@ -737,7 +738,7 @@ public class StructFieldType : INodeReferences, IPropertyProvider
         if (propType != null) propTypes = propTypes.Concat(context.Runtime.GetSchemaKindPropertyTypes((context.Runtime as SchemaRuntime)!.GetSchemaKindByNodeKind(propType.Kind))).Distinct();
         IProperty[] props = field.GetProperties(propTypes).Prepend(nameProp).ToArray();
         
-        (RefTypes, string? error) = await field.LoadPropertiesAsync(context, props, Type).ConfigureAwait(false);
+        (RefTypes, string? error) = await field.LoadPropertiesAsync(context, props, Type, token).ConfigureAwait(false);
         field.Error ??= error;
         
         // init
@@ -748,7 +749,7 @@ public class StructFieldType : INodeReferences, IPropertyProvider
         Require = GetProperty<Require>()?.Value;
         DisplayOnly = GetProperty<DisplayOnly>()?.Value;
         Unpack =  GetProperty<Unpack>()?.Value;
-        Default = GetProperty<Default>() is {} defProp ? await Type.ValidateValueAsync(context, defProp.Value).ConfigureAwait(false) : null;
+        Default = GetProperty<Default>() is {} defProp ? await Type.ValidateValueAsync(context, defProp.Value, token).ConfigureAwait(false) : null;
     }
 
     /// <summary>

@@ -560,7 +560,8 @@ public abstract class DataNode : IValueAccess, IDisposable
         _validated?.Cancel();
         _validated = new CancellationTokenSource();
         _dataOb?.OnNext((this, value));
-        _ = Task.Run(async () => await ValidateAsync(_validated.Token).ConfigureAwait(false));
+        var token = _validated.Token;
+        _ = Task.Run(async () => await ValidateAsync(token).ConfigureAwait(false));
     }
 
     /// <summary>

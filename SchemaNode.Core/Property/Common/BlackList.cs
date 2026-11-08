@@ -14,10 +14,10 @@ namespace SchemaNode.Property.Common;
 public class BlackList : Property<object[]>, IConstraintProperty
 {
     /// <inheritdoc/>
-    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)
+    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, CancellationToken token = default)
     {
         if (Value == null || Value.Length == 0 || node.IsEmpty) return null;
-        EntryAccess<string>[] accessList = await (node.Type as Runtime.EnumType)!.GetEnumEntryAccessAsync(context, node.GetValue<string>()!).ConfigureAwait(false);
+        EntryAccess<string>[] accessList = await (node.Type as Runtime.EnumType)!.GetEnumEntryAccessAsync(context, node.GetValue<string>()!, token: token).ConfigureAwait(false);
         return accessList.All(a => Value.All(v => !v.Equals(a.Entry?.Value)));
     }
 

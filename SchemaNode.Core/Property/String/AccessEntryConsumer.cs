@@ -43,7 +43,7 @@ public class AccessEntryConsumer: FuncCallProperty, IConstraintProperty
     public override void Clear(IValueAccess target) => target.ClearSubscription(this);
 
     /// <inheritdoc/>
-    public virtual async Task<bool?> ValidateAsync(SchemaContext context, IValueAccess node)
+    public virtual async Task<bool?> ValidateAsync(SchemaContext context, IValueAccess node, CancellationToken token = default)
     {
         if (node.IsEmpty || string.IsNullOrWhiteSpace(Value?.Func)) return null;
 
@@ -55,19 +55,19 @@ public class AccessEntryConsumer: FuncCallProperty, IConstraintProperty
             AccessValueTypeProvider? provider = parent.GetProperty<AccessValueTypeProvider>();
             if (provider is { HasValue: true, Value: { } providerCall } && !string.IsNullOrWhiteSpace(providerCall.Func))
             {
-                FunctionType? typeFunc = await context.GetNodeTypeAsync<FunctionType>(providerCall.Func).ConfigureAwait(false);
+                FunctionType? typeFunc = await context.GetNodeTypeAsync<FunctionType>(providerCall.Func, token: token).ConfigureAwait(false);
                 object?[] typeArgs = providerCall.Args.Select(a => string.IsNullOrWhiteSpace(a.Source)
                     ? a.Value
                     : (provider.Source ?? node).GetAccessValue(a.Source, node)?.GetValue<object>()).ToArray();
                 string? type = typeFunc is null ? null : await typeFunc.CallAsync<string>(context, typeArgs).ConfigureAwait(false);
-                valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<ValueType>(type).ConfigureAwait(false) : null;
+                valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<ValueType>(type, token: token).ConfigureAwait(false) : null;
                 break;
             }
             parent = parent.Parent;
         }
         if (valueType is null) return null;
 
-        FunctionType? func = await context.GetNodeTypeAsync<FunctionType>(Value!.Func).ConfigureAwait(false);
+        FunctionType? func = await context.GetNodeTypeAsync<FunctionType>(Value!.Func, token: token).ConfigureAwait(false);
         if (func is null)
         {
             context.LogError($"Valid property function {Value!.Func} is not a function type");

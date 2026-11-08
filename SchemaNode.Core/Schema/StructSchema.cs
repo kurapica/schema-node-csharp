@@ -12,6 +12,9 @@ using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using NodeType = SchemaNode.Property.Core.NodeType;
 using RuntimeStructType = SchemaNode.Runtime.StructType;
+using SchemaNode.Relation;
+using System.Text.Json.Nodes;
+using SchemaNode.Function;
 
 namespace SchemaNode.Schema;
 
@@ -40,6 +43,7 @@ public sealed class StructSchema : PropertyOwner
     /// <summary>
     /// The struct fields
     /// </summary>
+    [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.fields")]
     public StructFieldSchema[] Fields { get; set; } = [];
 }
 
@@ -113,20 +117,43 @@ public sealed class StructProperty : Property<StructSchema>
 public class StructType: ValueType;
 
 /// <summary>
+/// The struct field schema
+/// </summary>
+public sealed class StructFieldSchema : PropertyOwner, IErrorProvider
+{
+    /// <summary>
+    /// The field name
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// The type name of the node.
+    /// </summary>
+    public string Type { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The error status
+    /// </summary>
+    [SchemaIgnore]
+    public string? Error { get; set; }
+}
+
+/// <summary>
 /// The struct field kind
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_NODE_STRUCT_FIELD, SCHEMA_KIND_ORDER_STRUCT_FIELD)]
-[Meta<Append>(typeof(Disable), typeof(Display), typeof(Description), typeof(Visible), typeof(InVisible), 
+[Meta<Append>(typeof(Disable), typeof(Display), typeof(Description), typeof(Visible), typeof(InVisible),
     typeof(Immutable), typeof(ReadOnly), typeof(Require), typeof(OverrideType), typeof(Init))]
-public sealed class StructFieldKind;
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.fielddefine")]
+[Meta<Attach>(SCHEMA_KIND_NODE_STRUCT_FIELD)]
+public sealed class StructFieldDefine;
 
 /// <summary>
 /// The struct field schema
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.field")]
 [Meta<TypeProvider>(nameof(Type))]
-// [Meta<Attach>(SCHEMA_KIND_NODE_STRUCT_FIELD)] Don't enable it in server part
-public sealed class StructFieldSchema : PropertyOwner, IErrorProvider
+public sealed class StructFieldSchemaDefine
 {
     /// <summary>
     /// The field name
@@ -134,16 +161,32 @@ public sealed class StructFieldSchema : PropertyOwner, IErrorProvider
     [Meta<SchemaType>(typeof(Identifier))]
     [Meta<PrimaryIndex>]
     public string Name { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// The type name of the node.
     /// </summary>
     [Meta<SchemaType>(typeof(ValueType))]
     public string Type { get; set; } = string.Empty;
-    
+
     /// <summary>
-    /// The error status
+    /// The field define
     /// </summary>
-    [SchemaIgnore]
-    public string? Error { get; set; }
+    [Meta<Unpack>(true)]
+    public StructFieldDefine? FieldDefine { get; set; }
+
+    /// <summary>
+    /// The array define
+    /// </summary>
+    [Meta<Unpack>(true)]
+    [Relation<Visible, Call>(NODE_SELF, NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, $"@{nameof(Type)}", false, NODE_KIND_ARRAY)]
+    public ArrayUsage? ArrayDefine { get; set; }
+
+    /// <summary>
+    /// The value define
+    /// </summary>
+    [Meta<Unpack>(true)]
+    [Relation<Visible, Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Type)}")]
+    [Relation<OverrideType, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getusagetype)}", $"@{nameof(Type)}", true)]
+    public JsonObject? ValueDefine { get; set; }
 }
+

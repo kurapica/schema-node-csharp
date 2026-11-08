@@ -124,7 +124,7 @@ public interface IRelationProcess
     /// <summary>
     /// Loading the relation schema and prepare for processing
     /// </summary>
-    Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner, params string?[] kinds);
+    Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner, string?[] kinds, CancellationToken token = default);
 
     /// <summary>
     /// Whether the relation process has any depends

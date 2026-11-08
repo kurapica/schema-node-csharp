@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 using SchemaNode.Data.Sql;
 using SchemaNode.Enum;
@@ -38,14 +39,24 @@ public class PostgreSqlProvider : ISqlProvider
         {
             null => "NULL",
             bool b => b ? "1" : "0",
-            int or long or float or double or decimal => value.ToString()!,
-            DateTime dt => $"'{dt:yyyy-MM-dd HH:mm:ss}'",
-            DateTimeOffset dto => $"'{dto:yyyy-MM-dd HH:mm:ss}'",
+            int or long or float or double or decimal => ((IFormattable)value).ToString(null, CultureInfo.InvariantCulture),
+            DateTime dt => $"'{FormatDateTime(dt)}'",
+            DateTimeOffset dto => $"'{FormatDateTime(dto.UtcDateTime)}'",
             string s => $"'{EscapeString(s)}'",
             Guid g => $"'{g}'",
-            _ => $"'{EscapeString(value.ToString()!)}'"
+            _ => $"'{EscapeString(Convert.ToString(value, CultureInfo.InvariantCulture)!)}'"
         };
     }
+
+    /// <summary>
+    /// Normalizes the value to UTC before formatting so the wall-clock value is not shifted by a local time zone.
+    /// An unspecified kind is treated as already being UTC.
+    /// </summary>
+    private static string FormatDateTime(DateTime value) => (value.Kind switch
+    {
+        DateTimeKind.Local => value.ToUniversalTime(),
+        _ => value
+    }).ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
 
     public string Binary(LogicType type, string left, string right)
     {

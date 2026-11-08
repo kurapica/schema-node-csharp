@@ -86,17 +86,17 @@ public interface IConstraintProperty : IProperty
     /// <summary>
     /// Async version of <see cref="Validate"/>. Override this for async constraint validation.
     /// </summary>
-    public virtual Task<bool?> ValidateAsync(SchemaContext context, IValueAccess node)
+    public virtual Task<bool?> ValidateAsync(SchemaContext context, IValueAccess node, CancellationToken token = default)
     {
         return node switch
         {
-            EnumNode enumNode => ValidateEnumAsync(context, enumNode),
-            IntNode intNode => ValidateIntAsync(context, intNode),
-            StringNode stringNode => ValidateStringAsync(context, stringNode),
-            DecimalNode numericNode => ValidateNumericAsync(context, numericNode),
-            DateNode dateNode => ValidateDateAsync(context, dateNode),
-            StructNode structNode => ValidateStructAsync(context, structNode),
-            ArrayNode arrayNode => ValidateArrayAsync(context, arrayNode),
+            EnumNode enumNode => ValidateEnumAsync(context, enumNode, token),
+            IntNode intNode => ValidateIntAsync(context, intNode, token),
+            StringNode stringNode => ValidateStringAsync(context, stringNode, token),
+            DecimalNode numericNode => ValidateNumericAsync(context, numericNode, token),
+            DateNode dateNode => ValidateDateAsync(context, dateNode, token),
+            StructNode structNode => ValidateStructAsync(context, structNode, token),
+            ArrayNode arrayNode => ValidateArrayAsync(context, arrayNode, token),
             _ => Task.FromResult<bool?>(null)
         };
     }
@@ -111,7 +111,7 @@ public interface IConstraintProperty : IProperty
     /// <summary>
     /// Async version of <see cref="ValidateEnum"/>. Override this for async constraint validation.
     /// </summary>
-    public virtual Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node) => Task.FromResult(ValidateEnum(context, node));
+    public virtual Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, CancellationToken token = default) => Task.FromResult(ValidateEnum(context, node));
 
     #endregion
 
@@ -127,7 +127,7 @@ public interface IConstraintProperty : IProperty
     /// <summary>
     /// Async version of <see cref="ValidateInt"/>. Override this for async constraint validation.
     /// </summary>
-    public virtual Task<bool?> ValidateIntAsync(SchemaContext context, IntNode node) => Task.FromResult(ValidateInt(context, node));
+    public virtual Task<bool?> ValidateIntAsync(SchemaContext context, IntNode node, CancellationToken token = default) => Task.FromResult(ValidateInt(context, node));
 
     #endregion
 
@@ -141,7 +141,7 @@ public interface IConstraintProperty : IProperty
     /// <summary>
     /// Async version of <see cref="ValidateInt"/>. Override this for async constraint validation.
     /// </summary>
-    public virtual Task<bool?> ValidateStringAsync(SchemaContext context, StringNode node) => Task.FromResult(ValidateString(context, node));
+    public virtual Task<bool?> ValidateStringAsync(SchemaContext context, StringNode node, CancellationToken token = default) => Task.FromResult(ValidateString(context, node));
 
     #endregion
 
@@ -155,7 +155,7 @@ public interface IConstraintProperty : IProperty
     /// <summary>
     /// Async version of <see cref="ValidateNumeric"/>. Override this for async constraint validation.
     /// </summary>
-    public virtual Task<bool?> ValidateNumericAsync(SchemaContext context, DecimalNode node) => Task.FromResult(ValidateNumeric(context, node));
+    public virtual Task<bool?> ValidateNumericAsync(SchemaContext context, DecimalNode node, CancellationToken token = default) => Task.FromResult(ValidateNumeric(context, node));
 
     #endregion
 
@@ -169,7 +169,7 @@ public interface IConstraintProperty : IProperty
     /// <summary>
     /// Async version of <see cref="ValidateDate"/>. Override this for async constraint validation.
     /// </summary>
-    public virtual Task<bool?> ValidateDateAsync(SchemaContext context, DateNode node) => Task.FromResult(ValidateDate(context, node));
+    public virtual Task<bool?> ValidateDateAsync(SchemaContext context, DateNode node, CancellationToken token = default) => Task.FromResult(ValidateDate(context, node));
 
     #endregion
 
@@ -185,7 +185,7 @@ public interface IConstraintProperty : IProperty
     /// <summary>
     /// Async version of <see cref="ValidateStruct"/>. Override this for async constraint validation.
     /// </summary>
-    public virtual Task<bool?> ValidateStructAsync(SchemaContext context, StructNode node) => Task.FromResult(ValidateStruct(context, node));
+    public virtual Task<bool?> ValidateStructAsync(SchemaContext context, StructNode node, CancellationToken token = default) => Task.FromResult(ValidateStruct(context, node));
 
     #endregion
 
@@ -208,12 +208,12 @@ public interface IConstraintProperty : IProperty
     /// <summary>
     /// Validate the array data node with async mode
     /// </summary>
-    public virtual async Task<bool?> ValidateArrayAsync(SchemaContext context, ArrayNode node)
+    public virtual async Task<bool?> ValidateArrayAsync(SchemaContext context, ArrayNode node, CancellationToken token = default)
     {
         if (!HasValue || node.IsEmpty) return null;
         foreach (var item in node)
         {
-            if ((await ValidateAsync(context, item).ConfigureAwait(false)) == false)
+            if ((await ValidateAsync(context, item, token).ConfigureAwait(false)) == false)
                 return false;
         }
         return null;

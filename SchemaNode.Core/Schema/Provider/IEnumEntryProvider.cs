@@ -13,6 +13,7 @@ public interface IEnumEntryProvider
     /// <param name="schemaName">The enum type</param>
     /// <param name="value">The given value, if null get the children of the start value</param>
     /// <param name="start">The access start value</param>
+    /// <param name="token">The cancellation token</param>
     /// <returns></returns>
-    Task<EntryAccess<string>[]> GetEnumEntryAccessAsync(string schemaName, string? value, string? start = null);
+    Task<EntryAccess<string>[]> GetEnumEntryAccessAsync(string schemaName, string? value, string? start = null, CancellationToken token = default);
 }

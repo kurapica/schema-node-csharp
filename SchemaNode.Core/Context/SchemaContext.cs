@@ -28,9 +28,10 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
 {
     #region Lock & Load
 
+    const int LOCK_WAITING_DELAY = 5000;
     const string LOCK_AND_LOAD_KEY = "__LockAndLoad__";
     private bool _lockAcquired = false;
-    private ConcurrentQueue<Func<Task>> _deferLoadTasks = [];
+    private ConcurrentQueue<(Func<CancellationToken, Task> Task, CancellationToken Token)> _deferLoadTasks = [];
 
     #endregion
 
@@ -144,19 +145,19 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     
     #region Methods
 
-    public void DeferLoadTask(Func<Task> task)
+    public void DeferLoadTask(Func<CancellationToken, Task> task, CancellationToken token = default)
     {
         if (task == null) return;
-        _deferLoadTasks.Enqueue(task);
+        _deferLoadTasks.Enqueue((task, token));
     }
 
     private async Task ProcessDeferLoadTasksAsync()
     {
-        while (_deferLoadTasks.TryDequeue(out var task))
+        while (_deferLoadTasks.TryDequeue(out var item))
         {
             try
             {
-                await task().ConfigureAwait(false);
+                await item.Task(item.Token).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -168,7 +169,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <summary>
     /// Gets the schema node type by name
     /// </summary>
-    public async Task<NodeType?> GetNodeTypeAsync(string fullName, IReadOnlyList<GenericParameter>? generics = null, IReadOnlyList<NodeType>? genericParams = null, bool reload = false)
+    public async Task<NodeType?> GetNodeTypeAsync(string fullName, IReadOnlyList<GenericParameter>? generics = null, IReadOnlyList<NodeType>? genericParams = null, bool reload = false, CancellationToken token = default)
     {
         fullName = fullName.ToLower();
 
@@ -231,7 +232,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                             }
                         }
                         
-                        NodeType? type = await GetNodeTypeAsync(genericParam, generics, genericParams).ConfigureAwait(false);
+                        NodeType? type = await GetNodeTypeAsync(genericParam, generics, genericParams, token: token).ConfigureAwait(false);
                         if (type == null) return null;
                         genParams.Add(type);
                     }
@@ -268,7 +269,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                                     _lockAcquired = true;
                                     break;
                                 }
-                                await Task.Delay(10).ConfigureAwait(false);
+                                await Task.Delay(10, token).ConfigureAwait(false);
                             }
                         }
                         else
@@ -289,7 +290,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         }
 
                         node.SetGenericType(key, genType);
-                        await genType.LoadTypeAsync(this, node.GetNodeSchema(schemaRuntime)!, genParams.ToArray()).ConfigureAwait(false);
+                        await genType.LoadTypeAsync(this, node.GetNodeSchema(schemaRuntime)!, genParams.ToArray(), token).ConfigureAwait(false);
                         return genType;
                     }
                     catch (Exception e)
@@ -337,7 +338,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                             _lockAcquired = true;
                             break;
                         }
-                        await Task.Delay(10).ConfigureAwait(false);
+                        await Task.Delay(10, token).ConfigureAwait(false);
                     }
                 }
                 else
@@ -373,7 +374,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
 
                 // Load the schema
                 LogDebug("[Runtime]Schema Type {schemaName} loading", schema.FullName);
-                await result.LoadTypeAsync(this, schema).ConfigureAwait(false);
+                await result.LoadTypeAsync(this, schema, token: token).ConfigureAwait(false);
 
                 // Save sub-namespaces for the namespace
                 if (result is NamespaceType ns && schemas is { Length: > 0 })
@@ -382,7 +383,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
 
                 // Generic Types Reloading
                 foreach (NodeType g in result.GetGenericTypes())
-                    await g.LoadTypeAsync(this, schema.Clone(schemaRuntime), g.GenericParams!.ToArray()).ConfigureAwait(false);
+                    await g.LoadTypeAsync(this, schema.Clone(schemaRuntime), g.GenericParams!.ToArray(), token).ConfigureAwait(false);
 
                 LogDebug("[Runtime]Schema Type {schemaName} working", schema.FullName);
                 return result;
@@ -420,7 +421,9 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             {
                 try
                 {
-                    NodeSchema[] loadSchemas = await provider.GetSchemaAsync([schemaName]).ConfigureAwait(false);
+                    using CancellationTokenSource cts = new(LOCK_WAITING_DELAY);
+                    using CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, token);
+                    NodeSchema[] loadSchemas = await provider.GetSchemaAsync([schemaName], linkedCts.Token).ConfigureAwait(false);
                     if (loadSchemas.Length == 0) continue;
                     NodeSchema loadSchema = SetSchemaState(loadSchemas[0], SchemaLoadState.Service, provider)!;
 
@@ -486,21 +489,21 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <summary>
     /// Gets the schema node of specific type
     /// </summary>
-    public async Task<T?> GetNodeTypeAsync<T>(string schemaName, IReadOnlyList<GenericParameter>? generics = null, IReadOnlyList<NodeType>? genericParams = null, bool reload = false) where T : class
-        => await GetNodeTypeAsync(schemaName, generics, genericParams, reload).ConfigureAwait(false) as T;
+    public async Task<T?> GetNodeTypeAsync<T>(string schemaName, IReadOnlyList<GenericParameter>? generics = null, IReadOnlyList<NodeType>? genericParams = null, bool reload = false, CancellationToken token = default) where T : class
+        => await GetNodeTypeAsync(schemaName, generics, genericParams, reload, token).ConfigureAwait(false) as T;
     
     /// <summary>
     /// Gets the value type's array type
     /// </summary>
     /// <param name="elementType"></param>
     /// <returns></returns>
-    public async Task<ArrayType?> GetArrayNodeTypeAsync(IValueTypeAccess elementType)
-        => elementType as ArrayType ?? ((elementType as ValueType)?.ArrayType ?? await GetNodeTypeAsync<ArrayType>((Runtime as SchemaRuntime)!.GetSystemArraySchema(elementType.Name)!).ConfigureAwait(false));
+    public async Task<ArrayType?> GetArrayNodeTypeAsync(IValueTypeAccess elementType, CancellationToken token = default)
+        => elementType as ArrayType ?? ((elementType as ValueType)?.ArrayType ?? await GetNodeTypeAsync<ArrayType>((Runtime as SchemaRuntime)!.GetSystemArraySchema(elementType.Name)!, token: token).ConfigureAwait(false));
     
     /// <summary>
     /// Gets the schema node from value
     /// </summary>
-    public async Task<IValueAccess?> GetSchemaNodeAsync(object? value, IValueTypeAccess? expectedType = null, bool onlyValid = false)
+    public async Task<IValueAccess?> GetSchemaNodeAsync(object? value, IValueTypeAccess? expectedType = null, bool onlyValid = false, CancellationToken token = default)
     {
         if (value == null) return expectedType?.Create(this, (object?)null);
 
@@ -512,7 +515,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                 {
                     var (_, t) = jsonValue.ParseValueAndType();
                     string? schemaType = t?.GetSchemaType();
-                    expectedType = !string.IsNullOrEmpty(schemaType) ? await GetNodeTypeAsync<ValueType>(schemaType).ConfigureAwait(false) : null;
+                    expectedType = !string.IsNullOrEmpty(schemaType) ? await GetNodeTypeAsync<ValueType>(schemaType, token: token).ConfigureAwait(false) : null;
                     break;
                 }
                 case JsonNode:
@@ -530,7 +533,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     {
                         string? name = (Runtime as SchemaRuntime)!.GetTypeSchema(valueType);
                         if (!string.IsNullOrWhiteSpace(name))
-                            expectedType = await GetNodeTypeAsync<ValueType>(name).ConfigureAwait(false);
+                            expectedType = await GetNodeTypeAsync<ValueType>(name, token: token).ConfigureAwait(false);
                         expectedType ??= new GenericType();
                         cacheItem[valueType] = expectedType;
                     }
@@ -544,7 +547,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             try
             {
                 if (!onlyValid) return expectedType.Create(this, value);
-                var node = await expectedType.ValidateValueAsync(this, value).ConfigureAwait(false);
+                var node = await expectedType.ValidateValueAsync(this, value, token).ConfigureAwait(false);
                 return node?.IsValid == true ? node : null;
             }
             catch (Exception e)
@@ -559,13 +562,19 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <summary>
     /// Gets the property type by property name and schema kinds
     /// </summary>
-    public async Task<Runtime.PropertyType?> GetPropertyType(string property, params string?[] kinds)
+    public Task<Runtime.PropertyType?> GetPropertyType(string property, params string?[] kinds)
+        => GetPropertyType(property, default(CancellationToken), kinds);
+
+    /// <summary>
+    /// Gets the property type by property name and schema kinds
+    /// </summary>
+    public async Task<Runtime.PropertyType?> GetPropertyType(string property, CancellationToken token, params string?[] kinds)
     {
         if (string.IsNullOrWhiteSpace(property)) return null;
         // for compatibility, if property contains dot, try to get the property type directly
         if (property.Contains('.'))
         {
-            var ptype = await GetNodeTypeAsync<Runtime.PropertyType>(property).ConfigureAwait(false);
+            var ptype = await GetNodeTypeAsync<Runtime.PropertyType>(property, token: token).ConfigureAwait(false);
             if (ptype != null) return ptype;
         }
         foreach (var kind in kinds)
@@ -577,7 +586,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
 
                 string name = propType.GetPropertyName();
                 if (property.Equals(name, StringComparison.OrdinalIgnoreCase))
-                    return await GetNodeTypeAsync<Runtime.PropertyType>(schemaType).ConfigureAwait(false);
+                    return await GetNodeTypeAsync<Runtime.PropertyType>(schemaType, token: token).ConfigureAwait(false);
             }
         }
         return null;
@@ -696,10 +705,23 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
 
     #region Implementation of IDisposable
 
+
     public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
     {
         foreach (KeyValuePair<Type, object> item in _contextItems)
             (item.Value as IDisposable)?.Dispose();
+
+        if (_lockAcquired)
+        {
+            _lockAcquired = false;
+            (Runtime as SchemaRuntime)?.LockLoading.TryRemove(LOCK_AND_LOAD_KEY, out _);
+        }
     }
 
     #endregion

@@ -17,10 +17,10 @@ namespace SchemaNode.Property.Enum;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ENUM}.{nameof(LeafOnly)}")]
 public class LeafOnly : Property<bool>, IConstraintProperty
 {
-    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)
+    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, CancellationToken token = default)
     {
         if (!Value || node.IsEmpty) return null;
-        EntryAccess<string>[]? val = (node.Type as EnumType) is { } enumType ? await enumType.GetEnumEntryAccessAsync(context, node.GetValue<string>()).ConfigureAwait(false) : null;
+        EntryAccess<string>[]? val = (node.Type as EnumType) is { } enumType ? await enumType.GetEnumEntryAccessAsync(context, node.GetValue<string>(), token: token).ConfigureAwait(false) : null;
         long? cascadeDepth = node.GetProperty<CascadeDepth>()?.Value;
         if (val is null || val.Length == 0) return null;
         return val[^1].Entry?.HasChildren != true || cascadeDepth > 0 && val.Length == cascadeDepth.Value + 1;

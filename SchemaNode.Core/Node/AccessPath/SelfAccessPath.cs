@@ -11,7 +11,7 @@ namespace SchemaNode.Property.Object;
 public class SelfAccessPath: IValueAccessPathHandler
 {
     /// <inheritdoc/>
-    public Task LoadAsync(ISchemaContext context) => Task.CompletedTask;
+    public Task LoadAsync(ISchemaContext context, CancellationToken token = default) => Task.CompletedTask;
 
     /// <inheritdoc/>
     public string Path => NODE_SELF;

@@ -131,7 +131,7 @@ public interface IValueTypeAccess : IPropertyProvider
     /// <summary>
     /// Validate value and return the access wrap
     /// </summary>
-    Task<IValueAccess?> ValidateValueAsync(ISchemaContext context, object? value);
+    Task<IValueAccess?> ValidateValueAsync(ISchemaContext context, object? value, CancellationToken token = default);
 
     /// <summary>
     /// Gets the relations types
@@ -358,7 +358,7 @@ public interface IValueAccessPathHandler
     /// <summary>
     /// Load the access path handler with the given schema context
     /// </summary>
-    Task LoadAsync(ISchemaContext context);
+    Task LoadAsync(ISchemaContext context, CancellationToken token = default);
     
     /// <summary>
     /// The value access path

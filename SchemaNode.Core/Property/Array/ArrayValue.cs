@@ -19,7 +19,7 @@ public class ArrayValue: Property<bool>, IConstraintProperty
 {
     public override bool HasValue => true;
 
-    public async Task<bool?> ValidateArrayAsync(SchemaContext context, ArrayNode node)
+    public async Task<bool?> ValidateArrayAsync(SchemaContext context, ArrayNode node, CancellationToken token = default)
     {
         ArrayType type = (node.Type as ArrayType)!;
         if (type.Element == null) return null;
@@ -29,13 +29,13 @@ public class ArrayValue: Property<bool>, IConstraintProperty
         {
             foreach (IValueAccess element in node)
             {
-                bool? result = await prop.ValidateAsync(context, element).ConfigureAwait(false);
+                bool? result = await prop.ValidateAsync(context, element, token).ConfigureAwait(false);
                 if (result.HasValue) element.RecordConstraint(prop, result.Value);
             }
         }
 
         // Validate by relations
-        await type.ValidateWithRelationsAsync(context, node).ConfigureAwait(false);
+        await type.ValidateWithRelationsAsync(context, node, token).ConfigureAwait(false);
         return null;
     }
 }

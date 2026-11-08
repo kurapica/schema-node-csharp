@@ -29,7 +29,10 @@
   <ItemGroup>
     <InternalsVisibleTo Include="SchemaNode.App" />
     <InternalsVisibleTo Include="SchemaNode.UnitTest" />
-    <InternalsVisibleTo Include="SchemaNode.WPF.View" />
+    <!-- Man layers clear NodeSchema.LoadState/Type when seeding a copied definition; both keep
+         their own copy of the flow instead of sharing an App-layer helper. -->
+    <InternalsVisibleTo Include="SchemaNode.WPF.Man" />
+    <InternalsVisibleTo Include="SchemaNode.Avalonia.Man" />
   </ItemGroup>
 
   <ItemGroup>
