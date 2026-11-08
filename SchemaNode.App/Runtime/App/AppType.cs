@@ -312,7 +312,7 @@ public sealed class AppType : IValueTypeAccess, INodeTypeReLoadHandler
     /// <summary>
     /// Gets the schema of the application
     /// </summary>
-    public async Task<AppSchema> GetSchemaAsync(SchemaContext context, bool noAuth = false)
+    public async Task<AppSchema> GetSchemaAsync(SchemaContext context, bool noAuth = false, CancellationToken token = default)
     {
         if (_schema == null) return new AppSchema{ Name = "" };
         AppSchema schema = new AppSchema
@@ -326,24 +326,24 @@ public sealed class AppType : IValueTypeAccess, INodeTypeReLoadHandler
         if (!noAuth)
         {
             bool isSystem = GetProperty<SystemDefined>()?.Value == true;
-            schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true).ConfigureAwait(false));
-            schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true).ConfigureAwait(false));
-            schema.SetProperty<SchemaUpdate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true).ConfigureAwait(false)); // more property allowed
-            schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true).ConfigureAwait(false));
+            schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true, token).ConfigureAwait(false));
+            schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true, token).ConfigureAwait(false));
+            schema.SetProperty<SchemaUpdate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true, token).ConfigureAwait(false)); // more property allowed
+            schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true, token).ConfigureAwait(false));
         }
 
         if (_fields is { Count: > 0 })
         {
             schema.Fields = new AppFieldSchema[_fields.Count];
             for (int i = 0; i < _fields.Count; i++)
-                schema.Fields[i] = await _fields[i].GetSchemaAsync(context, noAuth).ConfigureAwait(false);
+                schema.Fields[i] = await _fields[i].GetSchemaAsync(context, noAuth, token).ConfigureAwait(false);
         }
 
         if (_workflows is { Count: > 0 })
         {
             schema.Workflows = new AppWorkflowSchema[_workflows.Count];
             for (int i = 0; i < _workflows.Count; i++)
-                schema.Workflows[i] = await _workflows[i].GetSchemaAsync(context, noAuth).ConfigureAwait(false);
+                schema.Workflows[i] = await _workflows[i].GetSchemaAsync(context, noAuth, token).ConfigureAwait(false);
         }
         
         return schema;

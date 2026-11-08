@@ -19,11 +19,11 @@ public class GetAppSchemaApi : SchemaApi<GetAppSchemaRequest, GetAppSchemaRespon
     {
         Logger.LogDebug("[Api]LoadAppSchemaApi [Request]{request}", request);
 
-        Runtime.AppType? node = await SchemaContext.GetAppTypeAsync(request.Name).ConfigureAwait(false);
+        Runtime.AppType? node = await SchemaContext.GetAppTypeAsync(request.Name, token: cancellationToken).ConfigureAwait(false);
         if (node == null) return new GetAppSchemaResponse();
         
         // authorize
-        await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead).ConfigureAwait(false);
+        await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead, token: cancellationToken).ConfigureAwait(false);
 
         // Download file for the given format
         if (!string.IsNullOrWhiteSpace(request.Format))
@@ -43,7 +43,7 @@ public class GetAppSchemaApi : SchemaApi<GetAppSchemaRequest, GetAppSchemaRespon
         }
 
         // Generate schema
-        AppSchema schema = await node.GetSchemaAsync(SchemaContext).ConfigureAwait(false);
+        AppSchema schema = await node.GetSchemaAsync(SchemaContext, token: cancellationToken).ConfigureAwait(false);
         
         if(request.IncludeTypes)
             schema.NodeSchemas = await SchemaContext.GetNodeSchemasAsync(node, includeUsedBy: true, cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -53,9 +53,9 @@ public class GetAppSchemaApi : SchemaApi<GetAppSchemaRequest, GetAppSchemaRespon
             List<AppSchema> apps = [];
             foreach (AppSchema s in node.GetSubAppSchemas())
             {
-                Runtime.AppType? subApp = await SchemaContext.GetAppTypeAsync(s.FullName).ConfigureAwait(false);
+                Runtime.AppType? subApp = await SchemaContext.GetAppTypeAsync(s.FullName, token: cancellationToken).ConfigureAwait(false);
                 if (subApp != null)
-                    apps.Add(await subApp.GetSchemaAsync(SchemaContext).ConfigureAwait(false));
+                    apps.Add(await subApp.GetSchemaAsync(SchemaContext, token: cancellationToken).ConfigureAwait(false));
             }
             schema.Apps = apps.ToArray();
         }

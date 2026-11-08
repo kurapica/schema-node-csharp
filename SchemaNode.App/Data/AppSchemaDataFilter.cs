@@ -225,7 +225,7 @@ public static class AppSchemaDataFilterExtensions
         return false;
     }
 
-    internal static async Task<AppSchemaDataFilter?> ToAppSchemaDataFilterAsync(this JsonObject filter, SchemaContext context, StructType structType, FieldFilter[]? fieldFilters = null)
+    internal static async Task<AppSchemaDataFilter?> ToAppSchemaDataFilterAsync(this JsonObject filter, SchemaContext context, StructType structType, FieldFilter[]? fieldFilters = null, CancellationToken token = default)
     {
         if (filter.IsEmpty()) return null;
 
@@ -241,11 +241,11 @@ public static class AppSchemaDataFilterExtensions
             if (filterMode == FieldFilterMode.Filter)
             {
                 // get the function
-                FunctionType? funcType = await context.GetNodeTypeAsync<FunctionType>(key).ConfigureAwait(false);
+                FunctionType? funcType = await context.GetNodeTypeAsync<FunctionType>(key, token: token).ConfigureAwait(false);
                 if (funcType != null && value is JsonArray { Count: > 0 } arr)
                 {
                     // Call filter func with policy filter compile context
-                    AppSchemaDataFilter? f = await funcType.CallAsync<AppSchemaDataFilter, QueryFilterCompileContext>(context, arr.Select(a => (object)a!).ToArray()).ConfigureAwait(false);
+                    AppSchemaDataFilter? f = await funcType.CallAsync<AppSchemaDataFilter, QueryFilterCompileContext>(context, arr.Select(a => (object)a!).ToArray(), token: token).ConfigureAwait(false);
                     if (f != null)
                     {
                         accessExp = accessExp != null

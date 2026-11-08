@@ -145,7 +145,7 @@ public sealed class AppWorkflowType: IDisposable
     /// Get the application workflow schema
     /// </summary>
     /// <returns></returns>
-    public async Task<AppWorkflowSchema> GetSchemaAsync(SchemaContext context, bool noAuth = false)
+    public async Task<AppWorkflowSchema> GetSchemaAsync(SchemaContext context, bool noAuth = false, CancellationToken token = default)
     {
         AppWorkflowSchema schema = new AppWorkflowSchema
         {
@@ -183,10 +183,10 @@ public sealed class AppWorkflowType: IDisposable
         if (!noAuth)
         {
             bool isSystem = Application.GetProperty<SystemDefined>()?.Value == true;
-            schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true).ConfigureAwait(false));
-            schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true).ConfigureAwait(false));
-            schema.SetProperty<SchemaUpdate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true).ConfigureAwait(false));
-            schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true).ConfigureAwait(false));
+            schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true, token).ConfigureAwait(false));
+            schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true, token).ConfigureAwait(false));
+            schema.SetProperty<SchemaUpdate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true, token).ConfigureAwait(false));
+            schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true, token).ConfigureAwait(false));
         }
         
         return schema;

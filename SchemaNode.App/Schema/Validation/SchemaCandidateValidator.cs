@@ -466,7 +466,7 @@ public static class SchemaCandidateValidator
 
         // 7. Authorization is checked last so malformed candidates do not reach the policy system.
         if (checkAuthorization && result.Errors.Count == 0)
-            await CheckAuthorizationAsync(context, schema, result).ConfigureAwait(false);
+            await CheckAuthorizationAsync(context, schema, result, cancellationToken).ConfigureAwait(false);
 
         // 8. Normalized representation used by the response protocol and the frontend apply step.
         try
@@ -558,15 +558,15 @@ public static class SchemaCandidateValidator
         }
     }
 
-    private static async Task CheckAuthorizationAsync(SchemaContext context, NodeSchema schema, SchemaValidationResult result)
+    private static async Task CheckAuthorizationAsync(SchemaContext context, NodeSchema schema, SchemaValidationResult result, CancellationToken token = default)
     {
         try
         {
-            NodeType? existing = await context.GetNodeTypeAsync(schema.FullName).ConfigureAwait(false);
+            NodeType? existing = await context.GetNodeTypeAsync(schema.FullName, token: token).ConfigureAwait(false);
             if (existing != null)
             {
                 // Enforce the same authorization as SaveSchemaAsync for an update.
-                await context.AuthorizeAsync(existing, PolicyScope.SchemaUpdate).ConfigureAwait(false);
+                await context.AuthorizeAsync(existing, PolicyScope.SchemaUpdate, token: token).ConfigureAwait(false);
                 result.Operation = OperationUpdate;
                 return;
             }
@@ -575,12 +575,12 @@ public static class SchemaCandidateValidator
             // existing parent namespace must allow SchemaCreate.
             string name = schema.Namespace ?? string.Empty;
             NodeType? parent = null;
-            while (!string.IsNullOrWhiteSpace(name) && (parent = await context.GetNodeTypeAsync(name).ConfigureAwait(false)) == null)
+            while (!string.IsNullOrWhiteSpace(name) && (parent = await context.GetNodeTypeAsync(name, token: token).ConfigureAwait(false)) == null)
                 name = name.GetNamespace();
 
             parent ??= (context.Runtime as SchemaRuntime)?.RootNamespace;
             if (parent != null)
-                await context.AuthorizeAsync(parent, PolicyScope.SchemaCreate).ConfigureAwait(false);
+                await context.AuthorizeAsync(parent, PolicyScope.SchemaCreate, token: token).ConfigureAwait(false);
 
             result.Operation = OperationCreate;
         }

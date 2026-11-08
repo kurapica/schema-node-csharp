@@ -28,7 +28,7 @@ public class PushAppDataApi : SchemaApi<PushAppDataRequest, PushAppDataResponse>
         Logger.LogDebug("[Api]PushAppData [Request]{app} - {target}", request.App, request.Target);
         
         using var criticalRegion = await GetLockAsync("PushAppData:{0}{1}", request.App, request.Target ?? Guid.Empty.ToString()).ConfigureAwait(false);
-        (bool result, JsonNode? error) = await SchemaContext.PushAppDataAsync(request.App, request.Target, request.Datas).ConfigureAwait(false);
+        (bool result, JsonNode? error) = await SchemaContext.PushAppDataAsync(request.App, request.Target, request.Datas, cancellationToken).ConfigureAwait(false);
         
         return new PushAppDataResponse
         {
@@ -47,12 +47,12 @@ public static class PushDataExtenstion
     /// Push app data
     /// </summary>
     public static async Task<(bool Result, JsonNode? Error)> PushAppDataAsync(this SchemaContext context, string app, string? target,
-        Dictionary<string, AppDataFieldPushQuery>? data)
+        Dictionary<string, AppDataFieldPushQuery>? data, CancellationToken token = default)
     {
         if (string.IsNullOrWhiteSpace(app)) return (false, AppErrorCodes.APP_NOT_FOUND);
         if (data == null || data.Count == 0) return (false, AppErrorCodes.APP_PUSH_DATA_REQUIRED);
 
-        AppType? appNode = await context.GetAppTypeAsync(app).ConfigureAwait(false);
+        AppType? appNode = await context.GetAppTypeAsync(app, token: token).ConfigureAwait(false);
         if (appNode == null) return (false, AppErrorCodes.APP_NOT_FOUND);
 
         // target is required for non-system-level apps
@@ -71,9 +71,9 @@ public static class PushDataExtenstion
                 if (appField == null) continue;
             
                 // authorize
-                await context.AuthorizeAsync(appField, PolicyScope.DataUpdate).ConfigureAwait(false);
-                bool canAdd = await context.AuthorizeAsync(appField, PolicyScope.DataCreate, true).ConfigureAwait(false);
-                bool canDel = await context.AuthorizeAsync(appField, PolicyScope.DataDelete, true).ConfigureAwait(false);
+                await context.AuthorizeAsync(appField, PolicyScope.DataUpdate, token: token).ConfigureAwait(false);
+                bool canAdd = await context.AuthorizeAsync(appField, PolicyScope.DataCreate, true, token).ConfigureAwait(false);
+                bool canDel = await context.AuthorizeAsync(appField, PolicyScope.DataDelete, true, token).ConfigureAwait(false);
 
                 // no permission to delete data
                 if (!canDel && push.Deletes is { Count: > 0 })
@@ -92,7 +92,7 @@ public static class PushDataExtenstion
                         try
                         {
                             // Authorize evaluator
-                            bool authorized = await context.AuthorizeAsync(policy.Evaluator, true).ConfigureAwait(false);
+                            bool authorized = await context.AuthorizeAsync(policy.Evaluator, true, token).ConfigureAwait(false);
                             if (!authorized) continue;
                             if (policy.FilterFunc == null) break;
 
@@ -120,13 +120,13 @@ public static class PushDataExtenstion
                         // check data row access permission
                         if (push.Data is JsonArray arr)
                             foreach (JsonNode? item in arr)
-                                await ValidateRow(context, rowChecker, item).ConfigureAwait(false);
+                                await ValidateRow(context, rowChecker, item, token).ConfigureAwait(false);
                         else
-                            await ValidateRow(context, rowChecker, push.Data).ConfigureAwait(false);
+                            await ValidateRow(context, rowChecker, push.Data, token).ConfigureAwait(false);
 
                         if (push.Deletes is { Count: > 0 })
                             foreach (JsonNode? item in push.Deletes)
-                                await ValidateRow(context, rowChecker, item).ConfigureAwait(false);
+                                await ValidateRow(context, rowChecker, item, token).ConfigureAwait(false);
                     }
                 }
 
@@ -152,7 +152,7 @@ public static class PushDataExtenstion
                         if (hasData) await context.RollbackTransactionAsync().ConfigureAwait(false);
                         return (false, result?.Violated);
                     }
-                    await context.SaveFieldDataAsync(appField, result, canAdd: canAdd).ConfigureAwait(false);
+                    await context.SaveFieldDataAsync(appField, result, canAdd: canAdd, token: token).ConfigureAwait(false);
                 }
 
                 if (push.Deletes is { Count: > 0 })
@@ -163,7 +163,7 @@ public static class PushDataExtenstion
                         if (hasData) await context.RollbackTransactionAsync().ConfigureAwait(false);
                         return (false, result?.Violated);
                     }
-                    await context.DeleteFieldListDataAsync(appField, result).ConfigureAwait(false);
+                    await context.DeleteFieldListDataAsync(appField, result, token: token).ConfigureAwait(false);
                 }
             }
 
@@ -180,7 +180,7 @@ public static class PushDataExtenstion
         return (true, null);
     }
 
-    static async Task ValidateRow(SchemaContext context, FunctionType rowChecker, JsonNode? item)
+    static async Task ValidateRow(SchemaContext context, FunctionType rowChecker, JsonNode? item, CancellationToken token = default)
     {
         if (item is not JsonObject) throw new UnauthorizedAccessException();
         try
@@ -189,7 +189,7 @@ public static class PushDataExtenstion
             {
                 [0] = item.DeepClone()
             };
-            var res = await context.CallFunctionAsync(rowChecker, args, NS_SYSTEM_BOOL).ConfigureAwait(false);
+            var res = await context.CallFunctionAsync(rowChecker, args, NS_SYSTEM_BOOL, token: token).ConfigureAwait(false);
             if (res is not JsonValue boolVal || !boolVal.TryGetValue(out bool allowed) || !allowed)
                 throw new UnauthorizedAccessException();
         }

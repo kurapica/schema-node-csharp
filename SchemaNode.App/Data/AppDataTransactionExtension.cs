@@ -607,7 +607,7 @@ public static class AppDataTransactionExtension
                     ArrayNode result = new ArrayNode(context, field.ValueType!);
                     foreach (object?[] args in pushData)
                     {
-                        IValueAccess? ret = await field.PushFunc!.CallAsync<IValueAccess, DataDeriveCompileContext>(context, args).ConfigureAwait(false);
+                        IValueAccess? ret = await field.PushFunc!.CallAsync<IValueAccess, DataDeriveCompileContext>(context, args, token: token).ConfigureAwait(false);
                         if (ret is ArrayNode arr)
                             result.AddRange(arr);
                         else if (ret is EnumArrayNode enumArray)

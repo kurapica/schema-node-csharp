@@ -129,19 +129,19 @@ public static class AppSchemaContextExtension
         /// <summary>
         /// Gets the node schema with auth properties
         /// </summary>
-        public async Task<NodeSchema?> GetNodeSchemaAsync(NodeType type, bool noAuth = false)
+        public async Task<NodeSchema?> GetNodeSchemaAsync(NodeType type, bool noAuth = false, CancellationToken token = default)
         {
             NodeSchema schema = type.GetNodeSchema(context.Runtime)!;
-            bool canRead = await context.AuthorizeAsync(type, PolicyScope.SchemaRead, true).ConfigureAwait(false);
+            bool canRead = await context.AuthorizeAsync(type, PolicyScope.SchemaRead, true, token).ConfigureAwait(false);
             if (!canRead) return null;
             if (noAuth) return schema;
 
             // auth
             bool isSystem = type.GetProperty<SystemDefined>()?.Value == true;
             schema.SetProperty<SchemaRead, bool>(canRead);
-            schema.SetProperty<SchemaCreate, bool>(await context.AuthorizeAsync(type, PolicyScope.SchemaCreate, true).ConfigureAwait(false));
-            schema.SetProperty<SchemaUpdate, bool>((!isSystem || type.Kind == NODE_KIND_NAMESPACE) && await context.AuthorizeAsync(type, PolicyScope.SchemaUpdate, true).ConfigureAwait(false));
-            schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(type, PolicyScope.SchemaDelete, true).ConfigureAwait(false));
+            schema.SetProperty<SchemaCreate, bool>(await context.AuthorizeAsync(type, PolicyScope.SchemaCreate, true, token).ConfigureAwait(false));
+            schema.SetProperty<SchemaUpdate, bool>((!isSystem || type.Kind == NODE_KIND_NAMESPACE) && await context.AuthorizeAsync(type, PolicyScope.SchemaUpdate, true, token).ConfigureAwait(false));
+            schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(type, PolicyScope.SchemaDelete, true, token).ConfigureAwait(false));
             return schema;
         }
 
@@ -166,7 +166,7 @@ public static class AppSchemaContextExtension
             };
             if (!types.Add(nodeType.Name) || nodeType is GenericType) return root;
 
-            NodeSchema? schema = await context.GetNodeSchemaAsync(nodeType, noAuth).ConfigureAwait(false);
+            NodeSchema? schema = await context.GetNodeSchemaAsync(nodeType, noAuth, cancellationToken ?? default).ConfigureAwait(false);
             if (schema == null) return root;
             
             // install full namespace path
@@ -188,7 +188,7 @@ public static class AppSchemaContextExtension
                     if (sub == null)
                     {
                         cancellationToken?.ThrowIfCancellationRequested();
-                        sub = await context.GetNodeSchemaAsync(n, noAuth).ConfigureAwait(false);
+                        sub = await context.GetNodeSchemaAsync(n, noAuth, cancellationToken ?? default).ConfigureAwait(false);
                         if (sub == null) return root; // no read permission
                         parent.Schemas = parent.Schemas == null ? [sub] : parent.Schemas.Append(sub).ToArray();
                     }

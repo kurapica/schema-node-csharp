@@ -23,7 +23,7 @@ public class WorkflowInfoApi : SchemaApi<WorkflowInfoRequest, WorkflowInfoRespon
 
         return new WorkflowInfoResponse
         {
-            Status = await SchemaContext.GetWorkflowInfo(request).ConfigureAwait(false)
+            Status = await SchemaContext.GetWorkflowInfo(request, cancellationToken: cancellationToken).ConfigureAwait(false)
         };
     }
 }
@@ -36,10 +36,10 @@ public static class WorkflowInfoExtensions
     /// <summary>
     /// Process the interaction request
     /// </summary>
-    public static async Task<WorkflowStatus?> GetWorkflowInfo(this SchemaContext context, WorkflowInfoRequest request)
+    public static async Task<WorkflowStatus?> GetWorkflowInfo(this SchemaContext context, WorkflowInfoRequest request, CancellationToken cancellationToken = default)
     {
         // Indicate the workflow node
-        AppType app = await context.GetAppTypeAsync(request.App).ConfigureAwait(false) ?? throw new Exception(AppErrorCodes.APP_NOT_FOUND);
+        AppType app = await context.GetAppTypeAsync(request.App, token: cancellationToken).ConfigureAwait(false) ?? throw new Exception(AppErrorCodes.APP_NOT_FOUND);
         AppWorkflowType workflowType = app.GetWorkflow(request.Workflow) ?? throw new Exception(AppErrorCodes.APP_WORKFLOW_NOT_FOUND);
         if (workflowType.RootWorkflowContext == null) throw new Exception(AppErrorCodes.APP_WORKFLOW_NOT_START);
         
@@ -47,7 +47,7 @@ public static class WorkflowInfoExtensions
         context.SetAccess(app.Name);
         
         // authorize
-        await context.AuthorizeAsync(workflowType, PolicyScope.DataRead).ConfigureAwait(false);
+        await context.AuthorizeAsync(workflowType, PolicyScope.DataRead, token: cancellationToken).ConfigureAwait(false);
         
         // Continue an existing workflow
         WorkflowContext? workContext = workflowType.RootWorkflowContext.GetForkedWorkflowContextById(request.WorkflowId);

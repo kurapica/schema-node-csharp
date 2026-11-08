@@ -101,10 +101,10 @@ public static class BatchQueryExtension
                 fieldResults[field.Name] = fieldResult;
 
                 // authorize check
-                fieldResult.DataRead = await context.AuthorizeAsync(field, PolicyScope.DataRead, true).ConfigureAwait(false);
-                fieldResult.DataCreate = !field.ReadOnly && await context.AuthorizeAsync(field, PolicyScope.DataCreate, true).ConfigureAwait(false);
-                fieldResult.DataUpdate = !field.ReadOnly && await context.AuthorizeAsync(field, PolicyScope.DataUpdate, true).ConfigureAwait(false);
-                fieldResult.DataDelete = !field.ReadOnly && await context.AuthorizeAsync(field, PolicyScope.DataDelete, true).ConfigureAwait(false);
+                fieldResult.DataRead = await context.AuthorizeAsync(field, PolicyScope.DataRead, true, cancellationToken ?? default).ConfigureAwait(false);
+                fieldResult.DataCreate = !field.ReadOnly && await context.AuthorizeAsync(field, PolicyScope.DataCreate, true, cancellationToken ?? default).ConfigureAwait(false);
+                fieldResult.DataUpdate = !field.ReadOnly && await context.AuthorizeAsync(field, PolicyScope.DataUpdate, true, cancellationToken ?? default).ConfigureAwait(false);
+                fieldResult.DataDelete = !field.ReadOnly && await context.AuthorizeAsync(field, PolicyScope.DataDelete, true, cancellationToken ?? default).ConfigureAwait(false);
 
                 if (query.SchemaOnly == true || fieldResult.DataRead != true) continue; // no data query
 
@@ -138,7 +138,7 @@ public static class BatchQueryExtension
                         try
                         {
                             // Authorize evaluator
-                            bool authorized = await context.AuthorizeAsync(policy.Evaluator, true).ConfigureAwait(false);
+                            bool authorized = await context.AuthorizeAsync(policy.Evaluator, true, cancellationToken ?? default).ConfigureAwait(false);
                             if (!authorized) continue;
                             if (policy.FilterFunc == null) break;
 
@@ -152,7 +152,7 @@ public static class BatchQueryExtension
                             }
 
                             // Call filter func with policy filter compile context
-                            AppSchemaDataFilter? f = await policy.FilterFunc.CallAsync<AppSchemaDataFilter, QueryFilterCompileContext>(context, []).ConfigureAwait(false);
+                            AppSchemaDataFilter? f = await policy.FilterFunc.CallAsync<AppSchemaDataFilter, QueryFilterCompileContext>(context, [], token: cancellationToken ?? default).ConfigureAwait(false);
                             if (f == null) {
                                 isValidFilter = false;
                                 break;
@@ -170,7 +170,7 @@ public static class BatchQueryExtension
                     // CombineProperties filters
                     if (q?.Filter != null)
                     {
-                        var qFilter = await q.Filter.ToAppSchemaDataFilterAsync(context, ((field.ValueType as ArrayType)!.Element as StructType)!, field.Filters).ConfigureAwait(false);
+                        var qFilter = await q.Filter.ToAppSchemaDataFilterAsync(context, ((field.ValueType as ArrayType)!.Element as StructType)!, field.Filters, cancellationToken ?? default).ConfigureAwait(false);
                         filter = filter != null && qFilter != null ? filter.AndAlso(qFilter) : (filter ?? qFilter);
                     }
                             
@@ -225,7 +225,7 @@ public static class BatchQueryExtension
                             bool authorized = true;
                             foreach(string evaluator in field.GetColPolicies(f.Name))
                             {
-                                authorized = await context.AuthorizeAsync(evaluator, true).ConfigureAwait(false);
+                                authorized = await context.AuthorizeAsync(evaluator, true, cancellationToken ?? default).ConfigureAwait(false);
                                 if (authorized) break;
                             }
                             if (authorized) continue;
@@ -269,7 +269,7 @@ public static class BatchQueryExtension
                 App = query.App,
                 Target = query.Target,
                 Results = fieldResults,
-                Schema = !(query.NoSchema ?? false) ? await node.GetSchemaAsync(context).ConfigureAwait(false): null
+                Schema = !(query.NoSchema ?? false) ? await node.GetSchemaAsync(context, token: cancellationToken ?? default).ConfigureAwait(false): null
             };
             
             /*/ workflow states

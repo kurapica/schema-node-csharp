@@ -32,11 +32,11 @@ public static class SchemaStorageProviderExtension
             
             // parent if creation
             parent ??= (context.Runtime as SchemaRuntime)?.RootNamespace ?? throw new Exception("runtime not available");
-            await context.AuthorizeAsync(parent, PolicyScope.SchemaCreate).ConfigureAwait(false);
+            await context.AuthorizeAsync(parent, PolicyScope.SchemaCreate, token: token).ConfigureAwait(false);
         }
         else
         {
-            await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate).ConfigureAwait(false);
+            await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate, token: token).ConfigureAwait(false);
         }
 
         // Gets storage provider
@@ -113,7 +113,7 @@ public static class SchemaStorageProviderExtension
         if (node == null || node.IsUsed) return false;
 
         // authorize
-        await context.AuthorizeAsync(node, PolicyScope.SchemaDelete).ConfigureAwait(false);
+        await context.AuthorizeAsync(node, PolicyScope.SchemaDelete, token: token).ConfigureAwait(false);
 
         // get storage provider
         IAppEntryStorageProvider? provider = context.GetService<IAppEntryStorageProvider>();
@@ -151,7 +151,7 @@ public static class SchemaStorageProviderExtension
         if (access.Length == 0 || string.IsNullOrWhiteSpace(access.Last().Entry?.Value)) return false;
         
         // authorize
-        await context.AuthorizeAsync(@enum, PolicyScope.SchemaUpdate).ConfigureAwait(false);
+        await context.AuthorizeAsync(@enum, PolicyScope.SchemaUpdate, token: token).ConfigureAwait(false);
 
         // gets storage provider
         IAppEntryStorageProvider? provider = context.GetService<IAppEntryStorageProvider>();
@@ -190,11 +190,11 @@ public static class SchemaStorageProviderExtension
             
             // parent if creation
             parent ??= (context.Runtime as AppSchemaRuntime)?.RootAppType ?? throw new Exception("runtime not available");
-            await context.AuthorizeAsync(parent, PolicyScope.SchemaCreate).ConfigureAwait(false);
+            await context.AuthorizeAsync(parent, PolicyScope.SchemaCreate, token: token).ConfigureAwait(false);
         }
         else
         {
-            await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate).ConfigureAwait(false);
+            await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate, token: token).ConfigureAwait(false);
 
             // Check app scope policy, allow change when DEBUG
             #if !DEBUG
@@ -274,7 +274,7 @@ public static class SchemaStorageProviderExtension
         if (node == null || node.IsUsed) return false;
 
         // authorize
-        await context.AuthorizeAsync(node, PolicyScope.SchemaDelete).ConfigureAwait(false);
+        await context.AuthorizeAsync(node, PolicyScope.SchemaDelete, token: token).ConfigureAwait(false);
 
         // delete the schema
         IAppEntryStorageProvider? provider = context.GetService<IAppEntryStorageProvider>();
@@ -310,7 +310,7 @@ public static class SchemaStorageProviderExtension
         }
 
         // authorize
-        await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate).ConfigureAwait(false);
+        await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate, token: token).ConfigureAwait(false);
 
         // Gets the storage provider
         IAppEntryStorageProvider? provider = context.GetService<IAppEntryStorageProvider>();
@@ -336,7 +336,7 @@ public static class SchemaStorageProviderExtension
         if (appField == null) return false;
 
         // authorize
-        await context.AuthorizeAsync(node!, PolicyScope.SchemaUpdate).ConfigureAwait(false);
+        await context.AuthorizeAsync(node!, PolicyScope.SchemaUpdate, token: token).ConfigureAwait(false);
 
         // Gets the storage provider
         IAppEntryStorageProvider? provider = context.GetService<IAppEntryStorageProvider>();
@@ -374,7 +374,7 @@ public static class SchemaStorageProviderExtension
         if (node == null) return false;
 
         // authorize
-        await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate).ConfigureAwait(false);
+        await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate, token: token).ConfigureAwait(false);
 
         // Gets the storage provider
         IAppEntryStorageProvider? provider = context.GetService<IAppEntryStorageProvider>();
@@ -400,7 +400,7 @@ public static class SchemaStorageProviderExtension
         if (node == null) return false;
 
         // authorize
-        await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate).ConfigureAwait(false);
+        await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate, token: token).ConfigureAwait(false);
 
         AppWorkflowType? appWorkflowType = node.GetWorkflow(workflow.Name);
         if (!forActive && appWorkflowType is { Activated: true }) return false;
@@ -427,7 +427,7 @@ public static class SchemaStorageProviderExtension
         if (node == null) return false;
 
         // authorize
-        await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate).ConfigureAwait(false);
+        await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate, token: token).ConfigureAwait(false);
 
         AppWorkflowType? appWorkflowType = node.GetWorkflow(workflow);
         if (appWorkflowType is { Activated: true }) return false;
@@ -453,7 +453,7 @@ public static class SchemaStorageProviderExtension
         if (appWorkflowType == null) return false;
 
         // authorize
-        await context.AuthorizeAsync(node!, PolicyScope.SchemaUpdate).ConfigureAwait(false);
+        await context.AuthorizeAsync(node!, PolicyScope.SchemaUpdate, token: token).ConfigureAwait(false);
 
         if (active)
         {

@@ -1,7 +1,6 @@
-using System.Collections.Concurrent;
-using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
+using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
@@ -10,8 +9,11 @@ using SchemaNode.Property.Struct;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
-using static SchemaNode.Utility.Constant;
+using System.Collections.Concurrent;
+using System.Drawing;
+using System.Text.Json.Serialization;
 using static SchemaNode.Utility.AppConstant;
+using static SchemaNode.Utility.Constant;
 using AppType = SchemaNode.Runtime.AppType;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
 using NodeType = SchemaNode.Runtime.NodeType;
@@ -289,12 +291,44 @@ public static class PolicyExtensions
             yield return i;
     }
 
+    
+    private record EvaluatorInfo(bool global, string? app, string? field);
+
     extension(SchemaContext context)
     {
+        private async Task<EvaluatorInfo> GetEvaluatorInfo(FunctionType func, CancellationToken token = default)
+        {
+            if (func.TryGetRuntimeFuncCache(typeof(EvaluatorInfo), out EvaluatorInfo? info)) return info!;
+            
+            // Check special function access
+            foreach(var exp in func.Exps)
+            {
+                switch (exp.FuncNode?.BaseName)
+                {
+                    case $"{NS_SYSTEM_DATA_APP}.{nameof(SystemAppData.getfield)}":
+                    case $"{NS_SYSTEM_DATA_APP}.{nameof(SystemAppData.get)}":
+                    {
+                        var app = exp.Args?.ElementAt(0)?.Value?.ToValue<string>();
+                        var field = exp.Args?.ElementAt(1)?.Value?.ToValue<string>();
+                        if (!string.IsNullOrWhiteSpace(app) && !string.IsNullOrWhiteSpace(field))
+                        {
+                            var appType = await context.GetAppTypeAsync(app, token: token);
+                            if (appType is null || appType.ScopeType == SchemaNode.Enum.AppScopeType.SystemLevel) break;
+                            info = new EvaluatorInfo(false, app, field);
+                            return func.SetRuntimeFuncCache(typeof(EvaluatorInfo), info)!;
+                        }
+                        break;
+                    }
+                }
+            }
+            info = new EvaluatorInfo(true, null, null);
+            return func.SetRuntimeFuncCache(typeof(EvaluatorInfo), info)!;
+        }
+
         /// <summary>
         /// authorize the schema with the policy scope
         /// </summary>
-        private async Task<bool> AuthorizeAsync(IEnumerable<PolicyItem> items, bool silent = false)
+        private async Task<bool> AuthorizeAsync(IEnumerable<PolicyItem> items, bool silent = false, CancellationToken token = default)
         {
             // if no policy, authorized
             bool authorized = true;
@@ -305,21 +339,38 @@ public static class PolicyExtensions
             // check policies in order
             foreach (PolicyItem item in items)
             {
+                authorized = false;
                 try
                 {
+                    FunctionType? func = await context.GetNodeTypeAsync<FunctionType>(item.Evaluator, token: token);
+                    if (func is null) continue;
+
+                    EvaluatorInfo info = await context.GetEvaluatorInfo(func, token);
+                    string key = string.Empty;
+                    if (info.global)
+                        key = item.Evaluator;
+                    else if (context.GetContextItem<Access>() is { } access && info.app!.Equals(access.App, StringComparison.OrdinalIgnoreCase))
+                        key = $"{item.Evaluator}:{access.App}:{info.field}:{access.Target}";
+                    else
+                        break;
+
                     // The result should be the same for the same evaluator in one context
-                    if (!cache.Result.TryGetValue(item.Evaluator, out authorized))
+                    if (!cache.Result.TryGetValue(key, out authorized))
                     {
-                        bool? result = await context.CallFunctionAsync<bool>(item.Evaluator, []).ConfigureAwait(false);
+                        bool? result = await func.CallAsync<bool>(context, [], token: token).ConfigureAwait(false);
                         if (result.HasValue)
                         {
                             authorized = result.Value;
-                            cache.Result[item.Evaluator] = authorized;
+                            cache.Result[key] = authorized;
                         }
                     }
                 
                     if (authorized)
                         break;
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
                 }
                 catch(Exception ex)
                 {
@@ -335,22 +386,38 @@ public static class PolicyExtensions
         /// <summary>
         /// Authorize with the evaluator function name
         /// </summary>
-        public async Task<bool> AuthorizeAsync(string evaluator, bool silent = false)
+        public async Task<bool> AuthorizeAsync(string evaluator, bool silent = false, CancellationToken token = default)
         {
             // cache the evaluation result in context
             PolicyEvaluatorResult cache = context.GetOrAddContextItem<PolicyEvaluatorResult>();
 
+            FunctionType? func = await context.GetNodeTypeAsync<FunctionType>(evaluator, token: token);
+            if (func is null) return false;
+
+            EvaluatorInfo info = await context.GetEvaluatorInfo(func, token);
+            string key = string.Empty;
+            if (info.global)
+                key = evaluator;
+            else if (context.GetContextItem<Access>() is { } access && info.app!.Equals(access.App, StringComparison.OrdinalIgnoreCase))
+                key = $"{evaluator}:{access.App}:{info.field}:{access.Target}";
+            else
+                return false;
+
             // The result should be the same for the same evaluator in one context
-            if (!cache.Result.TryGetValue(evaluator, out var authorized))
+            if (!cache.Result.TryGetValue(key, out var authorized))
             {
                 try
                 {
-                    bool? result = await context.CallFunctionAsync<bool>(evaluator, []).ConfigureAwait(false);
+                    bool? result = await func.CallAsync<bool>(context, [], token: token).ConfigureAwait(false);
                     if (result.HasValue)
                     {
                         authorized = result.Value;
-                        cache.Result[evaluator] = authorized;
+                        cache.Result[key] = authorized;
                     }
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {
@@ -366,36 +433,37 @@ public static class PolicyExtensions
         /// <summary>
         /// Authorize with the evaluator function
         /// </summary>
-        public Task<bool> AuthorizeAsync(FunctionType evaluator, bool silent = false) => context.AuthorizeAsync(evaluator.Name, silent);
+        public Task<bool> AuthorizeAsync(FunctionType evaluator, bool silent = false, CancellationToken token = default) 
+            => context.AuthorizeAsync(evaluator.Name, silent, token);
 
         /// <summary>
         /// Authorize the node schema with the policy scope
         /// </summary>
-        public Task<bool> AuthorizeAsync(NodeSchema schema, PolicyScope scope, bool silent = false)
-            => context.AuthorizeAsync(schema.GetAuthPolicies(context, scope), silent);
+        public Task<bool> AuthorizeAsync(NodeSchema schema, PolicyScope scope, bool silent = false, CancellationToken token = default)
+            => context.AuthorizeAsync(schema.GetAuthPolicies(context, scope), silent, token);
 
         /// <summary>
         /// Authorize the schema type with the policy scope
         /// </summary>
-        public Task<bool> AuthorizeAsync(NodeType type, PolicyScope scope, bool silent = false)
-            => context.AuthorizeAsync(type.GetAuthPolicies(context, scope), silent);
+        public Task<bool> AuthorizeAsync(NodeType type, PolicyScope scope, bool silent = false, CancellationToken token = default)
+            => context.AuthorizeAsync(type.GetAuthPolicies(context, scope), silent, token);
 
         /// <summary>
         /// Authorize the app type with the policy scope
         /// </summary>
-        public Task<bool> AuthorizeAsync(AppType app, PolicyScope scope, bool silent = false)
-            => context.AuthorizeAsync(app.GetAuthPolicies(context, scope), silent);
+        public Task<bool> AuthorizeAsync(AppType app, PolicyScope scope, bool silent = false, CancellationToken token = default)
+            => context.AuthorizeAsync(app.GetAuthPolicies(context, scope), silent, token);
 
         /// <summary>
         /// Authorize the app field with the policy scope
         /// </summary>
-        public Task<bool> AuthorizeAsync(AppFieldType appField, PolicyScope scope, bool silent = false)
-            => context.AuthorizeAsync(appField.GetAuthPolicies(context, scope), silent);
+        public Task<bool> AuthorizeAsync(AppFieldType appField, PolicyScope scope, bool silent = false, CancellationToken token = default)
+            => context.AuthorizeAsync(appField.GetAuthPolicies(context, scope), silent, token);
 
         /// <summary>
         /// Authorize the app workflow with the policy scope
         /// </summary>
-        public Task<bool> AuthorizeAsync(AppWorkflowType appWorkflow, PolicyScope scope, bool silent = false)
-            => context.AuthorizeAsync(appWorkflow.GetAuthPolicies(context, scope), silent);
+        public Task<bool> AuthorizeAsync(AppWorkflowType appWorkflow, PolicyScope scope, bool silent = false, CancellationToken token = default)
+            => context.AuthorizeAsync(appWorkflow.GetAuthPolicies(context, scope), silent, token);
     }
 }
