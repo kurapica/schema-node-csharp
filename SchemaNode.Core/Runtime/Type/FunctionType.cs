@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Schema;
@@ -693,6 +694,24 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
     public async Task<T?> CallAsync<T, TC>(SchemaContext context, object?[] args, string? rType = null, ApplyMode mode = ApplyMode.Call, CancellationToken token = default)
         where TC: CompileContext
     {
+        // A full-mode context is shared by many asynchronous flows (one per screen) and is also the
+        // context the screen data nodes are bound to. Run the function on a temporary non-full
+        // context so the compiled data nodes stay out of it, while keeping the request identity
+        // (access and other context items) and binding the value access arguments to it.
+        if (context.FullMode)
+        {
+            using IServiceScope scope = context.GetRequiredService<IServiceScopeFactory>().CreateScope();
+            SchemaContext scoped = scope.ServiceProvider.GetRequiredService<SchemaContext>();
+            scoped.Locale = context.Locale;
+            scoped.CopySchemaContextItem(context);
+
+            object?[] scopedArgs = new object?[args.Length];
+            for (int i = 0; i < args.Length; i++)
+                scopedArgs[i] = args[i] is IValueAccess access ? access.Clone(scoped) : args[i];
+
+            return await CallAsync<T, TC>(scoped, scopedArgs, rType, mode, token).ConfigureAwait(false);
+        }
+
         object? result = null;
 
         // Remote call

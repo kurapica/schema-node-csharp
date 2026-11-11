@@ -216,6 +216,11 @@ public interface IValueAccess
     /// </summary>
     IValueAccess Clone();
 
+    /// <summary>
+    /// Clone the value access bound to the given context
+    /// </summary>
+    IValueAccess Clone(SchemaContext context) => Clone();
+
     #endregion
 
     #region Property Access

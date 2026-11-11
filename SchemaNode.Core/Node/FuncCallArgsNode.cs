@@ -231,6 +231,14 @@ public class FuncCallArgsNode : DataNode, IEnumerable<StructNode>
         return clone;
     }
 
+    /// <inheritdoc/>
+    public override IValueAccess Clone(SchemaContext context)
+    {
+        FuncCallArgsNode clone = new(context, Type, BuildJsonArray(), null, PropertyProviders.ToArray());
+        clone._original = _original?.DeepClone() as JsonArray;
+        return clone;
+    }
+
     #endregion
 
     #region Dispose

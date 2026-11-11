@@ -325,6 +325,16 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
         return node;
     }
 
+    /// <inheritdoc/>
+    public override IValueAccess Clone(SchemaContext context)
+    {
+        ArrayNode node = new(context, ElementType, null, null, PropertyProviders.ToArray());
+        foreach (var element in _elements)
+            node.AddElement(element.Clone(context));
+        node._original = _original?.DeepClone() as JsonArray;
+        return node;
+    }
+
     #endregion
 
     #region Methods
@@ -780,6 +790,9 @@ public class SliceArrayNode : DataNode
 
     /// <inheritdoc/>
     public override IValueAccess Clone() => new SliceArrayNode(Context, _arrayNode, _start, _end, _sourceNode);
+
+    /// <inheritdoc/>
+    public override IValueAccess Clone(SchemaContext context) => new SliceArrayNode(context, _arrayNode, _start, _end, _sourceNode);
 
     /// <inheritdoc/>
     public override IDisposable Subscribe(IObserver<(IValueAccess, object?)> observer, bool immediate = false)

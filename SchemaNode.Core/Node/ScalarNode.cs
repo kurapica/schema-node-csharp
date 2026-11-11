@@ -1134,6 +1134,13 @@ public class AnyNode(ISchemaContext context, IValueTypeAccess type, object? valu
         node.CopyOriginal(Original);
         return node;
     }
+
+    public override IValueAccess Clone(SchemaContext context)
+    {
+        var node = new AnyNode(context, Type, Value, null, PropertyProviders.ToArray());
+        node.CopyOriginal(Original);
+        return node;
+    }
 }
 
 /// <summary>
@@ -1145,6 +1152,13 @@ public class BoolNode(ISchemaContext context, IValueTypeAccess type, object? val
     public override IValueAccess Clone()
     {
         var node = new BoolNode(Context, Type, Value, null, PropertyProviders.ToArray());
+        node.CopyOriginal(Original);
+        return node;
+    }
+
+    public override IValueAccess Clone(SchemaContext context)
+    {
+        var node = new BoolNode(context, Type, Value, null, PropertyProviders.ToArray());
         node.CopyOriginal(Original);
         return node;
     }
@@ -1162,6 +1176,13 @@ public class StringNode(ISchemaContext context, IValueTypeAccess type, object? v
         node.CopyOriginal(Original);
         return node;
     }
+
+    public override IValueAccess Clone(SchemaContext context)
+    {
+        var node = new StringNode(context, Type, Value, null, PropertyProviders.ToArray());
+        node.CopyOriginal(Original);
+        return node;
+    }
 }
 
 /// <summary>
@@ -1173,6 +1194,13 @@ public class DecimalNode(ISchemaContext context, IValueTypeAccess type, object? 
     public override IValueAccess Clone()
     {
         var node = new DecimalNode(Context, Type, Value, null, PropertyProviders.ToArray());
+        node.CopyOriginal(Original);
+        return node;
+    }
+
+    public override IValueAccess Clone(SchemaContext context)
+    {
+        var node = new DecimalNode(context, Type, Value, null, PropertyProviders.ToArray());
         node.CopyOriginal(Original);
         return node;
     }
@@ -1190,6 +1218,13 @@ public class IntNode(ISchemaContext context, IValueTypeAccess type, object? valu
         node.CopyOriginal(Original);
         return node;
     }
+
+    public override IValueAccess Clone(SchemaContext context)
+    {
+        var node = new IntNode(context, Type, Value, null, PropertyProviders.ToArray());
+        node.CopyOriginal(Original);
+        return node;
+    }
 }
 
 /// <summary>
@@ -1201,6 +1236,13 @@ public class DateNode(ISchemaContext context, IValueTypeAccess type, object? val
     public override IValueAccess Clone()
     {
         var node = new DateNode(Context, Type, Value, null, PropertyProviders.ToArray());
+        node.CopyOriginal(Original);
+        return node;
+    }
+
+    public override IValueAccess Clone(SchemaContext context)
+    {
+        var node = new DateNode(context, Type, Value, null, PropertyProviders.ToArray());
         node.CopyOriginal(Original);
         return node;
     }

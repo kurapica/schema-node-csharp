@@ -30,7 +30,14 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
 
     const int LOCK_WAITING_DELAY = 5000;
     const string LOCK_AND_LOAD_KEY = "__LockAndLoad__";
-    private bool _lockAcquired = false;
+
+    /// <summary>
+    /// The load-lock identity of the current asynchronous flow. The identity is created only
+    /// when the flow actually needs to load a schema, so flows sharing one context (full mode)
+    /// do not serialize each other.
+    /// </summary>
+    private readonly AsyncLocal<Guid?> _loadLockFlow = new();
+
     private ConcurrentQueue<(Func<CancellationToken, Task> Task, CancellationToken Token)> _deferLoadTasks = [];
 
     #endregion
@@ -249,24 +256,26 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
 
                     // Check if the generic type is already loaded
                     genType = node.GetGenericType(key);
-                    bool acquired = schemaRuntime.LockLoading.TryGetValue(LOCK_AND_LOAD_KEY, out var ctx) && ctx == this;
+                    Guid genFlowId = _loadLockFlow.Value ??= Guid.NewGuid();
+                    bool acquired = schemaRuntime.LockLoading.TryGetValue(LOCK_AND_LOAD_KEY, out Guid genOwner) && genOwner == genFlowId;
                     if (genType != null && (genType.Loaded || acquired))
                         return genType;
 
                     // lock and load
+                    bool genAcquiredHere = false;
                     if (!acquired)
                     {
-                        if (!schemaRuntime.LockLoading.TryAdd(LOCK_AND_LOAD_KEY, this))
+                        if (!schemaRuntime.LockLoading.TryAdd(LOCK_AND_LOAD_KEY, genFlowId))
                         {
                             while (!acquired)
                             {
                                 genType ??= node.GetGenericType(key);
                                 if (genType != null && genType.Loaded)
                                     return genType;
-                                if (schemaRuntime.LockLoading.TryAdd(LOCK_AND_LOAD_KEY, this))
+                                if (schemaRuntime.LockLoading.TryAdd(LOCK_AND_LOAD_KEY, genFlowId))
                                 {
                                     acquired = true;
-                                    _lockAcquired = true;
+                                    genAcquiredHere = true;
                                     break;
                                 }
                                 await Task.Delay(10, token).ConfigureAwait(false);
@@ -275,7 +284,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         else
                         {
                             acquired = true;
-                            _lockAcquired = true;
+                            genAcquiredHere = true;
                         }
                     }
 
@@ -300,11 +309,11 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     }
                     finally
                     {
-                        if (_lockAcquired)
+                        if (genAcquiredHere)
                         {
-                            _lockAcquired = false;
                             await ProcessDeferLoadTasksAsync().ConfigureAwait(false);
-                            schemaRuntime.LockLoading.TryRemove(LOCK_AND_LOAD_KEY, out _);
+                            if (schemaRuntime.LockLoading.TryGetValue(LOCK_AND_LOAD_KEY, out Guid current) && current == genFlowId)
+                                schemaRuntime.LockLoading.TryRemove(LOCK_AND_LOAD_KEY, out _);
                         }
                     }
                 }
@@ -319,23 +328,25 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             string schemaName = parent != result ? $"{parent?.Name}.{nextVal}".Trim('.') : nextVal;
 
             // If in loading state, return the loading task to avoid deadlock
-            bool acquire = schemaRuntime.LockLoading.TryGetValue(LOCK_AND_LOAD_KEY, out var loadingTask) && loadingTask == this;
+            Guid flowId = _loadLockFlow.Value ??= Guid.NewGuid();
+            bool acquire = schemaRuntime.LockLoading.TryGetValue(LOCK_AND_LOAD_KEY, out Guid owner) && owner == flowId;
             if (result != null && acquire) return result;
 
             // lock and load
+            bool acquiredHere = false;
             if (!acquire)
             {
-                if (!schemaRuntime.LockLoading.TryAdd(LOCK_AND_LOAD_KEY, this))
+                if (!schemaRuntime.LockLoading.TryAdd(LOCK_AND_LOAD_KEY, flowId))
                 {
                     while (true)
                     {
                         result ??= parent?.GetNodeType(nextVal);
                         if (result != null && result.Loaded)
                             return result;
-                        if (schemaRuntime.LockLoading.TryAdd(LOCK_AND_LOAD_KEY, this))
+                        if (schemaRuntime.LockLoading.TryAdd(LOCK_AND_LOAD_KEY, flowId))
                         {
                             acquire = true;
-                            _lockAcquired = true;
+                            acquiredHere = true;
                             break;
                         }
                         await Task.Delay(10, token).ConfigureAwait(false);
@@ -344,14 +355,14 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                 else
                 {
                     acquire = true;
-                    _lockAcquired = true;
+                    acquiredHere = true;
                 }
             }
 
             try
             {
                 // loading
-                NodeSchema? schema = await LoadNodeSchemaAsync(parent != result ? parent : null, nextVal).ConfigureAwait(false);
+                NodeSchema? schema = await LoadNodeSchemaAsync(parent != result ? parent : null, nextVal, token).ConfigureAwait(false);
                 if (schema == null) return null;
 
                 // node type
@@ -396,16 +407,16 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             finally
             {
                 // simple lock to avoid conflict access
-                if (_lockAcquired)
+                if (acquiredHere)
                 {
-                    _lockAcquired = false;
                     await ProcessDeferLoadTasksAsync().ConfigureAwait(false);
-                    schemaRuntime.LockLoading.TryRemove(LOCK_AND_LOAD_KEY, out _);
+                    if (schemaRuntime.LockLoading.TryGetValue(LOCK_AND_LOAD_KEY, out Guid current) && current == flowId)
+                        schemaRuntime.LockLoading.TryRemove(LOCK_AND_LOAD_KEY, out _);
                 }
             }
         }
         
-        async Task<NodeSchema?> LoadNodeSchemaAsync(NamespaceType? @namespace, string name)
+        async Task<NodeSchema?> LoadNodeSchemaAsync(NamespaceType? @namespace, string name, CancellationToken token = default)
         {
             // get loaded schema from namespace if not in reload mode
             NodeSchema? schema = reload ? null : @namespace?.GetNodeSchema(name);
@@ -717,10 +728,10 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
         foreach (KeyValuePair<Type, object> item in _contextItems)
             (item.Value as IDisposable)?.Dispose();
 
-        if (_lockAcquired)
+        if (_loadLockFlow.Value is { } flowId && Runtime is SchemaRuntime runtime &&
+            runtime.LockLoading.TryGetValue(LOCK_AND_LOAD_KEY, out Guid owner) && owner == flowId)
         {
-            _lockAcquired = false;
-            (Runtime as SchemaRuntime)?.LockLoading.TryRemove(LOCK_AND_LOAD_KEY, out _);
+            runtime.LockLoading.TryRemove(LOCK_AND_LOAD_KEY, out _);
         }
     }
 

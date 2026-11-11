@@ -300,6 +300,9 @@ public abstract class DataNode : IValueAccess, IDisposable
     /// <inheritdoc/>
     public abstract IValueAccess Clone();
 
+    /// <inheritdoc/>
+    public virtual IValueAccess Clone(SchemaContext context) => Clone();
+
     /// <summary>
     /// Whether the data changed
     /// </summary>

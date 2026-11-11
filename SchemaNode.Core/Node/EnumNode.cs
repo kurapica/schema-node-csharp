@@ -192,6 +192,19 @@ public class EnumNode : ScalarNode
         return node;
     }
 
+    /// <inheritdoc/>
+    public override IValueAccess Clone(SchemaContext context)
+    {
+        EnumNode node = new(context, (Type as EnumType)!, null, null, PropertyProviders.ToArray())
+        {
+            _longValue = _longValue,
+            _strValue = _strValue,
+            _originalLong = _originalLong,
+            _originalStr = _originalStr
+        };
+        return node;
+    }
+
     private object? GetRawValue() => _isString ? _strValue : _longValue;
 }
 
@@ -406,6 +419,19 @@ public class EnumArrayNode : ScalarNode
     public override IValueAccess Clone()
     {
         EnumArrayNode node = new(Context, (Type as ArrayType)!, EnumType, null, null, PropertyProviders.ToArray())
+        {
+            _strValues = _strValues?.ToArray(),
+            _longValues = _longValues?.ToArray(),
+            _originalStr = _originalStr?.ToArray(),
+            _originalLong = _originalLong?.ToArray()
+        };
+        return node;
+    }
+
+    /// <inheritdoc/>
+    public override IValueAccess Clone(SchemaContext context)
+    {
+        EnumArrayNode node = new(context, (Type as ArrayType)!, EnumType, null, null, PropertyProviders.ToArray())
         {
             _strValues = _strValues?.ToArray(),
             _longValues = _longValues?.ToArray(),

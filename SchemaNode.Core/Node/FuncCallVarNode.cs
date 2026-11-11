@@ -198,6 +198,16 @@ public class FuncCallVarNode : DataNode, IEnumerable<StructNode>
     }
 
     /// <inheritdoc/>
+    public override IValueAccess Clone(SchemaContext context)
+    {
+        FuncCallVarNode clone = new(context, _argType, null, null, PropertyProviders.ToArray());
+        foreach (StructNode node in _args)
+            clone._args.Add((StructNode)node.Clone(context));
+        clone._original = _original?.DeepClone() as JsonArray;
+        return clone;
+    }
+
+    /// <inheritdoc/>
     public override bool IsValid => base.IsValid && (IsEmpty || _args.All(e => e.IsValid));
 
     /// <inheritdoc/>

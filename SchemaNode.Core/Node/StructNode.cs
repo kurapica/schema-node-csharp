@@ -424,6 +424,20 @@ public class StructNode : DataNode
         return clone;
     }
 
+    /// <inheritdoc/>
+    public override IValueAccess Clone(SchemaContext context)
+    {
+        StructNode clone = new(context, (StructType)Type, null, null, PropertyProviders.ToArray());
+        int i = 0;
+        foreach (var _ in (Type as StructType)!.GetFields())
+        {
+            clone._fields[i] = _fields[i].Clone(context);
+            i++;
+        }
+        clone._original = _original?.DeepClone() as JsonObject;
+        return clone;
+    }
+
     #endregion
 
     #region Relation
