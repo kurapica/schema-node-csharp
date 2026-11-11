@@ -130,7 +130,7 @@ public sealed class LocaleString : ICloneable
         return this;
     }
 
-    public string ToString(ISchemaContext context)
+    public string ToString(ISchemaContext? context)
     {
         var ctx = context as SchemaContext;
         var locale = !string.IsNullOrWhiteSpace(ctx?.Locale) ? ctx.Locale.Replace("-", "") : null;
@@ -182,7 +182,7 @@ public sealed class LocaleString : ICloneable
     /// </summary>
     /// <param name="args"></param>
     /// <returns></returns>
-    public string Format(ISchemaContext context, params object[] args)
+    public string Format(ISchemaContext? context, params object[] args)
     {
         return Regex.Replace(ToString(context), @"\{(\d+)\}", match =>
         {

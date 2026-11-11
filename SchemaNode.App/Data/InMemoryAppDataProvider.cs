@@ -69,21 +69,25 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
                 }
             }
 
+            // The results are copies that stay bound to the caller's context, so the downstream
+            // processing keeps the full-mode behavior of the queried rows.
+            IValueAccess Copy(IValueAccess value) => value is DataNode node ? node.Clone(schemaContext) : value.Clone();
+
             return type switch
             {
                 AppSchemaDataResult.Count => (schemaContext.System.Int.Create(context, total), total),
                 AppSchemaDataResult.Exist => (schemaContext.System.Bool.Create(context, total > 0), total),
-                AppSchemaDataResult.First => (origins.Count > 0 ? origins[0].Clone() : null, total),
-                AppSchemaDataResult.Last => (origins.Count > 0 ? origins[^1].Clone() : null, total),
+                AppSchemaDataResult.First => (origins.Count > 0 ? Copy(origins[0]) : null, total),
+                AppSchemaDataResult.Last => (origins.Count > 0 ? Copy(origins[^1]) : null, total),
                 AppSchemaDataResult.Field => (new ArrayNode(context, ((schema.ValueType as ArrayType)!.Element as StructType)!.GetField(dataField!)!.Type!, 
                     origins.Select(o => o is StructNode sn ? sn.GetAccessValue(dataField!) : null).Where(x => x is { IsEmpty: false }).Select(x => x!).ToArray()), total),
-                _ => (new ArrayNode(context, schema.ValueType, origins.Select(o => o.Clone()).ToArray()), total)
+                _ => (new ArrayNode(context, schema.ValueType, origins.Select(Copy).ToArray()), total)
             };
         }
         else
         {
             IValueAccess? origin = list.FirstOrDefault();
-            return (origin?.Clone(), origin == null ? 0 : 1);
+            return (origin is DataNode node ? node.Clone(schemaContext) : origin?.Clone(), origin == null ? 0 : 1);
         }
     }
 

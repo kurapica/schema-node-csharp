@@ -140,7 +140,7 @@ public sealed class EnumType: ValueType
     }
 
     /// <inheritdoc />
-    public override IValueAccess Create(ISchemaContext context, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) 
+    public override IValueAccess Create(ISchemaContext? context, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) 
         => new EnumNode(context, this, value, parent, propertyProviders);
 
     /// <inheritdoc />

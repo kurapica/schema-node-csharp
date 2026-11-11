@@ -1,4 +1,4 @@
-﻿﻿using SchemaNode.Context;
+﻿using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Property;
@@ -22,7 +22,7 @@ public class EnumNode : ScalarNode
 
     #region Constructors
 
-    public EnumNode(ISchemaContext context, EnumType type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    public EnumNode(ISchemaContext? context, EnumType type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
         : base(context, type, null, parent, propertyProviders)
     {
         _isString = type.Type == EnumValueType.String;
@@ -182,7 +182,7 @@ public class EnumNode : ScalarNode
     /// <inheritdoc/>
     public override IValueAccess Clone()
     {
-        EnumNode node = new(Context, (Type as EnumType)!, null, null, PropertyProviders.ToArray())
+        EnumNode node = new(null, (Type as EnumType)!, null, null, PropertyProviders.ToArray())
         {
             _longValue = _longValue,
             _strValue = _strValue,
@@ -193,7 +193,7 @@ public class EnumNode : ScalarNode
     }
 
     /// <inheritdoc/>
-    public override IValueAccess Clone(SchemaContext context)
+    public override IValueAccess Clone(SchemaContext? context)
     {
         EnumNode node = new(context, (Type as EnumType)!, null, null, PropertyProviders.ToArray())
         {
@@ -225,12 +225,12 @@ public class EnumArrayNode : ScalarNode
     /// </summary>
     public EnumType EnumType { get; }
 
-    public EnumArrayNode(ISchemaContext context, ArrayType type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    public EnumArrayNode(ISchemaContext? context, ArrayType type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
         : this(context, type, (type.Element as EnumType) ?? throw new Exception($"The type '{type.Name}' is not a valid enum array type."), value, parent, propertyProviders)
     {
     }
 
-    private EnumArrayNode(ISchemaContext context, ArrayType type, EnumType enumType, object? value, IValueAccess? parent, IPropertyProvider[] propertyProviders)
+    private EnumArrayNode(ISchemaContext? context, ArrayType type, EnumType enumType, object? value, IValueAccess? parent, IPropertyProvider[] propertyProviders)
         : base(context, type, value, parent, new EnumArrayNodePropertyProvider(enumType, propertyProviders))
     {
         EnumType = enumType;
@@ -418,7 +418,7 @@ public class EnumArrayNode : ScalarNode
     /// <inheritdoc/>
     public override IValueAccess Clone()
     {
-        EnumArrayNode node = new(Context, (Type as ArrayType)!, EnumType, null, null, PropertyProviders.ToArray())
+        EnumArrayNode node = new(null, (Type as ArrayType)!, EnumType, null, null, PropertyProviders.ToArray())
         {
             _strValues = _strValues?.ToArray(),
             _longValues = _longValues?.ToArray(),
@@ -429,7 +429,7 @@ public class EnumArrayNode : ScalarNode
     }
 
     /// <inheritdoc/>
-    public override IValueAccess Clone(SchemaContext context)
+    public override IValueAccess Clone(SchemaContext? context)
     {
         EnumArrayNode node = new(context, (Type as ArrayType)!, EnumType, null, null, PropertyProviders.ToArray())
         {

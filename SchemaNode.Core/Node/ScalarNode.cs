@@ -1,4 +1,4 @@
-﻿﻿using SchemaNode.Context;
+﻿using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
@@ -19,7 +19,7 @@ public abstract class ScalarNode : DataNode
 {
     #region Constructor
 
-    public ScalarNode(ISchemaContext context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    public ScalarNode(ISchemaContext? context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
         : base(context, type, value, parent, propertyProviders)
     {
         // entry source related properties, only work in full mode
@@ -947,7 +947,7 @@ internal sealed class ScalarEntrySourceInfo
 /// <summary>
 /// The value type scalar data node
 /// </summary>
-public abstract class ScalarNode<T>(ISchemaContext context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+public abstract class ScalarNode<T>(ISchemaContext? context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
     : ScalarNode(context, type, value, parent, propertyProviders) where T : struct
 {
     protected T? Value;
@@ -1036,7 +1036,7 @@ public abstract class ScalarNode<T>(ISchemaContext context, IValueTypeAccess typ
 /// <summary>
 /// The reference type scalar data node
 /// </summary>
-public abstract class RefScalarNode<T>(ISchemaContext context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+public abstract class RefScalarNode<T>(ISchemaContext? context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
     : ScalarNode(context, type, value, parent, propertyProviders) where T : class
 {
     protected T? Value;
@@ -1125,17 +1125,17 @@ public abstract class RefScalarNode<T>(ISchemaContext context, IValueTypeAccess 
 /// <summary>
 /// Object data node
 /// </summary>
-public class AnyNode(ISchemaContext context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+public class AnyNode(ISchemaContext? context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
     : RefScalarNode<object>(context, type, value, parent, propertyProviders)
 {
     public override IValueAccess Clone()
     {
-        var node = new AnyNode(Context, Type, Value, null, PropertyProviders.ToArray());
+        var node = new AnyNode(null, Type, Value, null, PropertyProviders.ToArray());
         node.CopyOriginal(Original);
         return node;
     }
 
-    public override IValueAccess Clone(SchemaContext context)
+    public override IValueAccess Clone(SchemaContext? context)
     {
         var node = new AnyNode(context, Type, Value, null, PropertyProviders.ToArray());
         node.CopyOriginal(Original);
@@ -1146,17 +1146,17 @@ public class AnyNode(ISchemaContext context, IValueTypeAccess type, object? valu
 /// <summary>
 ///  Bool data node
 /// </summary>
-public class BoolNode(ISchemaContext context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+public class BoolNode(ISchemaContext? context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
     : ScalarNode<bool>(context, type, value, parent, propertyProviders)
 {
     public override IValueAccess Clone()
     {
-        var node = new BoolNode(Context, Type, Value, null, PropertyProviders.ToArray());
+        var node = new BoolNode(null, Type, Value, null, PropertyProviders.ToArray());
         node.CopyOriginal(Original);
         return node;
     }
 
-    public override IValueAccess Clone(SchemaContext context)
+    public override IValueAccess Clone(SchemaContext? context)
     {
         var node = new BoolNode(context, Type, Value, null, PropertyProviders.ToArray());
         node.CopyOriginal(Original);
@@ -1167,17 +1167,17 @@ public class BoolNode(ISchemaContext context, IValueTypeAccess type, object? val
 /// <summary>
 ///  String data node
 /// </summary>
-public class StringNode(ISchemaContext context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+public class StringNode(ISchemaContext? context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
     : RefScalarNode<string>(context, type, value, parent, propertyProviders)
 {
     public override IValueAccess Clone()
     {
-        var node = new StringNode(Context, Type, Value, null, PropertyProviders.ToArray());
+        var node = new StringNode(null, Type, Value, null, PropertyProviders.ToArray());
         node.CopyOriginal(Original);
         return node;
     }
 
-    public override IValueAccess Clone(SchemaContext context)
+    public override IValueAccess Clone(SchemaContext? context)
     {
         var node = new StringNode(context, Type, Value, null, PropertyProviders.ToArray());
         node.CopyOriginal(Original);
@@ -1188,17 +1188,17 @@ public class StringNode(ISchemaContext context, IValueTypeAccess type, object? v
 /// <summary>
 ///  Numeric data node
 /// </summary>
-public class DecimalNode(ISchemaContext context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+public class DecimalNode(ISchemaContext? context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
     : ScalarNode<decimal>(context, type, value, parent, propertyProviders)
 {
     public override IValueAccess Clone()
     {
-        var node = new DecimalNode(Context, Type, Value, null, PropertyProviders.ToArray());
+        var node = new DecimalNode(null, Type, Value, null, PropertyProviders.ToArray());
         node.CopyOriginal(Original);
         return node;
     }
 
-    public override IValueAccess Clone(SchemaContext context)
+    public override IValueAccess Clone(SchemaContext? context)
     {
         var node = new DecimalNode(context, Type, Value, null, PropertyProviders.ToArray());
         node.CopyOriginal(Original);
@@ -1209,17 +1209,17 @@ public class DecimalNode(ISchemaContext context, IValueTypeAccess type, object? 
 /// <summary>
 /// Int data node
 /// </summary>
-public class IntNode(ISchemaContext context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+public class IntNode(ISchemaContext? context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
     : ScalarNode<long>(context, type, value, parent, propertyProviders)
 {
     public override IValueAccess Clone()
     {
-        var node = new IntNode(Context, Type, Value, null, PropertyProviders.ToArray());
+        var node = new IntNode(null, Type, Value, null, PropertyProviders.ToArray());
         node.CopyOriginal(Original);
         return node;
     }
 
-    public override IValueAccess Clone(SchemaContext context)
+    public override IValueAccess Clone(SchemaContext? context)
     {
         var node = new IntNode(context, Type, Value, null, PropertyProviders.ToArray());
         node.CopyOriginal(Original);
@@ -1230,17 +1230,17 @@ public class IntNode(ISchemaContext context, IValueTypeAccess type, object? valu
 /// <summary>
 /// DateTime data node
 /// </summary>
-public class DateNode(ISchemaContext context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+public class DateNode(ISchemaContext? context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
     : ScalarNode<DateTimeOffset>(context, type, value, parent, propertyProviders)
 {
     public override IValueAccess Clone()
     {
-        var node = new DateNode(Context, Type, Value, null, PropertyProviders.ToArray());
+        var node = new DateNode(null, Type, Value, null, PropertyProviders.ToArray());
         node.CopyOriginal(Original);
         return node;
     }
 
-    public override IValueAccess Clone(SchemaContext context)
+    public override IValueAccess Clone(SchemaContext? context)
     {
         var node = new DateNode(context, Type, Value, null, PropertyProviders.ToArray());
         node.CopyOriginal(Original);

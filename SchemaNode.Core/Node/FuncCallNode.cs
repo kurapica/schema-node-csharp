@@ -1,4 +1,4 @@
-﻿using SchemaNode.Context;
+using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Runtime;
 
@@ -24,7 +24,7 @@ public class FuncCallNode : StructNode
     /// </summary>
     public FuncCallArgsNode? ArgsField { get; }
 
-    public FuncCallNode(ISchemaContext context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    public FuncCallNode(ISchemaContext? context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
         : base(context, type as StructType ?? throw new InvalidCastException($"The type '{type.Name}' is not a valid function call type."), value, parent, propertyProviders)
     {
         ModeField = GetAccessValue("mode") as EnumNode;

@@ -25,7 +25,7 @@ public class FunctionNode : StructNode
     /// </summary>
     public ArrayNode? ExpsField { get; }
 
-    public FunctionNode(ISchemaContext context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    public FunctionNode(ISchemaContext? context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
         : base(context, type as StructType ?? throw new InvalidCastException($"The type '{type.Name}' is not a valid function schema type."), value, parent, propertyProviders)
     {
         ReturnField = GetAccessValue("return");

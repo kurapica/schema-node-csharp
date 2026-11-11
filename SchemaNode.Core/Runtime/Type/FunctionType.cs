@@ -297,7 +297,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
     public bool HasAccessEntries => true;
     
     /// <inheritdoc/>
-    public IValueAccess Create(ISchemaContext context, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    public IValueAccess Create(ISchemaContext? context, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
     {
         throw new NotImplementedException();
     }
@@ -707,9 +707,13 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
 
             object?[] scopedArgs = new object?[args.Length];
             for (int i = 0; i < args.Length; i++)
-                scopedArgs[i] = args[i] is IValueAccess access ? access.Clone(scoped) : args[i];
+                scopedArgs[i] = args[i] is DataNode node ? node.Clone(scoped) : args[i];
 
-            return await CallAsync<T, TC>(scoped, scopedArgs, rType, mode, token).ConfigureAwait(false);
+            T? ret = await CallAsync<T, TC>(scoped, scopedArgs, rType, mode, token).ConfigureAwait(false);
+
+            // The scoped context is disposed when this branch returns, so a value access produced by
+            // the call must not keep depending on it. The detached clone is a standalone copy.
+            return ret is IValueAccess retAccess ? (T)retAccess.Clone() : ret;
         }
 
         object? result = null;

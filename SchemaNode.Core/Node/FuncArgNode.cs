@@ -9,7 +9,7 @@ namespace SchemaNode.Node;
 /// </summary>
 public class FuncArgNode : StructNode
 {
-    public FuncArgNode(ISchemaContext context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    public FuncArgNode(ISchemaContext? context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
         : base(context, type as StructType ?? throw new InvalidCastException($"The type '{type.Name}' is not a valid function argument type."), value, parent, propertyProviders)
     {
     }

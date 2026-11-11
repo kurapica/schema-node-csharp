@@ -39,7 +39,7 @@ public class FuncCallArgsNode : DataNode, IEnumerable<StructNode>
 
     #region Constructor
 
-    public FuncCallArgsNode(ISchemaContext context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    public FuncCallArgsNode(ISchemaContext? context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
         : base(context, type, null, parent, propertyProviders)
     {
         _argType = (type as ArrayType)?.Element as StructType
@@ -226,13 +226,13 @@ public class FuncCallArgsNode : DataNode, IEnumerable<StructNode>
     /// <inheritdoc/>
     public override IValueAccess Clone()
     {
-        FuncCallArgsNode clone = new(Context, Type, BuildJsonArray(), null, PropertyProviders.ToArray());
+        FuncCallArgsNode clone = new(null, Type, BuildJsonArray(), null, PropertyProviders.ToArray());
         clone._original = _original?.DeepClone() as JsonArray;
         return clone;
     }
 
     /// <inheritdoc/>
-    public override IValueAccess Clone(SchemaContext context)
+    public override IValueAccess Clone(SchemaContext? context)
     {
         FuncCallArgsNode clone = new(context, Type, BuildJsonArray(), null, PropertyProviders.ToArray());
         clone._original = _original?.DeepClone() as JsonArray;

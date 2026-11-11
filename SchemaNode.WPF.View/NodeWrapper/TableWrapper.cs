@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
+using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Property.Array;
 using SchemaNode.Property.Common;
@@ -1008,7 +1009,7 @@ public class TableWrapper : DataNodeWrapper
     {
         if (IsDisposed) return;
 
-        IValueAccess cloned = element.Clone();
+        IValueAccess cloned = element.Clone(element.Context as SchemaContext);
         if (cloned is not DataNode working) return;
 
         try

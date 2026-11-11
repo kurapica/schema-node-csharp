@@ -150,7 +150,7 @@ public sealed class ArrayType: ValueType, IRelationProvider, INodeTypeReLoadHand
     }
 
     /// <inheritdoc />
-    public override IValueAccess Create(ISchemaContext context, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    public override IValueAccess Create(ISchemaContext? context, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
     {
         System.Type? nodeType = (context as SchemaContext)?.FullMode == true
             ? Schema?.Type?.GetMetaProperty<DataNodeType>()?.Value

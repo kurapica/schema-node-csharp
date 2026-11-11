@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Threading;
 using SchemaNode.Avalonia.View.Localization;
 using SchemaNode.Avalonia.View.Views;
+using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Property.Array;
 using SchemaNode.Property.Common;
@@ -1051,7 +1052,7 @@ public class TableWrapper : DataNodeWrapper
 
     private async Task EditRowAsync(DataNode element)
     {
-        IValueAccess cloned = element.Clone();
+        IValueAccess cloned = element.Clone(element.Context as SchemaContext);
         if (cloned is not DataNode working) return;
 
         try

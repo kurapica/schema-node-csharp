@@ -13,7 +13,7 @@ public sealed class BoolType : ScalarType
     public override bool IsIndexable => true;
 
     /// <inheritdoc />
-    public override IValueAccess Create(ISchemaContext context, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) => new BoolNode(context, this, value, parent, propertyProviders);
+    public override IValueAccess Create(ISchemaContext? context, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) => new BoolNode(context, this, value, parent, propertyProviders);
 
     /// <inheritdoc />
     protected override ScalarSchema? GetScalarSchema() => null;

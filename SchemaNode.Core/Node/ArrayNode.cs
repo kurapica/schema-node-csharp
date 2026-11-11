@@ -1,4 +1,4 @@
-﻿using SchemaNode.Context;
+using SchemaNode.Context;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using System.Collections;
@@ -23,7 +23,7 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
 {
     #region Constructors
 
-    public ArrayNode(ISchemaContext context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    public ArrayNode(ISchemaContext? context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
         : base(context, type, null, parent, propertyProviders)
     {
         Type = (type as ValueType)?.ArrayType ?? type;
@@ -318,7 +318,7 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
     /// <inheritdoc/>
     public override IValueAccess Clone()
     {
-        ArrayNode node = new(Context, ElementType, null, null, PropertyProviders.ToArray());
+        ArrayNode node = new(null, ElementType, null, null, PropertyProviders.ToArray());
         foreach (var element in _elements)
             node.AddElement(element.Clone());
         node._original = _original?.DeepClone() as JsonArray;
@@ -326,11 +326,11 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
     }
 
     /// <inheritdoc/>
-    public override IValueAccess Clone(SchemaContext context)
+    public override IValueAccess Clone(SchemaContext? context)
     {
         ArrayNode node = new(context, ElementType, null, null, PropertyProviders.ToArray());
         foreach (var element in _elements)
-            node.AddElement(element.Clone(context));
+            node.AddElement(element is DataNode dataNode ? dataNode.Clone(context) : element.Clone());
         node._original = _original?.DeepClone() as JsonArray;
         return node;
     }
@@ -719,7 +719,7 @@ public class SliceArrayNode : DataNode
     private readonly int _end;
     private readonly IValueAccess? _sourceNode;
 
-    public SliceArrayNode(ISchemaContext context, ArrayNode arrayNode, int start = 0, int? end = null, IValueAccess? sourceNode = null)
+    public SliceArrayNode(ISchemaContext? context, ArrayNode arrayNode, int start = 0, int? end = null, IValueAccess? sourceNode = null)
         : base(context, arrayNode.Type, null, null)
     {
         _arrayNode = arrayNode;
@@ -789,10 +789,10 @@ public class SliceArrayNode : DataNode
     }
 
     /// <inheritdoc/>
-    public override IValueAccess Clone() => new SliceArrayNode(Context, _arrayNode, _start, _end, _sourceNode);
+    public override IValueAccess Clone() => new SliceArrayNode(null, _arrayNode, _start, _end, _sourceNode);
 
     /// <inheritdoc/>
-    public override IValueAccess Clone(SchemaContext context) => new SliceArrayNode(context, _arrayNode, _start, _end, _sourceNode);
+    public override IValueAccess Clone(SchemaContext? context) => new SliceArrayNode(context, _arrayNode, _start, _end, _sourceNode);
 
     /// <inheritdoc/>
     public override IDisposable Subscribe(IObserver<(IValueAccess, object?)> observer, bool immediate = false)

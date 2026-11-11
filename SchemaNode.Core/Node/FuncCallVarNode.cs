@@ -36,7 +36,7 @@ public class FuncCallVarNode : DataNode, IEnumerable<StructNode>
 
     #region Constructor
 
-    public FuncCallVarNode(ISchemaContext context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    public FuncCallVarNode(ISchemaContext? context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
         : base(context, type, null, parent, propertyProviders)
     {
         _argType = type as StructType
@@ -190,7 +190,7 @@ public class FuncCallVarNode : DataNode, IEnumerable<StructNode>
     /// <inheritdoc/>
     public override IValueAccess Clone()
     {
-        FuncCallVarNode clone = new(Context, _argType, null, null, PropertyProviders.ToArray());
+        FuncCallVarNode clone = new(null, _argType, null, null, PropertyProviders.ToArray());
         foreach (StructNode node in _args)
             clone._args.Add((StructNode)node.Clone());
         clone._original = _original?.DeepClone() as JsonArray;
@@ -198,7 +198,7 @@ public class FuncCallVarNode : DataNode, IEnumerable<StructNode>
     }
 
     /// <inheritdoc/>
-    public override IValueAccess Clone(SchemaContext context)
+    public override IValueAccess Clone(SchemaContext? context)
     {
         FuncCallVarNode clone = new(context, _argType, null, null, PropertyProviders.ToArray());
         foreach (StructNode node in _args)

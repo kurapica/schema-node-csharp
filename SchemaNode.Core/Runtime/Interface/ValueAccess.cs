@@ -1,4 +1,4 @@
-﻿using SchemaNode.Context;
+using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Struct;
 using System.Reactive;
@@ -121,7 +121,7 @@ public interface IValueTypeAccess : IPropertyProvider
     /// <param name="parent"></param>
     /// <param name="propertyProvider"></param>
     /// <returns></returns>
-    IValueAccess Create(ISchemaContext context, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders);
+    IValueAccess Create(ISchemaContext? context, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders);
 
     /// <summary>
     /// Gets the match C# type
@@ -212,14 +212,9 @@ public interface IValueAccess
     void ClearValue();
 
     /// <summary>
-    /// Clone the value access
+    /// Clone the value access as a detached copy
     /// </summary>
     IValueAccess Clone();
-
-    /// <summary>
-    /// Clone the value access bound to the given context
-    /// </summary>
-    IValueAccess Clone(SchemaContext context) => Clone();
 
     #endregion
 

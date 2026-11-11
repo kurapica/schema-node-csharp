@@ -1,4 +1,4 @@
-﻿﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
@@ -26,9 +26,10 @@ public abstract class DataNode : IValueAccess, IDisposable
     #region Fields
 
     /// <summary>
-    /// The schema context
+    /// The schema context, optional. Detached values (like function return values) are not bound to
+    /// any context and behave as non-full-mode nodes.
     /// </summary>
-    public ISchemaContext Context { get; init; }
+    public ISchemaContext? Context { get; init; }
 
 
     /// <summary>
@@ -128,7 +129,7 @@ public abstract class DataNode : IValueAccess, IDisposable
 
     #region Constructor
 
-    public DataNode(ISchemaContext context, IValueTypeAccess type, object? value, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    public DataNode(ISchemaContext? context, IValueTypeAccess type, object? value, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
     {
         Context = context;
         Type = type;
@@ -297,11 +298,16 @@ public abstract class DataNode : IValueAccess, IDisposable
     /// <inheritdoc/>
     public object? GetValue(Type type) => TryGetValue(type, out object? value) ? value : null;
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Clone the value as a detached copy. The copy is not bound to any schema context, so it does not
+    /// depend on the lifetime of the context the source node was created from.
+    /// </summary>
     public abstract IValueAccess Clone();
 
-    /// <inheritdoc/>
-    public virtual IValueAccess Clone(SchemaContext context) => Clone();
+    /// <summary>
+    /// Clone the value bound to the given schema context
+    /// </summary>
+    public virtual IValueAccess Clone(SchemaContext? context) => Clone();
 
     /// <summary>
     /// Whether the data changed
@@ -1158,7 +1164,7 @@ public abstract class DataNode : IValueAccess, IDisposable
     /// <summary>
     /// Creates the data node with the schema declared node type, falls back to the type default node when the node type is not specified
     /// </summary>
-    public static IValueAccess CreateNode(ISchemaContext context, IValueTypeAccess type, Type? nodeType, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    public static IValueAccess CreateNode(ISchemaContext? context, IValueTypeAccess type, Type? nodeType, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
     {
         if (nodeType is null || !typeof(IValueAccess).IsAssignableFrom(nodeType))
             return type.Create(context, value, parent, propertyProviders);

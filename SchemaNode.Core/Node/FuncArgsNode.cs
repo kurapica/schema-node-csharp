@@ -1,4 +1,4 @@
-﻿﻿using SchemaNode.Context;
+﻿using SchemaNode.Context;
 using SchemaNode.Property.Array;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Function;
@@ -16,7 +16,7 @@ public class FuncArgsNode : ArrayNode
     /// </summary>
     private bool _showVariadic = true;
 
-    public FuncArgsNode(ISchemaContext context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    public FuncArgsNode(ISchemaContext? context, IValueTypeAccess type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
         : base(context, type, value, parent, propertyProviders)
     {
         // variadic arguments are the last

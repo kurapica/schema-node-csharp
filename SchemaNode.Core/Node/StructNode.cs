@@ -1,4 +1,4 @@
-﻿using SchemaNode.Attribute;
+using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
@@ -26,7 +26,7 @@ public class StructNode : DataNode
 
     #region Constructor
 
-    public StructNode(ISchemaContext context, StructType type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    public StructNode(ISchemaContext? context, StructType type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
         : base(context, type, null, parent, propertyProviders)
     {
         // init fields, the field declared node type is only used in full mode
@@ -413,7 +413,7 @@ public class StructNode : DataNode
     /// <inheritdoc/>
     public override IValueAccess Clone()
     {
-        StructNode clone = new(Context, (StructType)Type, null, null, PropertyProviders.ToArray());
+        StructNode clone = new(null, (StructType)Type, null, null, PropertyProviders.ToArray());
         int i = 0;
         foreach (var _ in (Type as StructType)!.GetFields())
         {
@@ -425,13 +425,13 @@ public class StructNode : DataNode
     }
 
     /// <inheritdoc/>
-    public override IValueAccess Clone(SchemaContext context)
+    public override IValueAccess Clone(SchemaContext? context)
     {
         StructNode clone = new(context, (StructType)Type, null, null, PropertyProviders.ToArray());
         int i = 0;
         foreach (var _ in (Type as StructType)!.GetFields())
         {
-            clone._fields[i] = _fields[i].Clone(context);
+            clone._fields[i] = _fields[i] is DataNode field ? field.Clone(context) : _fields[i].Clone();
             i++;
         }
         clone._original = _original?.DeepClone() as JsonObject;

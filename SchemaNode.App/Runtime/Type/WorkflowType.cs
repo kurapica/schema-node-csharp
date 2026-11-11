@@ -216,7 +216,7 @@ public sealed class WorkflowType: NodeType, IValueTypeAccess, IRelationProvider
     public bool HasAccessEntries => true;
 
     /// <inheritdoc/>
-    public IValueAccess Create(ISchemaContext context, object? value, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    public IValueAccess Create(ISchemaContext? context, object? value, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
     {
         throw new NotImplementedException();
     }
