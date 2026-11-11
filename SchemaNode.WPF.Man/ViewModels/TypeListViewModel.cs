@@ -10,6 +10,8 @@ using SchemaNode.Context;
 using SchemaNode.Property.Common;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using SchemaNode.Schema.Provider;
+using SchemaNode.Utility;
 using SchemaNode.WPF.Man.Services;
 using SchemaNode.WPF.Man.Views;
 using SchemaNode.WPF.View;
@@ -19,15 +21,15 @@ using SchemaNode.WPF.View.NodeWrapper;
 namespace SchemaNode.WPF.Man.ViewModels;
 
 /// <summary>
-/// "类型定义" list screen.
+/// "Type definitions" list screen.
 ///
 /// Layout mirrors <c>schema-node-man/src/components/schema.vue</c>:
 ///   - the namespace control is a SchemaView over a <c>system.schema.namespace.type</c> node, so
 ///     child namespaces are discovered through the Core entry source (cascading selection) instead
 ///     of a hand-rolled text box;
 ///   - the table is read-only and shows name / display / kind plus per-row actions;
-///   - 查看 / 编辑 navigate to <see cref="TypeDocumentViewModel"/> through the region; 下级 drills into
-///     a child namespace; 删除 stays on the row and is delegated to the Core delete API, which enforces
+///   - View / Edit navigate to <see cref="TypeDocumentViewModel"/> through the region; the drill-down
+///     action enters a child namespace; Delete stays on the row and is delegated to the Core delete API, which enforces
 ///     the IsUsed / namespace-removal rules.
 ///
 /// Threading: the namespace node and the row list are produced on the thread pool. Only collection
@@ -36,8 +38,11 @@ namespace SchemaNode.WPF.Man.ViewModels;
 public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
 {
     private const string NamespaceTypeName = "system.schema.namespace.type";
+    private const string KindTypeName = "system.schema.node.kind";
     private const string MainContentRegion = "MainContentRegion";
-    private const string DefaultNamespace = "system";
+
+    /// <summary>The root namespace is the empty string; it is a legal selection, not "no selection".</summary>
+    private const string RootNamespace = "";
 
     private readonly SchemaContextFactory _factory;
     private readonly IRegionManager _regionManager;
@@ -46,7 +51,11 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
     private SchemaScreenSession? _session;
     private IValueAccess? _namespaceNode;
     private DataNodeWrapper? _namespaceWrapper;
-    private string _namespace = DefaultNamespace;
+    private IValueAccess? _kindNode;
+    private DataNodeWrapper? _kindWrapper;
+    private string _namespace = RootNamespace;
+    private string _kindFilter = string.Empty;
+    private TypeSchemaRowViewModel[] _allRows = [];
     private string? _status;
     private bool _isBusy;
     private bool _isNavigating;
@@ -65,6 +74,7 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
         UpCommand = new DelegateCommand(ExecuteUp, () => CanGoUp);
         ViewCommand = new DelegateCommand<TypeSchemaRowViewModel>(ExecuteView);
         EditCommand = new DelegateCommand<TypeSchemaRowViewModel>(ExecuteEdit);
+        CopyCommand = new DelegateCommand<TypeSchemaRowViewModel>(ExecuteCopy);
         EnterCommand = new DelegateCommand<TypeSchemaRowViewModel>(ExecuteEnter);
         DeleteCommand = new DelegateCommand<TypeSchemaRowViewModel>(ExecuteDelete);
         DemoCommand = new DelegateCommand<TypeSchemaRowViewModel>(ExecuteDemo);
@@ -82,7 +92,23 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
         private set => SetProperty(ref _namespaceWrapper, value);
     }
 
-    /// <summary>Current namespace (full name, e.g. <c>system.schema</c>).</summary>
+    /// <summary>
+    /// Node kind filter rendered by SchemaView, a <c>system.schema.node.kind</c> value node.
+    /// An empty value means "all kinds", matching schema.vue's <c>!state.type</c>.
+    /// </summary>
+    public DataNodeWrapper? KindWrapper
+    {
+        get => _kindWrapper;
+        private set => SetProperty(ref _kindWrapper, value);
+    }
+
+    /// <summary>
+    /// Whether no kind is selected. The kind selector is a blank drop-down in that state, so the
+    /// view overlays the "all kinds" locale text on it to make the meaning explicit.
+    /// </summary>
+    public bool IsKindFilterEmpty => _kindFilter.Length == 0;
+
+    /// <summary>Current namespace (full name, e.g. <c>system.schema</c>; empty for the root).</summary>
     public string Namespace
     {
         get => _namespace;
@@ -94,8 +120,8 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
         }
     }
 
-    /// <summary>Whether a parent namespace exists.</summary>
-    public bool CanGoUp => _namespace.Contains('.', StringComparison.Ordinal);
+    /// <summary>Whether a parent namespace exists. Every non-root namespace, including the top level, can go up.</summary>
+    public bool CanGoUp => _namespace.Length > 0;
 
     /// <summary>Types and child namespaces of the current namespace.</summary>
     public ObservableCollection<TypeSchemaRowViewModel> Schemas { get; }
@@ -122,6 +148,7 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
     public ICommand UpCommand { get; }
     public ICommand ViewCommand { get; }
     public ICommand EditCommand { get; }
+    public ICommand CopyCommand { get; }
     public ICommand EnterCommand { get; }
     public ICommand DeleteCommand { get; }
     public ICommand DemoCommand { get; }
@@ -139,10 +166,10 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
         try
         {
             _session = _factory.CreateSession();
+            // An absent parameter means the root namespace (empty string), mirroring schema.vue's
+            // `state.namespace = ""`: the list then shows `system` and its top-level siblings.
             string start = navigationContext.Parameters.GetValue<string>(TypeDocumentViewModel.NamespaceParameter)
-                           is { Length: > 0 } value
-                ? value
-                : DefaultNamespace;
+                           ?? RootNamespace;
             Namespace = start;
             _ = InitializeAsync(start);
         }
@@ -161,10 +188,11 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
     private async Task InitializeAsync(string ns)
     {
         IsBusy = true;
-        Status = LocaleManager.Instance.Format("wpf.type.status.loading", ns);
+        Status = LocaleManager.Instance.Format("wpf.type.status.loading", DescribeNamespace(ns));
         try
         {
             await RebuildNamespaceControlAsync(ns);
+            await RebuildKindControlAsync();
             await LoadListAsync(ns);
         }
         catch (Exception ex)
@@ -185,34 +213,7 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
     private async Task RebuildNamespaceControlAsync(string ns)
     {
         DisposeNamespaceControl();
-        SchemaScreenSession? session = _session;
-        if (session is null) return;
-
-        SchemaViewRegistry registry = _registry;
-        NamespaceControl built = await Task.Run(async () =>
-        {
-            IValueAccess? node = null;
-            try
-            {
-                IValueTypeAccess? type = await session.Context
-                    .GetNodeTypeAsync<IValueTypeAccess>(NamespaceTypeName).ConfigureAwait(false);
-                if (type is null) return new NamespaceControl(null, null, null);
-
-                node = type.Create(session.Context, ns);
-                if (node is null) return new NamespaceControl(null, null, null);
-
-                // The VM observes this wrapper's Value to drive the namespace cascade; this is the
-                // only screen that needs an up-front root wrapper. Other screens pass nodes to views.
-                DataNodeWrapper wrapper = NodeWrapperFactory.Create(node, registry);
-                return new NamespaceControl(node, wrapper, null);
-            }
-            catch (Exception ex)
-            {
-                if (node is IDisposable disposable) disposable.Dispose();
-                return new NamespaceControl(null, null, ex);
-            }
-        });
-
+        ValueControl built = await BuildValueControlAsync(NamespaceTypeName, ns);
         if (built.Node is null)
         {
             Status = built.Error?.Message
@@ -226,6 +227,61 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
     }
 
     /// <summary>
+    /// Builds the kind selector the same way as the namespace selector. An empty seed means
+    /// "all kinds"; the node value drives the in-memory filter only, so the list is not refetched.
+    /// </summary>
+    private async Task RebuildKindControlAsync()
+    {
+        DisposeKindControl();
+        ValueControl built = await BuildValueControlAsync(KindTypeName, null);
+        if (built.Node is null)
+        {
+            Status = built.Error?.Message
+                     ?? LocaleManager.Instance.Format("wpf.type.status.loadfailed", KindTypeName);
+            return;
+        }
+
+        _kindNode = built.Node;
+        built.Wrapper!.PropertyChanged += OnKindWrapperChanged;
+        KindWrapper = built.Wrapper;
+    }
+
+    /// <summary>
+    /// Creates a value node for <paramref name="typeName"/> seeded with <paramref name="seed"/> and
+    /// wraps it on the thread pool. Only adopting the finished wrapper touches the dispatcher.
+    /// </summary>
+    private async Task<ValueControl> BuildValueControlAsync(string typeName, object? seed)
+    {
+        SchemaScreenSession? session = _session;
+        if (session is null) return new ValueControl(null, null, null);
+
+        SchemaViewRegistry registry = _registry;
+        return await Task.Run(async () =>
+        {
+            IValueAccess? node = null;
+            try
+            {
+                IValueTypeAccess? type = await session.Context
+                    .GetNodeTypeAsync<IValueTypeAccess>(typeName).ConfigureAwait(false);
+                if (type is null) return new ValueControl(null, null, null);
+
+                node = type.Create(session.Context, seed);
+                if (node is null) return new ValueControl(null, null, null);
+
+                // The VM observes this wrapper's Value to drive the cascade/filter; this is the
+                // only screen that needs an up-front root wrapper. Other screens pass nodes to views.
+                DataNodeWrapper wrapper = NodeWrapperFactory.Create(node, registry);
+                return new ValueControl(node, wrapper, null);
+            }
+            catch (Exception ex)
+            {
+                if (node is IDisposable disposable) disposable.Dispose();
+                return new ValueControl(null, null, ex);
+            }
+        });
+    }
+
+    /// <summary>
     /// Cascading selection writes the value back into the namespace node; mirror it into the list.
     /// The control is already showing the right path, so it is not rebuilt here.
     /// </summary>
@@ -233,13 +289,14 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
     {
         if (e.PropertyName != nameof(InputWrapper.Value)) return;
 
-        string? value = _namespaceNode?.GetValue<string>();
-        if (string.IsNullOrWhiteSpace(value) || value.Equals(_namespace, StringComparison.Ordinal)) return;
+        string value = _namespaceNode?.GetValue<string>() ?? RootNamespace;
+        if (value.Equals(_namespace, StringComparison.Ordinal)) return;
 
         // The cascade also lists concrete types; this screen is a namespace browser, so selecting
         // one of those would leave the list showing a single unrelated row. Restore the node so the
         // selector stays aligned with the list; concrete types are opened through the row actions.
-        if (Schemas.FirstOrDefault(row => row.FullName.Equals(value, StringComparison.OrdinalIgnoreCase))
+        // Search the unfiltered rows: a kind filter may hide the selected type.
+        if (_allRows.FirstOrDefault(row => row.FullName.Equals(value, StringComparison.OrdinalIgnoreCase))
             is { IsNamespace: false })
         {
             _namespaceNode?.TrySetValue(_namespace);
@@ -250,10 +307,26 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
         _ = ReloadForNamespaceAsync(value);
     }
 
+    /// <summary>
+    /// The kind selector's value filters the already-fetched rows, matching schema.vue's
+    /// <c>!state.type || p.kind === state.type</c>. Empty/whitespace means all kinds.
+    /// </summary>
+    private void OnKindWrapperChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(InputWrapper.Value)) return;
+
+        string value = _kindNode?.GetValue<string>() ?? string.Empty;
+        if (value.Equals(_kindFilter, StringComparison.OrdinalIgnoreCase)) return;
+
+        _kindFilter = value;
+        RaisePropertyChanged(nameof(IsKindFilterEmpty));
+        ApplyKindFilter();
+    }
+
     private async Task ReloadForNamespaceAsync(string ns)
     {
         IsBusy = true;
-        Status = LocaleManager.Instance.Format("wpf.type.status.loading", ns);
+        Status = LocaleManager.Instance.Format("wpf.type.status.loading", DescribeNamespace(ns));
         try
         {
             await LoadListAsync(ns);
@@ -276,8 +349,15 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
         int version = ++_loadVersion;
         TypeSchemaRowViewModel[] rows = await Task.Run(async () =>
         {
+            // A named namespace comes back with its definition and direct children nested, so the
+            // rows are taken from the requested namespace entry. The root namespace ("") has no
+            // definition of its own: the API returns its direct children (the top-level
+            // namespaces) as the result, which must be used as-is instead of searching for "".
             NodeSchema[] schemas = await session.Api.GetSchemaAsync([ns]).ConfigureAwait(false);
-            return schemas
+            NodeSchema[] children = string.IsNullOrEmpty(ns)
+                ? schemas
+                : SchemaTreeSearch.Find(schemas, ns)?.Schemas ?? [];
+            return children
                 .Where(schema => schema.Name is not null && !schema.Name.Contains('<', StringComparison.Ordinal))
                 .Select(schema => new TypeSchemaRowViewModel(
                     schema,
@@ -290,15 +370,30 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
         // A newer navigation/selection won: do not apply stale rows.
         if (version != _loadVersion) return;
 
+        // Keep the unfiltered set so a kind change filters in memory instead of refetching.
+        _allRows = rows;
+        ApplyKindFilter();
+    }
+
+    /// <summary>Projects the cached rows through the current kind filter.</summary>
+    private void ApplyKindFilter()
+    {
         Schemas.Clear();
-        foreach (TypeSchemaRowViewModel row in rows)
-            Schemas.Add(row);
+        foreach (TypeSchemaRowViewModel row in _allRows)
+        {
+            if (_kindFilter.Length == 0 || row.Kind.Equals(_kindFilter, StringComparison.OrdinalIgnoreCase))
+                Schemas.Add(row);
+        }
         RaisePropertyChanged(nameof(IsEmpty));
 
-        Status = rows.Length == 0
+        Status = Schemas.Count == 0
+        
             ? LocaleManager.Instance.Get("wpf.type.status.empty")
-            : LocaleManager.Instance.Format("wpf.type.status.loaded", rows.Length);
+            : LocaleManager.Instance.Format("wpf.type.status.loaded", Schemas.Count);
     }
+
+    private static string DescribeNamespace(string ns)
+        => ns.Length == 0 ? LocaleManager.Instance.Get("wpf.type.namespace.root") : ns;
 
     #region Commands
 
@@ -338,12 +433,16 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
         }
     }
 
-    private async void ExecuteEnter(TypeSchemaRowViewModel? row)
+    private void ExecuteEnter(TypeSchemaRowViewModel? row)
     {
         if (row is null) return;
         try
         {
-            await SetNamespaceAsync(row.FullName);
+            if (_namespaceNode?.TrySetValue(row.FullName) == true) return;
+
+            // Fallback only: the selector could not accept the value, so rebuild it with the
+            // target namespace instead of leaving the list and the control out of sync.
+            _ = SetNamespaceAsync(row.FullName);
         }
         catch (Exception ex)
         {
@@ -369,7 +468,29 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
         if (row is null) return;
         try
         {
-            await NavigateToDocumentAsync(row.FullName, TypeDocumentViewModel.ModeEdit);
+            // Defense in depth: the edit action is hidden for host-owned definitions. If it is
+            // invoked anyway, land on the read-only view instead of an edit screen.
+            string mode = row.IsEditable
+                ? TypeDocumentViewModel.ModeEdit
+                : TypeDocumentViewModel.ModeView;
+            await NavigateToDocumentAsync(row.FullName, mode);
+        }
+        catch (Exception ex)
+        {
+            Status = ex.Message;
+        }
+    }
+
+    /// <summary>
+    /// Opens the new-definition screen seeded with a copy of this row's definition. The screen
+    /// drops the name and source identity; the target is a new type in the row's namespace.
+    /// </summary>
+    private async void ExecuteCopy(TypeSchemaRowViewModel? row)
+    {
+        if (row is null) return;
+        try
+        {
+            await NavigateToDocumentAsync(row.FullName, TypeDocumentViewModel.ModeCopy);
         }
         catch (Exception ex)
         {
@@ -440,7 +561,7 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
     {
         Namespace = ns;
         IsBusy = true;
-        Status = LocaleManager.Instance.Format("wpf.type.status.loading", ns);
+        Status = LocaleManager.Instance.Format("wpf.type.status.loading", DescribeNamespace(ns));
         try
         {
             await RebuildNamespaceControlAsync(ns);
@@ -524,7 +645,8 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
     private static string ParentOf(string ns)
     {
         int index = ns.LastIndexOf('.');
-        return index > 0 ? ns[..index] : DefaultNamespace;
+        // A single segment (e.g. "system") is a top-level namespace; its parent is the root, "".
+        return index > 0 ? ns[..index] : RootNamespace;
     }
 
     private bool ConfirmDelete(string fullName)
@@ -537,9 +659,11 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
     private void Teardown()
     {
         DisposeNamespaceControl();
+        DisposeKindControl();
         _session?.Dispose();
         _session = null;
         _loadVersion++;
+        _allRows = [];
         Schemas.Clear();
         RaisePropertyChanged(nameof(IsEmpty));
     }
@@ -560,5 +684,29 @@ public class TypeListViewModel : BindableBase, INavigationAware, IDestructible
         _namespaceNode = null;
     }
 
-    private sealed record NamespaceControl(IValueAccess? Node, DataNodeWrapper? Wrapper, Exception? Error);
+    /// <summary>Same teardown order for the kind selector.</summary>
+    private void DisposeKindControl()
+    {
+        if (_kindWrapper is not null)
+        {
+            _kindWrapper.PropertyChanged -= OnKindWrapperChanged;
+            _kindWrapper.Dispose();
+        }
+        _kindWrapper = null;
+        KindWrapper = null;
+
+        if (_kindNode is IDisposable disposable)
+            _session?.ReleaseNode(disposable);
+        _kindNode = null;
+
+        // The next selector is created empty ("all kinds"), so drop the filter as well; otherwise
+        // the list would stay filtered while the blank control reads as "all".
+        if (_kindFilter.Length > 0)
+        {
+            _kindFilter = string.Empty;
+            RaisePropertyChanged(nameof(IsKindFilterEmpty));
+        }
+    }
+
+    private sealed record ValueControl(IValueAccess? Node, DataNodeWrapper? Wrapper, Exception? Error);
 }

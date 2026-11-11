@@ -11,8 +11,9 @@ public sealed class DateWrapper : DataNodeWrapper
     /// <inheritdoc />
     public override string? DefaultTemplateKey => SchemaTemplateKeys.Date;
 
-    public DateWrapper(DataNode node, SchemaViewRegistry? registry, string? fieldName, SchemaViewRole role)
-        : base(node, registry, fieldName, role)
+    public DateWrapper(DataNode node, SchemaViewRegistry? registry, string? fieldName, SchemaViewRole role,
+                       bool ancestorVisibility = true)
+        : base(node, registry, fieldName, role, ancestorVisibility)
     {
     }
 

@@ -1,0 +1,20 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:SchemaNode.Avalonia.Man.Views"
+             xmlns:loc="using:SchemaNode.Avalonia.View.Localization"
+             x:Class="SchemaNode.Avalonia.Man.Views.TypeDemoView"
+             x:CompileBindings="False">
+  <DockPanel Margin="8">
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8" Spacing="8">
+      <!-- Returns to the type list at the namespace the demo row was listed in. -->
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.typedoc.button.back}"
+              Command="{Binding BackCommand}" />
+      <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.typedemo.header}"
+                 FontSize="14" VerticalAlignment="Center" />
+      <TextBlock Text="{Binding Status}" Foreground="DarkSlateGray" VerticalAlignment="Center" />
+    </StackPanel>
+
+    <!-- Reuse the generic editor; its DataContext is bound to the Editor property of this VM. -->
+    <local:SchemaEditorView DataContext="{Binding Editor}" />
+  </DockPanel>
+</UserControl>

@@ -781,7 +781,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
     /// </summary>
     /// <param name="elementType"></param>
     /// <returns></returns>
-    public ArrayType? GetArrayType(IValueTypeAccess elementType) => Context.GetArrayNodeTypeAsync(elementType).GetAwaiter().GetResult();
+    public ArrayType? GetArrayType(IValueTypeAccess elementType) => Context.GetArrayNodeTypeAsync(elementType).ConfigureAwait(false).GetAwaiter().GetResult();
     
     /// <summary>
     /// Compile the schema expression to Expression
@@ -1050,7 +1050,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         if (type.IsAssignableTo(typeof(IValueAccess)))
         {
             string schema = (Context.Runtime as SchemaRuntime)?.GetTypeSchema(exp.Type) ?? throw new Exception($"The type {exp.Type.FullName} can't be converted to schema type node");
-            NodeType nodeType = Context.GetNodeTypeAsync(schema).GetAwaiter().GetResult() ?? throw new Exception($"The schema type node {schema} not found");
+            NodeType nodeType = Context.GetNodeTypeAsync(schema).ConfigureAwait(false).GetAwaiter().GetResult() ?? throw new Exception($"The schema type node {schema} not found");
             MethodInfo method = typeof(ValueType).GetMethod(nameof(ValueType.Create))!;
             return Expression.Convert(Expression.Call(Expression.Constant(nodeType), method, notNullExp), type);
         }

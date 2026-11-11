@@ -179,10 +179,13 @@ public class FunctionDefinitionViewModel : BindableBase, INavigationAware, IDest
 
         try
         {
+            // The schema API returns the namespace definition with its direct children nested;
+            // this screen lists the function children of the current namespace.
             NodeSchema[] schemas = await _session.Api.GetSchemaAsync([Namespace]);
+            NodeSchema[] children = SchemaTreeSearch.Find(schemas, Namespace)?.Schemas ?? [];
             _suppressSelection = true;
             Functions.Clear();
-            foreach (NodeSchema schema in schemas)
+            foreach (NodeSchema schema in children)
                 if (schema.Kind.Equals(NODE_KIND_FUNCTION, StringComparison.OrdinalIgnoreCase))
                     Functions.Add(schema);
 
@@ -280,9 +283,10 @@ public class FunctionDefinitionViewModel : BindableBase, INavigationAware, IDest
         if (_session is null || string.IsNullOrWhiteSpace(Namespace)) return;
 
         NodeSchema[] schemas = await _session.Api.GetSchemaAsync([Namespace]);
+        NodeSchema[] children = SchemaTreeSearch.Find(schemas, Namespace)?.Schemas ?? [];
         _suppressSelection = true;
         Functions.Clear();
-        foreach (NodeSchema schema in schemas)
+        foreach (NodeSchema schema in children)
             if (schema.Kind.Equals(NODE_KIND_FUNCTION, StringComparison.OrdinalIgnoreCase))
                 Functions.Add(schema);
         _suppressSelection = false;

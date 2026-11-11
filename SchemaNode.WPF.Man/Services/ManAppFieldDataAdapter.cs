@@ -57,17 +57,29 @@ public sealed class ManAppFieldDataAdapter : IPageTableAdapter
         if (value is not ArrayNode array)
             return new PageTablePage { Rows = [], Total = total };
 
-        List<JsonNode?> rows = new(array.Count);
-        foreach (IValueAccess row in array)
+        // The array is handed to the page table as its page token. Until that transfer happens the
+        // adapter owns it, so a cancellation or a read failure inside this block must release it
+        // instead of leaking an off-screen node.
+        bool transferred = false;
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (row is DataNode dataNode)
-                rows.Add(dataNode.GetValue<JsonNode>());
-        }
+            List<JsonNode?> rows = new(array.Count);
+            foreach (IValueAccess row in array)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (row is DataNode dataNode)
+                    rows.Add(dataNode.GetValue<JsonNode>());
+            }
 
-        // The source array stays alive as the page token; it is disposed when the table moves to
-        // another page or leaves the tree, so off-screen pages are never retained.
-        return new PageTablePage { Rows = rows, Total = total, Token = array };
+            // The source array stays alive as the page token; it is disposed when the table moves to
+            // another page or leaves the tree, so off-screen pages are never retained.
+            transferred = true;
+            return new PageTablePage { Rows = rows, Total = total, Token = array };
+        }
+        finally
+        {
+            if (!transferred) (array as IDisposable)?.Dispose();
+        }
     }
 
     /// <inheritdoc />

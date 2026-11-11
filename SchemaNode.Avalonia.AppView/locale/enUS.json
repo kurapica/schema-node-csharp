@@ -1,0 +1,16 @@
+{
+  "avalonia.page.first": "First",
+  "avalonia.page.previous": "Previous",
+  "avalonia.page.next": "Next",
+  "avalonia.page.last": "Last",
+  "avalonia.page.query": "Query",
+  "avalonia.page.reset": "Reset",
+  "avalonia.page.loading": "Loading…",
+  "avalonia.page.info": "Page {0} / {1} · {2} rows",
+  "avalonia.page.noData": "No data",
+  "avalonia.page.trackingUnavailable": "The host does not support primary-key tracking; delete/restore is unavailable.",
+  "avalonia.page.filterUnsupported": "The host does not support function filters; use a plain filter.",
+  "avalonia.page.loadFailed": "Failed to load page data: {0}",
+  "avalonia.page.addUnsupported": "This paged table cannot add rows directly: the host save contract only supports updates and deletes. Add rows through the host data maintenance entry.",
+  "avalonia.button.resume": "Restore"
+}

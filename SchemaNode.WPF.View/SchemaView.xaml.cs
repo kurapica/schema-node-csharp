@@ -233,6 +233,10 @@ public partial class SchemaView : UserControl
         // The first selection can run before this control reaches a window, where host resources
         // are not reachable yet. Re-resolving now is a no-op unless the selected template changed.
         if (_observed is not null) ApplyContent(_observed);
+
+        // Only now is the hosting window known. One subscription per window covers every schema
+        // view in it, so clicking inert background commits the focused editor through LostFocus.
+        BlankClickFocus.Attach(this);
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)

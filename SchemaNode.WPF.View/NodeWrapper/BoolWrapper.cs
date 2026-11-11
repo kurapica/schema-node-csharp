@@ -14,8 +14,9 @@ public sealed class BoolWrapper : DataNodeWrapper
     /// <inheritdoc />
     public override string? DefaultTemplateKey => SchemaTemplateKeys.Boolean;
 
-    public BoolWrapper(DataNode node, SchemaViewRegistry? registry, string? fieldName, SchemaViewRole role)
-        : base(node, registry, fieldName, role)
+    public BoolWrapper(DataNode node, SchemaViewRegistry? registry, string? fieldName, SchemaViewRole role,
+                       bool ancestorVisibility = true)
+        : base(node, registry, fieldName, role, ancestorVisibility)
     {
         Options =
         [

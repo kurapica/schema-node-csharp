@@ -1,8 +1,7 @@
 <UserControl x:Class="SchemaNode.WPF.View.Views.StructView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:SchemaNode.WPF.View"
-             ToolTip="{Binding Error}">
+             xmlns:local="clr-namespace:SchemaNode.WPF.View">
     <StackPanel>
         <ItemsControl ItemsSource="{Binding Children}">
             <ItemsControl.ItemTemplate>
@@ -29,11 +28,5 @@
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
-
-        <TextBlock Margin="0,2,0,0"
-                   Foreground="#FFC62828"
-                   TextWrapping="Wrap"
-                   Text="{Binding Error}"
-                   Visibility="{Binding ShowError, Converter={x:Static local:Converters.BoolToVisibility}}" />
     </StackPanel>
 </UserControl>

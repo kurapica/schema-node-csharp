@@ -70,7 +70,7 @@ public interface IProperty
     /// <summary>
     /// The source of the property
     /// </summary>
-    IValueAccess? Source { get; }
+    IValueAccess? Source { get; set; }
 
     /// <summary>
     /// CombineProperties the property with another property of the same type, if the current property has no value, it will take the value from the other property.
@@ -103,12 +103,12 @@ public interface IProperty
 /// <summary>
 /// The property with value of type T
 /// </summary>
-public abstract class Property<T>(IValueAccess? source = null) : IProperty
+public abstract class Property<T> : IProperty
 {
     /// <summary>
     /// The property source
     /// </summary>
-    public IValueAccess? Source { get; } = source;
+    public IValueAccess? Source { get; set; }
 
     /// <summary>
     /// The property value

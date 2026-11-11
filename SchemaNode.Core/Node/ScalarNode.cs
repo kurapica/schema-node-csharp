@@ -188,7 +188,7 @@ public abstract class ScalarNode : DataNode
         _refreshEntryCts = cts;
         _ = Task.Run(async () =>
         {
-            try { await Task.Delay(10, cts.Token).ConfigureAwait(false); }
+            try { await Task.Delay(500, cts.Token).ConfigureAwait(false); }
             catch (TaskCanceledException) { return; }
             if (_disposed || cts.IsCancellationRequested) return;
 

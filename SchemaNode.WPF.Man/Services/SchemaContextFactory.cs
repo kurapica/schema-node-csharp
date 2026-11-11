@@ -44,7 +44,7 @@ public sealed class SchemaScreenSession : IDisposable
     /// <summary>Schema context exclusively owned by this screen (FullMode already enabled)</summary>
     public SchemaContext Context { get; }
 
-    /// <summary>Data-access implementation for this screen (bound to this Context in local mode)</summary>
+    /// <summary>Data-access implementation for this screen (local mode runs on its own non-FullMode context)</summary>
     public ISchemaApiProvider Api { get; }
 
     /// <summary>
@@ -89,6 +89,9 @@ public sealed class SchemaScreenSession : IDisposable
         // Remove from the live registry before disposing: a language switch must never touch a dead context.
         _unregister(Context);
 
+        // The local provider owns a separate non-FullMode scope for schema API work; dispose it here.
+        if (Api is LocalSchemaApiProvider local) local.Dispose();
+
         // Fallback: if the screen did not call ReleaseNode for each node, dispose DataNodes in reverse creation order.
         for (int i = _nodes.Count - 1; i >= 0; i--)
             _nodes[i].Dispose();
@@ -108,7 +111,8 @@ public sealed class SchemaScreenSession : IDisposable
 /// and does not call <c>InitSchemaRuntimeAsync</c> again. This both isolates FullMode / Access / ContextItems /
 /// DataNode subscriptions and avoids paying the runtime initialization cost once per screen.
 ///
-/// In local mode each screen gets its own <see cref="LocalSchemaApiProvider"/> (bound to the screen context);
+/// In local mode each screen gets its own <see cref="LocalSchemaApiProvider"/>, which lazily creates
+/// a separate non-FullMode context in its own scope and disposes it with the session;
 /// remote mode is stateless and can share a single <see cref="RemoteSchemaApiProvider"/>.
 /// </summary>
 public sealed class SchemaContextFactory

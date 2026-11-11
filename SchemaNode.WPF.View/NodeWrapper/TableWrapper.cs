@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using SchemaNode.Node;
@@ -24,7 +25,8 @@ public sealed class TableColumn
         bool require,
         bool isArray,
         IReadOnlyList<TableColumn> subColumns,
-        double width)
+        double width,
+        double minWidth)
     {
         FieldName = fieldName;
         Header = header;
@@ -32,6 +34,7 @@ public sealed class TableColumn
         IsArray = isArray;
         SubColumns = subColumns;
         Width = width;
+        MinWidth = minWidth;
     }
 
     /// <summary>Schema field name of the top-level element field.</summary>
@@ -52,6 +55,9 @@ public sealed class TableColumn
     /// <summary>Preferred width of a leaf column.</summary>
     public double Width { get; }
 
+    /// <summary>Lower bound of a leaf column: below it the body scrolls horizontally.</summary>
+    public double MinWidth { get; }
+
     /// <summary>Whether this column owns a two-level header.</summary>
     public bool IsGroup => SubColumns.Count > 0;
 
@@ -60,12 +66,22 @@ public sealed class TableColumn
 }
 
 /// <summary>One cell of the flattened header layout (top group row or leaf row).</summary>
-public sealed class TableHeaderCell
+public sealed class TableHeaderCell : INotifyPropertyChanged
 {
-    internal TableHeaderCell(string label, double width, ICommand? command = null, string? commandText = null)
+    private double _width;
+
+    internal TableHeaderCell(
+        string label,
+        double width,
+        int firstLeaf,
+        int leafCount,
+        ICommand? command = null,
+        string? commandText = null)
     {
         Label = label;
-        Width = width;
+        _width = width;
+        FirstLeaf = firstLeaf;
+        LeafCount = leafCount;
         Command = command;
         CommandText = commandText;
     }
@@ -73,8 +89,23 @@ public sealed class TableHeaderCell
     /// <summary>Localized header text.</summary>
     public string Label { get; }
 
-    /// <summary>Total width of the header cell.</summary>
-    public double Width { get; }
+    /// <summary>Total width of the header cell, recomputed from the leaf columns.</summary>
+    public double Width
+    {
+        get => _width;
+        private set
+        {
+            if (Math.Abs(_width - value) < 0.5) return;
+            _width = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Width)));
+        }
+    }
+
+    /// <summary>First flattened leaf column this header covers.</summary>
+    internal int FirstLeaf { get; }
+
+    /// <summary>Number of flattened leaf columns this header covers.</summary>
+    internal int LeafCount { get; }
 
     /// <summary>Optional inline command (the add-row link on the operations header).</summary>
     public ICommand? Command { get; }
@@ -84,18 +115,24 @@ public sealed class TableHeaderCell
 
     /// <summary>Whether <see cref="Command"/> should be rendered.</summary>
     public bool HasCommand => Command is not null;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    /// <summary>Updates the width in place so a resize never recreates the header items.</summary>
+    internal void SetWidth(double width) => Width = width;
 }
 
 /// <summary>One flattened body column; array groups contribute one sub-operation column.</summary>
 public sealed class TableLeafColumn
 {
-    internal TableLeafColumn(int index, TableColumn column, string fieldName, string header, double width, bool isSubOperation, bool isRowOperation)
+    internal TableLeafColumn(int index, TableColumn column, string fieldName, string header, double width, double minWidth, bool isSubOperation, bool isRowOperation)
     {
         Index = index;
         Column = column;
         FieldName = fieldName;
         Header = header;
         Width = width;
+        MinWidth = minWidth;
         IsSubOperation = isSubOperation;
         IsRowOperation = isRowOperation;
     }
@@ -114,6 +151,9 @@ public sealed class TableLeafColumn
 
     /// <summary>Layout width.</summary>
     public double Width { get; }
+
+    /// <summary>Lower bound of the layout width; the body scrolls below the sum of these.</summary>
+    public double MinWidth { get; }
 
     /// <summary>Whether this column holds add/delete links for an array group.</summary>
     public bool IsSubOperation { get; }
@@ -201,6 +241,7 @@ public sealed class TableRowGroup
         DataNode element,
         int visualRowCount,
         IReadOnlyList<double> columnWidths,
+        IReadOnlyList<double> minColumnWidths,
         IReadOnlyList<TableCell> cells,
         IReadOnlyList<DataNode>[] innerElements,
         int layoutVersion,
@@ -211,6 +252,7 @@ public sealed class TableRowGroup
         Element = element;
         VisualRowCount = visualRowCount;
         ColumnWidths = columnWidths;
+        MinColumnWidths = minColumnWidths;
         Cells = cells;
         InnerElements = innerElements;
         LayoutVersion = layoutVersion;
@@ -229,6 +271,9 @@ public sealed class TableRowGroup
 
     /// <summary>Layout column widths shared by every group.</summary>
     public IReadOnlyList<double> ColumnWidths { get; }
+
+    /// <summary>Lower bounds shared by every group; the body scrolls below their sum.</summary>
+    public IReadOnlyList<double> MinColumnWidths { get; }
 
     /// <summary>Positioned cells.</summary>
     public IReadOnlyList<TableCell> Cells { get; }
@@ -261,7 +306,9 @@ public sealed class TableRowGroup
 public class TableWrapper : DataNodeWrapper
 {
     private const double CellWidth = 180;
+    private const double CellMinWidth = 140;
     private const double LocalStringWidth = 200;
+    private const double LocalStringMinWidth = 200;
     private const double OperationWidth = 100;
 
     private readonly Dictionary<DataNode, DataNodeWrapper> _cellByNode = [];
@@ -271,6 +318,9 @@ public class TableWrapper : DataNodeWrapper
     private readonly List<TableLeafColumn> _leafColumns = [];
     private string[] _viewColumns = [];
     private string? _cellSkin;
+    private string? _editorSkinOverride;
+    private Func<TableRowEditorRequest, bool>? _rowEditor;
+    private double _availableWidth;
     private bool _tableReadOnly;
     private bool _reconciling;
     private bool _bulkUpdating;
@@ -279,7 +329,15 @@ public class TableWrapper : DataNodeWrapper
     /// <inheritdoc />
     public override string? DefaultTemplateKey => SchemaTemplateKeys.Table;
 
-    public TableWrapper(DataNode node, SchemaViewRegistry? registry, string? fieldName, SchemaViewRole role)
+    /// <summary>A table only groups element cells: the failing editable cell shows the message.</summary>
+    protected override bool RendersValue => false;
+
+    public TableWrapper(
+        DataNode node,
+        SchemaViewRegistry? registry,
+        string? fieldName,
+        SchemaViewRole role,
+        SchemaTableOptions? options = null)
         : base(node, registry, fieldName, role)
     {
         ArrayNodeImpl = node as ArrayNode
@@ -288,12 +346,39 @@ public class TableWrapper : DataNodeWrapper
             ?? throw new ArgumentException($"Array '{node.Type.Name}' has no struct element type.", nameof(node));
         ElementType = elementType;
 
+        ApplyOptions(options);
         AddCommand = new RelayCommand(_ => AddRow(), _ => CanAddRow);
 
         BuildColumns();
         ReconcileRows();
         Track(node.Subscribe(OnArrayDataChanged, immediate: false));
     }
+
+    /// <summary>
+    /// Applies registration-time options before the first column build, so a whitelisted collection
+    /// never renders its full column set even for one layout pass.
+    /// </summary>
+    private void ApplyOptions(SchemaTableOptions? options)
+    {
+        if (options is null) return;
+
+        _viewColumns = NormalizeViewColumns(options.ViewColumns);
+        _tableReadOnly = options.ReadOnly;
+        _cellSkin = NormalizeSkin(options.CellSkin);
+        _editorSkinOverride = NormalizeSkin(options.EditorSkin);
+        _rowEditor = options.RowEditor;
+    }
+
+    private static string[] NormalizeViewColumns(IReadOnlyList<string>? columns)
+        => columns?
+            .Select(v => v?.Trim())
+            .Where(v => !string.IsNullOrEmpty(v))
+            .Select(v => v!)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray() ?? [];
+
+    private static string? NormalizeSkin(string? skin)
+        => string.IsNullOrWhiteSpace(skin) ? null : skin.Trim();
 
     /// <summary>Typed array node.</summary>
     public ArrayNode ArrayNodeImpl { get; }
@@ -345,6 +430,25 @@ public class TableWrapper : DataNodeWrapper
     public string EditorSkin { get; set; } = SchemaViewRegistry.DefaultSkin;
 
     /// <summary>
+    /// Horizontal space available to the table. Columns fill it by scaling their natural widths up;
+    /// when the space shrinks they scale down only as far as their minimum widths (vue's
+    /// <c>min-width</c>), after which the body scrolls horizontally. Both header rows and every
+    /// body row derive their widths from the same leaf list through <see cref="TableColumnLayout"/>,
+    /// so the two levels and the body can never disagree.
+    /// </summary>
+    public double AvailableWidth
+    {
+        get => _availableWidth;
+        set
+        {
+            if (Math.Abs(_availableWidth - value) < 1) return;
+            _availableWidth = value;
+            RaisePropertyChangedNow(nameof(AvailableWidth));
+            RunOnUiThread(ApplyColumnWidths);
+        }
+    }
+
+    /// <summary>
     /// Field-path whitelist. An empty list keeps the derived column set. A non-empty list renders
     /// only matching columns and switches cells to read-only row-editor mode.
     /// </summary>
@@ -353,12 +457,7 @@ public class TableWrapper : DataNodeWrapper
         get => _viewColumns;
         set
         {
-            string[] normalized = value?
-                .Select(v => v?.Trim())
-                .Where(v => !string.IsNullOrEmpty(v))
-                .Select(v => v!)
-                .Distinct(StringComparer.Ordinal)
-                .ToArray() ?? [];
+            string[] normalized = NormalizeViewColumns(value);
             if (_viewColumns.SequenceEqual(normalized)) return;
 
             _viewColumns = normalized;
@@ -393,7 +492,7 @@ public class TableWrapper : DataNodeWrapper
     public bool ShowOperations => RowEditorMode || CanAddRow || CanDeleteRow;
 
     /// <summary>Whether a row can be added (editor mode included).</summary>
-    public bool CanAddRow => !IsDisposed && !_tableReadOnly && IsEditable && !HasMaxSize();
+    public virtual bool CanAddRow => !IsDisposed && !_tableReadOnly && IsEditable && !HasMaxSize();
 
     /// <summary>Whether rows can be deleted.</summary>
     public virtual bool CanDeleteRow => !IsDisposed && !_tableReadOnly && IsEditable && ArrayNodeImpl.Count > 0 && !HasMinSize();
@@ -430,21 +529,22 @@ public class TableWrapper : DataNodeWrapper
         string header = FormatHeader(field);
         bool require = field.Require == true;
         double width = WidthFor(field.Type);
+        double minWidth = MinWidthFor(field.Type);
 
         if (field.Type is ArrayType arrayType && arrayType.Element is StructType arrayElement
             && Registry.ShouldUseTable(arrayType))
         {
             IReadOnlyList<TableColumn> subColumns = BuildSubColumns(arrayElement, field.Name);
-            return new TableColumn(field.Name, header, require, isArray: true, subColumns, width);
+            return new TableColumn(field.Name, header, require, isArray: true, subColumns, width, minWidth);
         }
 
         if (field.Type is StructType structType && !Registry.UseSingleView(structType))
         {
             IReadOnlyList<TableColumn> subColumns = BuildSubColumns(structType, field.Name);
-            return new TableColumn(field.Name, header, require, isArray: false, subColumns, width);
+            return new TableColumn(field.Name, header, require, isArray: false, subColumns, width, minWidth);
         }
 
-        return new TableColumn(field.Name, header, require, isArray: false, Array.Empty<TableColumn>(), width);
+        return new TableColumn(field.Name, header, require, isArray: false, Array.Empty<TableColumn>(), width, minWidth);
     }
 
     /// <summary>
@@ -471,7 +571,8 @@ public class TableWrapper : DataNodeWrapper
                 field.Require == true,
                 isArray: false,
                 Array.Empty<TableColumn>(),
-                WidthFor(field.Type)));
+                WidthFor(field.Type),
+                MinWidthFor(field.Type)));
         }
 
         return subs;
@@ -495,50 +596,78 @@ public class TableWrapper : DataNodeWrapper
         {
             if (!column.IsGroup)
             {
-                TableLeafColumn leaf = new(_leafColumns.Count, column, column.FieldName, column.Header, column.Width, false, false);
+                TableLeafColumn leaf = new(_leafColumns.Count, column, column.FieldName, column.Header,
+                    column.Width, column.MinWidth, false, false);
                 _leafColumns.Add(leaf);
-                topHeaders.Add(new TableHeaderCell(string.Empty, leaf.Width));
-                leafHeaders.Add(new TableHeaderCell(leaf.Header, leaf.Width));
+                topHeaders.Add(new TableHeaderCell(string.Empty, leaf.Width, leaf.Index, 1));
+                leafHeaders.Add(new TableHeaderCell(leaf.Header, leaf.Width, leaf.Index, 1));
                 continue;
             }
 
-            List<TableLeafColumn> subLeaves = [];
+            int firstLeaf = _leafColumns.Count;
             foreach (TableColumn sub in column.SubColumns)
             {
-                TableLeafColumn leaf = new(_leafColumns.Count, column, sub.FieldName, sub.Header, sub.Width, false, false);
-                _leafColumns.Add(leaf);
-                subLeaves.Add(leaf);
+                _leafColumns.Add(new TableLeafColumn(_leafColumns.Count, column, sub.FieldName, sub.Header,
+                    sub.Width, sub.MinWidth, false, false));
             }
 
             // vue omits the sub-operation column entirely when the table cannot mutate rows, so a
             // read-only table does not render an empty action column next to the sub-table.
             if (column.IsArray && CanMutateRows)
             {
-                TableLeafColumn leaf = new(_leafColumns.Count, column, string.Empty, string.Empty, OperationWidth, true, false);
-                _leafColumns.Add(leaf);
-                subLeaves.Add(leaf);
+                _leafColumns.Add(new TableLeafColumn(_leafColumns.Count, column, string.Empty, string.Empty,
+                    OperationWidth, OperationWidth, true, false));
             }
 
-            double groupWidth = subLeaves.Sum(l => l.Width);
-            topHeaders.Add(new TableHeaderCell(column.Header, groupWidth));
-            leafHeaders.AddRange(subLeaves.Select(l => new TableHeaderCell(l.Header, l.Width)));
+            int leafCount = _leafColumns.Count - firstLeaf;
+            topHeaders.Add(new TableHeaderCell(column.Header, column.Width, firstLeaf, leafCount));
+            for (int i = firstLeaf; i < _leafColumns.Count; i++)
+            {
+                TableLeafColumn leaf = _leafColumns[i];
+                leafHeaders.Add(new TableHeaderCell(leaf.Header, leaf.Width, leaf.Index, 1));
+            }
         }
 
         if (ShowOperations)
         {
-            TableLeafColumn leaf = new(_leafColumns.Count, new TableColumn(string.Empty, string.Empty, false, false, [], OperationWidth),
-                string.Empty, string.Empty, OperationWidth, false, true);
+            TableLeafColumn leaf = new(_leafColumns.Count,
+                new TableColumn(string.Empty, string.Empty, false, false, [], OperationWidth, OperationWidth),
+                string.Empty, string.Empty, OperationWidth, OperationWidth, false, true);
             _leafColumns.Add(leaf);
-            topHeaders.Add(new TableHeaderCell(string.Empty, OperationWidth));
+            topHeaders.Add(new TableHeaderCell(string.Empty, OperationWidth, leaf.Index, 1));
             leafHeaders.Add(new TableHeaderCell(
                 LocaleManager.Instance.Get("wpf.table.operations"),
                 OperationWidth,
+                leaf.Index,
+                1,
                 CanAddRow ? AddCommand : null,
                 CanAddRow ? "+" : null));
         }
 
         TopHeaders.ReplaceAll(topHeaders);
         LeafHeaders.ReplaceAll(leafHeaders);
+
+        // The collection rebuild above only happens when the column structure changes; the actual
+        // widths are then applied in place for the current available width.
+        ApplyColumnWidths();
+    }
+
+    /// <summary>
+    /// Recomputes header widths from the shared leaf list. The header cells update their width in
+    /// place, so a host resize never replaces the header items or the row blocks.
+    /// </summary>
+    private void ApplyColumnWidths()
+    {
+        if (_leafColumns.Count == 0) return;
+
+        double[] natural = _leafColumns.Select(l => l.Width).ToArray();
+        double[] minimum = _leafColumns.Select(l => l.MinWidth).ToArray();
+        double[] final = TableColumnLayout.Distribute(natural, minimum, _availableWidth);
+
+        foreach (TableHeaderCell cell in TopHeaders)
+            cell.SetWidth(TableColumnLayout.Sum(final, cell.FirstLeaf, cell.LeafCount));
+        foreach (TableHeaderCell cell in LeafHeaders)
+            cell.SetWidth(TableColumnLayout.Sum(final, cell.FirstLeaf, cell.LeafCount));
     }
 
     #endregion
@@ -714,6 +843,7 @@ public class TableWrapper : DataNodeWrapper
             element,
             visualRows,
             _leafColumns.Select(l => l.Width).ToArray(),
+            _leafColumns.Select(l => l.MinWidth).ToArray(),
             cells,
             innerElements.ToArray(),
             _layoutVersion,
@@ -749,8 +879,8 @@ public class TableWrapper : DataNodeWrapper
                         new RelayCommand(
                             _ =>
                             {
-                                int position = target is null ? -1 : inner.IndexOf(target);
-                                if (position >= 0 && CanDeleteInner(inner)) inner.DelRows(position);
+                                if (target is not null && CanDeleteInner(inner))
+                                    DeleteElement(inner, target);
                             },
                             _ => target is not null && CanDeleteInner(inner))));
                 }
@@ -870,19 +1000,68 @@ public class TableWrapper : DataNodeWrapper
         }
     }
 
-    /// <summary>Opens the row editor for an existing element.</summary>
+    /// <summary>
+    /// Opens the row editor for an existing element. The editor works on a detached copy: cancelling
+    /// leaves the real row untouched, and confirming copies the validated values back in one step.
+    /// </summary>
     protected void EditRow(DataNode element)
     {
         if (IsDisposed) return;
-        ShowRowEditor(element, isNew: false);
+
+        IValueAccess cloned = element.Clone();
+        if (cloned is not DataNode working) return;
+
+        try
+        {
+            if (ShowRowEditor(working, isNew: false) && working.IsValid)
+                element.TrySetValue(working);
+        }
+        finally
+        {
+            working.Dispose();
+        }
     }
 
     /// <summary>Deletes one element; page tables override it to record a pending host deletion.</summary>
     protected virtual void DeleteRow(DataNode element)
     {
         if (!CanDeleteRow) return;
-        int index = ArrayNodeImpl.IndexOf(element);
-        if (index >= 0) ArrayNodeImpl.DelRows(index);
+        DeleteElement(ArrayNodeImpl, element);
+    }
+
+    /// <summary>
+    /// Removes <paramref name="element"/> from its array and releases the element node together
+    /// with the cell wrappers that still reference it. ArrayNode.DelRows removes the entry only,
+    /// so without this the deleted subtree (and its subscriptions) would leak.
+    /// </summary>
+    private void DeleteElement(ArrayNode array, DataNode element)
+    {
+        int index = array.IndexOf(element);
+        if (index < 0) return;
+
+        // Capture before DelRows: the wrappers must be released after the element is gone.
+        List<DataNode> cells = _cellByNode.Keys
+            .Where(node => IsDescendantOf(node, element))
+            .ToList();
+
+        array.DelRows(index);
+
+        foreach (DataNode node in cells)
+        {
+            if (_cellByNode.Remove(node, out DataNodeWrapper? wrapper))
+                wrapper.Dispose();
+        }
+
+        element.Dispose();
+    }
+
+    private static bool IsDescendantOf(DataNode node, DataNode ancestor)
+    {
+        for (DataNode? current = node; current is not null; current = current.Parent as DataNode)
+        {
+            if (current == ancestor) return true;
+        }
+        return false;
     }
 
     private bool ShowRowEditor(DataNode node, bool isNew)
@@ -891,8 +1070,13 @@ public class TableWrapper : DataNodeWrapper
             isNew ? "wpf.table.title.new" : "wpf.table.title.editor");
         // A separate window does not inherit the table's dependency property values, so the skin
         // is carried in the request instead of silently falling back to the default skin.
-        TableRowEditorRequest request = new(node, isNew, title, OwnerWindow, Registry, EditorSkin);
-        Func<TableRowEditorRequest, bool> editor = Registry.RowEditorFactory ?? TableRowEditorWindow.Show;
+        TableRowEditorRequest request = new(
+            node, isNew, title, OwnerWindow, Registry, _editorSkinOverride ?? EditorSkin);
+
+        // Registration-time appearance wins over the registry-wide factory and the built-in
+        // struct-form window, so a host can specialise one collection without touching views.
+        Func<TableRowEditorRequest, bool> editor =
+            _rowEditor ?? Registry.RowEditorFactory ?? TableRowEditorWindow.Show;
         return editor(request);
     }
 
@@ -920,11 +1104,11 @@ public class TableWrapper : DataNodeWrapper
     protected string FormatHeader(StructFieldType field)
     {
         LocaleString? display = field.GetProperty<Display>()?.Value;
-        string label = display?.ToString(NodeImpl.Context) ?? field.Name;
+        string label = LocalizedDisplay.Resolve(NodeImpl.Context, display, field.Name);
 
         LocaleString? unit = field.GetProperty<Unit>()?.Value ?? field.Type?.GetProperty<Unit>()?.Value;
         if (unit is not null)
-            label = $"{label}({unit.ToString(NodeImpl.Context)})";
+            label = $"{label}({LocalizedDisplay.Resolve(NodeImpl.Context, unit)})";
 
         if (field.Require == true)
             label += " *";
@@ -936,6 +1120,12 @@ public class TableWrapper : DataNodeWrapper
     {
         IValueTypeAccess? valueType = type is ArrayType { Element: not null } array ? array.Element : type;
         return valueType?.Name == Constant.NS_SYSTEM_LOCALE_STRING ? LocalStringWidth : CellWidth;
+    }
+
+    private static double MinWidthFor(IValueTypeAccess? type)
+    {
+        IValueTypeAccess? valueType = type is ArrayType { Element: not null } array ? array.Element : type;
+        return valueType?.Name == Constant.NS_SYSTEM_LOCALE_STRING ? LocalStringMinWidth : CellMinWidth;
     }
 
     private void ApplyForcedReadOnly()
@@ -1032,5 +1222,70 @@ public class TableWrapper : DataNodeWrapper
             RowGroups.ReplaceAll([]);
         }
         base.Dispose(disposing);
+    }
+}
+
+/// <summary>
+/// Column width arithmetic shared by the two header rows and every body row, so they can never
+/// disagree. Columns scale up to fill the host; when the host shrinks they keep their minimum width
+/// (<see cref="TableWrapper"/>'s vue-like <c>min-width</c>) and only then does the body scroll.
+/// </summary>
+internal static class TableColumnLayout
+{
+    /// <summary>
+    /// Returns the effective widths for <paramref name="available"/> horizontal pixels.
+    /// <paramref name="available"/> &lt;= 0 keeps the natural widths (the host is not measured yet).
+    /// </summary>
+    public static double[] Distribute(IReadOnlyList<double> natural, IReadOnlyList<double> minimum, double available)
+    {
+        int count = natural.Count;
+        double[] result = new double[count];
+        if (count == 0) return result;
+
+        if (count != minimum.Count)
+        {
+            for (int i = 0; i < count; i++) result[i] = natural[i];
+            return result;
+        }
+
+        double total = 0;
+        double minTotal = 0;
+        for (int i = 0; i < count; i++)
+        {
+            total += natural[i];
+            minTotal += minimum[i];
+        }
+
+        if (available <= 0 || total <= 0)
+        {
+            for (int i = 0; i < count; i++) result[i] = natural[i];
+            return result;
+        }
+
+        if (available >= total)
+        {
+            double scale = available / total;
+            for (int i = 0; i < count; i++) result[i] = natural[i] * scale;
+            return result;
+        }
+
+        if (available >= minTotal && total > minTotal)
+        {
+            double ratio = (available - minTotal) / (total - minTotal);
+            for (int i = 0; i < count; i++) result[i] = minimum[i] + (natural[i] - minimum[i]) * ratio;
+            return result;
+        }
+
+        for (int i = 0; i < count; i++) result[i] = minimum[i];
+        return result;
+    }
+
+    /// <summary>Sum of a contiguous span of the distributed widths.</summary>
+    public static double Sum(IReadOnlyList<double> widths, int first, int count)
+    {
+        double total = 0;
+        int end = Math.Min(first + count, widths.Count);
+        for (int i = Math.Max(first, 0); i < end; i++) total += widths[i];
+        return total;
     }
 }

@@ -1,0 +1,43 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="SchemaNode.Avalonia.Man.Views.EnumSubListWindow"
+        x:CompileBindings="False"
+        Title="{DynamicResource avalonia.enum.cascade.title}"
+        Width="480"
+        Height="360"
+        WindowStartupLocation="CenterOwner">
+  <DockPanel Margin="12">
+    <TextBlock DockPanel.Dock="Top"
+               Text="{Binding Status}"
+               TextWrapping="Wrap"
+               Margin="0,0,0,6" />
+
+    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,6" Spacing="4">
+      <TextBlock Text="{DynamicResource avalonia.enum.cascade.parent}" />
+      <TextBlock Text="{Binding SelectedParent}" FontWeight="SemiBold" />
+    </StackPanel>
+
+    <StackPanel DockPanel.Dock="Bottom"
+                Orientation="Horizontal"
+                HorizontalAlignment="Right"
+                Spacing="6"
+                Margin="0,8,0,0">
+      <Button Content="{DynamicResource avalonia.button.new}" Command="{Binding AddCommand}" />
+      <Button Content="{DynamicResource avalonia.button.delete}" Command="{Binding RemoveCommand}" />
+      <Button Content="{DynamicResource avalonia.enum.cascade.save}" Command="{Binding SaveCommand}" />
+      <Button Content="{DynamicResource avalonia.button.cancel}" Click="OnClose" />
+    </StackPanel>
+
+    <ListBox ItemsSource="{Binding Children}"
+             SelectedItem="{Binding SelectedChild, Mode=TwoWay}">
+      <ListBox.ItemTemplate>
+        <DataTemplate>
+          <Grid ColumnDefinitions="*,8,*" Margin="0,2">
+            <TextBox Grid.Column="0" Text="{Binding Value, Mode=TwoWay}" />
+            <TextBox Grid.Column="2" Text="{Binding Display, Mode=TwoWay}" />
+          </Grid>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+  </DockPanel>
+</Window>

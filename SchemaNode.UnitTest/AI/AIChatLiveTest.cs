@@ -25,7 +25,7 @@ public class AIChatLiveTest : Base.AppTestBase
     {
         base.ConfigureServices(services);
 
-        services.AddSchemaChatCore(options =>
+        services.AddSchemaChat(options =>
         {
             options.Provider = LiveEnabled ? SchemaChatProvider.Ollama : SchemaChatProvider.Mock;
             options.ModelId = Environment.GetEnvironmentVariable("SCHEMA_CHAT_MODEL") ?? "qwen3:8b";

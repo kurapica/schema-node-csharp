@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using SchemaNode.AI.Agents;
+using Microsoft.Extensions.AI;
+using SchemaNode.AI.Chat;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Property.Core;
@@ -13,9 +14,9 @@ using ValueType = SchemaNode.Runtime.ValueType;
 namespace SchemaNode.AI.Workflow;
 
 /// <summary>
-/// Generates a JSON value with an agent provider, validates it against a declared target schema
-/// type, and retries with the concrete validation error until the value is valid or the retry
-/// budget is exhausted. The validated value becomes the node payload.
+/// A small schema generation agent: it takes configuration, prompts and upstream workflow data,
+/// and produces one validated payload of the declared target schema type. The model, endpoint and
+/// transport come from the registered <see cref="IChatClient"/>.
 /// </summary>
 [Meta<SchemaType>("system.workflow.ai.generate")]
 [Meta<OfNodeKind>(NODE_KIND_WORKFLOW)]
@@ -91,23 +92,19 @@ public sealed class AIWorkflowNode
             return session;
         }
 
-        AIAgentProviderFactory factory = context.GetService<AIAgentProviderFactory>() ?? AIAgentProviderFactory.Default;
-        AIAgentOptions defaults = factory.Options;
-        int maxRetries = Math.Clamp(settings.MaxRetries ?? defaults.MaxRetries, 0, 10);
-        int timeoutSeconds = Math.Clamp(settings.TimeoutSeconds ?? defaults.RequestTimeoutSeconds, 1, 3600);
-        int maxTokens = Math.Clamp(settings.MaxTokens ?? defaults.MaxTokens, 1, 8192);
-        int maxMetadataChars = Math.Max(0, settings.MaxMetadataChars ?? defaults.MaxMetadataChars);
-        double temperature = settings.Temperature ?? defaults.Temperature;
+        IChatClient? chatClient = context.GetService<IChatClient>();
+        if (chatClient is null)
+        {
+            context.Error(
+                this,
+                "AI workflow requires a registered IChatClient. " +
+                "Call AddSchemaChat or AddSchemaAiWorkflow on the host.");
+            return session;
+        }
 
-        string[]? mockResponses = settings.MockResponses?
-            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        IAgentProvider provider = factory.Create(
-            settings.Provider,
-            settings.Endpoint,
-            settings.Model,
-            timeoutSeconds,
-            mockResponses);
+        SchemaChatOptions aiOptions = context.GetService<SchemaChatOptions>() ?? new SchemaChatOptions();
+        int maxRetries = Math.Clamp(settings.MaxRetries ?? 3, 0, 10);
+        int maxMetadataChars = Math.Max(0, settings.MaxMetadataChars ?? 6000);
 
         List<string> blocks = BuildPromptBlocks(context, settings, prompt, input);
         AIWorkflowRunResult result;
@@ -115,25 +112,18 @@ public sealed class AIWorkflowNode
         {
             result = await AIWorkflowRunner.RunAsync(
                 context,
+                chatClient,
+                aiOptions,
                 new AIWorkflowRunRequest
                 {
                     TargetType = targetType,
-                    Provider = provider,
                     MaxRetries = maxRetries,
                     SystemPrompt = settings.SystemPrompt,
                     Instruction = settings.Instruction,
                     PromptBlocks = blocks,
-                    MaxTokens = maxTokens,
-                    Temperature = temperature,
                     MaxMetadataChars = maxMetadataChars,
                 },
                 CancellationToken.None).ConfigureAwait(false);
-        }
-        catch (AIAgentException ex)
-        {
-            session.LastError = ex.Message;
-            context.Error(this, ex.Message);
-            return session;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -153,7 +143,7 @@ public sealed class AIWorkflowNode
         session.LastError = result.Error;
         context.Error(
             this,
-            $"AI generation failed after {result.CallCount} attempt(s) using provider '{provider.Name}'. " +
+            $"AI generation failed after {result.CallCount} attempt(s). " +
             $"Last validation error: {result.Error}");
         return session;
     }

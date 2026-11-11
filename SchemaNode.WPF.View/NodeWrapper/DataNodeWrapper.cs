@@ -4,11 +4,11 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using SchemaNode.Node;
+using SchemaNode.WPF.View.Localization;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Struct;
 using SchemaNode.Runtime;
 using SchemaNode.Struct;
-using SchemaNode.WPF.View.Localization;
 
 namespace SchemaNode.WPF.View.NodeWrapper;
 
@@ -39,7 +39,8 @@ public abstract class DataNodeWrapper : INotifyPropertyChanged, INotifyDataError
     private bool _require;
     private bool _visible;
 
-    protected DataNodeWrapper(DataNode node, SchemaViewRegistry? registry, string? fieldName, SchemaViewRole role)
+    protected DataNodeWrapper(DataNode node, SchemaViewRegistry? registry, string? fieldName, SchemaViewRole role,
+                              bool ancestorVisibility = true)
     {
         NodeImpl = node ?? throw new ArgumentNullException(nameof(node));
         Registry = registry ?? SchemaViewRegistry.CreateDefault();
@@ -49,12 +50,22 @@ public abstract class DataNodeWrapper : INotifyPropertyChanged, INotifyDataError
 
         Track(NodeImpl.Subscribe(OnDataChanged, immediate: true));
         Track(NodeImpl.SubscribeViolated(OnViolatedChanged, immediate: true));
-        // Visibility is caller-facing rather than node-local: a relation that hides a struct or
-        // array element must also hide the cells it owns, and a table renders those leaf nodes
-        // directly. Subscribe to every ancestor so an inherited hide reaches this wrapper too.
-        _visible = IsNodeVisible(NodeImpl);
-        Track(NodeImpl.SubscribeAncestorProperty<Visible, bool>(OnVisibleChanged, immediate: true));
-        Track(NodeImpl.SubscribeAncestorProperty<InVisible, bool>(OnVisibleChanged, immediate: true));
+        // Visibility is caller-facing rather than node-local. Nested views (struct fields, array
+        // elements, the type selector's main editor) keep the visual tree isomorphic to the node
+        // tree, so a parent's collapsed presenter already hides the subtree and each wrapper only
+        // needs its own node's Visible / InVisible. Ancestor tracking stays where the tree is
+        // flattened or moved: table cells and standalone row editors.
+        _visible = ancestorVisibility ? IsNodeVisible(NodeImpl) : NodeImpl.Visible;
+        if (ancestorVisibility)
+        {
+            Track(NodeImpl.SubscribeAncestorProperty<Visible, bool>(OnVisibleChanged, immediate: true));
+            Track(NodeImpl.SubscribeAncestorProperty<InVisible, bool>(OnVisibleChanged, immediate: true));
+        }
+        else
+        {
+            Track(NodeImpl.SubscribeProperty<Visible, bool>(OnOwnVisibleChanged, immediate: true));
+            Track(NodeImpl.SubscribeProperty<InVisible, bool>(OnOwnVisibleChanged, immediate: true));
+        }
         Track(NodeImpl.SubscribeAncestorProperty<ReadOnly, bool>(OnReadOnlyChanged, immediate: true));
         Track(NodeImpl.SubscribeAncestorProperty<Disable, bool>(OnDisabledChanged, immediate: true));
         Track(NodeImpl.SubscribeProperty<DisplayOnly, bool>(OnDisplayOnlyChanged, immediate: true));
@@ -101,15 +112,27 @@ public abstract class DataNodeWrapper : INotifyPropertyChanged, INotifyDataError
     /// </summary>
     public object? Value
     {
-        get => NodeImpl.GetValue<object>();
+        get => ReadEditorValue();
         set
         {
             if (_disposed) return;
-            bool ok = NodeImpl.TrySetValue(value);
-            SetInputError(ok
-                ? null
-                : LocaleManager.Instance.Format("wpf.error.value.convert", value, NodeImpl.Type.Name));
+            WriteEditorValue(value);
         }
+    }
+
+    /// <summary>
+    /// Value the editor displays. Text-like wrappers override this so an uncommitted editor text
+    /// survives a node notification instead of being replaced by the node value.
+    /// </summary>
+    protected virtual object? ReadEditorValue() => NodeImpl.GetValue<object>();
+
+    /// <summary>Commits an editor value. Overridden by wrappers that keep a pending input.</summary>
+    protected virtual void WriteEditorValue(object? value)
+    {
+        bool ok = NodeImpl.TrySetValue(value);
+        SetInputError(ok
+            ? null
+            : LocaleManager.Instance.Format("wpf.error.value.convert", value, NodeImpl.Type.Name));
     }
 
     /// <summary>
@@ -152,8 +175,8 @@ public abstract class DataNodeWrapper : INotifyPropertyChanged, INotifyDataError
         get
         {
             LocaleString? display = NodeImpl.GetPropertyValue<Display, LocaleString>();
-            if (display is not null) return display.ToString(NodeImpl.Context);
-            return NodeImpl.Name ?? FieldName ?? NodeImpl.Type.Name;
+            string text = LocalizedDisplay.Resolve(NodeImpl.Context, display, NodeImpl.Name, FieldName, NodeImpl.Type.Name);
+            return string.IsNullOrWhiteSpace(text) ? NodeImpl.Type.Name : text;
         }
     }
 
@@ -195,11 +218,25 @@ public abstract class DataNodeWrapper : INotifyPropertyChanged, INotifyDataError
         return true;
     }
 
+    /// <summary>
+    /// Whether this wrapper renders a concrete editable value. Containers (struct, array, table)
+    /// own children that carry the real failure, so an error block on the container only repeats it
+    /// without naming the offending field. The error state itself stays on <see cref="Error"/> /
+    /// <see cref="HasErrors"/> for hosts that gate saving or summarize validation.
+    /// </summary>
+    protected virtual bool RendersValue => true;
+
     /// <summary>Whether the error should be rendered inline below the editor.</summary>
-    public bool ShowInlineError => Role == SchemaViewRole.Field;
+    public bool ShowInlineError => RendersValue && Role == SchemaViewRole.Field;
 
     /// <summary>Whether an inline error block should be visible.</summary>
     public bool ShowError => ShowInlineError && HasErrors;
+
+    /// <summary>
+    /// Whether a compact cell should mark this leaf as failed. Containers keep
+    /// <see cref="RendersValue"/> false, so only a cell that owns the real value turns red.
+    /// </summary>
+    public bool ShowCellError => RendersValue && HasErrors;
 
     /// <summary>Remove action installed by the parent array/table wrapper (null when not a row).</summary>
     public ICommand? RemoveCommand { get; internal set; }
@@ -315,6 +352,16 @@ public abstract class DataNodeWrapper : INotifyPropertyChanged, INotifyDataError
         RaisePropertyChanged(nameof(IsVisible));
     }
 
+    /// <summary>Visibility update for wrappers whose root is rendered inside its parent's view.</summary>
+    private void OnOwnVisibleChanged((IValueAccess node, Type propertyType, bool value, bool oldValue) args)
+    {
+        if (_disposed) return;
+        bool visible = NodeImpl.Visible;
+        if (_visible == visible) return;
+        _visible = visible;
+        RaisePropertyChanged(nameof(IsVisible));
+    }
+
     /// <summary>Whether the node and all of its ancestors allow rendering.</summary>
     private static bool IsNodeVisible(DataNode node)
     {
@@ -355,9 +402,10 @@ public abstract class DataNodeWrapper : INotifyPropertyChanged, INotifyDataError
 
     /// <summary>
     /// Forces this wrapper subtree to render read-only. Used by a table that switches to row-editor
-    /// mode: cells become display-only while the row editor still owns the real node.
+    /// mode: cells become display-only while the row editor still owns the real node. Public so
+    /// composite wrappers supplied by a host (not only the built-in ones) can forward the state.
     /// </summary>
-    internal void SetForcedReadOnly(bool value)
+    public void SetForcedReadOnly(bool value)
     {
         if (_disposed || _forcedReadOnly == value) return;
         _forcedReadOnly = value;
@@ -416,6 +464,7 @@ public abstract class DataNodeWrapper : INotifyPropertyChanged, INotifyDataError
         {
             RaisePropertyChangedNow(nameof(HasErrors));
             RaisePropertyChangedNow(nameof(ShowError));
+            RaisePropertyChangedNow(nameof(ShowCellError));
             RaisePropertyChangedNow(nameof(Error));
             ErrorsChanged?.Invoke(this, new DataErrorsChangedEventArgs(nameof(Value)));
         });

@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:SchemaNode.Avalonia.View"
+             x:Class="SchemaNode.Avalonia.View.Views.StructView"
+             x:CompileBindings="False">
+  <StackPanel>
+    <ItemsControl ItemsSource="{Binding Children}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate>
+          <Grid Margin="0,2"
+                IsVisible="{Binding IsVisible}"
+                ColumnDefinitions="150,*">
+            <TextBlock Grid.Column="0"
+                       Margin="0,0,8,0"
+                       VerticalAlignment="Center"
+                       TextTrimming="CharacterEllipsis"
+                       ToolTip.Tip="{Binding Label}"
+                       Text="{Binding Label}" />
+
+            <local:SchemaView Grid.Column="1"
+                              HorizontalAlignment="Stretch"
+                              Node="{Binding}"
+                              SizeChanged="OnFieldSizeChanged" />
+          </Grid>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </StackPanel>
+</UserControl>

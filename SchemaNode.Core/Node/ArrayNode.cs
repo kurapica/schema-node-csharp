@@ -294,7 +294,12 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
     }
 
     /// <inheritdoc/>
-    public override bool IsValid => _elements.All(element => element.IsValid) && base.IsValid;
+    /// <remarks>
+    /// An empty array is an optional value that was never filled in, so element constraints
+    /// must not surface. The array's own constraints (such as <see cref="SchemaNode.Property.Array.MinSize"/>)
+    /// still decide its validity.
+    /// </remarks>
+    public override bool IsValid => base.IsValid && (IsEmpty || _elements.All(element => element.IsValid));
 
     /// <inheritdoc/>
     public override JsonNode? Violated => !IsValid ? new JsonArray(_elements.Select(e => e.Violated ?? JsonValue.Create(true)).ToArray()) : null;
@@ -302,9 +307,10 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
     /// <inheritdoc/>
     public override IEnumerable<DataNode> GetErrorNodes()
     {
-        foreach (var element in _elements.OfType<DataNode>())
-            foreach (var node in element.GetErrorNodes())
-                yield return node;
+        if (!IsEmpty)
+            foreach (var element in _elements.OfType<DataNode>())
+                foreach (var node in element.GetErrorNodes())
+                    yield return node;
         foreach (var node in base.GetErrorNodes())
             yield return node;
     }

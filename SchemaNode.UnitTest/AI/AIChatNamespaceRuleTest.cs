@@ -21,7 +21,7 @@ public class AIChatNamespaceRuleTest : Base.AppTestBase
     {
         base.ConfigureServices(services);
 
-        services.AddSchemaChatCore(options =>
+        services.AddSchemaChat(options =>
         {
             options.Provider = SchemaChatProvider.Mock;
             options.ModelId = "mock";

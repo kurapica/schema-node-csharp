@@ -1,0 +1,159 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:view="using:SchemaNode.Avalonia.View"
+             xmlns:loc="using:SchemaNode.Avalonia.View.Localization"
+             x:Class="SchemaNode.Avalonia.Man.Views.WorkflowConfigView"
+             x:CompileBindings="False">
+  <UserControl.Styles>
+    <Style Selector="Line.selected">
+      <Setter Property="Stroke" Value="#E74C3C" />
+      <Setter Property="StrokeThickness" Value="3" />
+    </Style>
+    <Style Selector="Border.node.selected">
+      <Setter Property="BorderBrush" Value="#E74C3C" />
+      <Setter Property="BorderThickness" Value="2" />
+    </Style>
+  </UserControl.Styles>
+
+  <DockPanel Margin="8">
+    <!-- Workflow selection and saving -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6" Spacing="4">
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.workflow.button.back}"
+              Command="{Binding BackCommand}" Margin="0,0,12,0" />
+      <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.workflow.label.app}" VerticalAlignment="Center" />
+      <TextBox Text="{Binding AppName, UpdateSourceTrigger=PropertyChanged}"
+               IsEnabled="{Binding IsEditable}"
+               Width="200" />
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.workflow.button.loadapp}"
+              Command="{Binding LoadAppCommand}" IsEnabled="{Binding IsEditable}" />
+      <ComboBox ItemsSource="{Binding Workflows}" SelectedItem="{Binding SelectedWorkflow}"
+                Width="170" IsEnabled="{Binding CanSwitchWorkflow}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate>
+            <TextBlock Text="{Binding Name}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.new}"
+              Command="{Binding NewWorkflowCommand}" IsEnabled="{Binding CanModifyWorkflow}" />
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.save}"
+              Command="{Binding SaveCommand}" IsEnabled="{Binding CanModifyWorkflow}" />
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.delete}"
+              Command="{Binding DeleteWorkflowCommand}" IsEnabled="{Binding CanModifyWorkflow}" />
+    </StackPanel>
+
+    <!-- Canvas operations -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8" Spacing="4">
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.workflow.button.addnode}"
+              Command="{Binding AddNodeCommand}" IsEnabled="{Binding IsEditable}" Margin="0,0,12,0" />
+      <ToggleButton Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.workflow.button.connectmode}"
+                    IsChecked="{Binding IsConnecting}" IsEnabled="{Binding IsEditable}" />
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.workflow.button.disconnect}"
+              Command="{Binding DisconnectEdgeCommand}" IsEnabled="{Binding IsEditable}" />
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.workflow.button.deletenode}"
+              Command="{Binding DeleteNodeCommand}" IsEnabled="{Binding IsEditable}" Margin="0,0,12,0" />
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.workflow.button.zoomout}"
+              Command="{Binding ZoomOutCommand}" />
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.workflow.button.zoomin}"
+              Command="{Binding ZoomInCommand}" />
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.workflow.button.zoomreset}"
+              Command="{Binding ResetZoomCommand}" Margin="0,0,12,0" />
+      <TextBlock Text="{Binding Status}" VerticalAlignment="Center" Foreground="#555" />
+    </StackPanel>
+
+    <Grid ColumnDefinitions="*,320">
+      <!-- DAG canvas: edges are drawn first and nodes afterwards, so nodes stay on top and
+           remain clickable. -->
+      <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto"
+                    VerticalScrollBarVisibility="Auto"
+                    Background="#F7F9FB" BorderBrush="#DDE4EA" BorderThickness="1">
+        <Canvas x:Name="GraphCanvas" Width="{Binding CanvasWidth}" Height="{Binding CanvasHeight}"
+                Background="Transparent" PointerPressed="OnCanvasPressed"
+                RenderTransformOrigin="0%,0%">
+          <ItemsControl ItemsSource="{Binding Edges}"
+                        Width="{Binding CanvasWidth}" Height="{Binding CanvasHeight}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <Canvas />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Grid>
+                  <!-- Thicken the invisible hit area with a transparent line so thin lines are easier to select. -->
+                  <Line StartPoint="{Binding StartPoint}" EndPoint="{Binding EndPoint}"
+                        Stroke="Transparent" StrokeThickness="10"
+                        PointerPressed="OnEdgePressed" />
+                  <Line Classes.selected="{Binding IsSelected}"
+                        StartPoint="{Binding StartPoint}" EndPoint="{Binding EndPoint}"
+                        Stroke="#7F8C8D" StrokeThickness="2"
+                        IsHitTestVisible="False" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <ItemsControl ItemsSource="{Binding Nodes}"
+                        Width="{Binding CanvasWidth}" Height="{Binding CanvasHeight}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <Canvas />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemContainerTheme>
+              <ControlTheme TargetType="ContentPresenter">
+                <Setter Property="Canvas.Left" Value="{Binding X}" />
+                <Setter Property="Canvas.Top" Value="{Binding Y}" />
+              </ControlTheme>
+            </ItemsControl.ItemContainerTheme>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Thumb Width="180" Height="56" Cursor="Hand"
+                       DragDelta="OnNodeDragDelta"
+                       PointerPressed="OnNodePressed">
+                  <Thumb.Template>
+                    <ControlTemplate TargetType="Thumb">
+                      <Border Classes="node" Classes.selected="{Binding IsSelected}"
+                              Background="White" BorderBrush="#BDC3C7" BorderThickness="1"
+                              CornerRadius="4">
+                        <StackPanel Margin="8,4">
+                          <TextBlock Text="{Binding Name}" FontWeight="Bold"
+                                     TextTrimming="CharacterEllipsis" />
+                          <TextBlock Text="{Binding Type}" Foreground="#7F8C8D" FontSize="11"
+                                     TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                      </Border>
+                    </ControlTemplate>
+                  </Thumb.Template>
+                </Thumb>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Canvas>
+      </ScrollViewer>
+
+      <!-- Property panel: workflow fields + selected node fields (reuses SchemaView for recursive rendering). -->
+      <Border Grid.Column="1" Margin="8,0,0,0"
+              BorderBrush="#DDE4EA" BorderThickness="1" Padding="8">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel>
+            <TextBlock FontWeight="Bold" Margin="0,0,0,8"
+                       Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.workflow.label.properties}" />
+            <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.workflow.label.name}" />
+            <TextBox Text="{Binding WorkflowName, UpdateSourceTrigger=LostFocus}"
+                     IsEnabled="{Binding IsEditable}" Margin="0,0,0,8" />
+            <CheckBox Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.workflow.label.active}"
+                      IsChecked="{Binding WorkflowActive}" IsEnabled="{Binding IsEditable}"
+                      Margin="0,0,0,8" />
+
+            <Separator />
+
+            <TextBlock FontWeight="Bold" Margin="0,8,0,8"
+                       Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.workflow.label.node}" />
+            <view:SchemaView Node="{Binding SelectedNode.Node}" />
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+  </DockPanel>
+</UserControl>

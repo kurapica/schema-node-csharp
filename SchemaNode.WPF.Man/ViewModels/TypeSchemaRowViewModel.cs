@@ -1,12 +1,13 @@
 using SchemaNode.Property.App;
 using SchemaNode.Property.Core;
 using SchemaNode.Schema;
+using SchemaNode.WPF.Man.Services;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.WPF.Man.ViewModels;
 
 /// <summary>
-/// Read-only row of the "类型定义" list.
+/// Read-only row of the "Type definitions" list.
 ///
 /// The row deliberately holds a plain <see cref="NodeSchema"/> instead of a DataNodeWrapper:
 /// NodeSchema is a PropertyOwner (not a value node), so the view library's TableView — which walks
@@ -42,7 +43,9 @@ public sealed class TypeSchemaRowViewModel
     /// <summary>Whether this row is a child namespace, which enables the drill-down action.</summary>
     public bool IsNamespace => Kind.Equals(NODE_KIND_NAMESPACE, StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Whether this row is a type definition, which enables view/edit.</summary>
+    /// <summary>
+    /// Whether this row is a type definition; used to decide the plain "view" action.
+    /// </summary>
     public bool IsType => !IsNamespace;
 
     /// <summary>Whether other definitions reference this one; a used definition cannot be deleted.</summary>
@@ -50,20 +53,27 @@ public sealed class TypeSchemaRowViewModel
 
     /// <summary>
     /// Whether the schema is owned by the host code. Mirrors schema.vue's <c>SystemDefined</c>
-    /// check: such definitions may be re-placed in another namespace but their content is not
-    /// editable, and they are never deletable.
+    /// check: such definitions are never deletable, and their editability is decided by
+    /// <see cref="SchemaDefinitionEditRule"/> (view-only today, except namespace kinds for
+    /// permissions).
     /// </summary>
     public bool IsSystemDefined => Schema.GetProperty<SystemDefined>() is { Value: true };
 
     /// <summary>
     /// Mirrors <c>isSchemaUpdatable</c> from schema.vue: an explicit <c>schemaUpdate === false</c>
-    /// disables editing. A system-defined definition still opens for editing so its namespace can
-    /// be changed; the editor itself applies the per-field "namespace only" gate.
+    /// disables editing.
     /// </summary>
     public bool CanUpdate => Schema.GetProperty<SchemaUpdate>() is not { Value: false };
 
-    /// <summary>Edit is offered for type rows that allow an update.</summary>
-    public bool CanEdit => IsType && CanUpdate;
+    /// <summary>
+    /// Independent edit switch for this row: the definition may be opened in the editor when Core
+    /// allows updates and Man's own rule accepts the definition. That rule keeps a system-defined
+    /// <em>namespace</em> editable (permissions are attached there) and locks every other
+    /// system-defined kind; system kinds can be opened up later by changing that one rule. A
+    /// namespace row therefore shows both "Child" and "Edit": the drill-down and the definition
+    /// editor are independent actions.
+    /// </summary>
+    public bool IsEditable => CanUpdate && SchemaDefinitionEditRule.IsDefinitionEditable(Schema);
 
     /// <summary>
     /// Mirrors <c>isSchemaDeletable</c> from schema.vue: system-defined, referenced and

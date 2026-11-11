@@ -26,8 +26,12 @@ public sealed class StructWrapper : DataNodeWrapper
     /// <inheritdoc />
     public override string? DefaultTemplateKey => SchemaTemplateKeys.Struct;
 
-    public StructWrapper(DataNode node, SchemaViewRegistry? registry, string? fieldName, SchemaViewRole role)
-        : base(node, registry, fieldName, role)
+    /// <summary>A struct only groups fields: the failing leaf shows the message.</summary>
+    protected override bool RendersValue => false;
+
+    public StructWrapper(DataNode node, SchemaViewRegistry? registry, string? fieldName, SchemaViewRole role,
+                         bool ancestorVisibility = true)
+        : base(node, registry, fieldName, role, ancestorVisibility)
     {
         StructNodeImpl = node as StructNode
             ?? throw new ArgumentException($"Node '{node.Type.Name}' is not a struct node.", nameof(node));
@@ -69,7 +73,7 @@ public sealed class StructWrapper : DataNodeWrapper
 
                 DataNodeWrapper wrapper = _childByNode.TryGetValue(child, out DataNodeWrapper? existing)
                     ? existing
-                    : NodeWrapperFactory.Create(child, Registry, field.Name, Role);
+                    : NodeWrapperFactory.Create(child, Registry, field.Name, Role, ancestorVisibility: false);
                 wrapper.SetForcedReadOnly(IsForcedReadOnly);
                 bool known = _childByNode.ContainsKey(child);
                 _childByNode[child] = wrapper;

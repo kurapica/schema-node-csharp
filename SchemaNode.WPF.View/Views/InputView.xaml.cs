@@ -1,4 +1,6 @@
+using System.Windows;
 using System.Windows.Controls;
+using SchemaNode.WPF.View.NodeWrapper;
 
 namespace SchemaNode.WPF.View.Views;
 
@@ -8,5 +10,10 @@ public partial class InputView : UserControl
     public InputView()
     {
         InitializeComponent();
+    }
+
+    private void OnClearClick(object sender, RoutedEventArgs e)
+    {
+        (DataContext as InputWrapper)?.ClearSelection();
     }
 }

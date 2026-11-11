@@ -23,7 +23,7 @@ using static SchemaNode.Utility.AppConstant;
 namespace SchemaNode.WPF.Man.ViewModels;
 
 /// <summary>
-/// "应用" list screen (administrator entry).
+/// "Apps" list screen (administrator entry).
 ///
 /// Mirrors <c>schema-node-man/src/components/appSchema.vue</c>:
 ///   - the app namespace is a SchemaView over a <c>system.schema.app.type</c> node, so child apps

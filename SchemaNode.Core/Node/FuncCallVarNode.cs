@@ -198,7 +198,7 @@ public class FuncCallVarNode : DataNode, IEnumerable<StructNode>
     }
 
     /// <inheritdoc/>
-    public override bool IsValid => _args.All(e => e.IsValid) && base.IsValid;
+    public override bool IsValid => base.IsValid && (IsEmpty || _args.All(e => e.IsValid));
 
     /// <inheritdoc/>
     public override JsonNode? Violated
@@ -207,9 +207,10 @@ public class FuncCallVarNode : DataNode, IEnumerable<StructNode>
     /// <inheritdoc/>
     public override IEnumerable<DataNode> GetErrorNodes()
     {
-        foreach (StructNode node in _args)
-            foreach (DataNode error in node.GetErrorNodes())
-                yield return error;
+        if (!IsEmpty)
+            foreach (StructNode node in _args)
+                foreach (DataNode error in node.GetErrorNodes())
+                    yield return error;
         foreach (DataNode error in base.GetErrorNodes())
             yield return error;
     }

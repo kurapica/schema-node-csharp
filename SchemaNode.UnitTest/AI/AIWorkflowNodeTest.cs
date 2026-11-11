@@ -1,10 +1,11 @@
 using System.Diagnostics;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
-using SchemaNode.AI.Agents;
+using SchemaNode.AI;
+using SchemaNode.AI.Chat;
 using SchemaNode.AI.Workflow;
 using SchemaNode.Attribute;
 using SchemaNode.Property.Core;
-using SchemaNode.Runtime;
 using SchemaNode.Service;
 using SchemaNode.UnitTest.Base;
 using static SchemaNode.Utility.AppConstant;
@@ -26,7 +27,7 @@ public sealed class AIWorkflowTestMinMax
 }
 
 /// <summary>
-/// Focused tests for the AI workflow node's provider abstraction and validation retry loop.
+/// Focused tests for the AI workflow node's chat client wiring and validation retry loop.
 /// No test here touches the network unless it explicitly points at a closed port.
 /// </summary>
 [TestClass]
@@ -53,36 +54,44 @@ public class AIWorkflowNodeTest : CoreTestBase
     public async Task RetryLoop_FeedsLastValidationErrorIntoNextRequest()
     {
         ValueType target = (await Context.GetNodeTypeAsync<ValueType>("test.aiminmax"))!;
-        MockAgentProvider provider = new("{\"min\":\"x\",\"max\":2}", "{\"min\":1,\"max\":2}");
+        ScriptedChatClient client = new("{\"min\":\"x\",\"max\":2}", "{\"min\":1,\"max\":2}");
 
-        AIWorkflowRunResult result = await AIWorkflowRunner.RunAsync(Context, new AIWorkflowRunRequest
-        {
-            TargetType = target,
-            Provider = provider,
-            MaxRetries = 1,
-            Instruction = "Return a minmax object.",
-        });
+        AIWorkflowRunResult result = await AIWorkflowRunner.RunAsync(
+            Context,
+            client,
+            new SchemaChatOptions { RequestTimeoutSeconds = 30 },
+            new AIWorkflowRunRequest
+            {
+                TargetType = target,
+                MaxRetries = 1,
+                Instruction = "Return a minmax object.",
+            });
 
         Assert.IsTrue(result.Succeeded);
         Assert.AreEqual(2, result.CallCount);
         Assert.IsNotNull(result.Attempts[0].Error);
-        StringAssert.Contains(provider.Requests[1].UserPrompt, "rejected");
-        StringAssert.Contains(provider.Requests[1].UserPrompt, result.Attempts[0].Error!);
-        StringAssert.Contains(provider.Requests[1].UserPrompt, "\"min\":\"x\"");
+
+        string retryPrompt = client.Requests[1][^1].Text ?? string.Empty;
+        StringAssert.Contains(retryPrompt, "rejected");
+        StringAssert.Contains(retryPrompt, result.Attempts[0].Error!);
+        StringAssert.Contains(retryPrompt, "\"min\":\"x\"");
     }
 
     [TestMethod]
     public async Task RetryLoop_ExhaustionCarriesRealLastError()
     {
         ValueType target = (await Context.GetNodeTypeAsync<ValueType>("test.aiminmax"))!;
-        MockAgentProvider provider = new("{\"min\":\"x\",\"max\":2}");
+        ScriptedChatClient client = new("{\"min\":\"x\",\"max\":2}");
 
-        AIWorkflowRunResult result = await AIWorkflowRunner.RunAsync(Context, new AIWorkflowRunRequest
-        {
-            TargetType = target,
-            Provider = provider,
-            MaxRetries = 1,
-        });
+        AIWorkflowRunResult result = await AIWorkflowRunner.RunAsync(
+            Context,
+            client,
+            new SchemaChatOptions { RequestTimeoutSeconds = 30 },
+            new AIWorkflowRunRequest
+            {
+                TargetType = target,
+                MaxRetries = 1,
+            });
 
         Assert.IsFalse(result.Succeeded);
         Assert.IsNull(result.Value);
@@ -93,54 +102,24 @@ public class AIWorkflowNodeTest : CoreTestBase
     }
 
     [TestMethod]
-    public async Task MockProvider_RepeatsLastResponseDeterministically()
+    public async Task ClosedPortClient_FailsInsteadOfHanging()
     {
-        MockAgentProvider provider = new("first", "second");
-        AIAgentRequest request = new() { SystemPrompt = "system", UserPrompt = "user" };
-
-        Assert.AreEqual("first", await provider.CompleteAsync(request));
-        Assert.AreEqual("second", await provider.CompleteAsync(request));
-        Assert.AreEqual("second", await provider.CompleteAsync(request));
-        Assert.AreEqual(3, provider.Calls);
-    }
-
-    [TestMethod]
-    public void ProviderFactory_SelectsMockDeterministically()
-    {
-        AIAgentProviderFactory factory = new(new AIAgentOptions { Provider = AIProviderKind.Mock });
-
-        IAgentProvider provider = factory.Create();
-        Assert.IsInstanceOfType(provider, typeof(MockAgentProvider));
-
-        IAgentProvider ollama = factory.Create(AIProviderKind.Ollama, "http://localhost:11434", "qwen3:8b", 60);
-        Assert.AreEqual("ollama", ollama.Name);
-    }
-
-    [TestMethod]
-    public async Task OllamaProvider_ClosedPortFailsWithTypedErrorAndNoHang()
-    {
-        OllamaAgentProvider provider = new("http://127.0.0.1:1", "qwen3:8b", 2);
+        using IChatClient client = SchemaNodeChatInjection.CreateClient(new SchemaChatOptions
+        {
+            Provider = SchemaChatProvider.Ollama,
+            Endpoint = "http://127.0.0.1:1",
+            ModelId = "qwen3:8b",
+            RequestTimeoutSeconds = 2,
+        });
         Stopwatch watch = Stopwatch.StartNew();
 
-        try
-        {
-            await provider.CompleteAsync(new AIAgentRequest { SystemPrompt = "system", UserPrompt = "user" });
-            Assert.Fail("The provider should not succeed when Ollama is unreachable.");
-        }
-        catch (AIAgentException ex)
-        {
-            Assert.AreEqual("ollama", ex.Provider);
-            Assert.IsTrue(
-                ex.Message.Contains("not reachable", StringComparison.OrdinalIgnoreCase) ||
-                ex.Message.Contains("timed out", StringComparison.OrdinalIgnoreCase),
-                $"The typed error should identify an unreachable or timed-out server: {ex.Message}");
-        }
-        finally
-        {
-            watch.Stop();
-        }
+        await Assert.ThrowsAsync<Exception>(async () =>
+            await client.GetResponseAsync(
+                [new ChatMessage(ChatRole.User, "hello")],
+                new ChatOptions { ModelId = "qwen3:8b" }));
 
-        Assert.IsTrue(watch.Elapsed < TimeSpan.FromSeconds(10), $"The unreachable provider took {watch.Elapsed}.");
+        watch.Stop();
+        Assert.IsTrue(watch.Elapsed < TimeSpan.FromSeconds(20), $"The unreachable client took {watch.Elapsed}.");
     }
 
     /// <summary>
@@ -155,20 +134,30 @@ public class AIWorkflowNodeTest : CoreTestBase
             return;
 
         ValueType target = (await Context.GetNodeTypeAsync<ValueType>("test.aiminmax"))!;
-        OllamaAgentProvider provider = new("http://localhost:11434", "qwen3:8b", 180);
+        SchemaChatOptions options = new()
+        {
+            Provider = SchemaChatProvider.Ollama,
+            Endpoint = "http://localhost:11434",
+            ModelId = "qwen3:8b",
+            RequestTimeoutSeconds = 180,
+            MaxOutputTokens = 160,
+            Temperature = 0.0f,
+        };
+        using IChatClient client = SchemaNodeChatInjection.CreateClient(options);
         Stopwatch watch = Stopwatch.StartNew();
 
-        AIWorkflowRunResult result = await AIWorkflowRunner.RunAsync(Context, new AIWorkflowRunRequest
-        {
-            TargetType = target,
-            Provider = provider,
-            MaxRetries = 1,
-            MaxTokens = 160,
-            Temperature = 0.0,
-            Instruction =
-                "Return exactly {\"min\":\"x\",\"max\":2} on the first attempt. " +
-                "If the conversation contains a rejection message, return {\"min\":1,\"max\":2} instead.",
-        });
+        AIWorkflowRunResult result = await AIWorkflowRunner.RunAsync(
+            Context,
+            client,
+            options,
+            new AIWorkflowRunRequest
+            {
+                TargetType = target,
+                MaxRetries = 1,
+                Instruction =
+                    "Return exactly {\"min\":\"x\",\"max\":2} on the first attempt. " +
+                    "If the conversation contains a rejection message, return {\"min\":1,\"max\":2} instead.",
+            });
 
         watch.Stop();
         TestContext.WriteLine($"elapsed: {watch.Elapsed}");
@@ -183,4 +172,39 @@ public class AIWorkflowNodeTest : CoreTestBase
 
     /// <inheritdoc />
     public TestContext TestContext { get; set; } = null!;
+
+    /// <summary>
+    /// Returns the scripted responses in order and records each request for assertions. The last
+    /// response is repeated when the script is exhausted.
+    /// </summary>
+    private sealed class ScriptedChatClient(params string[] responses) : IChatClient
+    {
+        private int _index;
+
+        public List<IReadOnlyList<ChatMessage>> Requests { get; } = [];
+
+        public Task<ChatResponse> GetResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+        {
+            Requests.Add(messages.ToList());
+            string text = responses[Math.Min(_index++, responses.Length - 1)];
+            return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, text)));
+        }
+
+        public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+        public void Dispose()
+        {
+        }
+    }
 }

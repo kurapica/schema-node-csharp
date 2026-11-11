@@ -119,19 +119,6 @@ public abstract class DataNode : IValueAccess, IDisposable
     /// </summary>
     private static readonly ConcurrentDictionary<Type, ObjectFactory> _propertyFactories = new();
 
-    private static ObjectFactory GetPropertyFactory(Type type) =>
-        _propertyFactories.GetOrAdd(type, static t =>
-        {
-            try
-            {
-                return ActivatorUtilities.CreateFactory(t, [typeof(IValueAccess)]);
-            }
-            catch (InvalidOperationException)
-            {
-                return ActivatorUtilities.CreateFactory(t, []);
-            }
-        });
-
     /// <summary>
     /// The cached data node constructors for schema declared node types
     /// </summary>
@@ -223,6 +210,25 @@ public abstract class DataNode : IValueAccess, IDisposable
     /// The data node is visible
     /// </summary>
     public bool Visible => !GetPropertyValue<InVisible, bool>() && GetProperty<Visible>()?.Value != false;
+
+    /// <summary>
+    /// Whether the node and every ancestor in the semantic tree are visible.
+    /// Hidden nodes do not take part in validation or submission, even when their own
+    /// visibility property is unset because an ancestor hides them.
+    /// </summary>
+    public bool VisibleInTree
+    {
+        get
+        {
+            IValueAccess? current = this;
+            while (current is DataNode node)
+            {
+                if (!node.Visible) return false;
+                current = node.Parent;
+            }
+            return true;
+        }
+    }
 
     /// <summary>
     /// Whether the node is display-only
@@ -406,15 +412,31 @@ public abstract class DataNode : IValueAccess, IDisposable
         }
     }
 
+    /// <summary>
+    /// Gets the value type declared by the nearest <see cref="Property{T}"/> base of a property ctor.
+    /// A property class may inherit through a non-generic intermediate class, for example
+    /// EntrySource -> FuncCallProperty -> Property&lt;FuncCall&gt;, so the immediate base
+    /// type must not be assumed to be generic.
+    /// </summary>
+    private static Type? GetPropertyValueType(Type propertyCtor)
+    {
+        for (Type? current = propertyCtor.BaseType; current != null; current = current.BaseType)
+        {
+            if (current.IsGenericType && current.GetGenericTypeDefinition() == typeof(Property<>))
+                return current.GetGenericArguments()[0];
+        }
+        return null;
+    }
+
     /// <inheritdoc/>
     public void SetPropertyValue(Type propertyCtor, object? value, IValueAccess? source = null, IRelation? relation = null)
     {
-        Type? valueType = propertyCtor.BaseType?.IsGenericType == true ? propertyCtor.BaseType.GetGenericArguments().FirstOrDefault() : null;
+        Type? valueType = GetPropertyValueType(propertyCtor);
         if (valueType == null) return;
 
         MethodInfo setter = _setters.GetOrAdd(propertyCtor, static type =>
         {
-            Type? propValueType = type.BaseType?.IsGenericType == true ? type.BaseType.GetGenericArguments().FirstOrDefault() : null;
+            Type? propValueType = GetPropertyValueType(type);
             return typeof(DataNode).GetMethods(BindingFlags.Public | BindingFlags.Instance)
                 .First(m => m.Name == nameof(SetPropertyValue) && m.IsGenericMethod)
                 .MakeGenericMethod(type, propValueType ?? typeof(object));
@@ -454,11 +476,13 @@ public abstract class DataNode : IValueAccess, IDisposable
 
             // add new property
             _props ??= [];
+            var prop = Activator.CreateInstance<P>();
+            prop.Source = source;
             record = new PropertyRecord {
                 Source = source,
                 Relation = relation,
                 Level = CalcLevel(source),
-                Property = (P)GetPropertyFactory(typeof(P))(Context.Services, [source])
+                Property = prop
             };
             record.Property.SetValue(value);
             if (props is not null)
@@ -499,7 +523,7 @@ public abstract class DataNode : IValueAccess, IDisposable
                 // valid
                 try
                 {
-                    var res = constraint.ValidateAsync(ctx, this).GetAwaiter().GetResult();
+                    var res = constraint.ValidateAsync(ctx, this).ConfigureAwait(false).GetAwaiter().GetResult();
                     if (res != record.Valid)
                     {
                         record.Valid = res;
@@ -897,6 +921,7 @@ public abstract class DataNode : IValueAccess, IDisposable
     /// </summary>
     public virtual IEnumerable<DataNode> GetErrorNodes()
     {
+        if (!VisibleInTree) yield break;
         if (GetViolatedConstraints().Any())
             yield return this;
     }
@@ -976,7 +1001,7 @@ public abstract class DataNode : IValueAccess, IDisposable
     /// <summary>
     /// Whether the node is valid, which means no violated constraints
     /// </summary>
-    public virtual bool IsValid => DisableConstraint || !GetViolatedConstraints().Any();
+    public virtual bool IsValid => !VisibleInTree || DisableConstraint || !GetViolatedConstraints().Any();
 
     /// <inheritdoc/>
     public void RecordConstraint(IConstraintProperty constraint, bool? result)

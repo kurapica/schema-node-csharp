@@ -73,10 +73,6 @@ public sealed class SchemaChatConversationStore
 
             conversation.Messages.Add(message);
             conversation.UpdatedAt = DateTimeOffset.UtcNow;
-
-            int overflow = conversation.Messages.Count - Math.Max(2, _options.MaxHistoryMessages);
-            if (overflow > 0)
-                conversation.Messages.RemoveRange(0, overflow);
         }
     }
 

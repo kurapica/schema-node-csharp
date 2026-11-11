@@ -53,7 +53,7 @@ public static class EventExtensions
         /// </summary>
         public void RaiseEvent<TE, TP>(TE @event, TP payLoad) where TE : BaseEvent, IEventPayload<TP> where TP : notnull
         {
-            @event.Payload = context.GetSchemaNodeAsync(payLoad).GetAwaiter().GetResult();
+            @event.Payload = context.GetSchemaNodeAsync(payLoad).ConfigureAwait(false).GetAwaiter().GetResult();
             context.RaiseEvent(@event);
         }
 

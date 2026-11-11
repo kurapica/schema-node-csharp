@@ -7,6 +7,7 @@ using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using SchemaNode.Schema.Provider;
 using SchemaNode.WPF.Man.Services;
 using SchemaNode.WPF.View;
 using SchemaNode.WPF.View.Localization;
@@ -38,6 +39,9 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
     private IValueAccess? _node;
     private string? _typeName;
     private bool _isNew;
+    // The definition the screen opened; kept across the AI apply so the write-back guard and the
+    // field gate use the same Man rule on the same schema.
+    private NodeSchema? _definitionSchema;
     private string? _error;
     private CancellationTokenSource? _publishCancellation;
     private bool _disposed;
@@ -185,10 +189,7 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
         {
             try
             {
-                NodeSchema[] schemas = await session.Api.GetSchemaAsync([name]).ConfigureAwait(false);
-                NodeSchema? schema = schemas.FirstOrDefault(s =>
-                                        s.FullName.Equals(name, StringComparison.OrdinalIgnoreCase))
-                                    ?? schemas.FirstOrDefault();
+                NodeSchema? schema = await LoadDefinitionAsync(session, name, reload).ConfigureAwait(false);
                 if (schema is null)
                     return BuiltNode.Missing(LocaleManager.Instance.Format("wpf.typedoc.status.notfound", name));
 
@@ -213,6 +214,30 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
         }
 
         Apply(built, isNew: false);
+        _definitionSchema = built.Source;
+    }
+
+    /// <summary>
+    /// Loads the <see cref="NodeSchema"/> a definition screen should edit.
+    ///
+    /// <para>
+    /// The schema API returns the requested node definition inside the namespace tree: a namespace
+    /// entry carries its own definition (the one holding <c>name</c>, <c>namespace</c> and
+    /// <c>auths</c>) plus its direct children. The requested definition is therefore located by
+    /// full name in that result, which also covers provider-backed definitions.
+    /// </para>
+    /// <para>
+    /// When <paramref name="reload"/> is requested the live node is reloaded first, so the API
+    /// result reflects the latest provider state.
+    /// </para>
+    /// </summary>
+    private static async Task<NodeSchema?> LoadDefinitionAsync(SchemaScreenSession session, string name, bool reload)
+    {
+        if (reload)
+            await session.Context.GetNodeTypeAsync(name, reload: true).ConfigureAwait(false);
+
+        NodeSchema[] schemas = await session.Api.GetSchemaAsync([name]).ConfigureAwait(false);
+        return SchemaTreeSearch.Find(schemas, name) ?? schemas.FirstOrDefault();
     }
 
     /// <summary>
@@ -262,6 +287,7 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
         // The new schema has no saved identity yet, so the screen must not address it by name.
         TypeName = null;
         Apply(built, isNew: true);
+        _definitionSchema = null;
     }
 
     /// <summary>
@@ -280,6 +306,18 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
     {
         ArgumentNullException.ThrowIfNull(schemaJson);
 
+        // Capture the current definition before the node is disposed; this is also the source of
+        // the protected values that an AI payload must not overwrite.
+        NodeSchema? definitionSource = isNew ? null : _definitionSchema;
+
+        // Same Man rule as the manual gate: an AI payload must not be written back onto a
+        // definition the screens currently treat as read-only.
+        if (definitionSource is not null && !SchemaDefinitionEditRule.IsDefinitionEditable(definitionSource))
+        {
+            Error = LocaleManager.Instance.Get("wpf.typedoc.status.systemprotected");
+            return false;
+        }
+
         DisposeNode();
         Error = null;
 
@@ -296,7 +334,28 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
                     return BuiltNode.Missing(LocaleManager.Instance.Get("wpf.typedoc.status.notype"));
 
                 string[] kinds = await SchemaKindCatalog.GetNodeKindsAsync(session.Context).ConfigureAwait(false);
-                return Build(schemaType, session, () => schemaJson, null, kinds);
+
+                // Only fields the Man rule allows are taken from the assistant payload. Protected
+                // fields stay at the value of the live definition, so a whole-payload apply cannot
+                // silently rewrite name/kind/display on a system namespace.
+                JsonNode seed = schemaJson;
+                if (definitionSource is not null)
+                {
+                    if (schemaJson is not JsonObject)
+                        return BuiltNode.Missing(LocaleManager.Instance.Get("wpf.typedoc.status.noschema"));
+
+                    JsonNode? current = session.Context.ToSchemaJson(definitionSource);
+                    if (current is not JsonObject currentObject)
+                        return BuiltNode.Missing(LocaleManager.Instance.Get("wpf.typedoc.status.noschema"));
+
+                    seed = MergeEditableDefinitionPayload((JsonObject)schemaJson, currentObject, definitionSource);
+                }
+
+                BuiltNode result = Build(schemaType, session, () => seed, null, kinds);
+                // The rebuilt node is gone; re-apply the same field rule to the new instance.
+                if (definitionSource is not null && result.Node is not null)
+                    RestrictDefinition(result.Node, definitionSource);
+                return result;
             }
             catch (Exception ex)
             {
@@ -311,6 +370,9 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
         }
 
         Apply(built, isNew);
+        if (isNew)
+            _definitionSchema = null;
+
         if (built.Node is null) return false;
 
         // Adopt the generated identity so the save path and the header address the new type.
@@ -330,6 +392,20 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
     public Task<NodeSchema?> GetNodeSchemaAsync() => Task.Run(() => _node?.GetValue<NodeSchema>());
 
     /// <summary>
+    /// Reads the saved definition for a full name without publishing it. The copy flow needs the
+    /// stored definition, not the live editor content, so unsaved changes and read-only wrapper
+    /// state never travel into the new type.
+    /// </summary>
+    public Task<NodeSchema?> LoadSavedDefinitionAsync(string name)
+    {
+        SchemaScreenSession? session = _session;
+        if (session is null || string.IsNullOrWhiteSpace(name))
+            return Task.FromResult<NodeSchema?>(null);
+
+        return Task.Run(() => LoadDefinitionAsync(session, name, reload: false));
+    }
+
+    /// <summary>
     /// Clears the editor and releases the node tree for this screen.
     /// </summary>
     public void Clear()
@@ -339,6 +415,7 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
         Error = null;
         TypeName = null;
         IsNew = false;
+        _definitionSchema = null;
     }
 
     /// <inheritdoc />
@@ -396,18 +473,52 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
     private bool CanLoad() => !string.IsNullOrWhiteSpace(_typeName);
 
     /// <summary>
-    /// Marks every definition field except <c>namespace</c> as read-only on the node instance.
-    /// The flag is instance-scoped: it is not written back to the type metadata, so the system
-    /// schema definition stays untouched and other screens are unaffected.
+    /// Marks the definition fields that Man's edit rule does not allow as read-only on the node
+    /// instance. The flag is instance-scoped: it is not written back to the type metadata, so the
+    /// system schema definition stays untouched and other screens are unaffected.
+    /// <para>
+    /// For a system-defined namespace only the <c>auths</c> field stays editable; every other
+    /// field, including <c>namespace</c> (which Core already locks through
+    /// <c>Relation&lt;ReadOnly, Call&gt;(NODE_SELF, notempty(@Name))</c> once <c>name</c> has a value),
+    /// is locked. Other system-defined kinds are fully locked while the rule's global switch is off,
+    /// and everything is editable once it is turned on.
+    /// </para>
     /// </summary>
-    private static void RestrictDefinitionToNamespace(IValueAccess node)
+    private static void RestrictDefinition(IValueAccess node, NodeSchema schema)
     {
         if (node is not StructNode structNode) return;
         foreach ((StructFieldType field, IValueAccess value) in structNode.GetFields())
         {
-            if (field.Name.Equals("namespace", StringComparison.OrdinalIgnoreCase)) continue;
+            if (SchemaDefinitionEditRule.IsFieldEditable(schema, field.Name)) continue;
             value.SetPropertyValue<ReadOnly, bool>(true, null, null);
         }
+    }
+
+    /// <summary>
+    /// Merges an assistant payload onto the current definition while keeping every field the Man
+    /// rule protects. Editable fields (including removals) come from the payload; the rest keeps the
+    /// live definition value, so an apply can never silently rewrite a protected field.
+    /// </summary>
+    private static JsonObject MergeEditableDefinitionPayload(
+        JsonObject payload,
+        JsonObject current,
+        NodeSchema source)
+    {
+        JsonObject merged = (JsonObject)current.DeepClone();
+
+        foreach (string key in merged.Select(pair => pair.Key).ToArray())
+        {
+            if (SchemaDefinitionEditRule.IsFieldEditable(source, key))
+                merged.Remove(key);
+        }
+
+        foreach ((string key, JsonNode? value) in payload)
+        {
+            if (!SchemaDefinitionEditRule.IsFieldEditable(source, key)) continue;
+            merged[key] = value?.DeepClone();
+        }
+
+        return merged;
     }
 
     private async void ExecuteLoad() => await ReloadAsync(_typeName);
@@ -425,31 +536,35 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
     {
         object? seed = seedFactory();
         IValueAccess? node = seed is null ? type.Create(session.Context) : type.Create(session.Context, seed);
-        if (node is null) return new BuiltNode(null, schema, false, null);
+        if (node is null) return new BuiltNode(null, schema, false, null, schema);
 
         try
         {
             if (kinds is not null && node.GetAccessValue("kind") is { } kindField)
                 kindField.SetPropertyValue<WhiteList, object[]>(kinds.Cast<object>().ToArray(), null, null);
 
-            // A system-defined definition is owned by the host: it can be moved to another
-            // namespace, but none of its content fields may be edited. This is a per-field gate
-            // (each field wrapper derives its IsEditable from the node's ReadOnly property),
-            // not a whole-screen switch, so the namespace field stays editable in edit mode.
-            if (schema?.GetProperty<SystemDefined>() is { Value: true })
-                RestrictDefinitionToNamespace(node);
+            // Man's edit rule is the single decision point for field editability: a system-defined
+            // namespace keeps only `auths` editable (so permissions can be configured) and every
+            // other system-defined kind is fully locked; the whole gate disappears when the rule's
+            // global switch is on. This is a per-field gate (each field wrapper derives its
+            // IsEditable from the node's ReadOnly property), not a whole-screen switch. Core still
+            // locks `namespace` on its own through the Relation<ReadOnly, Call>(NODE_SELF,
+            // notempty(@Name)) once `name` has a value.
+            if (schema is not null)
+                RestrictDefinition(node, schema);
 
             // The view materializes the wrapper when it renders this node; the editor only owns the node.
             return new BuiltNode(
                 node,
                 node.GetValue<NodeSchema>(),
                 node.GetAccessValue("enum") is not null,
-                null);
+                null,
+                schema);
         }
         catch (Exception ex)
         {
             if (node is IDisposable disposable) disposable.Dispose();
-            return new BuiltNode(null, schema, false, ex);
+            return new BuiltNode(null, schema, false, ex, schema);
         }
     }
 
@@ -476,7 +591,8 @@ public class SchemaEditorViewModel : BindableBase, IDisposable
         IValueAccess? Node,
         NodeSchema? Schema,
         bool HasEnumField,
-        Exception? Error)
+        Exception? Error,
+        NodeSchema? Source = null)
     {
         public static BuiltNode Missing(string message)
             => new(null, null, false, new InvalidOperationException(message));

@@ -23,4 +23,24 @@ public sealed record TableRowEditorRequest(
     string Title,
     Window? Owner,
     SchemaViewRegistry Registry,
-    string Skin = SchemaViewRegistry.DefaultSkin);
+    string Skin = SchemaViewRegistry.DefaultSkin)
+{
+    /// <summary>
+    /// Owner used for placement and stacking: the explicit owner, or the current top-level window
+    /// when the table lived outside a Window tree (Popup / detached row template). Without that
+    /// fallback the dialog has no owner and can be covered by the shell.
+    /// </summary>
+    public Window? EffectiveOwner => TableRowEditorWindowLayout.ResolveOwner(Owner);
+
+    /// <summary>
+    /// Default editor size: about two thirds of the owner, clamped to its work area. Exposed so a
+    /// custom editor can size itself exactly like the built-in one.
+    /// </summary>
+    public Size PreferredSize => TableRowEditorWindowLayout.GetPreferredSize(EffectiveOwner);
+
+    /// <summary>
+    /// Applies the built-in editor's size and owner-centered placement to a custom editor window.
+    /// </summary>
+    public void ApplyLayoutTo(Window window)
+        => TableRowEditorWindowLayout.Apply(window, EffectiveOwner);
+}

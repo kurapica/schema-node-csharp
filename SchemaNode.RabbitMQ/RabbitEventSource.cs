@@ -103,7 +103,7 @@ public sealed class RabbitEventSource(IConnection connection) : IEventSource
             if (map.Item2 != null)
             {
                 payload = FromJson(Encoding.UTF8.GetString(body), map.Item2);
-                evt.Payload = context.GetSchemaNodeAsync(payload).GetAwaiter().GetResult();
+                evt.Payload = context.GetSchemaNodeAsync(payload).ConfigureAwait(false).GetAwaiter().GetResult();
             }
             context.RaiseEvent(evt);
         }

@@ -11,11 +11,18 @@ namespace SchemaNode.WPF.View.NodeWrapper;
 public static class NodeWrapperFactory
 {
     /// <summary>Creates the appropriate wrapper for <paramref name="node"/>.</summary>
+    /// <param name="ancestorVisibility">
+    /// True when the rendered view is not a descendant of the owning node's view (table cells,
+    /// standalone editors), so an inherited hide must be tracked through the node's ancestors.
+    /// Nested fields, array elements and the type selector's main editor pass false: their parent
+    /// view collapsing already hides them.
+    /// </param>
     public static DataNodeWrapper Create(
         IValueAccess node,
         SchemaViewRegistry? registry = null,
         string? fieldName = null,
-        SchemaViewRole role = SchemaViewRole.Field)
+        SchemaViewRole role = SchemaViewRole.Field,
+        bool ancestorVisibility = true)
     {
         DataNode dataNode = node as DataNode
             ?? throw new ArgumentException("Only DataNode instances can be wrapped for rendering.", nameof(node));
@@ -29,36 +36,46 @@ public static class NodeWrapperFactory
             return custom(dataNode);
 
         if (dataNode is EnumArrayNode)
-            return new InputWrapper(dataNode, effectiveRegistry, fieldName, role);
+            return new InputWrapper(dataNode, effectiveRegistry, fieldName, role, ancestorVisibility);
 
         if (dataNode is ArrayNode array)
-            return effectiveRegistry.ShouldUseTable(array)
-                ? new TableWrapper(dataNode, effectiveRegistry, fieldName, role)
-                : new ArrayWrapper(dataNode, effectiveRegistry, fieldName, role);
+        {
+            if (!effectiveRegistry.ShouldUseTable(array))
+                return new ArrayWrapper(dataNode, effectiveRegistry, fieldName, role, ancestorVisibility);
+
+            // Registration-time options travel with the type here, so a whitelisted collection is
+            // also projected when it is nested inside a form instead of a host screen.
+            return new TableWrapper(
+                dataNode,
+                effectiveRegistry,
+                fieldName,
+                role,
+                effectiveRegistry.GetTableOptions(dataNode.Type));
+        }
 
         // Specialized list nodes (function call argument lists and similar) expose their elements
         // but do not derive from ArrayNode; they render read-only through the array view.
         if (dataNode is IEnumerable<IValueAccess>)
-            return new ArrayWrapper(dataNode, effectiveRegistry, fieldName, role);
+            return new ArrayWrapper(dataNode, effectiveRegistry, fieldName, role, ancestorVisibility);
 
         if (dataNode is StructNode)
-            return new StructWrapper(dataNode, effectiveRegistry, fieldName, role);
+            return new StructWrapper(dataNode, effectiveRegistry, fieldName, role, ancestorVisibility);
 
         if (dataNode is DateNode)
-            return new DateWrapper(dataNode, effectiveRegistry, fieldName, role);
+            return new DateWrapper(dataNode, effectiveRegistry, fieldName, role, ancestorVisibility);
 
         if (dataNode is BoolNode)
-            return new BoolWrapper(dataNode, effectiveRegistry, fieldName, role);
+            return new BoolWrapper(dataNode, effectiveRegistry, fieldName, role, ancestorVisibility);
 
         if (dataNode is ScalarNode)
         {
             // Any value input can grow entry candidates through relations, so every scalar uses the
             // entry-capable wrapper. With no candidates it degrades to the plain text editor.
-            return new InputWrapper(dataNode, effectiveRegistry, fieldName, role);
+            return new InputWrapper(dataNode, effectiveRegistry, fieldName, role, ancestorVisibility);
         }
 
         // Unknown shapes must not abort the parent tree (which would leave the whole pane blank):
         // degrade to a read-only text view and keep the rest of the form usable.
-        return new FallbackWrapper(dataNode, effectiveRegistry, fieldName, role);
+        return new FallbackWrapper(dataNode, effectiveRegistry, fieldName, role, ancestorVisibility);
     }
 }

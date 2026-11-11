@@ -107,19 +107,15 @@ internal class MainWindowViewModel : BindableBase, IDisposable
 
         _rowEditorRegistry = SchemaViewRegistry.CreateDefault();
         _rowEditorRegistry.RegisterTable("test.orderlines");
-        _rowEditorRegistry.RegisterTable("test.invoices", wrapperFactory: node =>
+        _rowEditorRegistry.RegisterTable("test.invoices", new SchemaTableOptions
         {
-            TableWrapper wrapper = new(node as DataNode ?? throw new InvalidOperationException("invoice wrapper needs a node"), _rowEditorRegistry, null, SchemaViewRole.Field);
-            wrapper.ViewColumns = ["number", "customer", "lines.code", "lines.quantity"];
-            return wrapper;
+            ViewColumns = ["number", "customer", "lines.code", "lines.quantity"],
         });
 
         _restrictedRegistry = SchemaViewRegistry.CreateDefault();
-        _restrictedRegistry.RegisterTable("test.orderlines", wrapperFactory: node =>
+        _restrictedRegistry.RegisterTable("test.orderlines", new SchemaTableOptions
         {
-            TableWrapper wrapper = new(node as DataNode ?? throw new InvalidOperationException("order-line wrapper needs a node"), _restrictedRegistry, null, SchemaViewRole.Field);
-            wrapper.ViewColumns = ["code", "discount.rate"];
-            return wrapper;
+            ViewColumns = ["code", "discount.rate"],
         });
 
         Cases =
@@ -379,7 +375,13 @@ internal class MainWindowViewModel : BindableBase, IDisposable
                 if (node is null)
                     throw new InvalidOperationException("'test.nested' created no node");
 
-                node.GetAccessValue("inner")?.TrySetValue(new MinMax { Min = 5, Max = 6 });
+                // Fill through the field accessors, the same path the editor takes. Assigning a
+                // whole CLR object to a struct node (TrySetValue(MinMax)) used to lose the
+                // reflection target halfway through the field loop in FullMode; that is fixed in
+                // StructNode now, but field-by-field filling keeps this sample independent of it.
+                IValueAccess? inner = node.GetAccessValue("inner");
+                inner?.GetAccessValue("min")?.TrySetValue(5);
+                inner?.GetAccessValue("max")?.TrySetValue(6);
 
                 if (node.GetAccessValue("lines") is ArrayNode rows)
                 {

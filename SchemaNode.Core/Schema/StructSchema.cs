@@ -43,7 +43,6 @@ public sealed class StructSchema : PropertyOwner
     /// <summary>
     /// The struct fields
     /// </summary>
-    [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.fields")]
     public StructFieldSchema[] Fields { get; set; } = [];
 }
 
@@ -119,16 +118,23 @@ public class StructType: ValueType;
 /// <summary>
 /// The struct field schema
 /// </summary>
+[Meta<SchemaKind>(SCHEMA_KIND_NODE_STRUCT_FIELD_USAGE, SCHEMA_KIND_ORDER_STRUCT_FIELD)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.field")]
+[Meta<TypeProvider>(nameof(Type))]
+[Meta<Attach>(SCHEMA_KIND_NODE_STRUCT_FIELD_USAGE)]
 public sealed class StructFieldSchema : PropertyOwner, IErrorProvider
 {
     /// <summary>
     /// The field name
     /// </summary>
+    [Meta<PrimaryIndex>]
+    [Meta<SchemaType>(typeof(Identifier))]
     public string Name { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// The type name of the node.
     /// </summary>
+    [Meta<SchemaType>(typeof(ValueType))]
     public string Type { get; set; } = string.Empty;
 
     /// <summary>
@@ -149,44 +155,32 @@ public sealed class StructFieldSchema : PropertyOwner, IErrorProvider
 public sealed class StructFieldDefine;
 
 /// <summary>
-/// The struct field schema
+/// The field define
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.field")]
-[Meta<TypeProvider>(nameof(Type))]
-public sealed class StructFieldSchemaDefine
-{
-    /// <summary>
-    /// The field name
-    /// </summary>
-    [Meta<SchemaType>(typeof(Identifier))]
-    [Meta<PrimaryIndex>]
-    public string Name { get; set; } = string.Empty;
+[Meta<ForSchema>(SCHEMA_KIND_NODE_STRUCT_FIELD_USAGE)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.fielddefineprop")]
+[Meta<Unpack>(true)]
+public sealed class FieldDefine: Property<StructFieldDefine>;
 
-    /// <summary>
-    /// The type name of the node.
-    /// </summary>
-    [Meta<SchemaType>(typeof(ValueType))]
-    public string Type { get; set; } = string.Empty;
+/// <summary>
+/// The array define
+/// </summary>
+[Meta<ForSchema>(SCHEMA_KIND_NODE_STRUCT_FIELD_USAGE)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.arraydefineprop")]
+[Meta<Unpack>(true)]
+[Relation<Visible, Call>(nameof(ArrayDefine), NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, $"@{nameof(Type)}", false, NODE_KIND_ARRAY)]
+public sealed class ArrayDefine : Property<ArrayUsage>;
 
-    /// <summary>
-    /// The field define
-    /// </summary>
-    [Meta<Unpack>(true)]
-    public StructFieldDefine? FieldDefine { get; set; }
-
-    /// <summary>
-    /// The array define
-    /// </summary>
-    [Meta<Unpack>(true)]
-    [Relation<Visible, Call>(NODE_SELF, NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, $"@{nameof(Type)}", false, NODE_KIND_ARRAY)]
-    public ArrayUsage? ArrayDefine { get; set; }
-
-    /// <summary>
-    /// The value define
-    /// </summary>
-    [Meta<Unpack>(true)]
-    [Relation<Visible, Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Type)}")]
-    [Relation<OverrideType, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getusagetype)}", $"@{nameof(Type)}", true)]
-    public JsonObject? ValueDefine { get; set; }
-}
+/// <summary>
+/// value define
+/// </summary>
+[Meta<ForSchema>(SCHEMA_KIND_NODE_STRUCT_FIELD_USAGE)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.valuedefineprop")]
+[Meta<Unpack>(true)]
+[Relation<Visible, Call>(nameof(ValueDefine), $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Type)}")]
+[Relation<OverrideType, Call>(nameof(ValueDefine), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getusagetype)}", $"@{nameof(Type)}", true)]
+public sealed class ValueDefine : Property<JsonObject>;
 

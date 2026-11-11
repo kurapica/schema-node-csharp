@@ -10,8 +10,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- 仅依赖 SchemaNode.Core，不引入 App 层，保持渲染层纯净 -->
+    <!-- Depends on SchemaNode.Core only; no App-layer reference keeps the rendering layer pure. -->
     <ProjectReference Include="..\SchemaNode.Core\SchemaNode.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Locale texts owned by the view layer (wpf.*); LocaleManager merges them into Core's
+         global dictionary on first use, so hosts (Man/Test) no longer carry these keys. -->
+    <EmbeddedResource Include="locale\*.json" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)' != 'Debug'">

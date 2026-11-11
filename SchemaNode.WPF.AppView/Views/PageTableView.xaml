@@ -65,6 +65,15 @@
             </DockPanel>
         </Border>
 
+        <!-- Page-level failure, shown above the table instead of a cell input error. -->
+        <Border DockPanel.Dock="Top"
+                Margin="0,0,0,8"
+                Visibility="{Binding HasPageError, Converter={StaticResource BoolVisibility}}">
+            <TextBlock Foreground="#FFB00020"
+                       TextWrapping="Wrap"
+                       Text="{Binding PageError}" />
+        </Border>
+
         <!-- Page controls and the explicit tracking degradation notice. -->
         <Border DockPanel.Dock="Bottom"
                 Margin="0,8,0,0"
@@ -75,6 +84,11 @@
                            TextWrapping="Wrap"
                            Text="{Binding TrackingHint}"
                            Visibility="{Binding HasTrackingHint, Converter={StaticResource BoolVisibility}}" />
+                <TextBlock Margin="0,0,0,4"
+                           Foreground="#FF8A6D00"
+                           TextWrapping="Wrap"
+                           Text="{Binding AddUnsupportedHint}"
+                           Visibility="{Binding HasAddUnsupportedHint, Converter={StaticResource BoolVisibility}}" />
 
                 <StackPanel Orientation="Horizontal">
                     <Button Content="{Binding FirstText}"

@@ -29,6 +29,10 @@ public sealed class LocaleManager : INotifyPropertyChanged
 
     private LocaleManager()
     {
+        // This assembly is not a schema assembly, so the Core startup load never scans it; merge
+        // the view-owned texts (wpf.*) into the shared dictionaries on first use. Existing entries
+        // from Core, the host or the locale directory keep precedence.
+        Locale.MergeAssembly(typeof(LocaleManager).Assembly);
     }
 
     /// <summary>Current locale code, e.g. "zhCN" or "enUS"</summary>

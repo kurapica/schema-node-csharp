@@ -22,20 +22,25 @@
             <local:SchemaView x:Name="RowView" Role="RowEditor" />
         </ScrollViewer>
 
-        <StackPanel Grid.Row="1"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    Margin="0,12,0,0">
-            <Button Padding="10,3"
-                    MinHeight="26"
-                    IsDefault="True"
-                    Click="OnConfirm"
-                    Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.ok}" />
-            <Button Padding="10,3"
-                    MinHeight="26"
-                    Margin="8,0,0,0"
-                    IsCancel="True"
-                    Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.cancel}" />
+        <StackPanel Grid.Row="1" Margin="0,12,0,0">
+            <TextBlock x:Name="ValidationError"
+                       Foreground="#B71C1C"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,6"
+                       Visibility="Collapsed" />
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right">
+                <Button Padding="10,3"
+                        MinHeight="26"
+                        IsDefault="True"
+                        Click="OnConfirm"
+                        Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.ok}" />
+                <Button Padding="10,3"
+                        MinHeight="26"
+                        Margin="8,0,0,0"
+                        IsCancel="True"
+                        Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.cancel}" />
+            </StackPanel>
         </StackPanel>
     </Grid>
 </Window>

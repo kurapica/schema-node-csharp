@@ -1,0 +1,96 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:view="using:SchemaNode.Avalonia.View"
+             xmlns:loc="using:SchemaNode.Avalonia.View.Localization"
+             xmlns:inf="using:SchemaNode.Avalonia.Man.Infrastructure"
+             x:Class="SchemaNode.Avalonia.Man.Views.AppListView"
+             x:CompileBindings="False">
+  <Grid Margin="8" RowDefinitions="Auto,Auto,*,Auto">
+    <!-- App namespace selector: a SchemaView over system.schema.app.type, so child apps come from
+         the Core entry source. -->
+    <Border Grid.Row="0" Background="#F5F5F5" Padding="8" Margin="0,0,0,8">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.applist.label.namespace}"
+                   VerticalAlignment="Center" />
+        <view:SchemaView Node="{Binding AppTypeWrapper}" VerticalAlignment="Center" />
+        <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.applist.button.up}"
+                Command="{Binding UpCommand}" VerticalAlignment="Center" />
+      </StackPanel>
+    </Border>
+
+    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.new}"
+              Command="{Binding NewCommand}" />
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.refresh}"
+              Command="{Binding RefreshCommand}" />
+      <TextBlock Text="{Binding Status}" Foreground="DarkSlateGray" VerticalAlignment="Center"
+                 TextTrimming="CharacterEllipsis" MaxWidth="640"
+                 IsVisible="{Binding Status, Converter={x:Static inf:Converters.VisibleIfText}}" />
+    </StackPanel>
+
+    <Grid Grid.Row="2">
+      <Grid RowDefinitions="Auto,*">
+        <Border Background="#F0F0F0" BorderBrush="#DDDDDD" BorderThickness="1,1,1,0" Padding="6,4">
+          <Grid ColumnDefinitions="260,360,*">
+            <TextBlock Grid.Column="0" FontWeight="SemiBold"
+                       Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.type.column.name}" />
+            <TextBlock Grid.Column="1" FontWeight="SemiBold"
+                       Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.type.column.display}" />
+            <TextBlock Grid.Column="2" FontWeight="SemiBold"
+                       Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.type.column.actions}" />
+          </Grid>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" BorderBrush="#DDDDDD" BorderThickness="0,0,1,1">
+          <ListBox ItemsSource="{Binding Apps}" BorderThickness="0" Background="Transparent">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <Grid ColumnDefinitions="260,360,*" Margin="0,2">
+                  <TextBlock Grid.Column="0" Text="{Binding Name}" TextTrimming="CharacterEllipsis"
+                             VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="1" Text="{Binding DisplayText}" TextTrimming="CharacterEllipsis"
+                             VerticalAlignment="Center" />
+                  <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <!-- View / edit open the app definition screen; mode travels as a navigation parameter. -->
+                    <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.type.button.view}"
+                            Command="{Binding $parent[ListBox].DataContext.ViewCommand}"
+                            CommandParameter="{Binding}" IsVisible="{Binding CanView}" Padding="6,2" />
+                    <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.type.button.edit}"
+                            Command="{Binding $parent[ListBox].DataContext.EditCommand}"
+                            CommandParameter="{Binding}" IsVisible="{Binding CanEdit}" Padding="6,2" />
+                    <!-- Child-app drill: only when the app has no Fields. -->
+                    <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.type.button.enter}"
+                            Command="{Binding $parent[ListBox].DataContext.EnterCommand}"
+                            CommandParameter="{Binding}" IsVisible="{Binding CanDrill}" Padding="6,2" />
+                    <!-- Field list: only when the app has no child apps. -->
+                    <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.applist.button.fields}"
+                            Command="{Binding $parent[ListBox].DataContext.FieldsCommand}"
+                            CommandParameter="{Binding}" IsVisible="{Binding CanShowFields}"
+                            Background="#1976D2" Foreground="White" Padding="6,2" />
+                    <!-- Workflow list: only when the app has Fields. -->
+                    <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.applist.button.workflow}"
+                            Command="{Binding $parent[ListBox].DataContext.WorkflowCommand}"
+                            CommandParameter="{Binding}" IsVisible="{Binding CanShowWorkflow}"
+                            Background="#E67E22" Foreground="White" Padding="6,2" />
+                    <!-- Delete: only for leaf apps without fields or workflows. -->
+                    <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.delete}"
+                            Command="{Binding $parent[ListBox].DataContext.DeleteCommand}"
+                            CommandParameter="{Binding}" IsVisible="{Binding CanDelete}" Padding="6,2" />
+                  </StackPanel>
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </ScrollViewer>
+      </Grid>
+
+      <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.applist.status.empty}"
+                 HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="Gray"
+                 IsHitTestVisible="False" IsVisible="{Binding IsEmpty}" />
+    </Grid>
+
+    <TextBlock Grid.Row="3"
+               Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.applist.hint}"
+               Foreground="Gray" Margin="0,8,0,0" TextWrapping="Wrap" />
+  </Grid>
+</UserControl>

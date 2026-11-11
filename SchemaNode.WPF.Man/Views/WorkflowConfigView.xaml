@@ -16,10 +16,11 @@
                      Width="200" Margin="4,0" />
             <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.button.loadapp}" Command="{Binding LoadAppCommand}" IsEnabled="{Binding IsEditable}" Margin="4,0" />
             <ComboBox ItemsSource="{Binding Workflows}" SelectedItem="{Binding SelectedWorkflow}"
-                      DisplayMemberPath="Name" Width="170" Margin="4,0" />
-            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.new}" Command="{Binding NewWorkflowCommand}" IsEnabled="{Binding IsEditable}" Margin="4,0" />
-            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.save}" Command="{Binding SaveCommand}" IsEnabled="{Binding IsEditable}" Margin="4,0" />
-            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.delete}" Command="{Binding DeleteWorkflowCommand}" IsEnabled="{Binding IsEditable}" />
+                      DisplayMemberPath="Name" Width="170" Margin="4,0"
+                      IsEnabled="{Binding CanSwitchWorkflow}" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.new}" Command="{Binding NewWorkflowCommand}" IsEnabled="{Binding CanModifyWorkflow}" Margin="4,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.save}" Command="{Binding SaveCommand}" IsEnabled="{Binding CanModifyWorkflow}" Margin="4,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.delete}" Command="{Binding DeleteWorkflowCommand}" IsEnabled="{Binding CanModifyWorkflow}" />
         </StackPanel>
 
         <!-- Canvas operations -->

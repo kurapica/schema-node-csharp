@@ -15,7 +15,7 @@
             <ColumnDefinition x:Name="GenericColumn" Width="0" />
         </Grid.ColumnDefinitions>
 
-        <views:InputView Grid.Column="0" DataContext="{Binding Main}" MinWidth="0" />
+        <views:InputView x:Name="MainInput" Grid.Column="0" DataContext="{Binding Main}" />
 
         <Grid Grid.Column="1"
               Margin="2,0,0,0"
@@ -42,7 +42,10 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <views:TypeSelectorView Grid.Column="0" DataContext="{Binding Wrapper}" MinWidth="0" />
+                            <!-- A generic argument keeps the narrow column layout: it neither forces a
+                                 minimum width on itself nor on its inner input. -->
+                            <views:TypeSelectorView Grid.Column="0" DataContext="{Binding Wrapper}"
+                                                    MinWidth="0" InputMinWidth="0" />
                             <TextBlock Grid.Column="1"
                                        Text=","
                                        VerticalAlignment="Center"

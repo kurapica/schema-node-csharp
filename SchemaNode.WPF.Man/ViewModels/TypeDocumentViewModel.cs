@@ -1,22 +1,19 @@
 using System.Collections.ObjectModel;
 using System.Text.Json.Nodes;
-using Prism.Commands;
-using Prism.Mvvm;
-using Prism.Navigation;
-using Prism.Navigation.Regions;
 using SchemaNode.AI.Chat;
 using SchemaNode.Schema;
 using SchemaNode.WPF.Man.Services;
 using SchemaNode.WPF.Man.Views;
+using SchemaNode.Utility;
 using SchemaNode.WPF.View.Localization;
 
 namespace SchemaNode.WPF.Man.ViewModels;
 
 /// <summary>
-/// Type definition document screen (查看 / 编辑 / 新建).
+/// Type definition document screen (view / edit / new).
 ///
 /// In the vue reference these flows open an <c>el-drawer</c> over the list. In WPF the same flows
-/// are region routes, so the list screen is replaced by this screen and a "返回列表" button
+/// are region routes, so the list screen is replaced by this screen and a "Back to list" button
 /// navigates back with the current namespace preserved.
 ///
 /// The screen owns its own <see cref="SchemaScreenSession"/>: a definition node must never outlive
@@ -35,6 +32,12 @@ public class TypeDocumentViewModel : BindableBase, INavigationAware, IDestructib
     public const string ModeEdit = "edit";
     public const string ModeNew = "new";
 
+    /// <summary>
+    /// Opens the new-definition screen seeded with a copy of an existing definition: same fields,
+    /// no name, no namespace children and no source identity.
+    /// </summary>
+    public const string ModeCopy = "copy";
+
     private const string MainContentRegion = "MainContentRegion";
     private const string ChatRoleUser = "user";
     private const string ChatRoleAssistant = "assistant";
@@ -45,7 +48,7 @@ public class TypeDocumentViewModel : BindableBase, INavigationAware, IDestructib
     /// document screen waits this long between building the node and binding the root view, so
     /// the attach groups that are about to be hidden never get an element tree.
     /// </summary>
-    private static readonly TimeSpan DefinitionSettleDelay = TimeSpan.FromMilliseconds(500);
+    private static readonly TimeSpan DefinitionSettleDelay = TimeSpan.FromMilliseconds(50);
 
     private readonly SchemaContextFactory _factory;
     private readonly IRegionManager _regionManager;
@@ -76,6 +79,7 @@ public class TypeDocumentViewModel : BindableBase, INavigationAware, IDestructib
         SaveCommand = new DelegateCommand(ExecuteSave, () => CanSave)
             .ObservesProperty(() => CanSave);
         BackCommand = new DelegateCommand(ExecuteBack);
+        CopyCommand = new DelegateCommand(ExecuteCopy);
 
         SendChatCommand = new DelegateCommand(ExecuteSendChat, () => CanSendChat)
             .ObservesProperty(() => ChatInput)
@@ -89,19 +93,25 @@ public class TypeDocumentViewModel : BindableBase, INavigationAware, IDestructib
     /// <summary>Generic definition editor hosted by this screen.</summary>
     public SchemaEditorViewModel Editor { get; }
 
-    /// <summary>Current document mode (view / edit / new).</summary>
+    /// <summary>Current document mode (view / edit / new / copy).</summary>
     public string Mode => _mode;
 
-    /// <summary>Whether the property area accepts input (false for 查看).</summary>
-    public bool IsEditable => _mode is ModeEdit or ModeNew;
+    /// <summary>Whether the screen creates a new definition (blank seed or copied seed).</summary>
+    private bool IsNewFlow => _mode is ModeNew or ModeCopy;
+
+    /// <summary>Whether the property area accepts input (false in view mode).</summary>
+    public bool IsEditable => IsNewFlow || _mode == ModeEdit;
 
     /// <summary>Whether the save button is enabled.</summary>
     public bool CanSave => IsEditable && !_isSaving;
 
+    /// <summary>Whether the copy action is offered: only an existing definition can be copied.</summary>
+    public bool CanCopy => (_mode is ModeView or ModeEdit) && _fullName.Length > 0;
+
     /// <summary>Header text describing the mode and subject.</summary>
     public string HeaderText => _mode switch
     {
-        ModeNew => LocaleManager.Instance.Format("wpf.typedoc.header.new", _namespace),
+        ModeNew or ModeCopy => LocaleManager.Instance.Format("wpf.typedoc.header.new", _namespace),
         ModeEdit => LocaleManager.Instance.Format("wpf.typedoc.header.edit", _fullName),
         _ => LocaleManager.Instance.Format("wpf.typedoc.header.view", _fullName),
     };
@@ -152,7 +162,7 @@ public class TypeDocumentViewModel : BindableBase, INavigationAware, IDestructib
                                && _session?.Chat is not null;
 
     /// <summary>Context line shown above the transcript.</summary>
-    public string ChatContextText => _mode == ModeNew
+    public string ChatContextText => IsNewFlow
         ? LocaleManager.Instance.Format("wpf.typedoc.chat.context.new", _namespace)
         : LocaleManager.Instance.Format("wpf.typedoc.chat.context", _fullName);
 
@@ -174,6 +184,7 @@ public class TypeDocumentViewModel : BindableBase, INavigationAware, IDestructib
 
     public DelegateCommand SaveCommand { get; }
     public DelegateCommand BackCommand { get; }
+    public DelegateCommand CopyCommand { get; }
     public DelegateCommand SendChatCommand { get; }
     public DelegateCommand StopChatCommand { get; }
     public DelegateCommand ClearChatCommand { get; }
@@ -202,6 +213,7 @@ public class TypeDocumentViewModel : BindableBase, INavigationAware, IDestructib
             RaisePropertyChanged(nameof(Mode));
             RaisePropertyChanged(nameof(IsEditable));
             RaisePropertyChanged(nameof(CanSave));
+            RaisePropertyChanged(nameof(CanCopy));
             RaisePropertyChanged(nameof(HeaderText));
             RaisePropertyChanged(nameof(CanSendChat));
             RaisePropertyChanged(nameof(ChatContextText));
@@ -227,12 +239,32 @@ public class TypeDocumentViewModel : BindableBase, INavigationAware, IDestructib
     private async Task LoadAsync()
     {
         IsLoading = true;
-        Status = _mode == ModeNew
+        Status = IsNewFlow
             ? LocaleManager.Instance.Format("wpf.typedoc.status.loading.new", _namespace)
             : LocaleManager.Instance.Format("wpf.typedoc.status.loading", _fullName);
 
         try
         {
+            if (_mode == ModeCopy)
+            {
+                // Copy opens the new screen, not the edit screen. The seed is the stored definition
+                // with its name removed, so the target is a new type in the same namespace.
+                NodeSchema? source = await Editor.LoadSavedDefinitionAsync(_fullName);
+                if (source is null)
+                {
+                    Status = LocaleManager.Instance.Format("wpf.typedoc.status.notfound", _fullName);
+                    return;
+                }
+
+                NodeSchema seed = await Task.Run(() => SchemaDefinitionCopy.Create(source));
+                await Editor.NewSchemaAsync(seed);
+                if (Editor.GetNodeSchema()?.Namespace is { } copiedNamespace)
+                    _namespace = copiedNamespace;
+                Status = LocaleManager.Instance.Get("wpf.typedoc.status.copyready");
+                RaisePropertyChanged(nameof(ChatContextText));
+                return;
+            }
+
             if (_mode == ModeNew)
             {
                 await Editor.NewSchemaAsync(new NodeSchema { Namespace = _namespace });
@@ -291,25 +323,20 @@ public class TypeDocumentViewModel : BindableBase, INavigationAware, IDestructib
                 return;
             }
 
-            bool saved = await Task.Run(() => session.Api.SaveSchemaAsync(schema));
+            bool saved = await Task.Run(() => 
+                session.Api.SaveSchemaAsync(schema)
+            );
             if (!saved)
             {
                 Status = LocaleManager.Instance.Format("wpf.typedoc.status.savefailed", schema.FullName);
                 return;
             }
 
-            // Saving marks the type Loaded=false; rebuild it inside this screen so the old node is
-            // never kept alive by any subscription.
-            _fullName = schema.FullName;
-            _namespace = schema.Namespace ?? _namespace;
-            _mode = ModeEdit;
-            RaisePropertyChanged(nameof(Mode));
-            RaisePropertyChanged(nameof(IsEditable));
-            RaisePropertyChanged(nameof(HeaderText));
-            RaisePropertyChanged(nameof(ChatContextText));
-
-            await Editor.ReloadSchemaAsync(_fullName, reload: true);
-            Status = LocaleManager.Instance.Format("wpf.typedoc.status.saved", _fullName);
+            // Success: refresh the owning namespace and leave for the type list. The definition was
+            // pulled from the parent namespace, so reloading it invalidates the saved child and pulls
+            // the latest definition (including auths) into the runtime.
+            await RefreshOwnerNamespaceAsync(session, schema);
+            await NavigateToListAsync(schema.Namespace);
         }
         catch (Exception ex)
         {
@@ -322,15 +349,85 @@ public class TypeDocumentViewModel : BindableBase, INavigationAware, IDestructib
         }
     }
 
-    private async void ExecuteBack()
+    /// <summary>
+    /// Reloads the namespace that owns the saved definition. A failure only reports the refresh
+    /// error; the save itself already succeeded and navigation still happens.
+    /// </summary>
+    private async Task RefreshOwnerNamespaceAsync(SchemaScreenSession session, NodeSchema schema)
     {
-        if (_isNavigating) return;
+        string? owner = schema.Namespace;
+        if (string.IsNullOrWhiteSpace(owner)) return;
+
+        try
+        {
+            await session.Context.GetNodeTypeAsync(owner, reload: true);
+        }
+        catch (Exception ex)
+        {
+            Status = LocaleManager.Instance.Format("wpf.typedoc.status.error", ex.Message);
+        }
+    }
+
+    private async void ExecuteBack() => await NavigateToListAsync(_namespace);
+
+    /// <summary>
+    /// Opens the same document route in copy mode. The route loads the stored definition and feeds
+    /// a name-less clone into the new-definition flow.
+    /// </summary>
+    private async void ExecuteCopy()
+    {
+        if (_isNavigating || !CanCopy) return;
         _isNavigating = true;
         try
         {
             NavigationParameters parameters = new()
             {
-                { NamespaceParameter, _namespace.Length > 0 ? _namespace : "system" },
+                { ModeParameter, ModeCopy },
+                { NameParameter, _fullName },
+                { NamespaceParameter, _namespace },
+            };
+
+            TaskCompletionSource<INavigationResult> completion = new();
+            _regionManager.RequestNavigate(
+                MainContentRegion,
+                nameof(TypeDocumentView),
+                result => completion.TrySetResult(result),
+                parameters);
+
+            INavigationResult outcome = await completion.Task;
+            if (!outcome.Success)
+            {
+                Status = LocaleManager.Instance.Format(
+                    "wpf.typedoc.status.copyfailed",
+                    outcome.Exception?.Message ?? nameof(TypeDocumentView));
+            }
+        }
+        catch (Exception ex)
+        {
+            Status = LocaleManager.Instance.Format("wpf.typedoc.status.copyfailed", ex.Message);
+        }
+        finally
+        {
+            _isNavigating = false;
+        }
+    }
+
+    /// <summary>
+    /// Returns to the type list, carrying the namespace whose contents should be shown.
+    /// </summary>
+    private async Task NavigateToListAsync(string? ns)
+    {
+        if (_isNavigating) return;
+        _isNavigating = true;
+        try
+        {
+            string target = string.IsNullOrEmpty(ns)
+                ? string.Empty
+                : ns;
+
+            NavigationParameters parameters = new()
+            {
+                { NamespaceParameter, target },
             };
 
             TaskCompletionSource<INavigationResult> completion = new();
@@ -473,14 +570,14 @@ public class TypeDocumentViewModel : BindableBase, INavigationAware, IDestructib
     {
         NodeSchema? schema = await Editor.GetNodeSchemaAsync();
         if (schema is null)
-            return new AIChatTarget { IsNew = _mode == ModeNew };
+            return new AIChatTarget { IsNew = IsNewFlow };
 
         JsonNode? json = await Task.Run(() => session.Context.ToSchemaJson(schema));
         return new AIChatTarget
         {
-            Name = _mode == ModeNew ? null : _fullName,
+            Name = IsNewFlow ? null : _fullName,
             Schema = json,
-            IsNew = _mode == ModeNew,
+            IsNew = IsNewFlow,
         };
     }
 
@@ -497,7 +594,7 @@ public class TypeDocumentViewModel : BindableBase, INavigationAware, IDestructib
             return;
         }
 
-        bool isNew = _mode == ModeNew;
+        bool isNew = IsNewFlow;
         if (!IsCurrent(session)) return;
 
         bool applied = await Editor.ApplySchemaAsync(result.Schema, isNew);

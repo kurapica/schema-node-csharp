@@ -19,7 +19,7 @@ public partial class SchemaEditorView : UserControl
         DependencyProperty.Register(nameof(HideNameBar), typeof(bool), typeof(SchemaEditorView),
             new PropertyMetadata(false));
 
-    /// <summary>Enables the property area; the document screen sets this to false for "查看".</summary>
+    /// <summary>Enables the property area; the document screen sets this to false in view mode.</summary>
     public static readonly DependencyProperty IsEditableProperty =
         DependencyProperty.Register(nameof(IsEditable), typeof(bool), typeof(SchemaEditorView),
             new PropertyMetadata(true));

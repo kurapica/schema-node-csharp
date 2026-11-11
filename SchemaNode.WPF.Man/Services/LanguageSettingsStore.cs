@@ -47,7 +47,7 @@ public sealed class LanguageSettingsStore
     public async Task<string?> LoadAsync()
     {
         using SchemaScreenSession session = _factory.CreateSession();
-        Setting? setting = await session.Context.GetEntityAsync<Setting>(Target);
+        Setting? setting = await session.Context.GetEntityAsync<Setting>(Target, _ => true);
         return setting?.Locale;
     }
 

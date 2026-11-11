@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>SchemaNode.Avalonia.View</RootNamespace>
+    <AssemblyName>SchemaNode.Avalonia.View</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Render layer: depends on SchemaNode.Core only, never on the App layer. -->
+    <PackageReference Include="Avalonia" Version="12.1.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SchemaNode.Core\SchemaNode.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- View-owned copy (avalonia.*); LocaleManager merges it into the shared dictionaries. -->
+    <EmbeddedResource Include="locale\*.json" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' != 'Debug'">
+    <!-- The per-node inspector is a Debug-only diagnostic surface; keep every Debug type out of
+         Release binaries. -->
+    <Compile Remove="Debug\**\*.cs" />
+  </ItemGroup>
+
+</Project>

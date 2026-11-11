@@ -1,6 +1,8 @@
 using System.Reflection;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
-using SchemaNode.AI.Agents;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using SchemaNode.AI.Chat;
 using SchemaNode.Service;
 
 namespace SchemaNode.AI.Workflow;
@@ -12,19 +14,19 @@ public static class SchemaNodeAIWorkflowInjection
 {
     /// <summary>
     /// Registers the AI workflow node assembly (so the workflow engine discovers
-    /// <c>system.workflow.ai.generate</c>) and the agent provider options/factory.
-    /// Environment variables are applied first; the delegate can override them, typically by
-    /// binding <see cref="AIAgentOptions"/> from configuration.
+    /// <c>system.workflow.ai.generate</c>) and the shared chat client. <see cref="SchemaNodeChatInjection.AddSchemaChat"/>
+    /// calls this automatically; a host that only runs workflows can call it directly.
     /// </summary>
     public static IServiceCollection AddSchemaAiWorkflow(
         this IServiceCollection services,
-        Action<AIAgentOptions>? configure = null)
+        Action<SchemaChatOptions>? configure = null)
     {
-        AIAgentOptions options = AIAgentOptions.FromEnvironment();
+        var options = new SchemaChatOptions();
         configure?.Invoke(options);
+        services.TryAddSingleton(options);
 
-        services.AddSingleton(options);
-        services.AddSingleton<AIAgentProviderFactory>(_ => new AIAgentProviderFactory(options));
+        services.TryAddSingleton<IChatClient>(serviceProvider =>
+            SchemaNodeChatInjection.CreateClient(serviceProvider.GetRequiredService<SchemaChatOptions>()));
 
         return services.AddAppSchemaAssemblies(Assembly.GetExecutingAssembly());
     }

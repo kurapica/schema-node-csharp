@@ -28,6 +28,19 @@
                 <view:SchemaView Node="{Binding NamespaceWrapper}" VerticalAlignment="Center" />
                 <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.button.up}"
                         Command="{Binding UpCommand}" Margin="8,0,0,0" VerticalAlignment="Center" />
+
+                <!-- Node kind filter: a system.schema.node.kind node; empty means "all kinds".
+                     The drop-down renders no text when nothing is selected, so an explicit
+                     "all kinds" placeholder is overlaid to make the empty state readable. -->
+                <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.label.kind}"
+                           VerticalAlignment="Center" Margin="20,0,8,0" />
+                <Grid VerticalAlignment="Center">
+                    <view:SchemaView Node="{Binding KindWrapper}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.kind.all}"
+                               Margin="6,0,0,0" VerticalAlignment="Center" Foreground="Gray"
+                               IsHitTestVisible="False"
+                               Visibility="{Binding IsKindFilterEmpty, Converter={StaticResource BoolToVisibility}}" />
+                </Grid>
             </StackPanel>
         </Border>
 
@@ -59,16 +72,23 @@
                             <GridViewColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal">
-                                        <!-- Types: view / edit open the document route (the vue el-drawer equivalent). -->
+                                        <!-- View / edit open the document route (the vue el-drawer equivalent).
+                                             Edit is driven by the row's IsEditable (Man's own rule), so a
+                                             namespace row shows it next to "Child"; the two actions are
+                                             independent and do not replace each other. -->
                                         <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.button.view}"
                                                 Command="{Binding DataContext.ViewCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
                                                 CommandParameter="{Binding}"
                                                 Visibility="{Binding IsType, Converter={StaticResource BoolToVisibility}}"
                                                 Margin="0,0,4,0" Padding="6,2" />
+                                        <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.button.copy}"
+                                                Command="{Binding DataContext.CopyCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                                CommandParameter="{Binding}"
+                                                Margin="0,0,4,0" Padding="6,2" />
                                         <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.button.edit}"
                                                 Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
                                                 CommandParameter="{Binding}"
-                                                Visibility="{Binding CanEdit, Converter={StaticResource BoolToVisibility}}"
+                                                Visibility="{Binding IsEditable, Converter={StaticResource BoolToVisibility}}"
                                                 Margin="0,0,4,0" Padding="6,2" />
                                         <!-- Namespaces: drill down. Only shown when kind = namespace. -->
                                         <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.button.enter}"

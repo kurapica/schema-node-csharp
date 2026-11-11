@@ -44,7 +44,7 @@ public class Valid : FuncCallProperty, IConstraintProperty
     private void Refresh(IValueAccess target)
     {
         if (target is not DataNode node || node.Context is not SchemaContext context) return;
-        target.RecordConstraint(this, ValidateAsync(context, target).GetAwaiter().GetResult());
+        target.RecordConstraint(this, ValidateAsync(context, target).ConfigureAwait(false).GetAwaiter().GetResult());
     }
 
     public async Task<bool?> ValidateAsync(SchemaContext context, IValueAccess node, CancellationToken token = default)

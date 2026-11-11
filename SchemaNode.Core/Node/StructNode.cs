@@ -80,7 +80,6 @@ public class StructNode : DataNode
         foreach (var field in _fields)
             if (field is IDisposable disposable)
                 disposable.Dispose();
-        Array.Clear(_fields);
         _fieldRelations = null;
         _fieldTypeTrack = null;
 
@@ -186,7 +185,12 @@ public class StructNode : DataNode
     public override bool IsEmpty => _csharpObject == null && _fields.All(f => f.IsEmpty);
 
     /// <inheritdoc/>
-    public override bool IsValid => this.GetPropertyValue<DisableConstraint, bool>() == true || _fields.All(f => f.GetProperty<DisplayOnly>()?.Value == true || f.IsValid) && base.IsValid;
+    /// <remarks>
+    /// An empty struct is an optional value that was never filled in, so the required
+    /// constraints of its children must not surface. The struct's own constraints
+    /// (including <see cref="SchemaNode.Property.Common.Require"/>) still decide its validity.
+    /// </remarks>
+    public override bool IsValid => base.IsValid && (IsEmpty || _fields.All(f => f.GetProperty<DisplayOnly>()?.Value == true || f.IsValid));
 
     /// <inheritdoc/>
     public override JsonNode? Violated
@@ -204,10 +208,11 @@ public class StructNode : DataNode
     /// <inheritdoc/>
     public override IEnumerable<DataNode> GetErrorNodes()
     {
-        foreach (var field in _fields.OfType<DataNode>())
-            if (!field.DisplayOnly && !field.IsValid)
-                foreach (var node in field.GetErrorNodes())
-                    yield return node;
+        if (!IsEmpty)
+            foreach (var field in _fields.OfType<DataNode>())
+                if (!field.DisplayOnly && !field.IsValid)
+                    foreach (var node in field.GetErrorNodes())
+                        yield return node;
         foreach (var node in base.GetErrorNodes())
             yield return node;
     }

@@ -22,7 +22,15 @@ public sealed class RelayCommand : ICommand
     }
 
     /// <inheritdoc />
-    public event EventHandler? CanExecuteChanged;
+    /// <remarks>
+    /// Routed through <see cref="CommandManager"/> so the built-in WPF command sites re-query after
+    /// the input/focus changes that alter the wrapper state, in addition to explicit refreshes.
+    /// </remarks>
+    public event EventHandler? CanExecuteChanged
+    {
+        add => CommandManager.RequerySuggested += value;
+        remove => CommandManager.RequerySuggested -= value;
+    }
 
     /// <inheritdoc />
     public bool CanExecute(object? parameter) => _canExecute?.Invoke(parameter) ?? true;
@@ -31,5 +39,5 @@ public sealed class RelayCommand : ICommand
     public void Execute(object? parameter) => _execute(parameter);
 
     /// <summary>Re-evaluates the command state in the UI.</summary>
-    public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+    public void RaiseCanExecuteChanged() => CommandManager.InvalidateRequerySuggested();
 }

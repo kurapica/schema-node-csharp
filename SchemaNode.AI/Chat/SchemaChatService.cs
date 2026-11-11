@@ -1,5 +1,4 @@
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.AI;
@@ -27,6 +26,7 @@ public sealed class SchemaChatService
     private readonly IServiceProvider _services;
     private readonly ILoggerFactory _loggerFactory;
     private readonly SchemaChatSession _session;
+    private readonly IChatReducer _historyReducer;
     private readonly ILogger<SchemaChatService> _logger;
     private string? _agentFailureMessage;
 
@@ -48,6 +48,9 @@ public sealed class SchemaChatService
         _services = services;
         _loggerFactory = loggerFactory;
         _session = session;
+#pragma warning disable MEAI001 // MessageCountingChatReducer is the library's history reducer.
+        _historyReducer = new MessageCountingChatReducer(Math.Max(2, options.MaxHistoryMessages));
+#pragma warning restore MEAI001
         _logger = logger;
     }
 
@@ -82,6 +85,7 @@ public sealed class SchemaChatService
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         _agentFailureMessage = null;
+        _session.Reset();
 
         string conversationId = SchemaChatConversationStore.IsValidId(request.ConversationId)
             ? request.ConversationId!
@@ -145,7 +149,7 @@ public sealed class SchemaChatService
             }
         }
 
-        messages.AddRange(_store.Get(owner, conversationId));
+        messages.AddRange(await _historyReducer.ReduceAsync(_store.Get(owner, conversationId), cancellationToken));
 
         if (!string.IsNullOrWhiteSpace(request.ValidationFeedback))
         {
@@ -181,7 +185,7 @@ public sealed class SchemaChatService
         ChatSchemaResponse response;
         if (stream)
         {
-            StringBuilder streamedText = new();
+            List<ChatResponseUpdate> streamedUpdates = [];
             string? failure = null;
 
             await using IAsyncEnumerator<ChatResponseUpdate> enumerator =
@@ -215,10 +219,12 @@ public sealed class SchemaChatService
 
                 if (!hasNext) break;
 
-                string? delta = enumerator.Current.Text;
+                ChatResponseUpdate update = enumerator.Current;
+                streamedUpdates.Add(update);
+
+                string? delta = update.Text;
                 if (string.IsNullOrEmpty(delta)) continue;
 
-                streamedText.Append(delta);
                 yield return new SchemaChatTextDelta(delta);
             }
 
@@ -231,7 +237,11 @@ public sealed class SchemaChatService
                 yield break;
             }
 
-            response = BuildResponse(conversationId, streamedText.ToString(), currentSchema, currentJson);
+            response = BuildResponse(
+                conversationId,
+                streamedUpdates.ToChatResponse().Text ?? string.Empty,
+                currentSchema,
+                currentJson);
             ApplyStreamingFailure(response, failure, timeoutSeconds);
         }
         else
@@ -476,7 +486,12 @@ public sealed class SchemaChatService
                     new ChatMessage(ChatRole.System, prompt),
                     new ChatMessage(ChatRole.User, userMessage),
                 ],
-                new ChatOptions { Temperature = _options.Temperature, ModelId = _options.ModelId },
+                new ChatOptions
+                {
+                    Temperature = _options.Temperature,
+                    ModelId = _options.ModelId,
+                    ResponseFormat = ChatResponseFormat.Json,
+                },
                 token);
             text = response.Text ?? string.Empty;
         }
@@ -490,18 +505,18 @@ public sealed class SchemaChatService
             return null;
         }
 
-        string? json = ExtractJsonObject(text);
-        if (json == null) return null;
-
         JsonNode? node;
         try
         {
-            node = JsonNode.Parse(json);
+            // ResponseFormat.Json guarantees bare JSON; a malformed answer is simply a failed fallback.
+            node = JsonNode.Parse(text.Trim());
         }
         catch (JsonException)
         {
             return null;
         }
+
+        if (node is not JsonObject) return null;
 
         SchemaValidationResult validation = await _context.ValidateNodeSchemaAsync(
             node, target, checkAuthorization: true, token);
@@ -573,16 +588,6 @@ public sealed class SchemaChatService
             "已将 display 更新为英文默认，并补充中文（zhCN）翻译。",
             currentSchema,
             currentJson);
-    }
-
-    private static string? ExtractJsonObject(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return null;
-
-        int start = text.IndexOf('{');
-        int end = text.LastIndexOf('}');
-        if (start < 0 || end <= start) return null;
-        return text[start..(end + 1)];
     }
 
     private async Task<(string? Target, NodeSchema? Schema, JsonNode? Json)> PrepareContextAsync(

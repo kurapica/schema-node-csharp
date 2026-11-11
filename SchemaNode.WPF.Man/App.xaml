@@ -7,6 +7,8 @@
             <!-- App-layer view templates: the registry resolves a bound page source to this key. -->
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="/SchemaNode.WPF.AppView;component/Templates/PageTableTemplates.xaml" />
+                <!-- Man-only special views (function call arguments, function definition cards). -->
+                <ResourceDictionary Source="/SchemaNode.WPF.Man;component/Templates/ManSchemaTemplates.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

@@ -1,0 +1,99 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:SchemaNode.Avalonia.Man.Views"
+             xmlns:loc="using:SchemaNode.Avalonia.View.Localization"
+             xmlns:inf="using:SchemaNode.Avalonia.Man.Infrastructure"
+             x:Class="SchemaNode.Avalonia.Man.Views.TypeDocumentView"
+             x:CompileBindings="False">
+  <Grid Margin="8" ColumnDefinitions="*,Auto">
+    <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*,Auto">
+      <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8" Spacing="8">
+        <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.typedoc.button.back}"
+                Command="{Binding BackCommand}" />
+        <TextBlock Text="{Binding HeaderText}" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.typedoc.button.save}"
+                Command="{Binding SaveCommand}" IsVisible="{Binding IsEditable}" />
+        <!-- Copy opens the new-definition route seeded with this definition's fields, name excluded. -->
+        <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.typedoc.button.copy}"
+                Command="{Binding CopyCommand}" IsVisible="{Binding CanCopy}" />
+        <!-- Assistant entry: only shown when the backend declared the "ai_chat" feature. -->
+        <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.typedoc.chat.open}"
+                Command="{Binding ToggleChatCommand}" IsVisible="{Binding CanShowAiChat}" />
+        <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.typedoc.status.loading}"
+                   Foreground="Gray" VerticalAlignment="Center" IsVisible="{Binding IsLoading}" />
+      </StackPanel>
+
+      <Border Grid.Row="1" Background="#FDECEA" Padding="8,4" Margin="0,0,0,8"
+              IsVisible="{Binding Editor.Error, Converter={x:Static inf:Converters.VisibleIfText}}">
+        <TextBlock Text="{Binding Editor.Error}" Foreground="#B71C1C" TextWrapping="Wrap" />
+      </Border>
+
+      <!-- The editor renders the definition node through the view library. The name bar is hidden
+           because the route already knows the subject; IsEditable is off for "view". -->
+      <local:SchemaEditorView Grid.Row="2"
+                              DataContext="{Binding Editor}"
+                              HideNameBar="True"
+                              IsEditable="{Binding $parent[UserControl].DataContext.IsEditable}" />
+
+      <TextBlock Grid.Row="3" Text="{Binding Status}" Foreground="DarkSlateGray"
+                 TextWrapping="Wrap" Margin="0,8,0,0"
+                 IsVisible="{Binding Status, Converter={x:Static inf:Converters.VisibleIfText}}" />
+    </Grid>
+
+    <!-- Assistant pane: screen-owned state; when open it splits the screen. -->
+    <Border Grid.Column="1" Width="360" Margin="12,0,0,0" Padding="8"
+            Background="#F7F8FA" BorderBrush="#DDE1E6" BorderThickness="1"
+            IsVisible="{Binding IsChatVisible}">
+      <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
+        <DockPanel Grid.Row="0">
+          <Button DockPanel.Dock="Right" Padding="8,2"
+                  Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.typedoc.chat.close}"
+                  Command="{Binding ToggleChatCommand}" />
+          <Button DockPanel.Dock="Right" Padding="8,2" Margin="0,0,8,0"
+                  Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.typedoc.chat.clear}"
+                  Command="{Binding ClearChatCommand}" />
+          <TextBlock FontWeight="SemiBold" VerticalAlignment="Center"
+                     Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.typedoc.chat.title}" />
+        </DockPanel>
+
+        <TextBlock Grid.Row="1" Text="{Binding ChatContextText}" Foreground="Gray"
+                   TextWrapping="Wrap" Margin="0,4,0,6" />
+
+        <Border Grid.Row="2" Background="White" BorderBrush="#E1E5EA" BorderThickness="1">
+          <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
+            <StackPanel>
+              <TextBlock Foreground="Gray" TextWrapping="Wrap" Margin="0,2,0,6"
+                         Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.typedoc.chat.hint}" />
+              <ItemsControl ItemsSource="{Binding ChatMessages}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border Margin="0,4" Padding="8,6" CornerRadius="4"
+                            Background="{Binding IsUser, Converter={x:Static inf:Converters.UserBubbleBackground}}">
+                      <TextBlock Text="{Binding Text}" TextWrapping="Wrap"
+                                 Foreground="{Binding IsError, Converter={x:Static inf:Converters.ErrorForeground}}" />
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+
+        <TextBox Grid.Row="3" Height="64" Margin="0,6,0,0" AcceptsReturn="True"
+                 TextWrapping="Wrap"
+                 Text="{Binding ChatInput, UpdateSourceTrigger=PropertyChanged}" />
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,6,0,0" Spacing="8">
+          <Button Padding="12,3" Command="{Binding SendChatCommand}"
+                  Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.typedoc.chat.send}" />
+          <Button Padding="12,3" Command="{Binding StopChatCommand}"
+                  IsVisible="{Binding IsChatBusy}"
+                  Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.typedoc.chat.stop}" />
+          <TextBlock Foreground="Gray" VerticalAlignment="Center"
+                     IsVisible="{Binding IsChatBusy}"
+                     Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.typedoc.chat.thinking}" />
+        </StackPanel>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

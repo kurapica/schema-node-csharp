@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:SchemaNode.Avalonia.View.Localization"
+             x:Class="SchemaNode.Avalonia.Man.Views.AppDemoView"
+             x:CompileBindings="False">
+  <DockPanel Margin="8">
+    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8" Spacing="4">
+      <StackPanel Orientation="Horizontal" Spacing="4">
+        <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.function.label.fullname}"
+                   VerticalAlignment="Center" />
+        <TextBox Text="{Binding FunctionName, UpdateSourceTrigger=PropertyChanged}" Width="280" />
+        <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.call}"
+                Command="{Binding CallCommand}" Margin="4,0,0,0" />
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" Spacing="4">
+        <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.appdemo.label.args}"
+                   VerticalAlignment="Center" />
+        <TextBox Text="{Binding ArgsJson, UpdateSourceTrigger=PropertyChanged}" Width="360" />
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" Spacing="4">
+        <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.appdemo.label.app}"
+                   VerticalAlignment="Center" />
+        <TextBox Text="{Binding AppName, UpdateSourceTrigger=PropertyChanged}" Width="180" />
+        <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.appdemo.label.target}"
+                   VerticalAlignment="Center" Margin="8,0,0,0" />
+        <TextBox Text="{Binding Target, UpdateSourceTrigger=PropertyChanged}" Width="180" />
+      </StackPanel>
+    </StackPanel>
+
+    <Border BorderBrush="#DDDDDD" BorderThickness="1" Padding="6">
+      <Grid RowDefinitions="Auto,*">
+        <TextBlock Grid.Row="0" FontWeight="SemiBold" Margin="0,0,0,4"
+                   Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.appdemo.label.result}" />
+        <TextBox Grid.Row="1" Text="{Binding Result, Mode=OneWay}" IsReadOnly="True"
+                 TextWrapping="Wrap" AcceptsReturn="True" FontFamily="Consolas" />
+      </Grid>
+    </Border>
+  </DockPanel>
+</UserControl>

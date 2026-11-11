@@ -203,7 +203,7 @@ public static class PolicyExtensions
     {
         // Try parent auth policy items first
         NamespaceType? parent = !string.IsNullOrWhiteSpace(schema.Namespace) 
-            ? context.GetNodeTypeAsync<NamespaceType>(schema.Namespace).GetAwaiter().GetResult() 
+            ? context.GetNodeTypeAsync<NamespaceType>(schema.Namespace).ConfigureAwait(false).GetAwaiter().GetResult() 
             : schema.Name.Equals(NS_SYSTEM, StringComparison.OrdinalIgnoreCase)
                 ? null 
                 : context.System.Self;
@@ -248,7 +248,7 @@ public static class PolicyExtensions
     {
         AppType? parent = appType.Name.Equals(NS_SYSTEM, StringComparison.OrdinalIgnoreCase) 
                               ? null 
-                              : appType.Container ?? context.GetAppTypeAsync(NS_SYSTEM).GetAwaiter().GetResult();
+                              : appType.Container ?? context.GetAppTypeAsync(NS_SYSTEM).ConfigureAwait(false).GetAwaiter().GetResult();
         if (parent != null)
         {
             foreach (var item in parent.GetAuthPolicies(context, scope))

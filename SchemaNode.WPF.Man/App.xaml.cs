@@ -77,7 +77,7 @@ public partial class App : PrismApplication
         services.AddAppDataProvider<InMemoryAppDataProvider>();
         // Schema assistant: the local in-process implementation bound to each screen's scoped
         // SchemaContext. Mock is the default; switching provider needs configuration only.
-        services.AddSchemaChatCore(options =>
+        services.AddSchemaChat(options =>
         {
             options.Provider = ResolveSchemaChatProvider();
             ApplySchemaChatConfiguration(options);

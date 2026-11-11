@@ -1,0 +1,90 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:SchemaNode.Avalonia.View.Localization"
+        x:Class="SchemaNode.Avalonia.View.Views.LocaleTranslationsWindow"
+        x:CompileBindings="False"
+        Title="Translations"
+        MinWidth="360"
+        MinHeight="240"
+        CanResize="True"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+  <Grid Margin="16" RowDefinitions="Auto,*,Auto">
+    <!-- Column captions; the rows below stay aligned with them. -->
+    <Grid Grid.Row="0" Margin="0,0,0,6" ColumnDefinitions="140,*,Auto">
+      <TextBlock Foreground="#FF6B7280"
+                 Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.locale.language}" />
+      <TextBlock Grid.Column="1"
+                 Margin="8,0,0,0"
+                 Foreground="#FF6B7280"
+                 Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.locale.translation}" />
+    </Grid>
+
+    <!-- Content scrolls inside the (resizable) window instead of stretching the dialog. -->
+    <ScrollViewer Grid.Row="1"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+      <ItemsControl x:Name="RowList">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Grid Margin="0,0,0,6" ColumnDefinitions="140,*,Auto">
+              <!-- A language is a closed choice over the configured locales. Nothing is
+                   preselected, so a new row stays empty until the user picks a language. -->
+              <ComboBox ItemsSource="{Binding AvailableLanguages, RelativeSource={RelativeSource AncestorType=Window}}"
+                        SelectedItem="{Binding Lang, Mode=TwoWay}"
+                        MinHeight="24"
+                        MaxDropDownHeight="240"
+                        IsEnabled="{Binding !IsReadOnly}" />
+
+              <TextBox Grid.Column="1"
+                       Margin="8,0,0,0"
+                       MinHeight="24"
+                       Text="{Binding Tran, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                       IsReadOnly="{Binding IsReadOnly}" />
+
+              <Button Grid.Column="2"
+                      Margin="8,0,0,0"
+                      Padding="8,0"
+                      MinHeight="24"
+                      Click="OnDelete"
+                      Tag="{Binding}"
+                      IsVisible="{Binding !IsReadOnly}"
+                      Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.delete}" />
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <Grid Grid.Row="2" Margin="0,12,0,0" ColumnDefinitions="Auto,*,Auto,Auto">
+      <Button x:Name="AddButton"
+              Padding="10,3"
+              MinHeight="26"
+              Click="OnAdd"
+              Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.add}" />
+
+      <TextBlock x:Name="ErrorText"
+                 Grid.Column="1"
+                 Margin="8,0"
+                 VerticalAlignment="Center"
+                 Foreground="#FFB91C1C"
+                 TextWrapping="Wrap"
+                 IsVisible="False" />
+
+      <Button Grid.Column="2"
+              Padding="10,3"
+              MinHeight="26"
+              IsCancel="True"
+              Click="OnCancel"
+              Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.cancel}" />
+
+      <Button Grid.Column="3"
+              Margin="8,0,0,0"
+              Padding="10,3"
+              MinHeight="26"
+              IsDefault="True"
+              Click="OnConfirm"
+              Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.ok}" />
+    </Grid>
+  </Grid>
+</Window>

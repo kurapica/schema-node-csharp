@@ -1,0 +1,87 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="SchemaNode.Avalonia.View.Views.RangeDateView"
+             x:CompileBindings="False"
+             MinHeight="24"
+             ToolTip.Tip="{Binding ErrorTip}">
+  <Grid RowDefinitions="Auto,Auto">
+    <!-- Year range -->
+    <Grid Grid.Row="0"
+          ColumnDefinitions="*,Auto,*"
+          IsVisible="{Binding IsYear}">
+      <NumericUpDown Grid.Column="0"
+                     Value="{Binding StartYear, Mode=TwoWay}"
+                     Minimum="1"
+                     Maximum="9999"
+                     Increment="1"
+                     FormatString="0"
+                     IsEnabled="{Binding IsEditable}"
+                     MinHeight="24" />
+      <TextBlock Grid.Column="1"
+                 Margin="6,0"
+                 VerticalAlignment="Center"
+                 Text="~" />
+      <NumericUpDown Grid.Column="2"
+                     Value="{Binding EndYear, Mode=TwoWay}"
+                     Minimum="1"
+                     Maximum="9999"
+                     Increment="1"
+                     FormatString="0"
+                     IsEnabled="{Binding IsEditable}"
+                     MinHeight="24" />
+    </Grid>
+
+    <!-- Year-month range -->
+    <Grid Grid.Row="0"
+          ColumnDefinitions="*,Auto,*"
+          IsVisible="{Binding IsMonth}">
+      <TextBox Grid.Column="0"
+               Text="{Binding StartMonth, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+               PlaceholderText="yyyy-MM"
+               IsEnabled="{Binding IsEditable}"
+               MinHeight="24" />
+      <TextBlock Grid.Column="1"
+                 Margin="6,0"
+                 VerticalAlignment="Center"
+                 Text="~" />
+      <TextBox Grid.Column="2"
+               Text="{Binding EndMonth, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+               PlaceholderText="yyyy-MM"
+               IsEnabled="{Binding IsEditable}"
+               MinHeight="24" />
+    </Grid>
+
+    <!-- Date range -->
+    <Grid Grid.Row="0"
+          ColumnDefinitions="*,Auto,*"
+          IsVisible="{Binding IsDate}">
+      <DatePicker Grid.Column="0"
+                  SelectedDate="{Binding StartDate, Mode=TwoWay}"
+                  IsEnabled="{Binding IsEditable}"
+                  MinHeight="24" />
+      <TextBlock Grid.Column="1"
+                 Margin="6,0"
+                 VerticalAlignment="Center"
+                 Text="~" />
+      <DatePicker Grid.Column="2"
+                  SelectedDate="{Binding EndDate, Mode=TwoWay}"
+                  IsEnabled="{Binding IsEditable}"
+                  MinHeight="24" />
+    </Grid>
+
+    <Grid Grid.Row="1"
+          ColumnDefinitions="*,Auto,*"
+          Margin="0,2,0,0">
+      <TextBlock Grid.Column="0"
+                 Foreground="#FFC62828"
+                 TextWrapping="Wrap"
+                 Text="{Binding StartError}"
+                 IsVisible="{Binding ShowStartError}" />
+      <TextBlock Grid.Column="2"
+                 Foreground="#FFC62828"
+                 TextWrapping="Wrap"
+                 Text="{Binding EndError}"
+                 IsVisible="{Binding ShowEndError}" />
+    </Grid>
+  </Grid>
+</UserControl>

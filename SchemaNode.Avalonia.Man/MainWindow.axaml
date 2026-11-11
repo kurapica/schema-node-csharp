@@ -1,0 +1,49 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:SchemaNode.Avalonia.View.Localization"
+        xmlns:inf="using:SchemaNode.Avalonia.Man.Infrastructure"
+        x:Class="SchemaNode.Avalonia.Man.MainWindow"
+        x:CompileBindings="False"
+        Background="White"
+        Title="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.title}"
+        Width="1100" Height="720">
+  <DockPanel>
+    <!-- Top bar: localized title on the left, English/Chinese switch on the right -->
+    <Border DockPanel.Dock="Top" Background="#ECF0F1" Padding="10,6">
+      <DockPanel>
+        <TextBlock FontSize="16" FontWeight="Bold" VerticalAlignment="Center"
+                   Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.title}" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
+          <RadioButton GroupName="LanguageSwitch" VerticalAlignment="Center"
+                       IsChecked="{Binding IsEnglish, Mode=TwoWay}"
+                       Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.language.en}" />
+          <TextBlock Text="|" VerticalAlignment="Center" />
+          <RadioButton GroupName="LanguageSwitch" VerticalAlignment="Center"
+                       IsChecked="{Binding IsChinese, Mode=TwoWay}"
+                       Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.language.zh}" />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <!-- Left navigation bar -->
+    <Border DockPanel.Dock="Left" Width="180" Background="#2C3E50">
+      <StackPanel Margin="10" Spacing="8">
+        <TextBlock Text="SchemaNode" Foreground="White" FontSize="18" FontWeight="Bold"
+                   Margin="0,0,0,12" />
+        <Button Command="{Binding NavigateCommand}" CommandParameter="TypeListView"
+                Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.nav.type.list}" />
+        <Button Command="{Binding NavigateCommand}" CommandParameter="AppListView"
+                Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.nav.app.list}" />
+      </StackPanel>
+    </Border>
+
+    <!-- Navigation failures are surfaced here instead of leaving the region unchanged -->
+    <Border DockPanel.Dock="Bottom" Background="#FDECEA" Padding="8,4"
+            IsVisible="{Binding StatusMessage, Converter={x:Static inf:Converters.VisibleIfText}}">
+      <TextBlock Text="{Binding StatusMessage}" Foreground="#B71C1C" TextWrapping="Wrap" />
+    </Border>
+
+    <!-- Main content area: the single region; navigation publishes the target view here -->
+    <ContentControl Content="{Binding CurrentContent}" />
+  </DockPanel>
+</Window>

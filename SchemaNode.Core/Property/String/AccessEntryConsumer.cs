@@ -98,6 +98,6 @@ public class AccessEntryConsumer: FuncCallProperty, IConstraintProperty
     private void Refresh(IValueAccess target)
     {
         if (target is not DataNode node || node.Context is not SchemaContext context) return;
-        target.RecordConstraint(this, ValidateAsync(context, target).GetAwaiter().GetResult());
+        target.RecordConstraint(this, ValidateAsync(context, target).ConfigureAwait(false).GetAwaiter().GetResult());
     }
 }

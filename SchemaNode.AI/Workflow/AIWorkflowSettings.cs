@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using SchemaNode.AI.Agents;
 using SchemaNode.Attribute;
 using SchemaNode.Property.Core;
 
@@ -29,51 +28,14 @@ public sealed class AIWorkflowSettings
     public AIWorkflowPromptSource[]? Prompts { get; set; }
 
     /// <summary>
-    /// The provider for this node. <see cref="AIProviderKind.Inherit"/> uses the registered default.
-    /// </summary>
-    public AIProviderKind Provider { get; set; } = AIProviderKind.Inherit;
-
-    /// <summary>
-    /// Optional Ollama base URL override.
-    /// </summary>
-    public string? Endpoint { get; set; }
-
-    /// <summary>
-    /// Optional Ollama model override.
-    /// </summary>
-    public string? Model { get; set; }
-
-    /// <summary>
-    /// Additional generation attempts after a validation failure. Defaults to the provider options.
+    /// Additional generation attempts after a validation failure. Defaults to the chat options.
     /// </summary>
     public int? MaxRetries { get; set; }
-
-    /// <summary>
-    /// Optional per-request timeout in seconds.
-    /// </summary>
-    public int? TimeoutSeconds { get; set; }
-
-    /// <summary>
-    /// Optional completion token budget.
-    /// </summary>
-    public int? MaxTokens { get; set; }
-
-    /// <summary>
-    /// Optional sampling temperature.
-    /// </summary>
-    public double? Temperature { get; set; }
 
     /// <summary>
     /// Optional cap for the target schema description injected into the prompt.
     /// </summary>
     public int? MaxMetadataChars { get; set; }
-
-    /// <summary>
-    /// Newline separated deterministic responses used when <see cref="Provider"/> is
-    /// <see cref="AIProviderKind.Mock"/>. The first line is the first attempt, the second line
-    /// the first retry, and so on. The last line is repeated when exhausted.
-    /// </summary>
-    public string? MockResponses { get; set; }
 }
 
 /// <summary>

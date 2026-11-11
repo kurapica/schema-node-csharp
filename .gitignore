@@ -48,3 +48,13 @@ SchemaNode.Example/SchemaNode.Example.csproj.user
 /SchemaNode.WPF.Test/obj
 /SchemaNode.WPF.AppView/bin
 /SchemaNode.WPF.AppView/obj
+/SchemaNode.UnitTest/TestResults
+/SchemaNode.Avalonia.AppView/bin
+/SchemaNode.Avalonia.AppView/obj
+/SchemaNode.Avalonia.Man/bin
+/SchemaNode.Avalonia.Man/obj
+/SchemaNode.Avalonia.Test/bin
+/SchemaNode.Avalonia.Test/obj
+/SchemaNode.Avalonia.View/bin
+/SchemaNode.Avalonia.View/obj
+NuGet.config

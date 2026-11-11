@@ -1,4 +1,5 @@
 using SchemaNode.Node;
+using SchemaNode.WPF.View.Localization;
 
 namespace SchemaNode.WPF.View.NodeWrapper;
 
@@ -9,8 +10,9 @@ namespace SchemaNode.WPF.View.NodeWrapper;
 /// </summary>
 public sealed class FallbackWrapper : DataNodeWrapper
 {
-    public FallbackWrapper(DataNode node, SchemaViewRegistry? registry, string? fieldName, SchemaViewRole role)
-        : base(node, registry, fieldName, role)
+    public FallbackWrapper(DataNode node, SchemaViewRegistry? registry, string? fieldName, SchemaViewRole role,
+                           bool ancestorVisibility = true)
+        : base(node, registry, fieldName, role, ancestorVisibility)
     {
         TemplateKeyOverride = SchemaTemplateKeys.Fallback;
         System.Diagnostics.Debug.WriteLine(
@@ -20,16 +22,19 @@ public sealed class FallbackWrapper : DataNodeWrapper
     /// <summary>Node type name, used as the fallback label/tooltip.</summary>
     public string TypeName => NodeImpl.Type.Name;
 
-    /// <summary>Best-effort text of the node value.</summary>
+    /// <summary>Best-effort text of the node value, localized when the value is a locale key.</summary>
     public string DisplayText
     {
         get
         {
             try
             {
-                if (NodeImpl.TryGetValue<string>(out string? text) && text is not null) return text;
-                object? raw = NodeImpl.GetValue<object>();
-                return raw?.ToString() ?? string.Empty;
+                string? text = NodeImpl.TryGetValue<string>(out string? stringValue)
+                    ? stringValue
+                    : NodeImpl.GetValue<object>()?.ToString();
+                if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+                if (text.Contains('{') || text.Contains('}')) return text;
+                return LocalizedDisplay.Resolve(null, text, NodeImpl.Context);
             }
             catch
             {

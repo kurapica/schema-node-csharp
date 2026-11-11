@@ -1,6 +1,5 @@
 using System.ClientModel;
 using System.ClientModel.Primitives;
-using System.Reflection;
 using System.Text.Json;
 using Azure.AI.OpenAI;
 using Microsoft.AspNetCore.Builder;
@@ -12,10 +11,9 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using OpenAI;
 using SchemaNode.AI.Chat;
+using SchemaNode.AI.Workflow;
 using SchemaNode.Context;
 using SchemaNode.Http;
-using SchemaNode.Service;
-using SchemaNode.Utility;
 
 namespace SchemaNode.AI;
 
@@ -25,10 +23,12 @@ namespace SchemaNode.AI;
 public static class SchemaNodeChatInjection
 {
     /// <summary>
-    /// Registers the schema assistant services and the <c>SchemaNode.AI</c> assembly for API
-    /// discovery.
+    /// Registers the schema assistant and the AI workflow node, and adds the <c>SchemaNode.AI</c>
+    /// assembly to API discovery. HTTP exposure is a host decision: call <c>UseSchemaApis</c> to
+    /// publish the APIs and <see cref="MapSchemaChat"/> to publish the streaming endpoint.
     /// <para>
-    /// Call this <b>before</b> <c>PrepareSchemaRuntime</c> so the chat APIs are discovered.
+    /// Call this <b>before</b> <c>PrepareSchemaRuntime</c> so the AI assembly is part of the
+    /// provider and API scan.
     /// </para>
     /// </summary>
     /// <param name="services">The service collection.</param>
@@ -40,24 +40,9 @@ public static class SchemaNodeChatInjection
         this IServiceCollection services,
         Action<SchemaChatOptions>? configure = null)
     {
-        return services
-            .AddSchemaChatCore(configure)
-            .AddAppSchemaAssemblies(Assembly.GetExecutingAssembly());
-    }
-
-    /// <summary>
-    /// Registers the schema assistant services without exposing the HTTP endpoints. Hosts that only
-    /// consume <see cref="IAIChat"/> in-process, such as the WPF host, use this overload.
-    /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <param name="configure">Optional configuration; see <see cref="AddSchemaChat"/>.</param>
-    public static IServiceCollection AddSchemaChatCore(
-        this IServiceCollection services,
-        Action<SchemaChatOptions>? configure = null)
-    {
         var options = new SchemaChatOptions();
         configure?.Invoke(options);
-        services.AddSingleton(options);
+        services.TryAddSingleton(options);
 
         services.AddSingleton<SchemaChatConversationStore>();
         services.AddScoped<SchemaChatSession>();
@@ -65,7 +50,8 @@ public static class SchemaNodeChatInjection
 
         // Allow tests or hosts to provide their own IChatClient; otherwise build the provider
         // specific client lazily. The provider is not contacted until the first chat request.
-        services.TryAddSingleton<IChatClient>(_ => CreateChatClient(options));
+        services.TryAddSingleton<IChatClient>(serviceProvider =>
+            CreateClient(serviceProvider.GetRequiredService<SchemaChatOptions>()));
 
         // The default in-process implementation shares prompt assembly and validation with the
         // HTTP endpoints.
@@ -76,31 +62,9 @@ public static class SchemaNodeChatInjection
         Http.Service.EnableFeature("ai_chat");
         services.TryAddSingleton<ISchemaFeatures, SchemaFeatures>();
 
-        return services;
-    }
-
-    /// <summary>
-    /// Registers <see cref="IAIChat"/> as an HTTP client for hosts that do not own a
-    /// <see cref="SchemaContext"/>. Register either this overload or
-    /// <see cref="AddSchemaChatCore"/>, not both.
-    /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <param name="baseAddress">
-    /// The schema API base address including the prefix, e.g. <c>http://localhost:5000/schema</c>.
-    /// </param>
-    /// <param name="configure">Optional transport configuration.</param>
-    public static IServiceCollection AddSchemaChatWebClient(
-        this IServiceCollection services,
-        string baseAddress,
-        Action<AIChatWebApiOptions>? configure = null)
-    {
-        var options = new AIChatWebApiOptions { BaseAddress = baseAddress };
-        configure?.Invoke(options);
-        services.AddSingleton(options);
-        services.TryAddSingleton<HttpClient>();
-        services.TryAddSingleton<IAIChat>(serviceProvider => new HttpAIChat(
-            serviceProvider.GetRequiredService<HttpClient>(), options));
-        return services;
+        // The AI workflow node shares the same options and chat client; register its assembly so
+        // the workflow engine discovers system.workflow.ai.generate in every host.
+        return services.AddSchemaAiWorkflow();
     }
 
     /// <summary>
@@ -263,7 +227,11 @@ public static class SchemaNodeChatInjection
         await response.Body.FlushAsync(cancellationToken);
     }
 
-    private static IChatClient CreateChatClient(SchemaChatOptions options)
+    /// <summary>
+    /// Creates the single chat client configured by <see cref="SchemaChatOptions"/>. Both the
+    /// schema assistant and the AI workflow node consume this client.
+    /// </summary>
+    public static IChatClient CreateClient(SchemaChatOptions options)
     {
         switch (options.Provider)
         {

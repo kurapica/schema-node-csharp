@@ -2,16 +2,18 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:views="clr-namespace:SchemaNode.WPF.View.Views">
 
+    <!-- Every editor keeps vue's 120px input minimum so a short value (e.g. a cascade showing
+         only "system") never collapses to an unusably small field. -->
     <DataTemplate x:Key="SchemaInput">
-        <views:InputView />
+        <views:InputView MinWidth="120" />
     </DataTemplate>
 
     <DataTemplate x:Key="SchemaBoolean">
-        <views:BoolView />
+        <views:BoolView MinWidth="120" />
     </DataTemplate>
 
     <DataTemplate x:Key="SchemaDate">
-        <views:DateView />
+        <views:DateView MinWidth="120" />
     </DataTemplate>
 
     <DataTemplate x:Key="SchemaStruct">
@@ -19,7 +21,7 @@
     </DataTemplate>
 
     <DataTemplate x:Key="SchemaArray">
-        <views:ArrayView />
+        <views:ArrayView MinWidth="120" />
     </DataTemplate>
 
     <DataTemplate x:Key="SchemaTable">
@@ -28,7 +30,29 @@
 
     <!-- Namespace / type path with generic arguments (counterpart of namespace.vue). -->
     <DataTemplate x:Key="SchemaTypeSelector">
-        <views:TypeSelectorView />
+        <views:TypeSelectorView MinWidth="120" />
+    </DataTemplate>
+
+    <!-- Type-driven views mirrored from schema-node-vue-view (flagEnumView / yearView /
+         rangeDateView / localeStringView). Registered by type in SchemaViewRegistry. -->
+    <DataTemplate x:Key="SchemaFlags">
+        <views:FlagsView MinWidth="120" />
+    </DataTemplate>
+
+    <DataTemplate x:Key="SchemaYear">
+        <views:YearView MinWidth="120" />
+    </DataTemplate>
+
+    <DataTemplate x:Key="SchemaLanguage">
+        <views:LanguageView MinWidth="120" />
+    </DataTemplate>
+
+    <DataTemplate x:Key="SchemaRangeDate">
+        <views:RangeDateView MinWidth="120" />
+    </DataTemplate>
+
+    <DataTemplate x:Key="SchemaLocaleString">
+        <views:LocaleStringView MinWidth="120" />
     </DataTemplate>
 
     <!-- Last-resort read-only rendering for node shapes without a dedicated view. -->

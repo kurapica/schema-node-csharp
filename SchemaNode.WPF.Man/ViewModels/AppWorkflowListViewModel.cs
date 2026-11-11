@@ -17,7 +17,7 @@ using SchemaNode.WPF.View.Localization;
 namespace SchemaNode.WPF.Man.ViewModels;
 
 /// <summary>
-/// Workflow list of one app, opened from the app row's "工作流" action (only for apps with Fields).
+/// Workflow list of one app, opened from the app row's "Workflows" action (only for apps with Fields).
 ///
 /// Mirror of the workflow drawer in <c>appSchema.vue</c>: view / edit / activate-toggle / delete.
 /// The app identity is a Prism navigation parameter; the selected workflow travels to the

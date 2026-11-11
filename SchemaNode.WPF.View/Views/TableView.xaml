@@ -2,16 +2,8 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:SchemaNode.WPF.View"
-             xmlns:views="clr-namespace:SchemaNode.WPF.View.Views"
-             ToolTip="{Binding Error}">
+             xmlns:views="clr-namespace:SchemaNode.WPF.View.Views">
     <DockPanel>
-        <TextBlock DockPanel.Dock="Bottom"
-                   Margin="0,2,0,0"
-                   Foreground="#FFC62828"
-                   TextWrapping="Wrap"
-                   Text="{Binding Error}"
-                   Visibility="{Binding ShowError, Converter={x:Static local:Converters.BoolToVisibility}}" />
-
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -95,6 +87,7 @@
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Auto"
                           CanContentScroll="True"
+                          SizeChanged="OnBodySizeChanged"
                           ScrollChanged="OnBodyScrollChanged">
                 <ItemsControl ItemsSource="{Binding RowGroups}"
                               VirtualizingPanel.IsVirtualizing="True"
@@ -106,7 +99,12 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <views:TableRowGroupView />
+                            <!-- The row grid keeps its natural column widths as minimums and grows
+                                 them proportionally to the table's available width, exactly like
+                                 the header cells above it. -->
+                            <views:TableRowGroupView
+                                AvailableWidth="{Binding DataContext.AvailableWidth,
+                                                  RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

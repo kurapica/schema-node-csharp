@@ -18,7 +18,7 @@ using SchemaNode.WPF.View.Localization;
 namespace SchemaNode.WPF.Man.ViewModels;
 
 /// <summary>
-/// Field list of one app, opened from the app row's "字段" action.
+/// Field list of one app, opened from the app row's "Fields" action.
 ///
 /// Mirrors the field drawer of <c>appSchema.vue</c>: rows are ordered by Seqno, and the per-row
 /// actions are view / edit / try-it / move-up / delete, gated by the Core-authored schema flags.
@@ -77,7 +77,7 @@ public class AppFieldListViewModel : BindableBase, INavigationAware, IDestructib
 
     public bool IsEmpty => Fields.Count == 0;
 
-    /// <summary>Whether Core grants SchemaCreate on this app (controls "新建字段").</summary>
+    /// <summary>Whether Core grants SchemaCreate on this app (controls "New field").</summary>
     public bool IsFieldAddable
     {
         get => _isFieldAddable;

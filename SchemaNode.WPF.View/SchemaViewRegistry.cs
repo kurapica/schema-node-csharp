@@ -28,6 +28,11 @@ public static class SchemaTemplateKeys
     public const string Array = "SchemaArray";
     public const string Table = "SchemaTable";
     public const string TypeSelector = "SchemaTypeSelector";
+    public const string Flags = "SchemaFlags";
+    public const string Year = "SchemaYear";
+    public const string Language = "SchemaLanguage";
+    public const string RangeDate = "SchemaRangeDate";
+    public const string LocaleString = "SchemaLocaleString";
     public const string Fallback = "SchemaFallback";
 }
 
@@ -76,6 +81,7 @@ public sealed class SchemaViewRegistry
     private readonly Dictionary<TypeKey, TypeRegistration> _types = new();
     private readonly Dictionary<TypeKey, TypeLookup> _typeViews = new();
     private readonly HashSet<string> _singleViews = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, SchemaTableOptions> _tableOptions = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>A shared registry with the built-in registrations.</summary>
     public static SchemaViewRegistry Default => DefaultRegistry.Value;
@@ -105,6 +111,30 @@ public sealed class SchemaViewRegistry
         {
             registry.RegisterType(typePath, SchemaTemplateKeys.TypeSelector, role, DefaultSkin,
                 wrapperFactory: node => new TypeSelectorWrapper((DataNode)node, registry, null, role));
+
+            // Type-driven views mirrored from schema-node-vue-view: these semantic types are
+            // unusable through the generic scalar/struct editors in every host, so they live in the
+            // view library rather than in one admin screen.
+            registry.RegisterType(Constant.NS_SYSTEM_YEAR, SchemaTemplateKeys.Year, role, DefaultSkin,
+                wrapperFactory: node => new YearWrapper((DataNode)node, registry, null, role));
+
+            registry.RegisterType(Constant.NS_SYSTEM_LANGUAGE, SchemaTemplateKeys.Language, role, DefaultSkin,
+                wrapperFactory: node => new LanguageWrapper((DataNode)node, registry, null, role));
+
+            registry.RegisterType(Constant.NS_SYSTEM_LOCALE_STRING, SchemaTemplateKeys.LocaleString, role, DefaultSkin,
+                asSingle: true,
+                wrapperFactory: node => new LocaleStringWrapper((DataNode)node, registry, null, role));
+
+            foreach (string rangeType in new[]
+                     {
+                         Constant.NS_SYSTEM_RANGE_YEAR,
+                         Constant.NS_SYSTEM_RANGE_MONTH,
+                         Constant.NS_SYSTEM_RANGE_DATE,
+                         Constant.NS_SYSTEM_RANGE_FULL_DATE,
+                     })
+            {
+                registry.RegisterType(rangeType, SchemaTemplateKeys.RangeDate, role, DefaultSkin, asSingle: true);
+            }
         }
 
         return registry;
@@ -158,6 +188,29 @@ public sealed class SchemaViewRegistry
         => RegisterType(arrayTypeName, SchemaTemplateKeys.Table, SchemaViewRole.Field, skin, asSingle: true, wrapperFactory);
 
     /// <summary>
+    /// Marks an array type as a table and carries the registration-time table options (column
+    /// whitelist, read-only projection and row-editor appearance). The options apply wherever the
+    /// array type is rendered, including nested fields, so no view has to recognise the type.
+    /// </summary>
+    public void RegisterTable(
+        string arrayTypeName,
+        SchemaTableOptions options,
+        string skin = DefaultSkin,
+        Func<IValueAccess, DataNodeWrapper>? wrapperFactory = null)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        _tableOptions[arrayTypeName.ToLowerInvariant()] = options;
+        RegisterTable(arrayTypeName, skin, wrapperFactory);
+    }
+
+    /// <summary>
+    /// Options registered for an array type, or null when the type keeps the plain table defaults.
+    /// </summary>
+    public SchemaTableOptions? GetTableOptions(IValueTypeAccess type)
+        => _tableOptions.GetValueOrDefault(type.Name.ToLowerInvariant());
+
+    /// <summary>
     /// Resolves the template key and optional wrapper factory for a node. The node is not wrapped
     /// by this method; the caller materializes a wrapper only when it actually renders the node.
     /// </summary>
@@ -192,7 +245,8 @@ public sealed class SchemaViewRegistry
     /// </summary>
     public string DefaultTemplateKey(IValueAccess node)
     {
-        if (node is EnumArrayNode) return SchemaTemplateKeys.Input;
+        // Flags enums are a value set, so the plain text input cannot express them.
+        if (node is EnumArrayNode) return SchemaTemplateKeys.Flags;
         if (node is ArrayNode array)
             return ShouldUseTable(array) ? SchemaTemplateKeys.Table : SchemaTemplateKeys.Array;
         if (node is IEnumerable<IValueAccess>) return SchemaTemplateKeys.Array;
@@ -262,6 +316,8 @@ public sealed class SchemaViewRegistry
     /// Optional host hook used by the table view instead of the built-in modal row editor.
     /// The handler must block until the user finishes and return <see langword="true"/> when the
     /// edit was confirmed; a confirmed add-row then inserts the node passed in the request.
+    /// A custom editor window should call <see cref="TableRowEditorRequest.ApplyLayoutTo"/> so it
+    /// gets the same half-owner size and work-area-clamped placement as the built-in editor.
     /// </summary>
     public Func<TableRowEditorRequest, bool>? RowEditorFactory { get; set; }
 

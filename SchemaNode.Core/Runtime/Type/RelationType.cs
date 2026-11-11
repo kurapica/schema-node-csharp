@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Node;
@@ -50,6 +51,7 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
         var propType = Property?.GetCsharpType();
         if (propType == null || Activator.CreateInstance(propType) is not IProperty prop) return null;
         if (Process == null || await Process.ProcessAsync(context, owner, target ?? owner).ConfigureAwait(false) is not { } value) return null;
+        prop.Source = owner;
         prop.SetValue(value);
         return prop;
     }

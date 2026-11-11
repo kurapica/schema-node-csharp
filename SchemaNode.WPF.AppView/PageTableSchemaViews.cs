@@ -34,7 +34,8 @@ public static class PageTableSchemaViews
     public static void Enable(SchemaViewRegistry registry)
     {
         ArgumentNullException.ThrowIfNull(registry);
-        registry.NodeRegistrationResolver = Resolve;
+        Func<IValueAccess, SchemaViewRole, string, SchemaViewRegistration?>? previous = registry.NodeRegistrationResolver;
+        registry.NodeRegistrationResolver = (node, role, skin) => Resolve(node, role, skin) ?? previous?.Invoke(node, role, skin);
     }
 
     /// <summary>

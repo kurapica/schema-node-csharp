@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:SchemaNode.WPF.View"
              MinHeight="24"
+             Unloaded="OnViewUnloaded"
              ToolTip="{Binding Error}">
     <Grid>
         <Grid.ColumnDefinitions>
@@ -36,7 +37,7 @@
                 Padding="0"
                 Content="&#215;"
                 IsEnabled="{Binding IsEditable}"
-                Visibility="{Binding HasCascadeValue, Converter={x:Static local:Converters.BoolToVisibility}}"
+                Visibility="{Binding CanClear, Converter={x:Static local:Converters.BoolToVisibility}}"
                 Click="OnClearClick" />
 
         <!-- Side-by-side columns, one per level; the popup is its own window, so a grid cell
@@ -45,8 +46,7 @@
                Placement="Bottom"
                PlacementTarget="{Binding ElementName=Field}"
                StaysOpen="False"
-               AllowsTransparency="True"
-               Closed="OnPanelClosed">
+               AllowsTransparency="True">
             <Border Background="White"
                     BorderBrush="#FFB0B0B0"
                     BorderThickness="1"

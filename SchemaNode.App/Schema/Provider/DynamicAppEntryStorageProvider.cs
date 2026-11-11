@@ -26,6 +26,7 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
             {
                 NodeSchema? schema;
                 bool checkSubNs = false;
+                if (ROOT.Equals(name)) continue; // Not allow query ROOT
                 
                 // root namespace not exist in the storage, just check the sub namespaces
                 if (string.IsNullOrWhiteSpace(name))

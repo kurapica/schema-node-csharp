@@ -5,7 +5,7 @@ using SchemaNode.Schema;
 namespace SchemaNode.WPF.Man.ViewModels;
 
 /// <summary>
-/// Read-only row of the "应用" list.
+/// Read-only row of the "Apps" list.
 ///
 /// The visibility rules mirror <c>appSchema.vue</c> exactly:
 ///   - drill into child apps only when the app has no Fields;

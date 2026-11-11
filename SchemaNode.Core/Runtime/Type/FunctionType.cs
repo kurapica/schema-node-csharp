@@ -150,7 +150,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
                 return;
             }
 
-            arg.ValueType = !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetNodeTypeAsync<ValueType>(arg.Type, Generics, token: token).ConfigureAwait(false) : null;
+            arg.ValueType = !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetNodeTypeAsync<ValueType>(arg.Type, Generics, GenericParams, token: token).ConfigureAwait(false) : null;
 
             if (arg.ValueType == null || arg.ValueType is GenericType && !IsSystemCall)
             {
@@ -1094,7 +1094,7 @@ public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
     static T? CallAsyncFunc<T>(MethodBase asyncCall, params object[] callArgs)
     {
         Task<T>? task = (Task<T>?)asyncCall.Invoke(null, callArgs);
-        return task == null ? default : task.GetAwaiter().GetResult();
+        return task == null ? default : task.ConfigureAwait(false).GetAwaiter().GetResult();
     }
 
     // Gets the call async method

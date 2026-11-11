@@ -624,7 +624,7 @@ public class WorkflowContext: SchemaContext
 
         if (immediate)
         {
-            PersistenceAsync().GetAwaiter().GetResult();
+            PersistenceAsync().ConfigureAwait(false).GetAwaiter().GetResult();
             return;
         }
         

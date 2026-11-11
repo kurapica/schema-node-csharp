@@ -1,0 +1,18 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:views="clr-namespace:SchemaNode.WPF.Man.Views">
+
+    <!-- Man-only templates. They are registered by ManSchemaViews by type name, never by the
+         view library, because they depend on the administration node shapes (function call
+         argument lists and function definitions). -->
+
+    <!-- Read-only function call argument list (counterpart of callArgs.vue). -->
+    <DataTemplate x:Key="ManCallArgs">
+        <views:CallArgsView />
+    </DataTemplate>
+
+    <!-- Function definition card layout with expression previews (counterpart of func.vue). -->
+    <DataTemplate x:Key="ManFunction">
+        <views:FunctionSchemaView />
+    </DataTemplate>
+</ResourceDictionary>

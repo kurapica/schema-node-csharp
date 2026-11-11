@@ -639,7 +639,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// to that same synchronization context.
     /// </summary>
     private IValueAccess? CreateContextItemNode(string schemaType, object? item)
-        => Task.Run(() => GetNodeTypeAsync<ValueType>(schemaType)).GetAwaiter().GetResult()?.Create(this, item);
+        => Task.Run(() => GetNodeTypeAsync<ValueType>(schemaType)).ConfigureAwait(false).GetAwaiter().GetResult()?.Create(this, item);
     
     /// <summary>
     /// Gets the context item with the given type

@@ -24,6 +24,19 @@ public sealed class SchemaChatSession
     /// <summary>The tool invocation errors observed during this turn.</summary>
     public IReadOnlyList<string> ToolErrors => _toolErrors;
 
+    /// <summary>
+    /// Clears the per-turn state. The session is scoped to a host screen, so a stale proposal or
+    /// tool list from the previous turn must not leak into the next answer.
+    /// </summary>
+    public void Reset(string? target = null)
+    {
+        Target = target;
+        Proposal = null;
+        ProposalCount = 0;
+        _toolCalls.Clear();
+        _toolErrors.Clear();
+    }
+
     /// <summary>Records a tool invocation.</summary>
     public void RecordToolCall(string name)
     {

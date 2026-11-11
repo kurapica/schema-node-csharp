@@ -34,6 +34,7 @@ public class RelationSchema : PropertyOwner
     /// The target value type
     /// </summary>
     [Meta<DisplayOnly>(true)]
+    [Meta<InVisible>(true)]
     [Meta<AccessValueTypeResolver>(nameof(Target))]
     public string? TargetType { get; set; }
 
@@ -41,6 +42,7 @@ public class RelationSchema : PropertyOwner
     /// The target kind
     /// </summary>
     [Meta<DisplayOnly>(true)]
+    [Meta<InVisible>(true)]
     [Relation<Default, Call>(nameof(TargetKind), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getschemakind)}", $"@{nameof(TargetType)}")]
     public string? TargetKind { get; set; }
 
@@ -49,6 +51,7 @@ public class RelationSchema : PropertyOwner
     /// </summary>
     [Meta<DisplayOnly>(true)]
     [Meta<KindResolver>(true)]
+    [Meta<InVisible>(true)]
     public string? OwnerKind { get; set; }
 
     /// <summary>
@@ -89,7 +92,6 @@ public class RelationSchema : PropertyOwner
 /// </summary>
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_CORE}.relations")]
-//[Relation<EntrySource, Relation.Call>($"{nameof(Relations)}.{nameof(RelationSchema.Target)}", NS_SYSTEM_SCHEMA_REFLECT_GET_ACCESS_ENTRIES, NODE_SELF, $"@{nameof(Relations)}.{nameof(RelationSchema.Target)}")]
 public class Relations : Property<RelationSchema[]>
 {
     public override void SetValue<TValue>(TValue value)

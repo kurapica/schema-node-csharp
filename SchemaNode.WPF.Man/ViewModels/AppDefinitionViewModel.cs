@@ -69,6 +69,8 @@ public class AppDefinitionViewModel : BindableBase, INavigationAware, IDestructi
 
     private IValueAccess? _appNode;
     private ArrayNode? _fieldsNode;
+    /// <summary>Whether the field array was built successfully; false while a load/rebuild failed.</summary>
+    private bool _fieldsReady;
 
     /// <summary>Field names present when loaded, used on save to find removed fields (Core does not delete fields when saving an app).</summary>
     private readonly List<string> _originalFieldNames = [];
@@ -118,7 +120,7 @@ public class AppDefinitionViewModel : BindableBase, INavigationAware, IDestructi
     /// <summary>Current document mode (view / edit / new).</summary>
     public string Mode => _mode;
 
-    /// <summary>Whether the property and field areas accept input (false for 查看).</summary>
+    /// <summary>Whether the property and field areas accept input (false in view mode).</summary>
     public bool IsEditable => _mode is ModeEdit or ModeNew;
 
     /// <summary>Header text describing the mode and subject.</summary>
@@ -419,7 +421,14 @@ public class AppDefinitionViewModel : BindableBase, INavigationAware, IDestructi
         if (!isNew && appNode.GetAccessValue("name") is { } nameField)
             nameField.SetPropertyValue<ReadOnly, bool>(true, null, null);
 
-        await RebuildFieldsNodeAsync(BuildFieldsSeed(schema?.Fields));
+        if (!await RebuildFieldsNodeAsync(BuildFieldsSeed(schema?.Fields)))
+        {
+            // A partial load must not look like "this app has no fields": abort and release the
+            // half-built nodes so the save path cannot write an empty field list.
+            Status = LocaleManager.Instance.Get("wpf.appdef.status.fieldsfailed");
+            ClearNodes();
+            return;
+        }
 
         if (!isNew)
         {
@@ -446,6 +455,14 @@ public class AppDefinitionViewModel : BindableBase, INavigationAware, IDestructi
             if (app is null)
             {
                 Status = LocaleManager.Instance.Get("wpf.appdef.status.readback");
+                return;
+            }
+
+            // Distinguish "the app really has no fields" from "the field editor could not be
+            // built": only the former may be saved as an empty list.
+            if (!_fieldsReady || _fieldsNode is null)
+            {
+                Status = LocaleManager.Instance.Get("wpf.appdef.status.fieldsfailed");
                 return;
             }
 
@@ -579,7 +596,11 @@ public class AppDefinitionViewModel : BindableBase, INavigationAware, IDestructi
             };
             current.Add(item);
 
-            await RebuildFieldsNodeAsync(current);
+            if (!await RebuildFieldsNodeAsync(current))
+            {
+                Status = LocaleManager.Instance.Get("wpf.appdef.status.fieldsfailed");
+                return;
+            }
             NewFieldName = string.Empty;
             Status = LocaleManager.Instance.Format("wpf.appdef.field.status.added", name);
         }
@@ -608,7 +629,11 @@ public class AppDefinitionViewModel : BindableBase, INavigationAware, IDestructi
                 ? obj["name"]?.GetValue<string>()
                 : null;
             current.RemoveAt(index);
-            await RebuildFieldsNodeAsync(current);
+            if (!await RebuildFieldsNodeAsync(current))
+            {
+                Status = LocaleManager.Instance.Get("wpf.appdef.status.fieldsfailed");
+                return;
+            }
             Status = LocaleManager.Instance.Format("wpf.appdef.field.status.removed", name ?? $"[{index}]");
         }
         catch (Exception ex)
@@ -635,27 +660,50 @@ public class AppDefinitionViewModel : BindableBase, INavigationAware, IDestructi
     }
 
     /// <summary>
-    /// Rebuilds the field array node from the current field JSON. Adding and removing fields
-    /// rebuilds the whole table, avoiding subscription leaks caused by ArrayNode.DelRows not
-    /// disposing removed elements; single-row edits still go through their own Wrapper and do
-    /// not trigger a rebuild.
+    /// Rebuilds the field array node from the current field JSON. The new array is created
+    /// completely before the old one is touched, and the swap is a single synchronous step:
+    /// a failed rebuild leaves the previous field area (and its nodes) untouched.
     /// </summary>
-    private async Task RebuildFieldsNodeAsync(JsonArray seed)
+    private async Task<bool> RebuildFieldsNodeAsync(JsonArray seed)
     {
-        if (_session is null) return;
-
-        ClearFieldNodes();
+        if (_session is null) return false;
 
         StructType? fieldType = await _session.Context.GetNodeTypeAsync<StructType>($"{NS_SYSTEM_SCHEMA_APP_FIELD}.schema");
-        if (fieldType is null) return;
+        if (fieldType is null) return false;
 
         ArrayType? arrayType = await _session.Context.GetArrayNodeTypeAsync(fieldType);
         if (arrayType?.Create(_session.Context, seed.DeepClone()) is not ArrayNode array)
-            return;
+            return false;
 
-        FieldsNode = array;
         if (array is IDisposable disposable)
             _session.TrackNode(disposable);
+
+        ReplaceFieldNodes(array);
+        return true;
+    }
+
+    /// <summary>
+    /// Binds the rebuilt array and releases the previous one in the same synchronous step.
+    /// <c>SchemaView</c> disposes the wrapper of the old node while rebinding, so releasing the
+    /// old node afterwards keeps the "Wrapper → DataNode" order.
+    /// </summary>
+    private void ReplaceFieldNodes(ArrayNode node)
+    {
+        ArrayNode? previous = _fieldsNode;
+        FieldsNode = node;
+        _fieldsReady = true;
+        if (previous is not null && previous != node)
+            ReleaseFieldNode(previous);
+    }
+
+    private void ReleaseFieldNode(ArrayNode? node)
+    {
+        if (node is not IDisposable disposable) return;
+
+        if (_session is null)
+            disposable.Dispose();
+        else
+            _session.ReleaseNode(disposable);
     }
 
     private AppFieldSchema[] ReadFields()
@@ -698,14 +746,8 @@ public class AppDefinitionViewModel : BindableBase, INavigationAware, IDestructi
         // is released afterwards (disposing the array cascades to its elements).
         ArrayNode? node = _fieldsNode;
         FieldsNode = null;
-
-        if (node is IDisposable disposable)
-        {
-            if (_session is null)
-                disposable.Dispose();
-            else
-                _session.ReleaseNode(disposable);
-        }
+        _fieldsReady = false;
+        ReleaseFieldNode(node);
     }
 
     #endregion

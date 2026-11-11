@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>SchemaNode.Avalonia.Test</RootNamespace>
+    <AssemblyName>SchemaNode.Avalonia.Test</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.5" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SchemaNode.Core\SchemaNode.Core.csproj" />
+    <ProjectReference Include="..\SchemaNode.Avalonia.View\SchemaNode.Avalonia.View.csproj" />
+    <!-- The pageable case hosts the App-layer page table directly so it can drive page state. -->
+    <ProjectReference Include="..\SchemaNode.Avalonia.AppView\SchemaNode.Avalonia.AppView.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Locale resources for this host. Core's locale loader scans the registered schema assembly
+         and reads embedded resources whose file name ends with the locale code, so the harness
+         carries its own copy instead of borrowing the Man app's folder. -->
+    <EmbeddedResource Include="locale\*.json" />
+  </ItemGroup>
+
+</Project>

@@ -154,7 +154,7 @@ public sealed class LocaleString : ICloneable
                         key = parts[0];
                         field = parts[1];
                     }
-                    var type = ctx?.GetNodeTypeAsync(key).GetAwaiter().GetResult();
+                    var type = ctx?.GetNodeTypeAsync(key).ConfigureAwait(false).GetAwaiter().GetResult();
                     if (type != null)
                     {
                         if (!string.IsNullOrWhiteSpace(field))

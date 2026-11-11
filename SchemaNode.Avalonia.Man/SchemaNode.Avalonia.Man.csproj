@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>SchemaNode.Avalonia.Man</RootNamespace>
+    <AssemblyName>SchemaNode.Avalonia.Man</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.5" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SchemaNode.Core\SchemaNode.Core.csproj" />
+    <ProjectReference Include="..\SchemaNode.App\SchemaNode.App.csproj" />
+    <ProjectReference Include="..\SchemaNode.AI\SchemaNode.AI.csproj" />
+    <ProjectReference Include="..\SchemaNode.Avalonia.View\SchemaNode.Avalonia.View.csproj" />
+    <ProjectReference Include="..\SchemaNode.Avalonia.AppView\SchemaNode.Avalonia.AppView.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Locale dictionaries merged by the shared LocaleManager at startup -->
+    <EmbeddedResource Include="locale\*.json" />
+  </ItemGroup>
+
+</Project>

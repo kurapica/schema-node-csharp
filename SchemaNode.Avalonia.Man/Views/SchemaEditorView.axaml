@@ -1,0 +1,84 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:view="using:SchemaNode.Avalonia.View"
+             xmlns:loc="using:SchemaNode.Avalonia.View.Localization"
+             xmlns:inf="using:SchemaNode.Avalonia.Man.Infrastructure"
+             x:Class="SchemaNode.Avalonia.Man.Views.SchemaEditorView"
+             x:Name="Root"
+             x:CompileBindings="False">
+  <DockPanel Margin="8">
+    <!-- Optional built-in "type name + load" bar. The document screen hides it because the route
+         already knows its subject. -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8" Spacing="4"
+                IsVisible="{Binding HideNameBar, ElementName=Root, Converter={x:Static inf:Converters.Negate}}">
+      <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.label.type}"
+                 VerticalAlignment="Center" />
+      <TextBox Text="{Binding TypeName, UpdateSourceTrigger=PropertyChanged}" Width="260" />
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.load}"
+              Command="{Binding LoadCommand}" />
+    </StackPanel>
+
+    <!-- Enum cascade child entries: shown only when the definition node's Attach set has an enum
+         field mounted. Parent entries live in the enum.values array; this panel edits the child
+         entries under the selected parent. -->
+    <GroupBox DockPanel.Dock="Bottom"
+              Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.enum.cascade.title}"
+              Margin="0,8,0,0" Padding="4"
+              IsEnabled="{Binding IsEditable, ElementName=Root}"
+              IsVisible="{Binding ShowEnumEditor}">
+      <DockPanel DataContext="{Binding EnumEditor}">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="4">
+          <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.enum.cascade.parent}"
+                     VerticalAlignment="Center" />
+          <ComboBox Width="180" ItemsSource="{Binding ParentValues}"
+                    SelectedItem="{Binding SelectedParent, Mode=TwoWay}" />
+          <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.enum.cascade.load}"
+                  Command="{Binding LoadCommand}" />
+          <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.add}"
+                  Command="{Binding AddCommand}" />
+          <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.delete}"
+                  Command="{Binding RemoveCommand}" />
+          <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.enum.cascade.save}"
+                  Command="{Binding SaveCommand}" />
+        </StackPanel>
+        <TextBlock DockPanel.Dock="Bottom" Text="{Binding Status}" Margin="0,4,0,0" Foreground="Gray" />
+
+        <!-- Self-drawn two-column editable grid; the Avalonia port does not pull in a DataGrid
+             package for one small cascade editor. -->
+        <Grid RowDefinitions="Auto,*" Height="160">
+          <Grid ColumnDefinitions="160,*" Background="#F0F0F0">
+            <TextBlock Margin="6,4" FontWeight="SemiBold"
+                       Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.enum.cascade.value}" />
+            <TextBlock Grid.Column="1" Margin="6,4" FontWeight="SemiBold"
+                       Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.enum.cascade.display}" />
+          </Grid>
+          <ListBox Grid.Row="1" ItemsSource="{Binding Children}"
+                   SelectedItem="{Binding SelectedChild, Mode=TwoWay}">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <Grid ColumnDefinitions="160,*">
+                  <TextBox Margin="2" Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                  <TextBox Grid.Column="1" Margin="2" Text="{Binding Display, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </DockPanel>
+    </GroupBox>
+
+    <!-- A failed load must never leave an empty pane: the wrapper build error is shown here. -->
+    <Border DockPanel.Dock="Top" Background="#FDECEA" Padding="8,4" Margin="0,0,0,8"
+            IsVisible="{Binding Error, Converter={x:Static inf:Converters.VisibleIfText}}">
+      <TextBlock Text="{Binding Error}" Foreground="#B71C1C" TextWrapping="Wrap" />
+    </Border>
+
+    <!-- Property area: driven entirely by the merged Attach result of StructType (declared fields
+         plus multi-kind attach fields). -->
+    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+      <view:SchemaView Node="{Binding Node}"
+                       Registry="{Binding Registry}"
+                       IsEnabled="{Binding IsEditable, ElementName=Root}" />
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

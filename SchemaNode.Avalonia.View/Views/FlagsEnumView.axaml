@@ -1,0 +1,55 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="SchemaNode.Avalonia.View.Views.FlagsEnumView"
+             x:CompileBindings="False"
+             MinHeight="24"
+             ToolTip.Tip="{Binding ErrorTip}">
+  <Grid RowDefinitions="Auto,Auto">
+    <ComboBox Grid.Row="0"
+              IsVisible="{Binding !IsMulti}"
+              ItemsSource="{Binding Entries}"
+              SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
+              IsEnabled="{Binding IsEditable}"
+              MinHeight="24" />
+
+    <ToggleButton Grid.Row="0"
+                  x:Name="PopupToggle"
+                  IsVisible="{Binding IsMulti}"
+                  IsChecked="{Binding IsPopupOpen, Mode=TwoWay}"
+                  IsEnabled="{Binding IsEditable}"
+                  HorizontalContentAlignment="Left"
+                  Content="{Binding MultiSummary}"
+                  MinHeight="24" />
+
+    <Popup PlacementTarget="{Binding #PopupToggle}"
+           IsOpen="{Binding IsPopupOpen}"
+           IsLightDismissEnabled="True"
+           HorizontalOffset="0"
+           VerticalOffset="2">
+      <Border Background="{DynamicResource ThemeControlHighBrush}"
+              BorderBrush="{DynamicResource ThemeBorderMidBrush}"
+              BorderThickness="1"
+              Padding="6"
+              MaxHeight="280">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{Binding MultiEntries}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <CheckBox Margin="0,1"
+                          Content="{Binding Display}"
+                          IsChecked="{Binding IsSelected, Mode=TwoWay}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Border>
+    </Popup>
+
+    <TextBlock Grid.Row="1"
+               Margin="0,2,0,0"
+               Foreground="#FFC62828"
+               TextWrapping="Wrap"
+               Text="{Binding Error}"
+               IsVisible="{Binding ShowError}" />
+  </Grid>
+</UserControl>

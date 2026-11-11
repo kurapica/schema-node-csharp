@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="SchemaNode.Avalonia.View.Views.FallbackView"
+             x:CompileBindings="False"
+             MinHeight="24"
+             ToolTip.Tip="{Binding TypeName}">
+  <Grid RowDefinitions="Auto,Auto">
+    <TextBlock Grid.Row="0"
+               Text="{Binding DisplayText}"
+               TextTrimming="CharacterEllipsis"
+               IsEnabled="{Binding IsEditable}" />
+    <TextBlock Grid.Row="1"
+               Margin="0,2,0,0"
+               Foreground="#FFC62828"
+               TextWrapping="Wrap"
+               Text="{Binding Error}"
+               IsVisible="{Binding ShowError}" />
+  </Grid>
+</UserControl>

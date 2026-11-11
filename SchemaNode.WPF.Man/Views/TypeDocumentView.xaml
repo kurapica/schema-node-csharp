@@ -31,6 +31,10 @@
             <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedoc.button.save}"
                     Command="{Binding SaveCommand}" Margin="12,0,0,0"
                     Visibility="{Binding IsEditable, Converter={StaticResource BoolToVisibility}}" />
+            <!-- Copy opens the new-definition route seeded with this definition's fields, name excluded. -->
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedoc.button.copy}"
+                    Command="{Binding CopyCommand}" Margin="12,0,0,0"
+                    Visibility="{Binding CanCopy, Converter={StaticResource BoolToVisibility}}" />
             <!-- Assistant entry: only shown when the backend declared the "ai_chat" feature. -->
             <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedoc.chat.open}"
                     Command="{Binding ToggleChatCommand}" Margin="12,0,0,0"
@@ -46,7 +50,7 @@
         </Border>
 
         <!-- The editor renders the definition node through the view library. The name bar is hidden
-             because the route already knows the subject; IsEditable is turned off for 查看. -->
+             because the route already knows the subject; IsEditable is turned off in view mode. -->
         <local:SchemaEditorView Grid.Row="2"
                                 DataContext="{Binding Editor}"
                                 HideNameBar="True"

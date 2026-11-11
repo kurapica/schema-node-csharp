@@ -28,7 +28,7 @@ public sealed class PageTableWrapper : TableWrapper
     private readonly IPageTableAdapter _adapter;
     private readonly IReadOnlyList<PageFilter> _filters;
     private readonly Dictionary<string, RowTrack> _tracker = new(StringComparer.Ordinal);
-    private readonly HashSet<string> _deletedKeys = new(StringComparer.Ordinal);
+    private readonly Dictionary<DataNode, IDisposable> _rowSubscriptions = [];
     private readonly RelayCommand _firstCommand;
     private readonly RelayCommand _previousCommand;
     private readonly RelayCommand _nextCommand;
@@ -36,11 +36,13 @@ public sealed class PageTableWrapper : TableWrapper
     private CancellationTokenSource? _loadCts;
     private IReadOnlyList<PageTableFilterValue> _activeFilters = [];
     private PageTablePage? _currentPage;
+    private string? _pageError;
     private int _loadVersion;
     private int _page;
     private int _total;
     private bool _isLoading;
     private bool _loadedOnce;
+    private bool _suppressCapture;
 
     public PageTableWrapper(
         DataNode node,
@@ -77,7 +79,7 @@ public sealed class PageTableWrapper : TableWrapper
     public int DisplayPage => PageCount == 0 ? 0 : Math.Min(_page + 1, PageCount);
 
     /// <summary>Page size requested from the host.</summary>
-    public int PageSize => Math.Max(1, _adapter.PageSize);
+    public int PageSize => _adapter is null ? 1 : Math.Max(1, _adapter.PageSize);
 
     /// <summary>Localized page position and total count.</summary>
     public string PageInfo => Total <= 0
@@ -89,6 +91,10 @@ public sealed class PageTableWrapper : TableWrapper
 
     /// <summary>Whether the host explicitly supports primary-key tracking.</summary>
     public bool CanTrack =>
+        // The base table constructor builds its rows before this class assigns the adapter, so
+        // CanTrack must stay safe during that first pass. The first page load rebuilds the rows
+        // with the real adapter state.
+        _adapter is not null &&
         _adapter.SupportsTracking &&
         ArrayNodeImpl.Type is ArrayType { Primary.Count: > 0 };
 
@@ -100,8 +106,29 @@ public sealed class PageTableWrapper : TableWrapper
     /// <summary>Whether the degradation hint should be rendered.</summary>
     public bool HasTrackingHint => TrackingHint is not null;
 
-    /// <summary>Number of rows currently marked for deletion on the visible page.</summary>
-    public int DeletedRowCount => _deletedKeys.Count;
+    /// <summary>
+    /// A page table cannot persist a locally inserted row: the host adapter exposes no insert
+    /// operation and a new row has no primary key yet. Adding is therefore disabled and the page
+    /// chrome explains the limitation instead of silently discarding the row.
+    /// </summary>
+    public override bool CanAddRow => false;
+
+    /// <summary>Explicit notice shown when adding is normally allowed but unavailable here.</summary>
+    public string? AddUnsupportedHint => ReadOnly || !IsEditable
+        ? null
+        : LocaleManager.Instance.Get("wpf.page.addUnsupported");
+
+    /// <summary>Whether the add limitation notice should be rendered.</summary>
+    public bool HasAddUnsupportedHint => AddUnsupportedHint is not null;
+
+    /// <summary>Page-level failure text, shown above the table instead of a cell input error.</summary>
+    public string? PageError => _pageError;
+
+    /// <summary>Whether a page-level failure is displayed.</summary>
+    public bool HasPageError => _pageError is not null;
+
+    /// <summary>Number of rows marked for deletion across all loaded pages.</summary>
+    public int DeletedRowCount => _tracker.Values.Count(v => v.Delete);
 
     /// <summary>Whether the tracker holds updates or deletions that the host has not accepted yet.</summary>
     public bool HasPendingChanges => _tracker.Values.Any(v => v.Delete || v.Update is not null);
@@ -112,8 +139,11 @@ public sealed class PageTableWrapper : TableWrapper
         .Select(v => v.Update!)
         .ToArray();
 
-    /// <summary>Primary keys marked for deletion, ready for a host delete call.</summary>
-    public IReadOnlyList<string> DeletedKeys => _deletedKeys.ToArray();
+    /// <summary>Primary keys marked for deletion across all loaded pages.</summary>
+    public IReadOnlyList<string> DeletedKeys => _tracker
+        .Where(v => v.Value.Delete)
+        .Select(v => v.Key)
+        .ToArray();
 
     public bool CanGoFirst => !IsLoading && Page > 0;
     public bool CanGoPrevious => !IsLoading && Page > 0;
@@ -189,12 +219,19 @@ public sealed class PageTableWrapper : TableWrapper
         CancellationTokenSource? previous = Interlocked.Exchange(ref _loadCts, cts);
         if (previous is not null)
         {
-            previous.Cancel();
+            // A request may already have been disposed by its own finally block; cancellation of a
+            // disposed source throws and must not break the new request.
+            try { previous.Cancel(); }
+            catch (ObjectDisposedException) { }
             previous.Dispose();
         }
 
         int version = ++_loadVersion;
-        RunOnUiThread(() => SetLoading(true));
+        RunOnUiThread(() =>
+        {
+            SetPageError(null);
+            SetLoading(true);
+        });
 
         int effectivePage = Math.Max(0, page);
         PageTableQuery query = new(effectivePage * PageSize, PageSize, filters);
@@ -221,18 +258,20 @@ public sealed class PageTableWrapper : TableWrapper
             if (version == _loadVersion && !IsDisposed)
                 RunOnUiThread(() =>
                 {
-                    SetInputError(ex.Message);
+                    SetPageError(LocaleManager.Instance.Format("wpf.page.loadFailed", ex.Message));
                     RaisePageState();
                 });
         }
         finally
         {
-            if (version == _loadVersion)
-            {
+            // Only the request that still owns the loading flag may clear it. Deactivate clears the
+            // owner up front, so the abandoned request clears the overlay instead of leaving it
+            // stuck; a newer request keeps ownership and stays "loading".
+            bool ownsLoading = ReferenceEquals(Volatile.Read(ref _loadCts), cts);
+            if (ownsLoading) Interlocked.CompareExchange(ref _loadCts, null, cts);
+            if (ownsLoading || Volatile.Read(ref _loadCts) is null)
                 RunOnUiThread(() => SetLoading(false));
-                if (ReferenceEquals(_loadCts, cts)) _loadCts = null;
-                cts.Dispose();
-            }
+            cts.Dispose();
         }
     }
 
@@ -245,21 +284,47 @@ public sealed class PageTableWrapper : TableWrapper
         }
 
         _activeFilters = filters;
-        SetInputError(null);
+        SetPageError(null);
 
-        // Snapshot edits made on the page that is being replaced, keyed by primary key.
-        CaptureTracker();
+        int total = page.Total;
+        int pageCount = ComputePageCount(total);
+        int requested = Math.Max(0, requestedPage);
+        int clamped = pageCount == 0 ? 0 : Math.Clamp(requested, 0, pageCount - 1);
 
-        ApplyRows(page.Rows);
-        ApplyTrackerToRows();
+        if (clamped != requested)
+        {
+            // The result shrank (a delete or filter change) while the user was on a later page.
+            // Discard the empty slice and reload the clamped page instead of showing a blank page.
+            _total = total;
+            _page = clamped;
+            _adapter.ReleasePage(page);
+            RaisePageState();
+            _ = LoadPageAsync(clamped, filters);
+            return;
+        }
 
-        // Loading a page is not an edit. Confirm sets Value as the new baseline so the next
-        // CaptureTracker only records what the user actually changed on this page.
-        ConfirmRows();
+        _suppressCapture = true;
+        try
+        {
+            // Snapshot edits made on the page that is being replaced, keyed by primary key.
+            CaptureTracker();
+            UnsubscribeRows();
 
-        _total = page.Total;
-        int pageCount = PageCount;
-        _page = pageCount == 0 ? 0 : Math.Min(Math.Max(requestedPage, 0), pageCount - 1);
+            ApplyRows(page.Rows);
+            ApplyTrackerToRows();
+
+            // Loading a page is not an edit. Confirm sets Value as the new baseline so the next
+            // capture only records what the user actually changed on this page.
+            ConfirmRows();
+            SubscribeRows();
+        }
+        finally
+        {
+            _suppressCapture = false;
+        }
+
+        _total = total;
+        _page = clamped;
 
         PageTablePage? previous = _currentPage;
         _currentPage = page;
@@ -328,9 +393,14 @@ public sealed class PageTableWrapper : TableWrapper
                 if (update is not null)
                     _tracker[key] = new RowTrack { Update = update, Delete = deleted };
             }
-            else if (!deleted)
+            else if (!deleted && track?.Update is not null)
             {
-                _tracker.Remove(key);
+                // An existing update is only dropped when the row no longer matches it, i.e. the
+                // user reverted the edit. A row that merely equals the tracked update (because the
+                // update was re-applied and confirmed on reload) keeps its pending change.
+                JsonNode? current = element.GetValue<JsonNode>();
+                if (!JsonNode.DeepEquals(current, track.Update))
+                    _tracker.Remove(key);
             }
         }
     }
@@ -338,22 +408,63 @@ public sealed class PageTableWrapper : TableWrapper
     /// <summary>Re-applies tracked edits and delete marks to the freshly loaded page.</summary>
     private void ApplyTrackerToRows()
     {
-        _deletedKeys.Clear();
-
         foreach (DataNode element in ArrayNodeImpl.OfType<DataNode>())
         {
             string? key = KeyOf(element);
             if (key is null || !_tracker.TryGetValue(key, out RowTrack? track)) continue;
 
-            if (track.Delete)
-            {
-                _deletedKeys.Add(key);
-            }
-            else if (track.Update is not null)
-            {
+            if (!track.Delete && track.Update is not null)
                 element.TrySetValue(track.Update);
-            }
         }
+    }
+
+    /// <summary>
+    /// Subscribes to every node owned by the visible rows so an edit enters the tracker the moment
+    /// it happens, not only when the user navigates to another page.
+    /// </summary>
+    private void SubscribeRows()
+    {
+        foreach (DataNode element in ArrayNodeImpl.OfType<DataNode>())
+            SubscribeRowNode(element);
+    }
+
+    private void SubscribeRowNode(DataNode node)
+    {
+        if (_rowSubscriptions.ContainsKey(node)) return;
+
+        _rowSubscriptions[node] = node.Subscribe(OnRowNodeChanged);
+
+        switch (node)
+        {
+            case StructNode structNode:
+                foreach ((_, IValueAccess value) in structNode.GetFields())
+                    if (value is DataNode child) SubscribeRowNode(child);
+                break;
+
+            case ArrayNode arrayNode:
+                foreach (IValueAccess item in arrayNode)
+                    if (item is DataNode child) SubscribeRowNode(child);
+                break;
+        }
+    }
+
+    private void UnsubscribeRows()
+    {
+        foreach (IDisposable subscription in _rowSubscriptions.Values)
+            subscription.Dispose();
+        _rowSubscriptions.Clear();
+    }
+
+    private void OnRowNodeChanged((IValueAccess node, object? value) args)
+    {
+        if (_suppressCapture || IsDisposed) return;
+
+        RunOnUiThread(() =>
+        {
+            if (_suppressCapture || IsDisposed) return;
+            CaptureTracker();
+            RaiseTrackerState();
+        });
     }
 
     private void ReleaseCurrentPage()
@@ -369,7 +480,9 @@ public sealed class PageTableWrapper : TableWrapper
         CancellationTokenSource? cts = Interlocked.Exchange(ref _loadCts, null);
         if (cts is not null)
         {
-            cts.Cancel();
+            // The owning request may already have disposed the source in its finally block.
+            try { cts.Cancel(); }
+            catch (ObjectDisposedException) { }
             cts.Dispose();
         }
     }
@@ -380,6 +493,22 @@ public sealed class PageTableWrapper : TableWrapper
         _isLoading = value;
         RaisePropertyChanged(nameof(IsLoading));
         RaisePageState();
+    }
+
+    private void SetPageError(string? message)
+    {
+        if (string.Equals(_pageError, message, StringComparison.Ordinal)) return;
+        _pageError = message;
+        RaisePropertyChanged(nameof(PageError));
+        RaisePropertyChanged(nameof(HasPageError));
+    }
+
+    private void RaiseTrackerState()
+    {
+        RaisePropertyChanged(nameof(DeletedRowCount));
+        RaisePropertyChanged(nameof(DeletedKeys));
+        RaisePropertyChanged(nameof(HasPendingChanges));
+        RaisePropertyChanged(nameof(PendingUpdates));
     }
 
     private void RaisePageState()
@@ -393,7 +522,14 @@ public sealed class PageTableWrapper : TableWrapper
         RaisePropertyChanged(nameof(CanTrack));
         RaisePropertyChanged(nameof(TrackingHint));
         RaisePropertyChanged(nameof(HasTrackingHint));
+        RaisePropertyChanged(nameof(CanAddRow));
+        RaisePropertyChanged(nameof(AddUnsupportedHint));
+        RaisePropertyChanged(nameof(HasAddUnsupportedHint));
+        RaisePropertyChanged(nameof(PageError));
+        RaisePropertyChanged(nameof(HasPageError));
         RaisePropertyChanged(nameof(DeletedRowCount));
+        RaisePropertyChanged(nameof(DeletedKeys));
+        RaisePropertyChanged(nameof(PendingUpdates));
         RaisePropertyChanged(nameof(HasPendingChanges));
         RaisePropertyChanged(nameof(CanGoFirst));
         RaisePropertyChanged(nameof(CanGoPrevious));
@@ -444,17 +580,25 @@ public sealed class PageTableWrapper : TableWrapper
             if (wrapper is not null) inputs.Add(wrapper);
         }
 
-        string label = field is null ? config.Filter : FormatHeader(field);
-        return new PageFilter(config, label, inputs);
+        return new PageFilter(config, ResolveValueFilterLabel(config), inputs);
     }
+
+    /// <summary>Resolves the field caption on demand so a language switch updates the filter bar.</summary>
+    private Func<string> ResolveValueFilterLabel(FieldFilter config)
+        => () =>
+        {
+            StructFieldType? field = ElementType.GetField(config.Filter);
+            return field is null ? config.Filter : FormatHeader(field);
+        };
 
     private PageFilter? BuildFunctionFilter(FieldFilter config)
     {
         FunctionType? function = config.FilterFunction;
         if (function is null) return null;
 
+        FunctionType resolved = function;
         List<DataNodeWrapper> inputs = [];
-        foreach (FunctionNodeArgument argument in function.Args.Skip(1))
+        foreach (FunctionNodeArgument argument in resolved.Args.Skip(1))
         {
             IValueTypeAccess? type = argument.ValueType;
             if (type is null) continue;
@@ -466,10 +610,10 @@ public sealed class PageTableWrapper : TableWrapper
             if (wrapper is not null) inputs.Add(wrapper);
         }
 
-        string label = function.GetProperty<Display>()?.Value?.ToString(NodeImpl.Context)
-            ?? function.Name;
-
-        return new PageFilter(config, label, inputs);
+        return new PageFilter(
+            config,
+            () => resolved.GetProperty<Display>()?.Value?.ToString(NodeImpl.Context) ?? resolved.Name,
+            inputs);
     }
 
     private void ApplyFilters()
@@ -515,7 +659,6 @@ public sealed class PageTableWrapper : TableWrapper
             : new RowTrack();
         track.Delete = true;
         _tracker[key] = track;
-        _deletedKeys.Add(key);
 
         RebuildAll();
         RaisePageState();
@@ -529,8 +672,11 @@ public sealed class PageTableWrapper : TableWrapper
         string? key = KeyOf(element);
         if (key is null) return;
 
-        if (_tracker.TryGetValue(key, out RowTrack? track)) track.Delete = false;
-        _deletedKeys.Remove(key);
+        if (_tracker.TryGetValue(key, out RowTrack? track))
+        {
+            track.Delete = false;
+            if (track.Update is null) _tracker.Remove(key);
+        }
 
         RebuildAll();
         RaisePageState();
@@ -539,9 +685,9 @@ public sealed class PageTableWrapper : TableWrapper
     /// <summary>Rows with a pending delete are rendered grey and offer restore.</summary>
     protected override bool IsRowDeleted(DataNode element)
     {
-        if (_deletedKeys.Count == 0) return false;
+        if (_tracker.Count == 0) return false;
         string? key = KeyOf(element);
-        return key is not null && _deletedKeys.Contains(key);
+        return key is not null && _tracker.TryGetValue(key, out RowTrack? track) && track.Delete;
     }
 
     /// <summary>Only tracked rows can be deleted on a page table.</summary>
@@ -583,6 +729,9 @@ public sealed class PageTableWrapper : TableWrapper
         base.OnLanguageChanged();
         Post(() =>
         {
+            foreach (PageFilter filter in _filters)
+                filter.RefreshLabel();
+
             RaisePropertyChanged(nameof(PageInfo));
             RaisePropertyChanged(nameof(LoadingText));
             RaisePropertyChanged(nameof(FirstText));
@@ -593,14 +742,18 @@ public sealed class PageTableWrapper : TableWrapper
             RaisePropertyChanged(nameof(ResetText));
             RaisePropertyChanged(nameof(TrackingHint));
             RaisePropertyChanged(nameof(HasTrackingHint));
+            RaisePropertyChanged(nameof(AddUnsupportedHint));
+            RaisePropertyChanged(nameof(HasAddUnsupportedHint));
         });
     }
 
     /// <summary>Accepts the tracked updates/deletions after the host persisted them.</summary>
     public void AcceptChanges()
     {
+        // Confirm first: the saved values become the new baseline, so a later capture on the next
+        // page cannot re-report the same rows as ghost updates.
+        ConfirmRows();
         _tracker.Clear();
-        _deletedKeys.Clear();
         if (!IsDisposed) RebuildAll();
         RaisePageState();
     }
@@ -635,8 +788,8 @@ public sealed class PageTableWrapper : TableWrapper
         {
             CancelPendingLoads();
             ReleaseCurrentPage();
+            UnsubscribeRows();
             _tracker.Clear();
-            _deletedKeys.Clear();
 
             foreach (PageFilter filter in _filters)
                 foreach (DataNodeWrapper input in filter.Inputs)

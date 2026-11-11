@@ -149,12 +149,14 @@ public sealed class InputWrapper : DataNodeWrapper
     private bool _isCascading;
     private bool _asSuggest;
     private bool _leafOnly;
+    private string? _pendingText;
 
     /// <inheritdoc />
     public override string? DefaultTemplateKey => SchemaTemplateKeys.Input;
 
-    public InputWrapper(DataNode node, SchemaViewRegistry? registry, string? fieldName, SchemaViewRole role)
-        : base(node, registry, fieldName, role)
+    public InputWrapper(DataNode node, SchemaViewRegistry? registry, string? fieldName, SchemaViewRole role,
+                        bool ancestorVisibility = true)
+        : base(node, registry, fieldName, role, ancestorVisibility)
     {
         ScalarNodeImpl = node as ScalarNode
             ?? throw new ArgumentException($"Node '{node.Type.Name}' is not a scalar node.", nameof(node));
@@ -202,6 +204,48 @@ public sealed class InputWrapper : DataNodeWrapper
     /// <summary>Use the plain text editor (no candidates at all).</summary>
     public bool IsPlainText => !IsMulti && !IsCascading && !HasEntries;
 
+    /// <summary>
+    /// Whether the editor holds text the node rejected. Only the write result decides this;
+    /// validation semantics stay in Core.
+    /// </summary>
+    public bool HasPendingInput => _pendingText is not null;
+
+    /// <inheritdoc />
+    protected override object? ReadEditorValue()
+        => _pendingText ?? base.ReadEditorValue();
+
+    /// <inheritdoc />
+    protected override void WriteEditorValue(object? value)
+    {
+        if (IsDisposed) return;
+
+        string text = value as string ?? value?.ToString() ?? string.Empty;
+
+        if (!NodeImpl.TrySetValue(value))
+        {
+            // The node rejected the text (wrong type or a failed constraint). Core owns the
+            // validation rules; the wrapper only keeps the draft and reports the generic
+            // VALUE_NOT_VALID message until the next write attempt.
+            _pendingText = text;
+            SetInputError(LocaleManager.Instance.TryGet("VALUE_NOT_VALID", out string message)
+                ? message
+                : LocaleManager.Instance.Get("wpf.view.error.invalid"));
+            RaisePropertyChangedNow(nameof(HasPendingInput));
+            return;
+        }
+
+        ClearPendingInput();
+    }
+
+    private void ClearPendingInput()
+    {
+        bool changed = _pendingText is not null;
+        _pendingText = null;
+        SetInputError(null);
+        if (changed)
+            RaisePropertyChangedNow(nameof(HasPendingInput));
+    }
+
     /// <summary>Currently selected single-level candidate.</summary>
     public EntryItem? SelectedEntry
     {
@@ -218,9 +262,11 @@ public sealed class InputWrapper : DataNodeWrapper
 
     /// <summary>
     /// Closed-state text of the cascaded selector: the display of every selected level joined by
-    /// <c> / </c>, root first. When an existing value no longer resolves against the current entry
-    /// tree the raw value is shown instead, so a removed branch degrades to readable text rather
-    /// than a blank field or an exception.
+    /// <c> / </c>, root first. A level whose localized display is empty falls back to the entry
+    /// value, because a namespace entry may legitimately carry no display and joining empty parts
+    /// would blank the whole field. When an existing value no longer resolves against the current
+    /// entry tree the raw value is shown instead, so the field never ends up empty while the node
+    /// holds a value.
     /// </summary>
     public string CascadeSummary
     {
@@ -230,18 +276,43 @@ public sealed class InputWrapper : DataNodeWrapper
             foreach (EntryLevel level in Levels)
             {
                 if (level.Selected is { } selected)
-                    parts.Add(selected.Display);
+                    parts.Add(string.IsNullOrWhiteSpace(selected.Display) ? selected.Value : selected.Display);
             }
-            if (parts.Count > 0) return string.Join(" / ", parts);
+            if (parts.Count > 0)
+            {
+                string joined = string.Join(" / ", parts);
+                if (!string.IsNullOrWhiteSpace(joined)) return joined;
+            }
 
             string? raw = ToKey(NodeImpl.GetValue<object>());
-            if (!string.IsNullOrWhiteSpace(raw)) return raw;
+            if (!string.IsNullOrWhiteSpace(raw))
+                return LocalizedDisplay.Resolve(null, raw, NodeImpl.Context);
             return LocaleManager.Instance.Get("wpf.entry.multi.none");
         }
     }
 
     /// <summary>Whether the node currently holds a value the cascader can clear.</summary>
-    public bool HasCascadeValue => !NodeImpl.IsEmpty;
+    public bool HasCascadeValue => HasValue;
+
+    /// <summary>Whether the node currently holds any committed value, in any editor mode.</summary>
+    public bool HasValue
+    {
+        get
+        {
+            if (NodeImpl.IsEmpty) return false;
+            object? raw = NodeImpl.GetValue<object>();
+            return raw is JsonArray array ? array.Count > 0 : !string.IsNullOrWhiteSpace(ToKey(raw));
+        }
+    }
+
+    /// <summary>
+    /// Whether the committed value can be cleared. Only optional, editable selectors expose the
+    /// clear affordance; required selectors keep their value and surface the usual validation.
+    /// </summary>
+    public bool CanClear => IsEditable && !Require && HasValue;
+
+    /// <summary>Whether entries with children are selectable (non-leaf selection is enabled).</summary>
+    public bool CanSelectNonLeaf => !LeafOnly && ScalarNodeImpl.IsNonLeafNodeSelectable;
 
     /// <summary>Compact closed-state summary for the multi-value popup.</summary>
     public string MultiSummary
@@ -271,12 +342,30 @@ public sealed class InputWrapper : DataNodeWrapper
     /// <inheritdoc />
     protected override void OnValueChanged()
     {
+        // Node-side refreshes only publish Value; ReadEditorValue keeps returning the staged
+        // text while the node keeps rejecting it, so the editor is never reset from underneath.
         Post(() =>
         {
             SyncSelectionFromNode();
             RaisePropertyChangedNow(nameof(HasCascadeValue));
+            RaisePropertyChangedNow(nameof(HasValue));
+            RaisePropertyChangedNow(nameof(CanClear));
             RaisePropertyChangedNow(nameof(CascadeSummary));
         });
+    }
+
+    /// <inheritdoc />
+    protected override void OnEditableChanged()
+    {
+        base.OnEditableChanged();
+        RaisePropertyChangedNow(nameof(CanClear));
+    }
+
+    /// <inheritdoc />
+    protected override void OnRequireChanged((IValueAccess node, Type propertyType, bool value, bool oldValue) args)
+    {
+        base.OnRequireChanged(args);
+        RaisePropertyChangedNow(nameof(CanClear));
     }
 
     /// <inheritdoc />
@@ -298,19 +387,29 @@ public sealed class InputWrapper : DataNodeWrapper
     public void ReloadCascadeSelection() => RefreshEntries();
 
     /// <summary>
-    /// Clears the node value and rebuilds the level tree. Used by the cascader's clear affordance;
-    /// optional fields end up empty, required fields surface their usual validation error.
+    /// Clears the committed value of any optional selector (single, multi or cascaded) and returns
+    /// the editor to the unselected state. Required selectors keep their value because they are
+    /// not clearable.
     /// </summary>
-    public void ClearCascade()
+    public void ClearSelection()
     {
-        if (IsDisposed || !IsCascading) return;
+        if (IsDisposed || !CanClear) return;
 
+        ClearPendingInput();
         NodeImpl.ClearValue();
         _selectedEntry = null;
+        IsPopupOpen = false;
         RaisePropertyChangedNow(nameof(SelectedEntry));
         RaisePropertyChangedNow(nameof(HasCascadeValue));
+        RaisePropertyChangedNow(nameof(HasValue));
+        RaisePropertyChangedNow(nameof(CanClear));
+        RaisePropertyChangedNow(nameof(CascadeSummary));
+        RaisePropertyChangedNow(nameof(MultiSummary));
         RefreshEntries();
     }
+
+    /// <summary>Kept for the cascader's clear affordance; delegates to the generic clear.</summary>
+    public void ClearCascade() => ClearSelection();
 
     private void OnEntrySourceVersionChanged((IValueAccess node, Type propertyType, long value, long oldValue) args)
     {
@@ -329,6 +428,7 @@ public sealed class InputWrapper : DataNodeWrapper
         if (_leafOnly == args.value) return;
         _leafOnly = args.value;
         RaisePropertyChanged(nameof(LeafOnly));
+        RaisePropertyChanged(nameof(CanSelectNonLeaf));
     }
 
     private void RefreshEntries()
@@ -549,7 +649,7 @@ public sealed class InputWrapper : DataNodeWrapper
     {
         if (_suppressSelection || IsDisposed || item is null) return;
 
-        bool selectable = !item.HasChildren || LeafOnly || ScalarNodeImpl.IsNonLeafNodeSelectable;
+        bool selectable = !item.HasChildren || (!LeafOnly && ScalarNodeImpl.IsNonLeafNodeSelectable);
         if (selectable)
         {
             Value = item.Value;
@@ -657,7 +757,7 @@ public sealed class InputWrapper : DataNodeWrapper
         LocaleString? display = entry.GetProperty<Display>()?.Value;
         return new EntryItem(
             entry.Value,
-            display?.ToString(NodeImpl.Context) ?? entry.Value,
+            LocalizedDisplay.Resolve(display, entry.Value, NodeImpl.Context),
             entry.HasChildren == true,
             entry.Disabled);
     }
@@ -677,7 +777,12 @@ public sealed class InputWrapper : DataNodeWrapper
     protected override void Dispose(bool disposing)
     {
         if (disposing && !IsDisposed)
+        {
             Interlocked.Exchange(ref _entryCts, null)?.Cancel();
+            // Do not leave staged text behind: a recycled cell must not resurrect the old edit
+            // when its wrapper is reused for another node.
+            _pendingText = null;
+        }
         base.Dispose(disposing);
     }
 

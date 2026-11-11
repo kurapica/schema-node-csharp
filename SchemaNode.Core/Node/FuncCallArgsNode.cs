@@ -165,7 +165,7 @@ public class FuncCallArgsNode : DataNode, IEnumerable<StructNode>
     public override bool Changed => _args.Any(e => e.Changed) || (_varArg?.Changed ?? false);
 
     /// <inheritdoc/>
-    public override bool IsValid => _args.All(e => e.IsValid) && (_varArg?.IsValid ?? true) && base.IsValid;
+    public override bool IsValid => base.IsValid && (IsEmpty || (_args.All(e => e.IsValid) && (_varArg?.IsValid ?? true)));
 
     /// <inheritdoc/>
     public override JsonNode? Violated
@@ -182,12 +182,15 @@ public class FuncCallArgsNode : DataNode, IEnumerable<StructNode>
     /// <inheritdoc/>
     public override IEnumerable<DataNode> GetErrorNodes()
     {
-        foreach (StructNode node in _args)
-            foreach (DataNode error in node.GetErrorNodes())
-                yield return error;
-        if (_varArg is not null)
-            foreach (DataNode error in _varArg.GetErrorNodes())
-                yield return error;
+        if (!IsEmpty)
+        {
+            foreach (StructNode node in _args)
+                foreach (DataNode error in node.GetErrorNodes())
+                    yield return error;
+            if (_varArg is not null)
+                foreach (DataNode error in _varArg.GetErrorNodes())
+                    yield return error;
+        }
         foreach (DataNode error in base.GetErrorNodes())
             yield return error;
     }
@@ -384,11 +387,11 @@ public class FuncCallArgsNode : DataNode, IEnumerable<StructNode>
             {
                 JsonArray adata = new(data.Skip(i).Select(n => n?.DeepClone()).ToArray());
                 if (adata.Count == 0 && !isReadonly)
-                    adata.Add(new JsonObject { ["type"] = arg.Type });
+                    adata.Add(new JsonObject { ["type"] = arg.ValueType?.Name ?? arg.Type });
                 for (int j = 0; j < adata.Count; j++)
                 {
-                    if (adata[j] is JsonObject obj) obj["type"] = arg.Type;
-                    else adata[j] = new JsonObject { ["type"] = arg.Type };
+                    if (adata[j] is JsonObject obj) obj["type"] = arg.ValueType?.Name ?? arg.Type;
+                    else adata[j] = new JsonObject { ["type"] = arg.ValueType?.Name ?? arg.Type };
                 }
 
                 FuncCallVarNode varArg = new(Context, _argType, adata, this, arg);

@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -60,6 +62,9 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
     private string _mode = ModeEdit;
     private string _pendingWorkflowName = string.Empty;
     private bool _isNavigating;
+    private bool _isSaving;
+    /// <summary>App name captured when the workflow list loaded; save/delete targets this while <see cref="AppName"/> may be edited.</summary>
+    private string _loadedAppName = string.Empty;
 
     private readonly ObservableCollection<AppWorkflowSchema> _workflows = new();
     private AppWorkflowSchema? _selectedWorkflow;
@@ -88,8 +93,10 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         LoadAppCommand = new DelegateCommand(ExecuteLoadApp, () => !string.IsNullOrWhiteSpace(AppName))
             .ObservesProperty(() => AppName);
         NewWorkflowCommand = new DelegateCommand(ExecuteNewWorkflow);
-        SaveCommand = new DelegateCommand(ExecuteSave);
-        DeleteWorkflowCommand = new DelegateCommand(ExecuteDeleteWorkflow);
+        SaveCommand = new DelegateCommand(ExecuteSave, () => !_isSaving)
+            .ObservesProperty(() => IsSaving);
+        DeleteWorkflowCommand = new DelegateCommand(ExecuteDeleteWorkflow, () => !_isSaving)
+            .ObservesProperty(() => IsSaving);
         AddNodeCommand = new DelegateCommand(ExecuteAddNode);
         DeleteNodeCommand = new DelegateCommand(ExecuteDeleteNode);
         DisconnectEdgeCommand = new DelegateCommand(ExecuteDisconnectEdge);
@@ -105,17 +112,34 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
     public string AppName
     {
         get => _appName;
-        set => SetProperty(ref _appName, value);
+        set
+        {
+            if (!SetProperty(ref _appName, value)) return;
+            // The workflows on screen belong to the previously loaded app. Editing the name without
+            // reloading invalidates the target, so save/delete cannot hit a different app.
+            if (!string.IsNullOrWhiteSpace(_loadedAppName) &&
+                !_loadedAppName.Trim().Equals(value?.Trim(), StringComparison.OrdinalIgnoreCase))
+                _loadedAppName = string.Empty;
+        }
     }
 
     /// <summary>Current document mode (view / edit / new).</summary>
     public string Mode => _mode;
 
-    /// <summary>Whether the canvas accepts mutations; false for 查看.</summary>
+    /// <summary>Whether the canvas accepts mutations; false in view mode.</summary>
     public bool IsEditable => _mode is ModeEdit or ModeNew;
 
     /// <summary>Workflow list under the current application</summary>
     public ObservableCollection<AppWorkflowSchema> Workflows => _workflows;
+
+    /// <summary>Whether a save/delete is in flight; selection and commands are frozen meanwhile.</summary>
+    public bool IsSaving => _isSaving;
+
+    /// <summary>Whether the workflow list may switch rows (disabled while a save/delete is in flight).</summary>
+    public bool CanSwitchWorkflow => !_isSaving;
+
+    /// <summary>Whether the edit commands (new/save/delete) are available.</summary>
+    public bool CanModifyWorkflow => IsEditable && !_isSaving;
 
     /// <summary>Currently selected workflow (automatically loaded into the canvas when changed)</summary>
     public AppWorkflowSchema? SelectedWorkflow
@@ -123,6 +147,9 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         get => _selectedWorkflow;
         set
         {
+            // Ignore list/canvas selection changes while an async save or delete is targeting the
+            // current workflow, otherwise the result would be written back to the wrong row.
+            if (_isSaving) return;
             if (!SetProperty(ref _selectedWorkflow, value)) return;
             _ = LoadWorkflowAsync(value);
         }
@@ -270,6 +297,7 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         AppName = navigationContext.Parameters.GetValue<string>(AppParameter) ?? string.Empty;
         RaisePropertyChanged(nameof(Mode));
         RaisePropertyChanged(nameof(IsEditable));
+        RaisePropertyChanged(nameof(CanModifyWorkflow));
 
         Status = LocaleManager.Instance.Get("wpf.workflow.status.ready");
 
@@ -293,6 +321,7 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         _mode = ModeEdit;
         _pendingWorkflowName = string.Empty;
         _isNavigating = false;
+        _loadedAppName = string.Empty;
     }
 
     /// <summary>
@@ -374,6 +403,15 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         await LoadAppAsync();
     }
 
+    private void SetSaving(bool saving)
+    {
+        if (_isSaving == saving) return;
+        _isSaving = saving;
+        RaisePropertyChanged(nameof(IsSaving));
+        RaisePropertyChanged(nameof(CanSwitchWorkflow));
+        RaisePropertyChanged(nameof(CanModifyWorkflow));
+    }
+
     /// <summary>
     /// Loads the workflow list of <see cref="AppName"/> and selects the first workflow when nothing
     /// was requested through navigation.
@@ -382,9 +420,14 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
     {
         if (_session is null) return;
 
+        // Capture the app being loaded: AppName stays editable afterwards, but save/delete must
+        // keep targeting the app whose workflows are actually on screen.
+        string appName = AppName;
+        _loadedAppName = string.Empty;
+
         try
         {
-            AppSchema? app = await _session.Api.GetAppSchemaAsync(AppName, includeTypes: true);
+            AppSchema? app = await _session.Api.GetAppSchemaAsync(appName, includeTypes: true);
 
             TeardownWorkflow();
             _selectedWorkflow = null;
@@ -395,8 +438,9 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
                 foreach (AppWorkflowSchema workflow in app.Workflows)
                     _workflows.Add(workflow);
 
+            _loadedAppName = app is null ? string.Empty : appName;
             Status = app is null
-                ? LocaleManager.Instance.Format("wpf.workflow.status.app.notfound", AppName)
+                ? LocaleManager.Instance.Format("wpf.workflow.status.app.notfound", appName)
                 : LocaleManager.Instance.Format("wpf.workflow.status.app.loaded", _workflows.Count);
 
             if (_workflows.Count > 0)
@@ -415,10 +459,9 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
 
         if (_session is null || source is null) return;
 
-        AppWorkflowSchema copy = Clone(source);
-
         try
         {
+            AppWorkflowSchema copy = Clone(source);
             NodeType? type = await _session.Context.GetNodeTypeAsync($"{NS_SYSTEM_SCHEMA_APP_WORKFLOW}.schema");
             if (version != _loadVersion || _session is null) return;
 
@@ -456,7 +499,7 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         }
     }
 
-    private void ExecuteSave()
+    private async void ExecuteSave()
     {
         if (!IsEditable)
         {
@@ -466,6 +509,11 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         if (_session is null || _workflowNode is null)
         {
             Status = LocaleManager.Instance.Get("wpf.workflow.status.loadfirst");
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_loadedAppName))
+        {
+            Status = LocaleManager.Instance.Get("wpf.workflow.status.appfirst");
             return;
         }
 
@@ -487,23 +535,34 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
             return;
         }
 
-        _ = SaveAsync(_session, schema);
+        SchemaScreenSession session = _session;
+        AppWorkflowSchema? target = _selectedWorkflow;
+        SetSaving(true);
+        try
+        {
+            await SaveAsync(session, _loadedAppName, target, schema);
+        }
+        finally
+        {
+            SetSaving(false);
+        }
     }
 
-    private async Task SaveAsync(SchemaScreenSession session, AppWorkflowSchema schema)
+    private async Task SaveAsync(SchemaScreenSession session, string appName, AppWorkflowSchema? target, AppWorkflowSchema schema)
     {
         try
         {
-            bool ok = await session.Api.SaveAppWorkflowSchemaAsync(AppName, schema);
+            bool ok = await session.Api.SaveAppWorkflowSchemaAsync(appName, schema);
             Status = ok
                 ? LocaleManager.Instance.Get("wpf.workflow.status.saved")
                 : LocaleManager.Instance.Get("wpf.workflow.status.savefailed.active");
 
-            if (ok && _selectedWorkflow is not null)
+            // Write back to the row captured before the await, not to whatever is selected now.
+            if (ok && target is not null && _workflows.Contains(target))
             {
-                _selectedWorkflow.Name = schema.Name;
-                _selectedWorkflow.Active = schema.Active;
-                _selectedWorkflow.Nodes = schema.Nodes;
+                target.Name = schema.Name;
+                target.Active = schema.Active;
+                target.Nodes = schema.Nodes;
                 RaisePropertyChanged(nameof(SelectedWorkflow));
             }
         }
@@ -525,7 +584,7 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
             Status = LocaleManager.Instance.Get("wpf.workflow.status.nosession");
             return;
         }
-        if (string.IsNullOrWhiteSpace(AppName))
+        if (string.IsNullOrWhiteSpace(_loadedAppName))
         {
             Status = LocaleManager.Instance.Get("wpf.workflow.status.appfirst");
             return;
@@ -534,7 +593,7 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         string name = NextWorkflowName();
         var schema = new AppWorkflowSchema
         {
-            App = AppName,
+            App = _loadedAppName,
             Name = name,
             Nodes = [new AppWorkflowNodeSchema { Name = "start" }],
         };
@@ -556,25 +615,44 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
             Status = LocaleManager.Instance.Get("wpf.workflow.status.selectworkflow");
             return;
         }
+        if (string.IsNullOrWhiteSpace(_loadedAppName))
+        {
+            Status = LocaleManager.Instance.Get("wpf.workflow.status.appfirst");
+            return;
+        }
 
-        string name = SelectedWorkflow.Name;
+        // Capture the row and its identity before awaiting: the selection must not be used after
+        // the await, otherwise a switched row/app would delete the wrong workflow.
+        SchemaScreenSession session = _session;
+        AppWorkflowSchema target = SelectedWorkflow;
+        string appName = _loadedAppName;
+        string name = target.Name;
+        bool removed = false;
+        SetSaving(true);
         try
         {
-            bool ok = await _session.Api.DeleteAppWorkflowSchemaAsync(AppName, name);
+            bool ok = await session.Api.DeleteAppWorkflowSchemaAsync(appName, name);
             if (!ok)
             {
                 Status = LocaleManager.Instance.Get("wpf.workflow.status.deletefailed.active");
                 return;
             }
 
-            _workflows.Remove(SelectedWorkflow);
-            SelectedWorkflow = _workflows.FirstOrDefault();
+            removed = _workflows.Remove(target);
             Status = LocaleManager.Instance.Format("wpf.workflow.status.deleted", name);
         }
         catch (Exception ex)
         {
             Status = LocaleManager.Instance.Format("wpf.workflow.status.deletefailed", ex.Message);
         }
+        finally
+        {
+            SetSaving(false);
+        }
+
+        // Selection changes are ignored while saving, so reselect only after the guard is lifted.
+        if (removed && ReferenceEquals(_selectedWorkflow, target))
+            SelectedWorkflow = _workflows.FirstOrDefault();
     }
 
     private void TeardownWorkflow()
@@ -1126,41 +1204,49 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         return previous.GetValue<string[]>() ?? [];
     }
 
+    private static readonly JsonSerializerOptions WorkflowJsonOptions = SchemaNodeJsonExtension.GetSerializerOptions();
+
+    /// <summary>Runtime-only properties that must not be carried into the editing copy.</summary>
+    private static readonly string[] RuntimeWorkflowKeys = ["error", "usedBy", "compatibles", "provider"];
+
     private static AppWorkflowSchema Clone(AppWorkflowSchema source)
     {
-        return new AppWorkflowSchema
-        {
-            App = source.App,
-            Name = source.Name,
-            Seqno = source.Seqno,
-            Active = source.Active,
-            Nodes = source.Nodes?.Select(CloneNode).ToArray() ?? [],
-        };
+        // Round-trip through the schema serializer so appended properties (display/description)
+        // stored in Extensions are deep-copied as well. Runtime-only state is stripped from the
+        // payload first so saving the copy does not erase or re-publish it.
+        JsonObject json = JsonSerializer.SerializeToNode(source, WorkflowJsonOptions) as JsonObject
+            ?? new JsonObject();
+
+        StripRuntimeState(json);
+
+        AppWorkflowSchema copy = JsonSerializer.Deserialize<AppWorkflowSchema>(json, WorkflowJsonOptions)
+            ?? new AppWorkflowSchema();
+        copy.Seqno = source.Seqno; // Seqno is [JsonIgnore] and must survive the clone.
+        return copy;
     }
 
-    private static AppWorkflowNodeSchema CloneNode(AppWorkflowNodeSchema source)
+    /// <summary>
+    /// Removes runtime-only state from the workflow and each of its nodes. Only the node objects
+    /// themselves are touched, so user payload data (for example a state field called "error")
+    /// is left intact.
+    /// </summary>
+    private static void StripRuntimeState(JsonObject root)
     {
-        return new AppWorkflowNodeSchema
+        RemoveRuntimeKeys(root);
+        if (root["nodes"] is JsonArray nodes)
+            foreach (JsonNode? node in nodes)
+                if (node is JsonObject nodeObject)
+                    RemoveRuntimeKeys(nodeObject);
+    }
+
+    private static void RemoveRuntimeKeys(JsonObject target)
+    {
+        foreach (string key in target.Select(pair => pair.Key)
+                     .Where(key => RuntimeWorkflowKeys.Any(runtime => runtime.Equals(key, StringComparison.OrdinalIgnoreCase)))
+                     .ToArray())
         {
-            Name = source.Name,
-            Type = source.Type,
-            Payload = source.Payload,
-            Args = source.Args?.Select(a => new CallArg
-            {
-                Type = a.Type,
-                Source = a.Source,
-                SourceType = a.SourceType,
-                Value = a.Value?.DeepClone(),
-            }).ToArray(),
-            Previous = source.Previous?.ToArray(),
-            State = source.State?.DeepClone(),
-            Fork = source.Fork,
-            ForkKey = source.ForkKey?.ToArray(),
-            UnCancelable = source.UnCancelable,
-            CancelPre = source.CancelPre,
-            SavePayload = source.SavePayload,
-            Error = source.Error,
-        };
+            target.Remove(key);
+        }
     }
 
     #endregion

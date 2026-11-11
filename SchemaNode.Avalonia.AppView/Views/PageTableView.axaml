@@ -1,0 +1,130 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:SchemaNode.Avalonia.View"
+             xmlns:views="using:SchemaNode.Avalonia.View.Views"
+             x:Class="SchemaNode.Avalonia.AppView.Views.PageTableView"
+             x:CompileBindings="False">
+  <DockPanel>
+    <!-- Filter bar: one row per field-level filter, then the query/reset actions. -->
+    <Border DockPanel.Dock="Top"
+            Margin="0,0,0,8"
+            Padding="0,0,0,6"
+            BorderBrush="#FFE0E0E0"
+            BorderThickness="0,0,0,1"
+            IsVisible="{Binding HasFilters}">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right"
+                    Orientation="Horizontal"
+                    VerticalAlignment="Bottom">
+          <Button Content="{Binding QueryText}"
+                  Command="{Binding QueryCommand}"
+                  Padding="10,2"
+                  Margin="6,0,0,0" />
+          <Button Content="{Binding ResetText}"
+                  Command="{Binding ResetCommand}"
+                  Padding="10,2"
+                  Margin="6,0,0,0" />
+        </StackPanel>
+
+        <ItemsControl ItemsSource="{Binding Filters}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel Orientation="Horizontal" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <StackPanel Orientation="Horizontal"
+                          Margin="0,2,18,2"
+                          VerticalAlignment="Center">
+                <TextBlock Text="{Binding Label}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,6,0" />
+                <ItemsControl ItemsSource="{Binding Inputs}"
+                              VerticalAlignment="Center">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <StackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <!-- The input is already a field wrapper: attach it as the schema view's DataContext. -->
+                      <v:SchemaView Role="Field"
+                                    Margin="0,0,6,0" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </DockPanel>
+    </Border>
+
+    <!-- Page-level failure, shown above the table instead of a cell input error. -->
+    <Border DockPanel.Dock="Top"
+            Margin="0,0,0,8"
+            IsVisible="{Binding HasPageError}">
+      <TextBlock Foreground="#FFB00020"
+                 TextWrapping="Wrap"
+                 Text="{Binding PageError}" />
+    </Border>
+
+    <!-- Page controls and the explicit tracking degradation notice. -->
+    <Border DockPanel.Dock="Bottom"
+            Margin="0,8,0,0"
+            IsVisible="{Binding HasPager}">
+      <StackPanel>
+        <TextBlock Margin="0,0,0,4"
+                   Foreground="#FF8A6D00"
+                   TextWrapping="Wrap"
+                   Text="{Binding TrackingHint}"
+                   IsVisible="{Binding HasTrackingHint}" />
+        <TextBlock Margin="0,0,0,4"
+                   Foreground="#FF8A6D00"
+                   TextWrapping="Wrap"
+                   Text="{Binding AddUnsupportedHint}"
+                   IsVisible="{Binding HasAddUnsupportedHint}" />
+
+        <StackPanel Orientation="Horizontal">
+          <Button Content="{Binding FirstText}"
+                  Command="{Binding FirstCommand}"
+                  Padding="8,2"
+                  Margin="0,0,4,0" />
+          <Button Content="{Binding PreviousText}"
+                  Command="{Binding PreviousCommand}"
+                  Padding="8,2"
+                  Margin="0,0,4,0" />
+          <Button Content="{Binding NextText}"
+                  Command="{Binding NextCommand}"
+                  Padding="8,2"
+                  Margin="0,0,4,0" />
+          <Button Content="{Binding LastText}"
+                  Command="{Binding LastCommand}"
+                  Padding="8,2"
+                  Margin="0,0,12,0" />
+          <TextBlock Text="{Binding PageInfo}"
+                     VerticalAlignment="Center" />
+          <TextBlock Text="{Binding LoadingText}"
+                     Margin="12,0,0,0"
+                     Foreground="#FF6A6A6A"
+                     VerticalAlignment="Center"
+                     IsVisible="{Binding IsLoading}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <!-- The plain table surface is reused verbatim; only the surrounding page chrome is new. -->
+    <Grid>
+      <views:TableView />
+      <Border Background="#66FFFFFF"
+              IsVisible="{Binding IsLoading}">
+        <TextBlock HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   FontWeight="SemiBold"
+                   Text="{Binding LoadingText}" />
+      </Border>
+    </Grid>
+  </DockPanel>
+</UserControl>

@@ -160,6 +160,6 @@ public class AnyProcess : IRelationProcess, INodeReferences, IErrorProvider
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_RELATION}.any")]
 [Meta<Property.Record.RelationKind>("any", 1)]
 [Meta<RelationProcess>(typeof(AnyProcess))]
-[Relation<Visible, Call>(nameof(Call), NS_SYSTEM_LOGIC_EQ, $"@{nameof(RelationSchema.Kind)}", "any")]
+[Relation<Visible, Call>(nameof(Any), NS_SYSTEM_LOGIC_EQ, $"@{nameof(RelationSchema.Kind)}", "any")]
 [Meta<PropertyValueType>($"{NS_SYSTEM_LIST}<{NS_SYSTEM_SCHEMA_FUNC_CALL}<{NS_SYSTEM_SCHEMA_FUNC}.valid>>")]
 public class Any : Property<FuncCall[]>;

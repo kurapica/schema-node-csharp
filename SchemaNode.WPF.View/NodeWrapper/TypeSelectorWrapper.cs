@@ -4,6 +4,7 @@ using SchemaNode.Node;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
+using SchemaNode.WPF.View.Localization;
 // ReSharper disable once InconsistentNaming
 using NodeType = SchemaNode.Runtime.NodeType;
 
@@ -57,8 +58,9 @@ public sealed class TypeSelectorWrapper : DataNodeWrapper
     private int _writeRevision;
 
     /// <summary>Creates the wrapper for a type path node.</summary>
-    public TypeSelectorWrapper(DataNode node, SchemaViewRegistry? registry, string? fieldName, SchemaViewRole role)
-        : base(node, registry, fieldName, role)
+    public TypeSelectorWrapper(DataNode node, SchemaViewRegistry? registry, string? fieldName, SchemaViewRole role,
+                               bool ancestorVisibility = true)
+        : base(node, registry, fieldName, role, ancestorVisibility)
     {
         ScheduleRebuild();
     }
@@ -227,9 +229,17 @@ public sealed class TypeSelectorWrapper : DataNodeWrapper
     {
         if (_main is null)
         {
-            if (NodeImpl.Type.Create(NodeImpl.Context, mainText, NodeImpl) is not DataNode mainNode) return;
+            if (NodeImpl.Type.Create(NodeImpl.Context, mainText, NodeImpl) is not DataNode mainNode)
+            {
+                // An unreadable path (or a context that cannot create the child) would leave the
+                // field as an empty presenter with no explanation; surface the failure instead of
+                // dropping the value silently.
+                Post(() => SetInputError(
+                    LocaleManager.Instance.Format("wpf.error.value.convert", mainText, NodeImpl.Type.Name)));
+                return;
+            }
             _ownedNodes.Add(mainNode);
-            InputWrapper wrapper = new(mainNode, Registry, FieldName, Role);
+            InputWrapper wrapper = new(mainNode, Registry, FieldName, Role, ancestorVisibility: false);
             wrapper.PropertyChanged += OnMainChanged;
             wrapper.SetForcedReadOnly(!IsEditable);
             _main = wrapper;
@@ -257,7 +267,13 @@ public sealed class TypeSelectorWrapper : DataNodeWrapper
         foreach (TypeArgument argument in _arguments)
         {
             argument.Wrapper.PropertyChanged -= OnArgumentChanged;
+            DataNode? node = argument.Wrapper.Node;
             argument.Wrapper.Dispose();
+
+            // The argument node was created for this shape and is owned by this wrapper. Releasing
+            // it together with the wrapper keeps repeated generic switches from accumulating nodes.
+            if (node is not null && _ownedNodes.Remove(node))
+                node.Dispose();
         }
         _arguments.ReplaceAll(next);
         RaisePropertyChangedNow(nameof(Arguments));

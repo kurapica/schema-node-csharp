@@ -1,8 +1,8 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using SchemaNode.AI;
-using SchemaNode.AI.Agents;
+using Microsoft.Extensions.AI;
+using SchemaNode.AI.Chat;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Relation;
@@ -59,9 +59,6 @@ public sealed class AIWorkflowRunRequest
     /// <summary>The target type the generated JSON must satisfy.</summary>
     public required ValueType TargetType { get; init; }
 
-    /// <summary>The provider that generates the JSON.</summary>
-    public required IAgentProvider Provider { get; init; }
-
     /// <summary>Additional generation attempts after the first validation failure.</summary>
     public int MaxRetries { get; init; } = 3;
 
@@ -74,12 +71,6 @@ public sealed class AIWorkflowRunRequest
     /// <summary>Prompt blocks already resolved from the configured prompt sources.</summary>
     public IReadOnlyList<string> PromptBlocks { get; init; } = [];
 
-    /// <summary>Maximum completion tokens.</summary>
-    public int MaxTokens { get; init; } = 512;
-
-    /// <summary>Sampling temperature.</summary>
-    public double? Temperature { get; init; } = 0.2;
-
     /// <summary>Maximum target schema description characters.</summary>
     public int MaxMetadataChars { get; init; } = 6000;
 }
@@ -91,17 +82,21 @@ public sealed class AIWorkflowRunRequest
 public static class AIWorkflowRunner
 {
     /// <summary>
-    /// Generates a value, validates it against <see cref="AIWorkflowRunRequest.TargetType"/> and
-    /// feeds the concrete validation error back to the model until it succeeds or the retry budget
-    /// is exhausted. Provider/transport failures are not retried; they escape as
-    /// <see cref="AIAgentException"/> so the workflow can report an unavailable server immediately.
+    /// Generates a value with <paramref name="chatClient"/>, validates it against
+    /// <see cref="AIWorkflowRunRequest.TargetType"/> and feeds the concrete validation error back
+    /// to the model until it succeeds or the retry budget is exhausted. Transport failures are not
+    /// retried; they escape so the workflow can report an unavailable server immediately.
     /// </summary>
     public static async Task<AIWorkflowRunResult> RunAsync(
         SchemaContext context,
+        IChatClient chatClient,
+        SchemaChatOptions options,
         AIWorkflowRunRequest request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(chatClient);
+        ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(request);
 
         int maxRetries = Math.Clamp(request.MaxRetries, 0, 10);
@@ -109,6 +104,18 @@ public static class AIWorkflowRunner
             .ConfigureAwait(false);
         string systemPrompt = BuildSystemPrompt(request, metadata);
         string userPrompt = BuildUserPrompt(request, null, null);
+
+        ChatOptions chatOptions = new()
+        {
+            ModelId = options.ModelId,
+            Temperature = options.Temperature,
+            MaxOutputTokens = options.MaxOutputTokens,
+            ResponseFormat = ChatResponseFormat.Json,
+        };
+
+        using CancellationTokenSource timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        if (options.RequestTimeoutSeconds > 0)
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(options.RequestTimeoutSeconds));
 
         List<AIWorkflowAttempt> attempts = [];
         string? lastError = null;
@@ -119,19 +126,31 @@ public static class AIWorkflowRunner
             cancellationToken.ThrowIfCancellationRequested();
 
             string prompt = index == 0 ? userPrompt : BuildUserPrompt(request, lastError, lastOutput);
-            string raw = await request.Provider.CompleteAsync(
-                new AIAgentRequest
-                {
-                    SystemPrompt = systemPrompt,
-                    UserPrompt = prompt,
-                    Temperature = request.Temperature,
-                    MaxTokens = request.MaxTokens,
-                },
-                cancellationToken).ConfigureAwait(false);
+            ChatResponse response;
+            try
+            {
+                response = await chatClient.GetResponseAsync(
+                    [
+                        new ChatMessage(ChatRole.System, systemPrompt),
+                        new ChatMessage(ChatRole.User, prompt),
+                    ],
+                    chatOptions,
+                    timeoutCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (OperationCanceledException)
+            {
+                throw new TimeoutException(
+                    $"The AI workflow request did not answer within {options.RequestTimeoutSeconds} seconds.");
+            }
 
+            string raw = response.Text ?? string.Empty;
             lastOutput = raw;
 
-            JsonNode? value = TryExtractJson(raw, out string parseError);
+            JsonNode? value = TryParseJson(raw, out string parseError);
             if (value is null)
             {
                 lastError = $"The response was not valid JSON: {parseError}";
@@ -339,9 +358,11 @@ public static class AIWorkflowRunner
     }
 
     /// <summary>
-    /// Extracts a JSON value from a model response, tolerating Markdown fences and leading prose.
+    /// Parses the model response as JSON. The client requests <see cref="ChatResponseFormat.Json"/>,
+    /// so the response should already be bare JSON; a malformed response is a validation failure
+    /// that the retry loop feeds back to the model.
     /// </summary>
-    internal static JsonNode? TryExtractJson(string raw, out string error)
+    private static JsonNode? TryParseJson(string raw, out string error)
     {
         error = string.Empty;
         string text = raw.Trim();
@@ -351,15 +372,6 @@ public static class AIWorkflowRunner
             return null;
         }
 
-        if (text.StartsWith("```", StringComparison.Ordinal))
-        {
-            int firstNewline = text.IndexOf('\n');
-            if (firstNewline >= 0) text = text[(firstNewline + 1)..];
-            int closing = text.LastIndexOf("```", StringComparison.Ordinal);
-            if (closing >= 0) text = text[..closing];
-            text = text.Trim();
-        }
-
         try
         {
             return JsonNode.Parse(text);
@@ -367,23 +379,8 @@ public static class AIWorkflowRunner
         catch (JsonException ex)
         {
             error = ex.Message;
+            return null;
         }
-
-        int start = text.IndexOfAny(['{', '[']);
-        int end = text.LastIndexOfAny(['}', ']']);
-        if (start >= 0 && end > start)
-        {
-            try
-            {
-                return JsonNode.Parse(text[start..(end + 1)]);
-            }
-            catch (JsonException ex)
-            {
-                error = ex.Message;
-            }
-        }
-
-        return null;
     }
 
     /// <summary>
