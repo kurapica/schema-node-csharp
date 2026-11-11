@@ -71,7 +71,7 @@ public class StructFieldRowValidationTest : Base.AppTestBase
         Assert.IsNotNull(node);
 
         node["namespace"] = @namespace;
-        node["name"] = $"{@namespace}.{name}";
+        node["name"] = name;
         node["kind"] = NODE_KIND_STRUCT;
         return node;
     }
