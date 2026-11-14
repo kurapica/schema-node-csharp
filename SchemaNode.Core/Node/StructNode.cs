@@ -27,6 +27,14 @@ public class StructNode : DataNode
     #region Constructor
 
     public StructNode(ISchemaContext? context, StructType type, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+        : this(context, type, value, parent, true, propertyProviders)
+    {
+    }
+
+    /// <summary>
+    /// Creates the struct node, the clone creates the fields uninitialized because they are replaced and initialized afterwards
+    /// </summary>
+    private StructNode(ISchemaContext? context, StructType type, object? value, IValueAccess? parent, bool initialize, params IPropertyProvider[] propertyProviders)
         : base(context, type, null, parent, propertyProviders)
     {
         // init fields, the field declared node type is only used in full mode
@@ -45,21 +53,29 @@ public class StructNode : DataNode
                 Confirm();
         }
 
-        if (FullMode)
-        {
-            // keep raw data update and apply property effects
-            foreach (var field in _fields.OfType<DataNode>())
-            {
-                field.ApplyPropertyEffects();
-                if (field.DisplayOnly) continue;
-                RecordSubscription(field.Subscribe(items => WriteBackRawValue(items.Item1, items.Item2)), this);
-            }
+        if (initialize)
+            InitializeFields();
+    }
 
-            // attach relations from type
-            RelationInfo info = new() { Owner = this };
-            info.Relations.AddRange(Type.GetRelations());
-            AttachRelations([info]);
+    /// <summary>
+    /// Apply the field property effects, keep the raw data update and attach the type relations
+    /// </summary>
+    private void InitializeFields()
+    {
+        if (!FullMode) return;
+
+        // keep raw data update and apply property effects
+        foreach (var field in _fields.OfType<DataNode>())
+        {
+            field.ApplyPropertyEffects();
+            if (field.DisplayOnly) continue;
+            RecordSubscription(field.Subscribe(items => WriteBackRawValue(items.Item1, items.Item2)), this);
         }
+
+        // attach relations from type
+        RelationInfo info = new() { Owner = this };
+        info.Relations.AddRange(Type.GetRelations());
+        AttachRelations([info]);
     }
 
     #endregion
@@ -182,7 +198,8 @@ public class StructNode : DataNode
     }
 
     /// <inheritdoc/>
-    public override bool IsEmpty => _csharpObject == null && _fields.All(f => f.IsEmpty);
+    public override bool IsEmpty => _csharpObject == null &&
+        _fields.All(f => f is DataNode { DisplayOnly: true } || f.IsEmpty);
 
     /// <inheritdoc/>
     /// <remarks>
@@ -289,30 +306,90 @@ public class StructNode : DataNode
             }
             case JsonObject obj:
             {
-                Dictionary<string, IValueAccess> fieldMap = new (StringComparer.OrdinalIgnoreCase);
-                IValueAccess? unpackNode = null;
-                foreach ((StructFieldType f, var v)  in GetFields())
+                // Mirrors the TS StructNode.setValue algorithm: declared fields are assigned by their
+                // own key first, an unpack field missing its own key is deferred as a packing target,
+                // and the deferred targets are filled afterwards (struct shaped targets first, then
+                // free form containers) using the keys nobody consumed yet.
+                List<(StructFieldType Field, IValueAccess Node)> fields = [.. GetFields()];
+                HashSet<string> consumed = new(StringComparer.OrdinalIgnoreCase);
+                List<IValueAccess> packFields = [];
+
+                foreach ((StructFieldType f, IValueAccess v) in fields)
                 {
-                    fieldMap.Add(f.Name, v);
-                    if (f.Unpack ?? false)
-                        unpackNode = v;
+                    if (!consumed.Add(f.Name)) continue;
+
+                    bool present = TryGetJsonProperty(obj, f.Name, out JsonNode? item);
+
+                    // an unpack field is only packed when its own key is absent or null, otherwise
+                    // the whole object was given explicitly and is set directly (TS: isNull(d))
+                    if ((f.Unpack ?? false) && (!present || IsNullJson(item)))
+                    {
+                        packFields.Add(v);
+                        continue;
+                    }
+
+                    // TS calls f.setValue(undefined) for a missing key, which clears the field
+                    if (!present)
+                    {
+                        v.ClearValue();
+                        continue;
+                    }
+
+                    if (!v.TrySetValue(item)) return false;
                 }
 
-                JsonObject? packData = unpackNode != null ? new JsonObject() : null;
-                foreach ((string key, JsonNode? val) in obj)
+                // TS sorts struct shaped targets before the free form containers so a key declared
+                // by a struct type can never be swallowed by the container first. The order inside
+                // each group stays the declaration order (TS sort is stable).
+                List<IValueAccess> orderedPackFields =
+                [
+                    .. packFields.Where(f => f is StructNode),
+                    .. packFields.Where(f => f is not StructNode)
+                ];
+
+                foreach (IValueAccess packField in orderedPackFields)
                 {
-                    if (fieldMap.TryGetValue(key.ToLower(), out var field))
+                    if (packField is StructNode structPack)
                     {
-                        if (!field.TrySetValue(val)) return false;
+                        // only the direct sub-fields take part; a nested unpack field is set by its
+                        // own key like any other field (TS: "ignore pack field in sub struct")
+                        foreach ((StructFieldType f, IValueAccess v) in structPack.GetFields())
+                        {
+                            if (!consumed.Add(f.Name)) continue;
+
+                            if (TryGetJsonProperty(obj, f.Name, out JsonNode? item) && !IsNullJson(item))
+                            {
+                                if (!v.TrySetValue(item)) return false;
+                            }
+                            else
+                            {
+                                v.ClearValue();
+                            }
+                        }
                     }
-                    else if (packData != null)
+                    else
                     {
-                        packData[key] = val?.DeepClone();
+                        JsonObject record = [];
+                        foreach ((string key, JsonNode? item) in obj)
+                        {
+                            if (!consumed.Add(key)) continue;
+                            record[key] = item?.DeepClone();
+                        }
+
+                        // TS sets the record even when empty; an empty record means an empty value,
+                        // which this node expresses as a cleared value.
+                        if (record.IsEmpty())
+                            packField.ClearValue();
+                        else if (!packField.TrySetValue(record))
+                            return false;
                     }
                 }
-
-                if (unpackNode is { IsEmpty: true } && packData != null && !packData.IsEmpty())
-                    if (!unpackNode.TrySetValue(packData)) return false;
+                break;
+            }
+            case JsonNode:
+            {
+                // TS treats any non object value as an empty object, so the struct ends up cleared.
+                ClearValue();
                 break;
             }
             default:
@@ -413,29 +490,43 @@ public class StructNode : DataNode
     /// <inheritdoc/>
     public override IValueAccess Clone()
     {
-        StructNode clone = new(null, (StructType)Type, null, null, PropertyProviders.ToArray());
-        int i = 0;
-        foreach (var _ in (Type as StructType)!.GetFields())
-        {
-            clone._fields[i] = _fields[i].Clone();
-            i++;
-        }
-        clone._original = _original?.DeepClone() as JsonObject;
+        StructNode clone = new(null, (StructType)Type, null, null, false, PropertyProviders.ToArray());
+        CopyFields(clone, null);
         return clone;
     }
 
     /// <inheritdoc/>
     public override IValueAccess Clone(SchemaContext? context)
     {
-        StructNode clone = new(context, (StructType)Type, null, null, PropertyProviders.ToArray());
-        int i = 0;
-        foreach (var _ in (Type as StructType)!.GetFields())
-        {
-            clone._fields[i] = _fields[i] is DataNode field ? field.Clone(context) : _fields[i].Clone();
-            i++;
-        }
-        clone._original = _original?.DeepClone() as JsonObject;
+        StructNode clone = new(context, (StructType)Type, null, null, false, PropertyProviders.ToArray());
+        CopyFields(clone, context);
         return clone;
+    }
+
+    /// <summary>
+    /// Copies the fields into the clone and initializes them, the clone keeps the empty fields
+    /// which were attached to the type after this node was created
+    /// </summary>
+    private void CopyFields(StructNode clone, SchemaContext? context)
+    {
+        // snapshot is required because the type may attach new fields while a field is cloned
+        StructFieldType[] fieldTypes = ((StructType)Type).GetFields().ToArray();
+        int count = Math.Min(Math.Min(fieldTypes.Length, _fields.Length), clone._fields.Length);
+        for (int i = 0; i < count; i++)
+            clone.ReplaceField(i, context is null || _fields[i] is not DataNode field ? _fields[i].Clone() : field.Clone(context));
+
+        clone._original = _original?.DeepClone() as JsonObject;
+        clone.InitializeFields();
+    }
+
+    /// <summary>
+    /// Replaces a field created by the constructor, the replaced field has not been initialized at all
+    /// </summary>
+    private void ReplaceField(int index, IValueAccess field)
+    {
+        if (_fields[index] is IDisposable placeholder && !ReferenceEquals(placeholder, field))
+            placeholder.Dispose();
+        _fields[index] = field;
     }
 
     #endregion
@@ -678,21 +769,59 @@ public class StructNode : DataNode
     private JsonObject GetJsonObject()
     {
         JsonObject result = [];
-        foreach ((StructFieldType f, var v) in GetFields())
+        foreach ((StructFieldType f, IValueAccess v) in GetFields())
         {
             if (v.IsEmpty) continue;
+            // a hidden field that fails its constraints is not part of the serialized value
+            if (v is DataNode node && !node.IsValid && !node.Visible) continue;
+
             if (f.Unpack ?? false)
             {
-                if (v.TryGetValue(out JsonObject? obj) && obj != null)
-                    foreach ((string key, JsonNode? val) in obj)
-                        result[key] = val?.DeepClone();
+                if (v.TryGetValue(typeof(JsonObject), out object? packed) && packed is JsonObject obj)
+                {
+                    foreach ((string key, JsonNode? value) in obj)
+                    {
+                        // TS keeps the first owner of a key and drops null values
+                        if (IsNullJson(value) || result.ContainsKey(key)) continue;
+                        result[key] = value?.DeepClone();
+                    }
+                }
+                else if (v.TryGetValue(typeof(JsonNode), out object? raw) && raw is JsonNode d && !d.IsEmpty())
+                {
+                    // TS falls back to the field name when the unpack value is not an object
+                    result[f.Name] = d.DeepClone();
+                }
             }
-            else if (v.TryGetValue(out JsonNode? d) && d != null && !d.IsEmpty())
+            else if (v.TryGetValue(typeof(JsonNode), out object? raw) && raw is JsonNode d && !d.IsEmpty())
             {
-                result.Add(f.Name, d.DeepClone());
+                result[f.Name] = d.DeepClone();
             }
         }
         return result;
+    }
+
+    /// <summary>
+    /// Whether the json value counts as null for the pack/unpack rules (TS isNull: null or "")
+    /// </summary>
+    private static bool IsNullJson(JsonNode? value)
+        => value is null || value is JsonValue v && v.TryGetValue(out string? text) && text.Length == 0;
+
+    /// <summary>
+    /// Gets the property with a case insensitive match, callers pass schema field names in any case
+    /// </summary>
+    private static bool TryGetJsonProperty(JsonObject obj, string name, out JsonNode? value)
+    {
+        if (obj.TryGetPropertyValue(name, out value)) return true;
+
+        foreach ((string key, JsonNode? item) in obj)
+        {
+            if (!string.Equals(key, name, StringComparison.OrdinalIgnoreCase)) continue;
+            value = item;
+            return true;
+        }
+
+        value = null;
+        return false;
     }
 
     #endregion

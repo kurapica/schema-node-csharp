@@ -32,23 +32,24 @@ public partial class SchemaView : UserControl
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
 
-#if DEBUG
-        if (Debug.SchemaDebug.Enabled)
-            AttachDebugInspector();
-#endif
+        // The property is inherited, so a host normally switches the inspector on once for a whole
+        // subtree and a view created later receives it when it joins the tree. This covers an
+        // explicit value that was already applied to this instance.
+        if (GetDebug(this)) AttachDebugInspector();
     }
 
-#if DEBUG
     private Debug.SchemaDebugPanel? _debugPanel;
     private System.Windows.Controls.Primitives.ToggleButton? _debugToggle;
     private System.Windows.Controls.Primitives.Popup? _debugPopup;
 
     /// <summary>
-    /// Creates the inspector trigger at runtime. The whole method and every type it touches are
-    /// compiled only for Debug, so a Release build contains neither the element nor the panel.
+    /// Creates the inspector trigger. It is built on demand, so turning the switch off keeps both
+    /// the element and the panel out of the tree instead of merely hiding them.
     /// </summary>
     private void AttachDebugInspector()
     {
+        if (_debugToggle is not null) return;
+
         _debugToggle = new System.Windows.Controls.Primitives.ToggleButton
         {
             Content = "\U0001F41E",
@@ -69,17 +70,43 @@ public partial class SchemaView : UserControl
             StaysOpen = false
         };
 
-        Grid.SetColumn(_debugToggle, 0);
-        Grid.SetColumn(_debugPopup, 0);
+        Grid.SetColumn(_debugToggle, 1);
+        Grid.SetColumn(_debugPopup, 1);
 
-        // The Release layout is a single content column; the inspector adds its trigger column and
-        // a star-sized content column only in Debug builds, so no layout is reserved elsewhere.
-        Root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        // The normal layout is a single content column; the inspector appends its trigger after the
+        // content, so the content keeps its leading edge and any host overlay aligned to this control
+        // still lines up with the rendered editor. The trigger is capped to the content height so it
+        // can never drive the row height.
         Root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        Grid.SetColumn(Presenter, 1);
+        Root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(Presenter, 0);
+        _debugToggle.SetBinding(FrameworkElement.MaxHeightProperty, new Binding(nameof(FrameworkElement.ActualHeight))
+        {
+            Source = Presenter
+        });
 
         Root.Children.Add(_debugToggle);
         Root.Children.Add(_debugPopup);
+    }
+
+    /// <summary>Removes the inspector trigger and its layout when the switch is turned off.</summary>
+    private void DetachDebugInspector()
+    {
+        if (_debugToggle is null) return;
+
+        _debugPopup!.IsOpen = false;
+        _debugPopup.Child = null;
+        _debugToggle.Checked -= OnDebugToggleChecked;
+        _debugToggle.Unchecked -= OnDebugToggleUnchecked;
+        Root.Children.Remove(_debugToggle);
+        Root.Children.Remove(_debugPopup);
+
+        _debugPanel = null;
+        _debugToggle = null;
+        _debugPopup = null;
+
+        Root.ColumnDefinitions.Clear();
+        Grid.SetColumn(Presenter, 0);
     }
 
     private void OnDebugToggleChecked(object sender, RoutedEventArgs e)
@@ -98,7 +125,6 @@ public partial class SchemaView : UserControl
     }
 
     private void OnDebugToggleUnchecked(object sender, RoutedEventArgs e) => _debugPopup!.IsOpen = false;
-#endif
 
     /// <summary>
     /// Node or wrapper to render. Accepts either a <see cref="DataNodeWrapper"/> (owned by the host)
@@ -172,6 +198,26 @@ public partial class SchemaView : UserControl
         set => SetValue(SkinProperty, value);
     }
 
+    /// <summary>
+    /// Whether this view renders the per-node inspector. Inherited like <see cref="Registry"/>, so a
+    /// host sets it once on the window or on the root view and every nested view follows. The
+    /// default is off, and nothing is created or laid out until it is turned on.
+    /// </summary>
+    public static readonly DependencyProperty DebugProperty = DependencyProperty.RegisterAttached(
+        "Debug",
+        typeof(bool),
+        typeof(SchemaView),
+        new FrameworkPropertyMetadata(
+            false,
+            FrameworkPropertyMetadataOptions.Inherits,
+            OnDebugChanged));
+
+    /// <summary>Turns the per-node inspector on or off for an element and everything below it.</summary>
+    public static void SetDebug(DependencyObject element, bool value) => element.SetValue(DebugProperty, value);
+
+    /// <summary>Whether the per-node inspector is on for the element.</summary>
+    public static bool GetDebug(DependencyObject element) => (bool)element.GetValue(DebugProperty);
+
     private SchemaViewRegistry EffectiveRegistry => Registry ?? SchemaViewRegistry.Default;
 
     private static void OnNodeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -208,6 +254,16 @@ public partial class SchemaView : UserControl
     {
         if (d is SchemaView view)
             view.RefreshContent();
+    }
+
+    private static void OnDebugChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is not SchemaView view) return;
+
+        if (e.NewValue is true)
+            view.AttachDebugInspector();
+        else
+            view.DetachDebugInspector();
     }
 
     /// <summary>

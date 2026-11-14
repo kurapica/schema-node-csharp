@@ -13,6 +13,7 @@ using SchemaNode.Service;
 using SchemaNode.WPF.Man.Services;
 using SchemaNode.WPF.Man.ViewModels;
 using SchemaNode.WPF.Man.Views;
+using SchemaNode.WPF.View;
 
 namespace SchemaNode.WPF.Man;
 
@@ -146,6 +147,14 @@ public partial class App : PrismApplication
         MainWindowViewModel viewModel = Container.Resolve<MainWindowViewModel>();
         shell.DataContext = viewModel;
         _shellViewModel = viewModel;
+
+        // Turn on the per-node inspector for this host. The property is inherited, so setting it
+        // once on the shell reaches every SchemaView in the window, including views created later.
+        // The View library ships the inspector in every configuration, so a Release build only has
+        // to skip this line to render without it.
+#if DEBUG
+        SchemaView.SetDebug(shell, true);
+#endif
         return shell;
     }
 

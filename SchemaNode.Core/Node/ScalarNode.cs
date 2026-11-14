@@ -963,6 +963,13 @@ public abstract class ScalarNode<T>(ISchemaContext? context, IValueTypeAccess ty
     /// <inheritdoc/>
     public override bool TrySetValue<T1>(T1? value) where T1 : default
     {
+        // a null value means no value, it must not be converted into the default value of T
+        if (value is null)
+        {
+            ClearValue();
+            return true;
+        }
+
         if (!value.TryConvertTo<T>(out var result)) return false;
         if (EqualityComparer<T?>.Default.Equals(result, Value)) return true;
         Value = result;
@@ -985,6 +992,13 @@ public abstract class ScalarNode<T>(ISchemaContext? context, IValueTypeAccess ty
     /// <inheritdoc/>
     public override bool TryGetValue<T1>(out T1? value) where T1 : default
     {
+        // an empty node has no value, so the default value of T1 must not be reported as its value
+        if (Value is null)
+        {
+            value = default(T1?);
+            return false;
+        }
+
         if (Value.TryConvertTo<T1>(out var result))
         {
             value = result;
@@ -1052,6 +1066,13 @@ public abstract class RefScalarNode<T>(ISchemaContext? context, IValueTypeAccess
     /// <inheritdoc/>
     public override bool TrySetValue<T1>(T1? value) where T1 : default
     {
+        // a null value means no value, it must not be converted into the default value of T
+        if (value is null)
+        {
+            ClearValue();
+            return true;
+        }
+
         if (!value.TryConvertTo<T>(out var result)) return false;
         if (Equals(result, Value)) return true;
         Value = result;
@@ -1074,6 +1095,13 @@ public abstract class RefScalarNode<T>(ISchemaContext? context, IValueTypeAccess
     /// <inheritdoc/>
     public override bool TryGetValue<T1>(out T1? value) where T1 : default
     {
+        // an empty node has no value, so the default value of T1 must not be reported as its value
+        if (Value is null)
+        {
+            value = default(T1?);
+            return false;
+        }
+
         if (Value.TryConvertTo<T1>(out var result))
         {
             value = result;

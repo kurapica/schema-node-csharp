@@ -65,6 +65,7 @@ public class RelationSchema : PropertyOwner
     /// The property value type
     /// </summary>
     [Meta<DisplayOnly>(true)]
+    [Meta<InVisible>(true)]
     [Relation<Default, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_PROPERTY}.{nameof(Function.Reflect.Property.getkindpropvaluetype)}", $"@{nameof(Property)}", $"@{nameof(TargetType)}", $"@{nameof(TargetKind)}", $"@{nameof(OwnerKind)}")]
     public string? ValueType { get; set; }
 

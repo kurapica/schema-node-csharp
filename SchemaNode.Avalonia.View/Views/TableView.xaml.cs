@@ -166,6 +166,12 @@ public partial class TableView : UserControl
         if (Math.Abs(budget - _lastBudget) < 1) return;
 
         _lastBudget = budget;
+
+        // Pinning the table to the budget keeps the host from measuring content at its natural
+        // width, which is what turns the page-wide horizontal scrollbar into table-local scrolling.
+        // Width is NaN (auto-sized) until the first pin, so NaN counts as "not pinned yet".
+        if (double.IsNaN(Width) || Math.Abs(Width - budget) >= 0.5) Width = budget;
+
         _wrapper.AvailableWidth = budget;
     }
 

@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Layout;
 using SchemaNode.Avalonia.View.NodeWrapper;
 using SchemaNode.Avalonia.View.Views;
 
@@ -13,23 +14,41 @@ namespace SchemaNode.Avalonia.View;
 /// </summary>
 public static class SchemaViewTemplates
 {
+    /// <summary>
+    /// Minimum width of a form editor, mirroring the WPF template dictionary. A host that measures
+    /// to content (auto columns, stack panels) otherwise collapses a short value to an unusably
+    /// small field.
+    /// </summary>
+    private const double EditorMinWidth = 120;
+
     private static readonly Dictionary<string, Func<DataNodeWrapper, Control>> Factories =
         new(StringComparer.OrdinalIgnoreCase)
         {
-            [SchemaTemplateKeys.Input] = wrapper => new InputView { DataContext = wrapper },
-            [SchemaTemplateKeys.Boolean] = wrapper => new BoolView { DataContext = wrapper },
-            [SchemaTemplateKeys.Date] = wrapper => new DateView { DataContext = wrapper },
-            [SchemaTemplateKeys.Year] = wrapper => new YearView { DataContext = wrapper },
-            [SchemaTemplateKeys.Language] = wrapper => new LanguageView { DataContext = wrapper },
-            [SchemaTemplateKeys.RangeDate] = wrapper => new RangeDateView { DataContext = wrapper },
-            [SchemaTemplateKeys.LocaleString] = wrapper => new LocaleStringView { DataContext = wrapper },
-            [SchemaTemplateKeys.FlagsEnum] = wrapper => new FlagsEnumView { DataContext = wrapper },
+            [SchemaTemplateKeys.Input] = wrapper => Editor(new InputView { DataContext = wrapper }),
+            [SchemaTemplateKeys.Boolean] = wrapper => Editor(new BoolView { DataContext = wrapper }),
+            [SchemaTemplateKeys.Date] = wrapper => Editor(new DateView { DataContext = wrapper }),
+            [SchemaTemplateKeys.Year] = wrapper => Editor(new YearView { DataContext = wrapper }),
+            [SchemaTemplateKeys.Language] = wrapper => Editor(new LanguageView { DataContext = wrapper }),
+            [SchemaTemplateKeys.RangeDate] = wrapper => Editor(new RangeDateView { DataContext = wrapper }),
+            [SchemaTemplateKeys.LocaleString] = wrapper => Editor(new LocaleStringView { DataContext = wrapper }),
+            [SchemaTemplateKeys.FlagsEnum] = wrapper => Editor(new FlagsEnumView { DataContext = wrapper }),
             [SchemaTemplateKeys.Struct] = wrapper => new StructView { DataContext = wrapper },
-            [SchemaTemplateKeys.Array] = wrapper => new ArrayView { DataContext = wrapper },
+            [SchemaTemplateKeys.Array] = wrapper => Editor(new ArrayView { DataContext = wrapper }),
             [SchemaTemplateKeys.Table] = wrapper => new Views.TableView { DataContext = wrapper },
-            [SchemaTemplateKeys.TypeSelector] = wrapper => new TypeSelectorView { DataContext = wrapper },
+            [SchemaTemplateKeys.TypeSelector] = wrapper => Editor(new TypeSelectorView { DataContext = wrapper }),
             [SchemaTemplateKeys.Fallback] = wrapper => new FallbackView { DataContext = wrapper },
         };
+
+    /// <summary>
+    /// Applies the shared editor sizing: a minimum width plus horizontal stretch, so a value (or a
+    /// closed selector's text) can never resize the field.
+    /// </summary>
+    private static T Editor<T>(T control) where T : Control
+    {
+        control.MinWidth = EditorMinWidth;
+        control.HorizontalAlignment = HorizontalAlignment.Stretch;
+        return control;
+    }
 
     private static readonly Dictionary<string, Func<DataNodeWrapper, Control>> Overrides =
         new(StringComparer.OrdinalIgnoreCase);

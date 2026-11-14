@@ -6,14 +6,12 @@ using SchemaNode.Runtime;
 namespace SchemaNode.WPF.View.Debug;
 
 /// <summary>
-/// Debug-only switch for the per-node inspector. Release builds never create the inspector; the
-/// host turns it on from a DEBUG-compiled block so production surfaces stay untouched.
+/// Runtime switch for the per-node inspector. The inspector is driven by the inheritable
+/// <c>SchemaView.Debug</c> property, so the host decides at run time whether a subtree shows it and
+/// the type is available in every build configuration.
 /// </summary>
 public static class SchemaDebug
 {
-    /// <summary>Whether rendered nodes show the inspector button.</summary>
-    public static bool Enabled { get; set; }
-
     /// <summary>Builds the snapshot shown by the inspector for <paramref name="node"/>.</summary>
     public static DebugNodeSnapshot Describe(DataNode node)
     {
@@ -40,13 +38,28 @@ public static class SchemaDebug
                 relation.Owner?.Name ?? string.Empty));
         }
 
+        // Core already walks the subtree for failing nodes; the inspector only lists that result.
+        // It never re-validates, so opening the panel cannot change any node state.
+        List<DebugErrorRow> errors = [];
+        foreach (DataNode error in node.GetErrorNodes())
+        {
+            foreach (IConstraintProperty constraint in error.GetViolatedConstraints())
+            {
+                errors.Add(new DebugErrorRow(
+                    error.Access,
+                    constraint.Name,
+                    constraint.GetErrorMessage(error) ?? "VALUE_NOT_VALID"));
+            }
+        }
+
         return new DebugNodeSnapshot
         {
             Access = node.Access,
             TypeName = node.Type?.Name ?? "?",
             Id = node.Id.ToString(),
             Properties = properties,
-            Relations = relations
+            Relations = relations,
+            Errors = errors
         };
     }
 
@@ -91,6 +104,20 @@ public sealed class DebugRelationRow(string property, string mode, string data, 
     public string Source { get; } = source;
 }
 
+/// <summary>One row of the node error table.</summary>
+public sealed class DebugErrorRow(string access, string constraint, string message)
+{
+
+    /// <summary>Access path of the failing node.</summary>
+    public string Access { get; } = access;
+
+    /// <summary>Name of the violated constraint property.</summary>
+    public string Constraint { get; } = constraint;
+
+    /// <summary>Constraint message, or its error code when no message is declared.</summary>
+    public string Message { get; } = message;
+}
+
 /// <summary>Snapshot displayed by the node inspector.</summary>
 public sealed class DebugNodeSnapshot
 {
@@ -108,6 +135,15 @@ public sealed class DebugNodeSnapshot
 
     /// <summary>Relation rows.</summary>
     public IReadOnlyList<DebugRelationRow> Relations { get; init; } = [];
+
+    /// <summary>Rows for every failing node in the subtree and the constraints it violates.</summary>
+    public IReadOnlyList<DebugErrorRow> Errors { get; init; } = [];
+
+    /// <summary>Whether the subtree has any violation.</summary>
+    public bool HasErrors => Errors.Count > 0;
+
+    /// <summary>Placeholder shown when <see cref="Errors"/> is empty.</summary>
+    public string NoErrorsText => Localization.LocaleManager.Instance.Get("wpf.debug.errors.none");
 
     /// <summary>Header line: access, type and id, mirroring the Vue debug view.</summary>
     public string Header => $"{Access}  ({TypeName})  #{Id}";

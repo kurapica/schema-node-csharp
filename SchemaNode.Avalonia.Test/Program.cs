@@ -4,12 +4,10 @@ using Avalonia.Styling;
 using Avalonia.Themes.Fluent;
 using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Avalonia.Test.ViewModels;
+using SchemaNode.Avalonia.View;
 using SchemaNode.Avalonia.View.Localization;
 using SchemaNode.Context;
 using SchemaNode.Service;
-#if DEBUG
-using SchemaNode.Avalonia.View.Debug;
-#endif
 
 namespace SchemaNode.Avalonia.Test;
 
@@ -33,6 +31,12 @@ public sealed class TestApp : Application
         {
             MainWindow shell = new() { DataContext = _viewModel };
             desktop.MainWindow = shell;
+
+            // The Debug property is inherited, so one call on the shell covers every SchemaView in
+            // the window. Release builds skip it and render without the inspector.
+#if DEBUG
+            SchemaView.SetDebug(shell, true);
+#endif
 
             // Stop the view model first so the bound node is cleared and its wrapper is released,
             // then the DataNode (inside the view model), then the context's scope, then the root.
@@ -94,11 +98,6 @@ public sealed class TestApp : Application
         context.Locale = LocaleManager.ZH_CN;
         LocaleManager.Instance.SetLocale(LocaleManager.ZH_CN);
 
-#if DEBUG
-        // Enable the per-node inspector before the shell is created, so the first SchemaView
-        // already builds its debug button. Release builds never reach this line.
-        SchemaDebug.Enabled = true;
-#endif
         _viewModel = new MainWindowViewModel(context);
         return _services;
     }

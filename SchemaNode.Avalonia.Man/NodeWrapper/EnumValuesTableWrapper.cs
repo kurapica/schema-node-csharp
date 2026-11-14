@@ -99,6 +99,9 @@ public sealed class EnumValuesTableWrapper : TableWrapper
 
         if (OwnerWindow is { } owner)
         {
+            // The inspector switch is inherited within one window tree only, so the dialog gets the
+            // host's value copied from the window that opened it.
+            SchemaView.SetDebug(window, SchemaView.GetDebug(owner));
             _ = window.ShowDialog(owner);
             return;
         }

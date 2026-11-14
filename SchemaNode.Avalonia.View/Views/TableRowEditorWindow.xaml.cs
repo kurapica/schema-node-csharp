@@ -9,8 +9,8 @@ namespace SchemaNode.Avalonia.View.Views;
 /// Built-in row editor: a modal window hosting the normal view machinery with role
 /// <see cref="SchemaViewRole.RowEditor"/>, sized to roughly two thirds of the owner.
 ///
-/// The edited node is detached from the array (a new row or a copy of an existing row), so the
-/// dialog can validate it and the caller either writes the copy back or disposes it.
+/// The window only edits the node it is given: a new row is already a real array element, and an
+/// existing row is edited in place while the caller owns the snapshot used to restore it on cancel.
 /// </summary>
 public partial class TableRowEditorWindow : Window
 {

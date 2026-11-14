@@ -48,6 +48,20 @@ public class SchemaView : Grid
             SchemaViewRegistry.DefaultSkin,
             inherits: true);
 
+    /// <summary>
+    /// Whether this view renders the per-node inspector. Inherited like <see cref="Registry"/>, so a
+    /// host sets it once on the window or on the root view and every nested view follows. The
+    /// default is off, and nothing is created or laid out until it is turned on.
+    /// </summary>
+    public static readonly AttachedProperty<bool> DebugProperty =
+        AvaloniaProperty.RegisterAttached<SchemaView, Control, bool>(nameof(Debug), false, inherits: true);
+
+    /// <summary>Turns the per-node inspector on or off for an element and everything below it.</summary>
+    public static void SetDebug(Control element, bool value) => element.SetValue(DebugProperty, value);
+
+    /// <summary>Whether the per-node inspector is on for the element.</summary>
+    public static bool GetDebug(Control element) => element.GetValue(DebugProperty);
+
     private readonly ContentPresenter _presenter = new()
     {
         HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -78,10 +92,13 @@ public class SchemaView : Grid
             if (Node is null) Attach(DataContext);
         });
 
-#if DEBUG
-        if (Debug.SchemaDebug.Enabled)
-            AttachDebugInspector();
-#endif
+        // The property is inherited, so a host normally switches the inspector on once for a whole
+        // subtree and a view created later receives it when it joins the tree.
+        this.GetObservable(DebugProperty).Subscribe(debug =>
+        {
+            if (debug) AttachDebugInspector();
+            else DetachDebugInspector();
+        });
     }
 
     #region Properties
@@ -288,17 +305,19 @@ public class SchemaView : Grid
             ApplyContent(wrapper);
     }
 
-#if DEBUG
     private Debug.SchemaDebugPanel? _debugPanel;
     private ToggleButton? _debugToggle;
     private Popup? _debugPopup;
 
     /// <summary>
-    /// Creates the inspector trigger at runtime. The whole method and every type it touches are
-    /// compiled only for Debug, so a Release build contains neither the element nor the panel.
+    /// Creates the inspector trigger when the inherited <c>Debug</c> property is turned on. It is
+    /// built on demand, so turning the switch off keeps both the element and the panel out of the
+    /// tree instead of merely hiding them.
     /// </summary>
     private void AttachDebugInspector()
     {
+        if (_debugToggle is not null) return;
+
         _debugToggle = new ToggleButton
         {
             Content = "\U0001F41E",
@@ -320,14 +339,37 @@ public class SchemaView : Grid
 
         _debugToggle.GetObservable(ToggleButton.IsCheckedProperty).Subscribe(OnDebugToggleChanged);
 
-        // The Release layout is a single content column; the inspector adds its trigger column and
-        // a star-sized content column only in Debug builds, so no layout is reserved elsewhere.
-        ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        // The normal layout is a single content column; the inspector appends its trigger after the
+        // content, so the content keeps its leading edge and any host overlay aligned to this control
+        // still lines up with the rendered editor. The trigger is capped to the content height so it
+        // can never drive the row height.
         ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        SetColumn(_presenter, 1);
+        ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        SetColumn(_presenter, 0);
+        SetColumn(_debugToggle, 1);
+        SetColumn(_debugPopup, 1);
+        _debugToggle.Bind(Layoutable.MaxHeightProperty, new Binding("Bounds.Height") { Source = _presenter });
 
         Children.Add(_debugToggle);
         Children.Add(_debugPopup);
+    }
+
+    /// <summary>Removes the inspector trigger and its layout when the switch is turned off.</summary>
+    private void DetachDebugInspector()
+    {
+        if (_debugToggle is null) return;
+
+        _debugPopup!.IsOpen = false;
+        _debugPopup.Child = null;
+        Children.Remove(_debugToggle);
+        Children.Remove(_debugPopup);
+
+        _debugPanel = null;
+        _debugToggle = null;
+        _debugPopup = null;
+
+        ColumnDefinitions.Clear();
+        SetColumn(_presenter, 0);
     }
 
     private void OnDebugToggleChanged(bool? isChecked)
@@ -350,5 +392,4 @@ public class SchemaView : Grid
         _debugPanel.Show(Debug.SchemaDebug.Describe(node));
         _debugPopup.IsOpen = true;
     }
-#endif
 }

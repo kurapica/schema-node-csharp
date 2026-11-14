@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Text.Json.Nodes;
 using System.Windows.Input;
 using Avalonia.Controls;
 using Avalonia.Threading;
@@ -1021,28 +1022,30 @@ public class TableWrapper : DataNodeWrapper
     }
 
     /// <summary>
-    /// Creates a detached element, edits it through the row editor and only inserts it when the
-    /// user confirms. Cancelling disposes the node so nothing leaks into the array.
+    /// Adds a real element to the array first and then edits that element. Inserting first gives it
+    /// its parent context, relations and entry source, so fields that read the array or its parent
+    /// resolve exactly as they do for a loaded row. Cancelling removes the provisional row and
+    /// releases the element, so no half-built row stays behind.
     ///
     /// Avalonia dialogs are asynchronous, so the editor is awaited instead of blocking the
     /// dispatcher thread (a synchronous wait on <c>ShowDialog</c> would deadlock the UI loop).
     /// </summary>
     private async Task InsertWithEditorAsync(ArrayNode array)
     {
-        IValueAccess? created = array.ElementType.Create(NodeImpl.Context, null, array);
-        if (created is not DataNode node) return;
+        if (array.AddRow() is not DataNode node) return;
 
+        // The editor binds to the element already in the array: confirming needs no copy-back, and
+        // a failed validation is handled inside the editor, which keeps the row open.
         bool confirmed = await ShowRowEditorAsync(node, isNew: true).ConfigureAwait(true);
 
-        // Only an accepted, still-attached insert keeps the detached element; every other path
-        // disposes it so nothing leaks into (or out of) the array.
-        if (!IsDisposed && confirmed && array.AddRow(null, node) is not null) return;
-        node.Dispose();
+        if (!confirmed && !IsDisposed)
+            DeleteElement(array, node);
     }
 
     /// <summary>
-    /// Opens the row editor for an existing element. The editor works on a detached copy: cancelling
-    /// leaves the real row untouched, and confirming copies the validated values back in one step.
+    /// Opens the row editor for an existing element. The editor works on the element already stored
+    /// in the array, so the row keeps the same parent, relations and entry source as a newly inserted
+    /// row. The raw value is snapshotted before editing and written back when editing is cancelled.
     /// </summary>
     protected void EditRow(DataNode element)
     {
@@ -1052,25 +1055,26 @@ public class TableWrapper : DataNodeWrapper
 
     private async Task EditRowAsync(DataNode element)
     {
-        IValueAccess cloned = element.Clone(element.Context as SchemaContext);
-        if (cloned is not DataNode working) return;
+        JsonObject? snapshot = element.TryGetValue(typeof(JsonObject), out object? raw) ? raw as JsonObject : null;
 
         try
         {
-            bool confirmed = await ShowRowEditorAsync(working, isNew: false).ConfigureAwait(true);
-            if (!IsDisposed && confirmed && working.IsValid)
-                element.TrySetValue(working);
+            bool confirmed = await ShowRowEditorAsync(element, isNew: false).ConfigureAwait(true);
+
+            // Confirming keeps the live values; validation runs inside the editor, which stays open
+            // on invalid input. Any other exit restores the snapshot so a cancelled edit leaves no
+            // trace while the row stays attached to its owner.
+            if (IsDisposed || (confirmed && element.IsValid) || snapshot is null) return;
+
+            element.ClearValue();
+            element.TrySetValue(snapshot);
         }
         catch (Exception ex)
         {
-            // The editor already reports its own failures; this covers clone/copy-back failures so
+            // The editor already reports its own failures; this covers snapshot/restore failures so
             // they cannot surface as an unobserved task exception.
             System.Diagnostics.Debug.WriteLine($"Row edit failed: {ex}");
             SetInputError(LocaleManager.Instance.Format("avalonia.view.error.editor", ex.Message));
-        }
-        finally
-        {
-            working.Dispose();
         }
     }
 

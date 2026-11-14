@@ -3,9 +3,6 @@ using SchemaNode.Context;
 using SchemaNode.Service;
 using SchemaNode.WPF.Test.ViewModels;
 using SchemaNode.WPF.View;
-#if DEBUG
-using SchemaNode.WPF.View.Debug;
-#endif
 using SchemaNode.WPF.View.Localization;
 using System.Windows;
 
@@ -51,11 +48,6 @@ public partial class App : PrismApplication
         containerRegistry.RegisterInstance(context);
 
         // 3. All ViewModels are transient: each navigation gets a new view-level session
-#if DEBUG
-        // Enable the per-node inspector before the shell is created, so the first SchemaView
-        // already builds its debug button. Release builds never reach this line.
-        SchemaDebug.Enabled = true;
-#endif
         containerRegistry.Register<MainWindowViewModel>();
     }
 
@@ -70,6 +62,12 @@ public partial class App : PrismApplication
         MainWindowViewModel viewModel = Container.Resolve<MainWindowViewModel>();
         shell.DataContext = viewModel;
         _shellViewModel = viewModel;
+
+        // The Debug property is inherited, so one call on the shell covers every SchemaView in the
+        // window. Release builds skip it and render without the inspector.
+#if DEBUG
+        SchemaView.SetDebug(shell, true);
+#endif
         return shell;
     }
 

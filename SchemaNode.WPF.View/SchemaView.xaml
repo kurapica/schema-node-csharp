@@ -4,8 +4,9 @@
              HorizontalContentAlignment="Stretch"
              VerticalContentAlignment="Top">
     <Grid x:Name="Root">
-        <!-- The DEBUG-only inspector trigger and its column are created in code behind under
-             #if DEBUG, so a Release build has no debug element and no debug layout at all. -->
+        <!-- The inspector trigger and its column are created in code behind only when the
+             inheritable Debug property is on, so an unturned-on subtree has no debug element and
+             no debug layout at all. -->
 
         <ContentPresenter x:Name="Presenter"
                           HorizontalAlignment="Stretch"

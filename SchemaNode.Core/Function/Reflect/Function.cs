@@ -6,6 +6,7 @@ using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using ValueType = SchemaNode.Schema.ValueType;
 // ReSharper disable InconsistentNaming
@@ -180,27 +181,27 @@ public static class Function
     /// <summary>
     /// Gets the function apply modes for the given return type
     /// </summary>
-    public static async Task<List<ApplyMode>> getapplymodes(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type)
+    public static async Task<List<string>> getapplymodes(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type)
     {
         var returnType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type).ConfigureAwait(false) : null;
         if (returnType == null) return [];
         if (returnType is Runtime.ArrayType)
         {
-            return [ApplyMode.Call, ApplyMode.Filter, ApplyMode.Map];
+            return new List<ApplyMode> { ApplyMode.Call, ApplyMode.Filter, ApplyMode.Map }.Select(p => p.ToString().ToCamelCase()).ToList();
         }
         else if (returnType is Runtime.BoolType)
         {
-            return [ApplyMode.Call, ApplyMode.All, ApplyMode.Any];
+            return new List<ApplyMode> { ApplyMode.Call, ApplyMode.All, ApplyMode.Any }.Select(p => p.ToString().ToCamelCase()).ToList();
         }
         else if (returnType is Runtime.IntType)
         {
-            return [ApplyMode.Call, ApplyMode.Count, ApplyMode.Reduce];
+            return new List<ApplyMode> { ApplyMode.Call, ApplyMode.Count, ApplyMode.Reduce }.Select(p => p.ToString().ToCamelCase()).ToList();
         }
         else if (returnType is Runtime.DecimalType)
         {
-            return [ApplyMode.Call, ApplyMode.Reduce];
+            return new List<ApplyMode> { ApplyMode.Call, ApplyMode.Reduce }.Select(p => p.ToString().ToCamelCase()).ToList();
         }
-        return [ApplyMode.Call, ApplyMode.First, ApplyMode.Last, ApplyMode.Reduce];
+        return new List<ApplyMode> { ApplyMode.Call, ApplyMode.First, ApplyMode.Last, ApplyMode.Reduce }.Select(p => p.ToString().ToCamelCase()).ToList();
     }
 
     /// <summary>

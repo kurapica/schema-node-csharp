@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using SchemaNode.Context;
+﻿using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
@@ -111,14 +110,6 @@ public abstract class DataNode : IValueAccess, IDisposable
     /// The cached property setters for runtime property constructors
     /// </summary>
     private static readonly ConcurrentDictionary<Type, MethodInfo> _setters = new();
-
-    /// <summary>
-    /// The cached factories for runtime property instances. A property class normally declares a
-    /// constructor taking the source node; declaration-only classes (`class X : Property&lt;T&gt;;`)
-    /// only have the implicit parameterless constructor and are created without the source argument
-    /// (the record still carries <see cref="PropertyRecord.Source"/>).
-    /// </summary>
-    private static readonly ConcurrentDictionary<Type, ObjectFactory> _propertyFactories = new();
 
     /// <summary>
     /// The cached data node constructors for schema declared node types

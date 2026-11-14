@@ -49,6 +49,11 @@ public static class TableRowEditorWindowLayout
     {
         ArgumentNullException.ThrowIfNull(window);
 
+        // Debug is inherited inside one window tree only, so a dialog would lose the value applied
+        // to the shell. Copy it from the owner so popup content matches the window that opened it.
+        if (owner is not null)
+            SchemaView.SetDebug(window, SchemaView.GetDebug(owner));
+
         Size size = GetPreferredSize(owner);
         window.Width = size.Width;
         window.Height = size.Height;

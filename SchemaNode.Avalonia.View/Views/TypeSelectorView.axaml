@@ -9,7 +9,12 @@
       The path editor is the shared InputView, so the cascade popup, path formatting and commit
       rules live in CascaderView / InputWrapper and are not duplicated here.
   -->
-  <Grid ColumnDefinitions="*,Auto">
+  <Grid x:Name="Root">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*" />
+      <ColumnDefinition Width="0" />
+    </Grid.ColumnDefinitions>
+
     <views:InputView x:Name="MainInput"
                      Grid.Column="0"
                      DataContext="{Binding Main}" />

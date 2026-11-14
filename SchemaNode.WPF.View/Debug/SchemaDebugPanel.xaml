@@ -1,49 +1,78 @@
 <UserControl x:Class="SchemaNode.WPF.View.Debug.SchemaDebugPanel"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Border Background="#FFFDF2" BorderBrush="#C9A227" BorderThickness="1" Padding="8" MaxWidth="560">
-        <StackPanel>
-            <TextBlock Text="{Binding Header}" FontWeight="Bold" TextWrapping="Wrap" />
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:SchemaNode.WPF.View">
+    <!-- The panel sizes to its content: names, values and access paths keep their full text and the
+         body scrolls when they do not fit, instead of ellipsing them. MaxWidth keeps a very long
+         value from stretching the popup across the screen. -->
+    <Border Background="#FFFDF2" BorderBrush="#C9A227" BorderThickness="1" Padding="8"
+            MinWidth="320" MaxWidth="720">
+        <ScrollViewer MaxHeight="420" Grid.IsSharedSizeScope="True"
+                      HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="{Binding Header}" FontWeight="Bold" TextWrapping="Wrap" />
 
-            <TextBlock Text="Properties" FontWeight="SemiBold" Margin="0,8,0,2" />
-            <ItemsControl ItemsSource="{Binding Properties}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Grid Margin="0,1">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="110" />
-                                <ColumnDefinition Width="150" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="{Binding Name}" />
-                            <TextBlock Grid.Column="1" Text="{Binding Value}" TextTrimming="CharacterEllipsis" />
-                            <TextBlock Grid.Column="2" Text="{Binding Source}" Foreground="Gray"
-                                       TextTrimming="CharacterEllipsis" />
-                        </Grid>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                <TextBlock Text="Properties" FontWeight="SemiBold" Margin="0,8,0,2" />
+                <ItemsControl ItemsSource="{Binding Properties}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" MinWidth="110"
+                                                      SharedSizeGroup="DebugPropertyName" />
+                                    <ColumnDefinition Width="Auto" MinWidth="150" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding Name}" Margin="0,0,8,0" />
+                                <TextBlock Grid.Column="1" Text="{Binding Value}" Margin="0,0,8,0" />
+                                <TextBlock Grid.Column="2" Text="{Binding Source}" Foreground="Gray" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
 
-            <TextBlock Text="Relations" FontWeight="SemiBold" Margin="0,8,0,2" />
-            <ItemsControl ItemsSource="{Binding Relations}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Grid Margin="0,1">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="110" />
-                                <ColumnDefinition Width="90" />
-                                <ColumnDefinition Width="80" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="{Binding Property}" />
-                            <TextBlock Grid.Column="1" Text="{Binding Mode}" />
-                            <TextBlock Grid.Column="2" Text="{Binding Data}" />
-                            <TextBlock Grid.Column="3" Text="{Binding Source}" Foreground="Gray"
-                                       TextTrimming="CharacterEllipsis" />
-                        </Grid>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </StackPanel>
+                <TextBlock Text="Relations" FontWeight="SemiBold" Margin="0,8,0,2" />
+                <ItemsControl ItemsSource="{Binding Relations}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" MinWidth="110"
+                                                      SharedSizeGroup="DebugRelationProperty" />
+                                    <ColumnDefinition Width="Auto" MinWidth="90" />
+                                    <ColumnDefinition Width="Auto" MinWidth="80" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding Property}" Margin="0,0,8,0" />
+                                <TextBlock Grid.Column="1" Text="{Binding Mode}" Margin="0,0,8,0" />
+                                <TextBlock Grid.Column="2" Text="{Binding Data}" Margin="0,0,8,0" />
+                                <TextBlock Grid.Column="3" Text="{Binding Source}" Foreground="Gray" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock Text="Errors" FontWeight="SemiBold" Margin="0,8,0,2" />
+                <TextBlock Text="{Binding NoErrorsText}" Foreground="Gray"
+                           Visibility="{Binding HasErrors, Converter={x:Static local:Converters.InverseBoolToVisibility}}" />
+                <ItemsControl ItemsSource="{Binding Errors}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" MinWidth="150" />
+                                    <ColumnDefinition Width="Auto" MinWidth="90" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding Access}" Margin="0,0,8,0" />
+                                <TextBlock Grid.Column="1" Text="{Binding Constraint}" Margin="0,0,8,0" />
+                                <TextBlock Grid.Column="2" Text="{Binding Message}" Foreground="Gray" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
     </Border>
 </UserControl>

@@ -37,5 +37,6 @@
   "wpf.page.trackingUnavailable": "The host cannot track primary keys; delete/restore is unavailable.",
   "wpf.page.filterUnsupported": "The host does not support function filters; use a value filter instead.",
   "wpf.page.loadFailed": "Failed to load page data: {0}",
-  "wpf.page.addUnsupported": "This paged table cannot add rows directly: the host save contract only supports updates and deletes. Add rows through the host data maintenance entry."
+  "wpf.page.addUnsupported": "This paged table cannot add rows directly: the host save contract only supports updates and deletes. Add rows through the host data maintenance entry.",
+  "wpf.debug.errors.none": "None"
 }

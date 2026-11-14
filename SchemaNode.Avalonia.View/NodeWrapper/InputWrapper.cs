@@ -42,13 +42,11 @@ public sealed class EntryItem
 /// <summary>One compact drop-down level of a cascaded entry source.</summary>
 public sealed class EntryLevel : INotifyPropertyChanged
 {
-    private readonly Action<int, EntryItem?> _onSelected;
     private EntryItem? _selected;
 
-    internal EntryLevel(int index, Action<int, EntryItem?> onSelected)
+    internal EntryLevel(int index)
     {
         Index = index;
-        _onSelected = onSelected;
     }
 
     /// <summary>Zero-based level index.</summary>
@@ -57,7 +55,10 @@ public sealed class EntryLevel : INotifyPropertyChanged
     /// <summary>Candidates of this level.</summary>
     public BulkObservableCollection<EntryItem> Entries { get; } = new();
 
-    /// <summary>Selected candidate of this level. Selecting triggers the next level / value write.</summary>
+    /// <summary>
+    /// Selected candidate of this level. It only drives the highlight and the closed-state
+    /// summary; committing and expanding are explicit calls on <see cref="InputWrapper"/>.
+    /// </summary>
     public EntryItem? Selected
     {
         get => _selected;
@@ -66,15 +67,7 @@ public sealed class EntryLevel : INotifyPropertyChanged
             if (ReferenceEquals(_selected, value)) return;
             _selected = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Selected)));
-            _onSelected(Index, value);
         }
-    }
-
-    internal void SetSelectedSilently(EntryItem? item)
-    {
-        if (ReferenceEquals(_selected, item)) return;
-        _selected = item;
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Selected)));
     }
 
     /// <inheritdoc />
@@ -149,6 +142,7 @@ public sealed class InputWrapper : DataNodeWrapper
     private bool _isSuggestOpen;
     private readonly bool _isMulti;
     private bool _isCascading;
+    private bool _isLoadingEntries;
     private bool _asSuggest;
     private bool _leafOnly;
     private string? _pendingText;
@@ -194,6 +188,18 @@ public sealed class InputWrapper : DataNodeWrapper
     /// asynchronously, so this value is decided when a snapshot is applied, not at construction.
     /// </summary>
     public bool IsCascading => _isCascading;
+
+    /// <summary>Whether an entry load is in flight.</summary>
+    public bool IsLoadingEntries => _isLoadingEntries;
+
+    /// <summary>Whether at least one cascaded level already holds candidates.</summary>
+    public bool HasCascadeEntries => Levels.Any(level => level.Entries.Count > 0);
+
+    /// <summary>
+    /// Whether the cascader is shown but no candidate has arrived yet. The popup renders a loading
+    /// row in that window instead of an empty column, and the applied snapshot fills it in place.
+    /// </summary>
+    public bool ShowCascadeLoading => _isCascading && _isLoadingEntries && !HasCascadeEntries;
 
     /// <summary>Single-level candidates.</summary>
     public BulkObservableCollection<EntryItem> Entries { get; } = new();
@@ -472,7 +478,20 @@ public sealed class InputWrapper : DataNodeWrapper
 
         CancellationTokenSource cts = new();
         Interlocked.Exchange(ref _entryCts, cts)?.Cancel();
+        SetLoadingEntries(true);
         _ = RefreshEntriesAsync(cts);
+    }
+
+    /// <summary>
+    /// Publishes the in-flight state so the cascader can show a loading row while its first
+    /// snapshot is being resolved instead of an empty popup.
+    /// </summary>
+    private void SetLoadingEntries(bool value)
+    {
+        if (_isLoadingEntries == value) return;
+        _isLoadingEntries = value;
+        RaisePropertyChangedNow(nameof(IsLoadingEntries));
+        RaisePropertyChangedNow(nameof(ShowCascadeLoading));
     }
 
     private async Task RefreshEntriesAsync(CancellationTokenSource cts)
@@ -486,6 +505,7 @@ public sealed class InputWrapper : DataNodeWrapper
             {
                 if (cts.IsCancellationRequested || IsDisposed) return;
                 ApplySnapshot(snapshot);
+                SetLoadingEntries(false);
             });
         }
         catch (OperationCanceledException)
@@ -494,7 +514,11 @@ public sealed class InputWrapper : DataNodeWrapper
         }
         catch (Exception ex)
         {
-            Post(() => SetInputError(LocaleManager.Instance.Format("avalonia.view.error.entries", ex.Message)));
+            Post(() =>
+            {
+                SetLoadingEntries(false);
+                SetInputError(LocaleManager.Instance.Format("avalonia.view.error.entries", ex.Message));
+            });
         }
     }
 
@@ -581,13 +605,12 @@ public sealed class InputWrapper : DataNodeWrapper
                 for (int i = 0; i < snapshot.Levels.Length; i++)
                 {
                     LevelSnapshot levelSnapshot = snapshot.Levels[i];
-                    EntryLevel level = new(i, OnLevelSelected);
+                    EntryLevel level = new(i);
                     level.PropertyChanged += OnLevelPropertyChanged;
                     level.Entries.ReplaceAll(levelSnapshot.Items);
-                    level.SetSelectedSilently(
-                        levelSnapshot.Selected is null
-                            ? null
-                            : levelSnapshot.Items.FirstOrDefault(x => string.Equals(x.Value, levelSnapshot.Selected, StringComparison.Ordinal)));
+                    level.Selected = levelSnapshot.Selected is null
+                        ? null
+                        : levelSnapshot.Items.FirstOrDefault(x => string.Equals(x.Value, levelSnapshot.Selected, StringComparison.Ordinal));
                     levels.Add(level);
                 }
                 Levels.ReplaceAll(levels);
@@ -608,12 +631,14 @@ public sealed class InputWrapper : DataNodeWrapper
         if (changed) RaisePropertyChangedNow(nameof(IsCascading));
         RaisePropertyChangedNow(nameof(SelectedEntry));
         RaisePropertyChangedNow(nameof(HasEntries));
+        RaisePropertyChangedNow(nameof(HasCascadeEntries));
         RaisePropertyChangedNow(nameof(IsDropDown));
         RaisePropertyChangedNow(nameof(IsSuggest));
         RaisePropertyChangedNow(nameof(IsPlainText));
         RaisePropertyChangedNow(nameof(MultiSummary));
         RaisePropertyChangedNow(nameof(CascadeSummary));
         RaisePropertyChangedNow(nameof(HasCascadeValue));
+        RaisePropertyChangedNow(nameof(ShowCascadeLoading));
     }
 
     private void OnLevelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -662,8 +687,8 @@ public sealed class InputWrapper : DataNodeWrapper
                 EntryLevel? last = Levels.LastOrDefault();
                 if (last is not null)
                 {
-                    last.SetSelectedSilently(
-                        key is null ? null : last.Entries.FirstOrDefault(x => string.Equals(x.Value, key, StringComparison.Ordinal)));
+                    last.Selected =
+                        key is null ? null : last.Entries.FirstOrDefault(x => string.Equals(x.Value, key, StringComparison.Ordinal));
                 }
                 return;
             }
@@ -680,24 +705,59 @@ public sealed class InputWrapper : DataNodeWrapper
         }
     }
 
-    private void OnLevelSelected(int index, EntryItem? item)
-    {
-        if (_suppressSelection || IsDisposed || item is null) return;
+    /// <summary>
+    /// Whether the entry can be committed as the node value. Core owns this decision:
+    /// <see cref="EntryItem.Disabled"/> mirrors the entry's <c>Disable</c> property set by
+    /// <c>ScalarNode</c> (failed entry validation), and parents only commit when non-leaf
+    /// selection is enabled. The view must not add rules of its own.
+    /// </summary>
+    public bool CanSelectEntry(EntryItem item)
+        => item is not null && !item.Disabled && (!item.HasChildren || CanSelectNonLeaf);
 
-        bool selectable = !item.HasChildren || (!LeafOnly && ScalarNodeImpl.IsNonLeafNodeSelectable);
-        if (selectable)
+    /// <summary>
+    /// Commits the entry (a click on the row's label area). Returns true when the value was
+    /// written and the caller must close the popup.
+    /// </summary>
+    /// <remarks>
+    /// A parent that cannot be committed still opens its next level, so clicking the name of a
+    /// disabled namespace keeps the previous "click to go deeper" behaviour.
+    /// </remarks>
+    public bool SelectLevelEntry(EntryLevel level, EntryItem item)
+    {
+        if (IsDisposed || level is null || item is null) return false;
+
+        if (!CanSelectEntry(item))
         {
-            Value = item.Value;
-            _selectedEntry = item;
-            RaisePropertyChangedNow(nameof(SelectedEntry));
+            // A parent that cannot be committed still opens its next level, so the path stays
+            // navigable; a disabled leaf simply does nothing.
+            if (!item.HasChildren) return false;
+
+            level.Selected = item;
+            RaisePropertyChangedNow(nameof(CascadeSummary));
+            _ = LoadNextLevelAsync(level.Index, item);
+            return false;
         }
 
+        level.Selected = item;
+        Value = item.Value;
+        _selectedEntry = item;
+        TruncateLevels(level.Index + 1);
+        RaisePropertyChangedNow(nameof(SelectedEntry));
         RaisePropertyChangedNow(nameof(CascadeSummary));
+        RaisePropertyChangedNow(nameof(HasCascadeValue));
+        return true;
+    }
 
-        if (item.HasChildren)
-            _ = LoadNextLevelAsync(index, item);
-        else
-            TruncateLevels(index + 1);
+    /// <summary>
+    /// Opens the next level of the entry (a click on the row's arrow area) without committing it.
+    /// </summary>
+    public void ExpandLevelEntry(EntryLevel level, EntryItem item)
+    {
+        if (IsDisposed || level is null || item is null || !item.HasChildren) return;
+
+        level.Selected = item;
+        RaisePropertyChangedNow(nameof(CascadeSummary));
+        _ = LoadNextLevelAsync(level.Index, item);
     }
 
     private async Task LoadNextLevelAsync(int index, EntryItem parent)
@@ -715,7 +775,7 @@ public sealed class InputWrapper : DataNodeWrapper
                 List<EntryLevel> levels = Levels.Take(index + 1).ToList();
                 if (levels.Count == 0) return;
 
-                EntryLevel next = new(levels.Count, OnLevelSelected);
+                EntryLevel next = new(levels.Count);
                 next.PropertyChanged += OnLevelPropertyChanged;
                 next.Entries.ReplaceAll(children.Select(ToItem));
                 _suppressSelection = true;

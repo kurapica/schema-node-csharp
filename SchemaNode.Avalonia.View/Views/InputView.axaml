@@ -54,6 +54,7 @@
           ColumnDefinitions="*,Auto,Auto"
           IsVisible="{Binding IsSuggest}">
       <TextBox Grid.Column="0"
+               x:Name="SuggestText"
                Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
                IsEnabled="{Binding IsEditable}"
                MinHeight="24" />
@@ -76,8 +77,8 @@
               Click="OnClearClick" />
       <Popup Grid.ColumnSpan="3"
              x:Name="SuggestPopup"
-             Placement="Bottom"
-             PlacementTarget="{Binding ElementName=SuggestToggle}"
+             Placement="BottomEdgeAlignedLeft"
+             PlacementTarget="{Binding ElementName=SuggestText}"
              IsLightDismissEnabled="True"
              IsOpen="{Binding IsSuggestOpen, Mode=TwoWay}">
         <Border Background="White"
@@ -129,14 +130,14 @@
                 Click="OnClearClick" />
       </Grid>
       <Popup IsOpen="{Binding IsPopupOpen, Mode=TwoWay}"
-             Placement="Bottom"
+             Placement="BottomEdgeAlignedLeft"
              PlacementTarget="{Binding ElementName=MultiToggle}"
              IsLightDismissEnabled="True">
         <Border Background="White"
                 BorderBrush="#FFB0B0B0"
                 BorderThickness="1"
                 MaxHeight="260"
-                MinWidth="160">
+                MinWidth="{Binding Bounds.Width, ElementName=MultiToggle}">
           <ScrollViewer VerticalScrollBarVisibility="Auto">
             <ItemsControl ItemsSource="{Binding MultiEntries}">
               <ItemsControl.ItemsPanel>

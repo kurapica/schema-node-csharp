@@ -69,7 +69,7 @@ public class FuncCallArgsNode : DataNode, IEnumerable<StructNode>
     #region Value Access
 
     /// <inheritdoc/>
-    public override bool IsEmpty => _args.Count == 0 && (_varArg?.IsEmpty ?? true);
+    public override bool IsEmpty => _args.Count == 0 && (_varArg?.IsEmpty ?? true) && (_initData?.Count ?? 0) == 0;
 
     /// <inheritdoc/>
     public override bool TrySetValue<T>(T? value) where T : default
@@ -82,7 +82,10 @@ public class FuncCallArgsNode : DataNode, IEnumerable<StructNode>
             return true;
         }
 
-        JsonArray? data = FuncCallHelper.ToJsonArray(value);
+        // copy the arguments from another arguments node, the arguments may not be materialized yet
+        JsonArray? data = value is IValueAccess access
+            ? access.TryGetValue(out JsonArray? array) ? array : null
+            : FuncCallHelper.ToJsonArray(value);
         if (data is null) return false;
 
         _initData = data;
@@ -228,6 +231,8 @@ public class FuncCallArgsNode : DataNode, IEnumerable<StructNode>
     {
         FuncCallArgsNode clone = new(null, Type, BuildJsonArray(), null, PropertyProviders.ToArray());
         clone._original = _original?.DeepClone() as JsonArray;
+        // restore the function binding, otherwise the cloned arguments stay unmaterialized
+        clone.RefreshFuncCall(_mode, _funcType);
         return clone;
     }
 
@@ -236,6 +241,8 @@ public class FuncCallArgsNode : DataNode, IEnumerable<StructNode>
     {
         FuncCallArgsNode clone = new(context, Type, BuildJsonArray(), null, PropertyProviders.ToArray());
         clone._original = _original?.DeepClone() as JsonArray;
+        // restore the function binding, otherwise the cloned arguments stay unmaterialized
+        clone.RefreshFuncCall(_mode, _funcType);
         return clone;
     }
 
@@ -422,7 +429,7 @@ public class FuncCallArgsNode : DataNode, IEnumerable<StructNode>
             }
 
             JsonObject adata2 = data.ElementAtOrDefault(i) is JsonObject row ? (JsonObject)row.DeepClone() : new JsonObject();
-            adata2["type"] = arg.Type;
+            adata2["type"] = arg.ValueType?.Name ?? arg.Type;
             StructNode argNode = AddRow(adata2, argName, arg)!;
 
             if (isReadonly)

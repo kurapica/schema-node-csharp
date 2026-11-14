@@ -22,10 +22,4 @@
     <EmbeddedResource Include="locale\*.json" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(Configuration)' != 'Debug'">
-    <!-- The per-node inspector is a Debug-only diagnostic surface; keep every Debug type out of
-         Release binaries. -->
-    <Compile Remove="Debug\**\*.cs" />
-  </ItemGroup>
-
 </Project>

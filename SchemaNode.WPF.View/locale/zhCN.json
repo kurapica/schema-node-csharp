@@ -37,5 +37,6 @@
   "wpf.page.trackingUnavailable": "宿主未提供主键跟踪，删除/恢复不可用。",
   "wpf.page.filterUnsupported": "宿主不支持函数过滤，请改用普通过滤条件。",
   "wpf.page.loadFailed": "分页数据加载失败：{0}",
-  "wpf.page.addUnsupported": "分页表不支持直接新增行：宿主保存接口只提供更新与删除，请通过宿主的数据维护入口新增。"
+  "wpf.page.addUnsupported": "分页表不支持直接新增行：宿主保存接口只提供更新与删除，请通过宿主的数据维护入口新增。",
+  "wpf.debug.errors.none": "无"
 }

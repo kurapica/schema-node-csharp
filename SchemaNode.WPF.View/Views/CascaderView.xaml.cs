@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -10,12 +11,14 @@ namespace SchemaNode.WPF.View.Views;
 /// <summary>
 /// Multi-level entry selector: one closed field for the whole path, and a side-by-side popup
 /// with one column per level. It only reads/writes the wrapper's level data, so all entry
-/// resolution and write-back stay in <see cref="InputWrapper"/> and Core.
+/// resolution, selection rules and write-back stay in <see cref="InputWrapper"/> and Core.
 /// </summary>
 /// <remarks>
-/// Commit/expand rule: clicking an item with children expands (the wrapper loads the next level
-/// and keeps the popup open); an item's value is committed exactly when the wrapper considers it
-/// selectable (leaf, <c>LeafOnly</c>, or a selectable non-leaf). Clicking a leaf closes the popup.
+/// Each row has two hit areas, decided by the wrapper (<c>CanSelectEntry</c>: the Core-provided
+/// <c>Disable</c> state plus the non-leaf rule):
+/// the label area commits that entry as the value and closes the popup, while the arrow area only
+/// opens the next level and leaves the value untouched. A parent that cannot be committed still
+/// expands when its label is clicked, so navigating through disabled namespaces keeps working.
 /// Esc or an outside click closes without committing further, and the wrapper reloads the levels
 /// from its unchanged node value.
 /// </remarks>
@@ -26,7 +29,7 @@ public partial class CascaderView : UserControl
 
     private static CascaderView? _open;
 
-    private bool _committedLeaf;
+    private bool _committed;
     private bool _closedByThisPress;
 
     public CascaderView()
@@ -78,7 +81,7 @@ public partial class CascaderView : UserControl
             return;
         }
 
-        _committedLeaf = false;
+        _committed = false;
         if (_open is { } other && other != this) other.Panel.IsOpen = false;
         _open = this;
         Panel.IsOpen = true;
@@ -108,19 +111,41 @@ public partial class CascaderView : UserControl
         Panel.IsOpen = false;
     }
 
-    private void OnColumnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    /// <summary>
+    /// Label area of a row: the wrapper commits the entry and reports whether the value was
+    /// written, in which case the popup closes. Entries Core marked disabled are not committed;
+    /// a parent among them still expands so the path stays navigable.
+    /// </summary>
+    private void OnItemSelectClick(object sender, RoutedEventArgs e)
     {
-        // Template refreshes and level replacements also change the selection while the popup is
-        // closed; those must never be treated as a leaf commit, or they would end the interaction
-        // before it starts.
-        if (!Panel.IsOpen || _committedLeaf) return;
-        if (e.AddedItems.Count == 0 || e.AddedItems[0] is not EntryItem item) return;
-        if (item.HasChildren && !(Wrapper?.CanSelectNonLeaf ?? false)) return;
+        e.Handled = true;
+        if (!TryGetRow(sender, out EntryLevel? level, out EntryItem? item)) return;
 
-        // The wrapper writes the value through the level's Selected binding for leaves and for
-        // selectable non-leaves; both commit and close without reloading the levels.
-        _committedLeaf = true;
+        if (Wrapper?.SelectLevelEntry(level, item) != true) return;
+
+        // The value is already written, so closing must not reload the levels.
+        _committed = true;
         Panel.IsOpen = false;
+    }
+
+    /// <summary>Arrow area of a row: opens the next level and never commits the entry itself.</summary>
+    private void OnItemExpandClick(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if (!TryGetRow(sender, out EntryLevel? level, out EntryItem? item)) return;
+
+        Wrapper?.ExpandLevelEntry(level, item);
+    }
+
+    private static bool TryGetRow(object sender, [NotNullWhen(true)] out EntryLevel? level, [NotNullWhen(true)] out EntryItem? item)
+    {
+        level = null;
+        item = null;
+        if (sender is not FrameworkElement { DataContext: EntryItem entry } button) return false;
+        if (button.Tag is not EntryLevel owner) return false;
+        item = entry;
+        level = owner;
+        return true;
     }
 
     private void OnClearClick(object sender, RoutedEventArgs e)
@@ -131,14 +156,23 @@ public partial class CascaderView : UserControl
 
     private void OnPanelIsOpenChanged(object? sender, EventArgs e)
     {
-        if (Panel.IsOpen) return;
+        if (Panel.IsOpen)
+        {
+            // The field is already a cascader once Core reports a multi-level entry source, but the
+            // first candidates may still be in flight. Ask for them again in that case: the popup
+            // shows its loading row now and the applied snapshot replaces it in place, so the user
+            // never has to click a second time.
+            if (Wrapper is { IsCascading: true, IsLoadingEntries: false, HasCascadeEntries: false })
+                Wrapper.ReloadCascadeSelection();
+            return;
+        }
 
         if (_open == this) _open = null;
 
-        // A leaf commit has already written the value, so the levels stay as they are.
-        if (_committedLeaf)
+        // A commit has already written the value, so the levels stay as they are.
+        if (_committed)
         {
-            _committedLeaf = false;
+            _committed = false;
             return;
         }
 

@@ -238,7 +238,7 @@ public class FuncCall
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.{nameof(CallArg)}")]
 [Meta<DataNodeType>(typeof(FuncCallArgNode))]
-[Relation<AccessEntryConsumer, Assign>(nameof(Source), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isassignableto)}", false, $"@{nameof(Type)}")]
+[Relation<AccessEntryConsumer, Assign>(nameof(Source), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isassignableto)}", NODE_SELF, false, $"@{nameof(Type)}")]
 public class CallArg: IEquatable<CallArg>
 {
     /// <summary>
@@ -246,6 +246,7 @@ public class CallArg: IEquatable<CallArg>
     /// </summary>
     [Meta<SchemaType>(typeof(ValueType))]
     [Meta<ReadOnly>(true)]
+    [Meta<InVisible>(true)]
     public string? Type { get; set; }
     
     /// <summary>
@@ -259,7 +260,7 @@ public class CallArg: IEquatable<CallArg>
     /// </summary>
     [Meta<SchemaType>(typeof(ValueType))]
     [Meta<DisplayOnly>(true)]
-    //[Meta<InVisible>(true)]
+    [Meta<InVisible>(true)]
     [Meta<AccessValueTypeResolver>(nameof(Source))]
     public string? SourceType { get; set; }
     

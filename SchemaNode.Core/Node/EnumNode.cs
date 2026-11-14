@@ -43,6 +43,13 @@ public class EnumNode : ScalarNode
     /// <inheritdoc/>
     public sealed override bool TrySetValue<T>(T? value) where T : default
     {
+        // a null value means no value, it must not be converted into the default value
+        if (value is null)
+        {
+            ClearValue();
+            return true;
+        }
+
         if (_isString)
         {
             if (!value.TryConvertTo(out string? str)) return false;
@@ -84,6 +91,13 @@ public class EnumNode : ScalarNode
     /// <inheritdoc/>
     public override bool TryGetValue<T>(out T? value) where T : default
     {
+        // an empty node has no value, so the default value of T must not be reported as its value
+        if (IsEmpty)
+        {
+            value = default(T?);
+            return false;
+        }
+
         if (_isString)
         {
             if (_strValue.TryConvertTo(out T? val))

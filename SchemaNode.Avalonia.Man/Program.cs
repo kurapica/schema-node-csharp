@@ -53,6 +53,14 @@ public sealed class ManApp : Application
             MainWindow shell = new() { DataContext = Services!.GetRequiredService<MainWindowViewModel>() };
             desktop.MainWindow = shell;
             _shellViewModel = (MainWindowViewModel)shell.DataContext!;
+
+            // Turn on the per-node inspector for this host. The property is inherited, so setting
+            // it once on the shell reaches every SchemaView in the window, including views created
+            // later. The View library ships the inspector in every configuration, so a Release
+            // build only has to skip this line to render without it.
+#if DEBUG
+            SchemaView.SetDebug(shell, true);
+#endif
             _ = StartAsync();
         }
 

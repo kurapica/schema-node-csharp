@@ -23,8 +23,10 @@
   "avalonia.locale.translations.failed": "Failed to write the translations; this change was not saved.",
   "avalonia.locale.translations.empty": "Not translated",
   "avalonia.date.month.format": "Month must use the yyyy-MM format",
+  "avalonia.page.loading": "Loading…",
   "avalonia.error.value.convert": "Value '{0}' cannot be converted to type '{1}'",
   "avalonia.view.error.invalid": "Invalid value",
   "avalonia.view.error.entries": "Failed to load entries: {0}",
-  "avalonia.view.error.editor": "Row editor failed: {0}"
+  "avalonia.view.error.editor": "Row editor failed: {0}",
+  "avalonia.debug.errors.none": "None"
 }
