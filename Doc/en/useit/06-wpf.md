@@ -51,7 +51,7 @@ Project reference:
 
 ### 1.3 Prism Host: Refer to SchemaNode.WPF.Man
 
-`SchemaNode.WPF.Man` is already a runnable Prism host (`WinExe`), containing regions, navigation, seven screens, and the registration code: type definition, type definition document, type demo, app definition, app demo, workflow configuration, and function definition. When integrating into a new application, it is recommended to treat it as a template and copy the relevant files, rather than referencing an executable project directly from a business project.
+`SchemaNode.WPF.Man` is already a runnable Prism host (`WinExe`), containing regions, navigation, 12 screens, and the registration code: type definition, type definition document, type demo, app list, app definition, app field list, app field definition, app field demo, app workflow list, app demo, workflow configuration, and function definition. When integrating into a new application, it is recommended to treat it as a template and copy the relevant files, rather than referencing an executable project directly from a business project.
 
 Its packages and projects:
 
@@ -233,6 +233,74 @@ When a write through the `Value` setter fails, the reason is not swallowed: it s
 
 All text goes through the `LocaleManager.Instance` `Version` binding: `Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.new}"`. When the language changes, `Version` increments and every XAML label refreshes in place; the wrapper's `Label` / `Error` and table column headers are recomputed on the same event without rebuilding the visual tree. Keys in `zhCN.json` and `enUS.json` must exist as pairs; a missing key falls back to the key itself.
 
+### 3.7 Input Controls, Cascade, and Validation
+
+Editor sizing is constrained at the template layer, not per screen:
+
+- `Templates/SchemaTemplates.xaml` applies `MinWidth="120"` to Input / Boolean / Date / Array / TypeSelector / Flags / Year / Language / RangeDate / LocaleString and keeps them horizontally stretched; `InputView` also sets `MinHeight="24"`.
+- `TypeSelectorView.InputMinWidth` defaults to 120. Generic argument slots pass `MinWidth="0" InputMinWidth="0"`; the path column is one `star`, the generic segment gets one `star` per argument, so the path and each argument take roughly 1/(n+1).
+- Table cells use a natural width of 180 and a minimum of 140; locale columns use 200; the operation column is fixed at 100.
+
+Cascade (`CascaderView` + `InputWrapper`):
+
+- Clicking the field toggles the popup. The field shows `CascadeSummary`, joining levels with `" / "`.
+- Each candidate row has two hit areas: the label calls `SelectLevelEntry`, which writes the value and closes the popup when the entry is committable; the right arrow calls `ExpandLevelEntry`, which only loads and expands the next level without committing.
+- A non-leaf node is not committable by default: when `LeafOnly` is set or the type does not allow selecting a parent, clicking the label only expands the next level. Disabled entries ignore clicks. Whether a parent may be committed is decided by `IsNonLeafNodeSelectable`, never by the view.
+- Closing the popup without committing calls `ReloadCascadeSelection()`, restoring the committed path and discarding parents picked while merely expanding.
+- The clear button appears only when `CanClear = IsEditable && !Require && HasValue`; a `Require` field has no clear entry.
+- The loading state shows only while cascading, loading, and still without entries (`ShowCascadeLoading`), using the `wpf.page.loading` key.
+- The popup is anchored to the field's bottom-left corner (`Popup Placement="Bottom"`). Switching levels only widens it to the right; the left edge does not move.
+
+Validation and errors:
+
+- Inline errors attach only to leaf controls that actually render a value: `ShowInlineError = RendersValue && Role == Field`. Struct / Array / Table containers show no inline error block; a failing table cell is marked through `ShowCellError` instead of pushing the error to the header.
+- When the `Value` setter fails, the user's text is preserved: `InputWrapper` keeps it in `_pendingText`, and `ReadEditorValue` prefers the draft, so the editor never snaps back to the old value.
+- The message prefers `DataNode.Error`, then the `VALUE_NOT_VALID` text, then `wpf.view.error.invalid`; the next successful write clears both the draft and the error.
+
+### 3.8 Tables
+
+Columns and `ViewColumns`:
+
+- Columns derive from the array element's `StructType` fields, skipping `InVisible == true`. Plain fields get a single header; a `Struct` field forms a two-level header; a `StructArray` field forms an expandable sub-table with its own sub-operation column.
+- `SchemaTableOptions.ViewColumns` is a read-only column whitelist that accepts nested paths such as `discount.rate`. When non-empty it keeps only matching columns and forces row-editor mode (`RowEditorMode`): cells become read-only and all changes go through the operation column.
+- `ReadOnly` disables cell editing plus add/delete, but the row-editor entry enabled by `ViewColumns` stays available.
+
+Widths:
+
+- The table takes its available-width budget from the nearest ancestor `ScrollViewer` viewport and fills it by default. Columns grow proportionally to their natural widths; when space is tight they shrink to their minimums (140 / 200 / 100) and then only the body scrolls horizontally.
+- Header and body share one leaf-width snapshot (`EffectiveColumnWidths`), so the two never disagree.
+- `TableView` pins its own `Width` to the budget, so the host never measures it at content width, which would otherwise make columns and cell editors jitter.
+
+Row editing:
+
+- The row-editor entry lives in the operation column. The dialog takes about 2/3 of the owner window (minimum 360×240, or 720×560 without an owner) and is centered; the owner is the explicitly supplied window, otherwise the active visible window, then the first visible window, then `MainWindow`.
+- Adding a row inserts a real element first and then opens the editor; cancelling removes that provisional row, while confirming runs the existing validation gate and stays in the dialog with `wpf.table.error.invalid` on failure.
+- Editing an existing row modifies the original element in the array after taking a field snapshot; cancelling writes the snapshot back, so no half-edited state remains.
+- Outside row-editor mode, adding only inserts an empty row and the user edits cells directly.
+
+Paged tables (`PageTableWrapper` in `SchemaNode.WPF.AppView`):
+
+- The host adapter supplies the page size; the Man demo tables use 5. Switching pages captures the current page's edits, then loads the target page and reapplies them.
+- Cross-page edits are tracked by primary key and only when the key can be determined; deleted rows are recorded by key and stay hidden when the page is revisited.
+- Paged tables do not support adding rows; the add entry shows a hint instead. `AcceptChanges` clears the pending tracker.
+- If the total row count shrinks below the current page, the page clamps to the last one.
+- Deactivating the screen releases the current page and cancels in-flight loads; reactivating reloads it. Changing filters returns to the first page.
+
+### 3.9 Localization
+
+- `system.language` uses the dedicated `LanguageView`: a closed drop-down lists the configured locales with no empty option; selecting one writes the value back without touching other fields' locales.
+- A `system.localestring` field row shows the current value and opens the translation dialog from the adjacent button; the dialog edits one row per language and supports add, delete, confirm, and cancel.
+- The translation dialog opens with no default row and never preselects a language for a new row: the language drop-down is only a candidate list, and a row without a chosen language produces no translation to validate. Existing rows are sorted by language.
+- Confirming moves focus out of the text box first to commit the text being edited; a failed write keeps the dialog open with `wpf.locale.translations.failed`.
+- Locale keys are owned per project: `SchemaNode.WPF.View/locale` holds view keys (`wpf.view.*`, `wpf.table.button.*`, `wpf.page.*`, and so on, 40 entries) and `SchemaNode.WPF.Man/locale` holds screen keys (343 entries). `WPF.AppView` ships no language file of its own and reuses keys already loaded by Man / View. The two platforms use different prefixes (WPF uses `wpf.`) and never share keys.
+
+### 3.10 Debug Panel
+
+- `SchemaView.Debug` is an inherited attached dependency property. When on, `SchemaView` appends a 🐞 trigger to the right of its content and creates the popup on demand; turning the switch off removes both the element and the popup from the visual tree.
+- The popup body comes from `SchemaDebug.Describe(node)` and always has three sections: Properties (name / value / source), Relations (property / mode / data / source), and Errors (access path / constraint / message). A placeholder appears when there are no errors.
+- The panel is 320–720 wide with a 420 maximum body height; long content scrolls inside the panel instead of ellipsing access paths.
+- The row-editor window inherits the host's `Debug` value through `TableRowEditorWindowLayout`, so its editors expose the same debug entry when the host has debugging on.
+
 ---
 
 ## 4. Lifecycle
@@ -367,10 +435,17 @@ Apart from the namespace control, ViewModels pass nodes only and never call `Nod
 | Type definition | Yes, namespace control only; the VM observes `InputWrapper.Value` for the cascade and write-back |
 | Type definition document | No; `SchemaEditorViewModel` only holds `Node` |
 | Type demo | No; the editor only holds `Node` |
+| App list | No; the list shows app entries and does not use SchemaView |
 | App definition | No; `AppNode` and `FieldsNode` are nodes |
+| App field list | No; the table is resolved through the registry |
+| App field definition | No; the editor only holds `Node` |
+| App field demo | No; the editor only holds `Node` |
+| App workflow list | No; the list shows workflow entries |
 | App demo | No; it does not use SchemaView |
 | Workflow configuration | No; the property panel binds the selected node's `Node` directly |
 | Function definition | No; arguments, result, and editor all pass nodes |
+
+These are 12 navigation screens in total, all registered through `RegisterForNavigation<T>()` in `App.xaml.cs`; the set matches the screen views under `SchemaNode.WPF.Man/Views`.
 
 Both `OnNavigatedFrom` and `Destroy` call `Teardown`, ensuring repeated callbacks are also safe.
 
@@ -386,3 +461,22 @@ Prism's region keeps views by default. Four measures must be taken together to k
 | `OnNavigatedFrom` / `Destroy` → `Teardown` | Old context is guaranteed to be destroyed |
 
 See the code-behind files of the screens, for example [TypeListView.xaml.cs](../../../SchemaNode.WPF.Man/Views/TypeListView.xaml.cs).
+
+---
+
+## 6. Differences from the Avalonia Version
+
+Both platforms share Core and the wrapper semantics. The differences below come only from control capabilities and the host stack:
+
+| Area | WPF | Avalonia |
+| --- | --- | --- |
+| Editable single-level drop-down | Native `ComboBox.IsEditable`; candidates and free text share one control | `ComboBox` is not editable, so it is split into the `IsSuggest` branch: `TextBox` + arrow button + `Popup` |
+| Flags single-select form | `FlagsView` only has the check-list popup, even when the value set is empty | `FlagsEnumView` adds a single-select `ComboBox` when `!IsMulti` |
+| Range date | `RangeDateView` treats `system.range*` as a struct of two child nodes and places two `SchemaView`s side by side | `RangeDateView` branches on `IsYear` / `IsMonth` / `IsDate` with `NumericUpDown`, a yyyy-MM text box, or `DatePicker`, and shows start/end errors separately |
+| Error channel | Inline `TextBlock` plus a control `ToolTip` bound to `Error` | Inline `TextBlock` plus `ToolTip.Tip` bound to `ErrorTip` (only when not inline) |
+| Uncommitted draft | An external value refresh keeps `_pendingText`, so the draft stays visible | An external value change drops the draft and shows the current node value |
+| Popup anchor | `Placement="Bottom"` is already bottom-left aligned | `Bottom` centers horizontally, so all popups use `Placement="BottomEdgeAlignedLeft"` |
+| Row-editor dialog | Initial size is 2/3 of the owner through `TableRowEditorWindowLayout` (minimum 360×240, 720×560 without an owner), clamped to the work area; always modal via `ShowDialog` | Same sizing rule; opens non-modally and is treated as cancel without an owner; content disables horizontal scrolling |
+| Debug panel implementation | `SchemaDebugPanel.xaml` + `SchemaDebug.Describe` | `SchemaDebugPanel.cs` builds the same structure in code, with the same size and sections |
+| Locale keys | `wpf.` prefix, 40 view keys + 343 screen keys; `WPF.AppView` has no language file | `avalonia.` prefix, 30 view keys + 349 screen keys + 14 AppView keys |
+| Host stack | Prism Region + `RegisterForNavigation` | No Prism: local `IRegionManager` / `RegionManager` + explicit View/ViewModel map + `INavigationAware` |

@@ -17,6 +17,7 @@ It attempts to decouple semantic definitions from concrete execution, so that se
     - [Integration](./useit/04-integration.md)
     - [Frontend View Customization and Usage](./useit/05-views.md)
     - [WPF Host Integration](./useit/06-wpf.md)
+    - [Avalonia Host Integration](./useit/06-avalonia.md)
 
 📖 **[Architecture Documentation](./architecture/01-why.md)**
 

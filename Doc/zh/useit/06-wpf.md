@@ -51,7 +51,7 @@
 
 ### 1.3 Prism 宿主：参考 SchemaNode.WPF.Man
 
-`SchemaNode.WPF.Man` 已经是一个可运行的 Prism 宿主（`WinExe`），包含 Region、导航、七个画面与注册代码：类型定义、类型定义文档、类型演示、应用定义、应用演示、工作流配置、函数定义。接入新应用时，推荐把它当作模板复制相关文件，而不是把可执行项目直接引用进业务工程。
+`SchemaNode.WPF.Man` 已经是一个可运行的 Prism 宿主（`WinExe`），包含 Region、导航、12 个画面与注册代码：类型定义、类型定义文档、类型演示、应用列表、应用定义、应用字段列表、应用字段定义、应用字段演示、应用工作流列表、应用演示、工作流配置、函数定义。接入新应用时，推荐把它当作模板复制相关文件，而不是把可执行项目直接引用进业务工程。
 
 它依赖的包与项目：
 
@@ -233,6 +233,74 @@ registry.RegisterTable("system.schema.struct.fields");
 
 文案统一走 `LocaleManager.Instance` 的 `Version` 绑定：`Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.new}"`。切换语言时 `Version` 递增，所有 XAML 文案原地刷新；Wrapper 的 `Label` / `Error` 与表格列头也会在同一事件上重算，不需要重建视觉树。`zhCN.json` 与 `enUS.json` 的 key 必须成对出现，缺失时回落为 key 本身。
 
+### 3.7 输入控件、级联与校验
+
+编辑器的尺寸是模板层约束，不靠每个画面各自设置：
+
+- `Templates/SchemaTemplates.xaml` 给 Input / Boolean / Date / Array / TypeSelector / Flags / Year / Language / RangeDate / LocaleString 统一设置 `MinWidth="120"`，并保持水平拉伸；`InputView` 自身 `MinHeight="24"`。
+- `TypeSelectorView` 的 `InputMinWidth` 默认 120；泛型参数槽显式传入 `MinWidth="0" InputMinWidth="0"`，主路径列 1 个 `star`，泛型段按参数个数 n 个 `star`，每个参数与主路径大致各占 1/(n+1)。
+- 表格单元格自然宽 180、最小宽 140；locale 列自然/最小宽 200；操作列固定 100。
+
+级联选择器（`CascaderView` + `InputWrapper`）：
+
+- 点击字段区域展开/收起弹层，字段展示 `CascadeSummary`，多级路径用 `" / "` 连接。
+- 候选行分成两个点击区：点标签调用 `SelectLevelEntry`，满足提交条件时写值并关闭弹层；点右侧箭头调用 `ExpandLevelEntry`，只加载并展开下一级，不提交。
+- 非叶子节点默认不可提交：`LeafOnly` 为真或该类型不允许选择父节点时，点标签也只展开下一级；被禁用的条目点击无效。是否允许提交父节点由 `IsNonLeafNodeSelectable` 决定，不由视图判断。
+- 弹层关闭但未提交时调用 `ReloadCascadeSelection()`，恢复已提交路径，不保留临时展开时点过的父级选择。
+- 清除按钮的可见条件是 `CanClear = IsEditable && !Require && HasValue`；`Require` 字段没有清除入口。
+- 加载态只在“正在级联、正在加载、且当前还没有候选”时显示（`ShowCascadeLoading`），文案 key 为 `wpf.page.loading`。
+- 弹层以字段左下角为锚点（`Popup Placement="Bottom"`）。切换层级时弹层只向右增宽，左边缘不移动。
+
+校验与错误：
+
+- 行内错误只挂在真正渲染值的叶控件上：`ShowInlineError = RendersValue && Role == Field`。Struct / Array / Table 容器不显示行内错误块；表格单元格的失败通过 `ShowCellError` 标红，而不是把错误抬到表头。
+- `Value` setter 写入失败时保留用户原文：`InputWrapper` 把文本存进 `_pendingText`，`ReadEditorValue` 优先显示草稿，界面不会跳回旧值。
+- 错误文案优先取 `DataNode.Error`，其次取 `VALUE_NOT_VALID` 对应文案，最后回落 `wpf.view.error.invalid`；下一次成功写回会同时清空草稿与错误。
+
+### 3.8 表格
+
+列来源与 `ViewColumns`：
+
+- 列由数组元素 `StructType` 的字段推导，跳过 `InVisible == true`。普通字段是单列表头；`Struct` 字段形成两级表头；`StructArray` 字段形成可展开的子表，并带自己的子操作列。
+- `SchemaTableOptions.ViewColumns` 是只读列白名单，支持 `discount.rate` 这样的嵌套路径。非空时只保留命中的列，并强制进入行编辑模式（`RowEditorMode`）：单元格本身只读，改动统一走操作列的编辑入口。
+- `ReadOnly` 关闭单元格编辑与增删，但 `ViewColumns` 打开的行编辑入口仍然保留。
+
+宽度：
+
+- 表格从最近的祖先 `ScrollViewer` 视口取得可用宽度预算，默认铺满；列宽按自然宽比例等比放大。空间不足时先压到最小宽（140 / 200 / 100），再不够就只让表体内部横向滚动。
+- 表头与表体共用同一份叶子列宽快照（`EffectiveColumnWidths`），不会各算一遍产生错位。
+- `TableView` 会把自身 `Width` 钉到预算，宿主不会按内容自然宽反复测量，从而避免列宽与单元格编辑器宽度来回跳。
+
+行编辑：
+
+- 行编辑按钮在操作列；弹窗尺寸为宿主窗口的约 2/3（最小 360×240，无宿主时 720×560），居中显示；Owner 优先用显式传入的窗口，否则依次取活动窗口、可见窗口、`MainWindow`。
+- 新增行先插入真实元素，再打开编辑弹窗；取消时把这条临时行删除，确认时沿用原有校验关卡，失败则留在弹窗内并显示 `wpf.table.error.invalid`。
+- 编辑已有行直接改数组中的原始元素，保存前先留一份字段快照；取消时用快照写回该行，不会留下半改状态。
+- 不在行编辑模式时，新增只插入空行，用户直接在单元格里编辑。
+
+分页表（`SchemaNode.WPF.AppView` 的 `PageTableWrapper`）：
+
+- 页大小由宿主适配器提供，Man 的演示表用 5；切页时先捕获当前页的修改，再加载目标页并重新套用。
+- 跨页改动按主键跟踪，只有能确定主键时才启用跟踪；删除的行按主键记录，重新进入该页时保持隐藏。
+- 分页表不支持新增行，新增入口会给出提示；`AcceptChanges` 清空待提交跟踪。
+- 总行数变少导致当前页越界时会自动夹到最后一页。
+- 画面停用时释放当前页并取消在途加载，再次激活时重新加载；筛选条件变化会回到第一页。
+
+### 3.9 本地化
+
+- `system.language` 使用专用视图 `LanguageView`：闭式下拉列出已配置的 locale，没有“空”选项；选中即写回值，不额外改写其他字段的 locale。
+- `system.localestring` 的字段行显示当前值，旁边按钮打开翻译弹窗；弹窗按语言逐行编辑，支持新增、删除、确认、取消。
+- 翻译弹窗打开时没有默认行，也不会给新行预选语言：语言下拉只是候选列表，未被用户选中的行不会产生待校验的翻译。已有行按语言排序。
+- 确认前先把焦点移出文本框以提交正在编辑的文本；写回失败时弹窗保持打开并显示 `wpf.locale.translations.failed`。
+- locale key 按工程归属：`SchemaNode.WPF.View/locale` 放视图层 key（`wpf.view.*`、`wpf.table.button.*`、`wpf.page.*` 等，共 40 条），`SchemaNode.WPF.Man/locale` 放画面 key（共 343 条）。`WPF.AppView` 不单独带语言文件，复用 Man / View 已加载的 key；两端前缀不同（WPF 为 `wpf.`），不能互相挪用。
+
+### 3.10 调试面板
+
+- `SchemaView.Debug` 是可继承的附加依赖属性；打开后，`SchemaView` 在内容右侧追加一个 🐞 触发器，并按需创建弹层，关闭开关时元素与弹层都不在视觉树里。
+- 弹层内容来自 `SchemaDebug.Describe(node)`，固定三个分区：Properties（名称 / 值 / 来源）、Relations（属性 / 模式 / 数据 / 来源）、Errors（访问路径 / 约束 / 消息）。没有错误时显示占位文案。
+- 面板宽度 320–720、最大高度 420，内容过长时面板内部滚动，不省略访问路径。
+- 行编辑弹窗通过 `TableRowEditorWindowLayout` 继承宿主的 `Debug` 值，所以宿主打开调试后，弹窗里的编辑器同样带调试入口。
+
 ---
 
 ## 4. 生命周期
@@ -367,10 +435,17 @@ public void OnNavigatedTo(NavigationContext navigationContext)
 | 类型定义 | 是，仅命名空间控件；VM 观察 `InputWrapper.Value` 驱动级联与回写 |
 | 类型定义文档 | 否；`SchemaEditorViewModel` 只持有 `Node` |
 | 类型演示 | 否；编辑器只持有 `Node` |
+| 应用列表 | 否；列表数据是 App 条目，不使用 SchemaView |
 | 应用定义 | 否；`AppNode` 与 `FieldsNode` 都是节点 |
+| 应用字段列表 | 否；表格由注册表解析 |
+| 应用字段定义 | 否；编辑器只持有 `Node` |
+| 应用字段演示 | 否；编辑器只持有 `Node` |
+| 应用工作流列表 | 否；列表数据是工作流条目 |
 | 应用演示 | 否；不使用 SchemaView |
 | 工作流配置 | 否；属性面板直接绑定选中节点的 `Node` |
 | 函数定义 | 否；参数、返回值与编辑器都传节点 |
+
+以上共 12 个导航画面，全部在 `App.xaml.cs` 的 `RegisterForNavigation<T>()` 中登记；数量与 `SchemaNode.WPF.Man/Views` 下的画面一致。
 
 `OnNavigatedFrom` 与 `Destroy` 都调用 `Teardown`，保证重复回调也安全。
 
@@ -386,3 +461,22 @@ Prism 的 Region 默认会保留视图。四件事一起做，才能保证 conte
 | `OnNavigatedFrom` / `Destroy` → `Teardown` | 旧 context 必然被销毁 |
 
 见画面 View 的代码隐藏文件，例如 [TypeListView.xaml.cs](../../../SchemaNode.WPF.Man/Views/TypeListView.xaml.cs)。
+
+---
+
+## 6. 与 Avalonia 版的差异
+
+两端共享 Core 与 Wrapper 语义，下列差异只来自控件能力与宿主技术栈：
+
+| 差异点 | WPF | Avalonia |
+| --- | --- | --- |
+| 可编辑单层下拉 | 原生 `ComboBox.IsEditable`，候选与自由输入共用同一控件 | `ComboBox` 不可编辑，拆成 `IsSuggest`：`TextBox` + 箭头按钮 + `Popup` |
+| Flags 单选形态 | `FlagsView` 只有复选弹层，值集合为空时也无单层下拉 | `FlagsEnumView` 在 `!IsMulti` 时额外提供一个单选 `ComboBox` |
+| 区间日期 | `RangeDateView` 把 `system.range*` 当作两个子节点的结构体，左右并排两个 `SchemaView` | `RangeDateView` 按 `IsYear` / `IsMonth` / `IsDate` 分别给出 `NumericUpDown`、yyyy-MM 文本框或 `DatePicker`，并分别显示 start/end 错误 |
+| 错误提示通道 | 行内 `TextBlock` + 控件 `ToolTip` 绑定 `Error` | 行内 `TextBlock` + `ToolTip.Tip` 绑定 `ErrorTip`（仅在非行内时） |
+| 未提交草稿 | 外部值刷新时保留 `_pendingText`，草稿继续显示 | 外部值变化时丢弃草稿，显示节点当前值 |
+| 弹层锚点 | `Placement="Bottom"` 本身就是左下角对齐 | `Bottom` 是水平居中，统一改用 `Placement="BottomEdgeAlignedLeft"` |
+| 行编辑弹窗 | 初始尺寸由 `TableRowEditorWindowLayout` 按 Owner 的 2/3 计算（最小 360×240，无 Owner 时 720×560），按工作区夹取；始终模态 `ShowDialog` | 尺寸规则相同；无 Owner 时改为非模态打开并按取消处理；弹窗内容禁用横向滚动 |
+| 调试面板实现 | `SchemaDebugPanel.xaml` + `SchemaDebug.Describe` | `SchemaDebugPanel.cs` 代码构建同结构面板，尺寸与分区一致 |
+| locale key | `wpf.` 前缀，View 40 条 + Man 343 条；`WPF.AppView` 无独立语言文件 | `avalonia.` 前缀，View 30 条 + Man 349 条 + AppView 14 条 |
+| 宿主技术 | Prism Region + `RegisterForNavigation` | 无 Prism：本地 `IRegionManager` / `RegionManager` + 显式 View/ViewModel 映射 + `INavigationAware` |
