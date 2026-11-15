@@ -71,7 +71,7 @@ builder.Services
 
     // AI schema assistant (chat endpoint + streaming endpoint)
     // The provider is configured in appsettings.json under "SchemaChat".
-    .AddSchemaChat(opts => builder.Configuration.GetSection(SchemaChatOptions.SectionName).Bind(opts))
+    //.AddSchemaChat(opts => builder.Configuration.GetSection(SchemaChatOptions.SectionName).Bind(opts))
 
     .AddAppSchemaAssembly<Program>()
     .PrepareSchemaRuntime();
@@ -85,7 +85,7 @@ app
     .UseSchemaApis(enableAppDataApi: true, enableSchemaManage: true);
 
 // AI schema assistant streaming endpoint: POST /schema/chat-schema-stream
-app.MapSchemaChat();
+// app.MapSchemaChat();
 
 // Swagger
 if (app.Environment.IsDevelopment())

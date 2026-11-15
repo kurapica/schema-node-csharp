@@ -1,7 +1,9 @@
-﻿using SchemaNode.Node;
+﻿using SchemaNode.Context;
+using SchemaNode.Node;
 using SchemaNode.Utility;
 using System.Collections;
 using System.Linq.Expressions;
+using System.Reflection;
 using SchemaNode.Enum;
 using SchemaNode.Function;
 using static SchemaNode.Utility.Constant;
@@ -359,8 +361,20 @@ public class CollectionExpVisitor : IExpVisitor
 
         Type expReturnType = exp.ValueType.GetCsharpType() ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
 
-        // Handle different collection expression types
-        var arrayNodeCtor = typeof(ArrayNode).GetConstructors().First(c => c.GetParameters().Length == 3);
+        // Locate the constructor by its exact parameter types: the signature carries an optional
+        // schema context and a params property provider array, so an arity based lookup cannot
+        // match it and would also bind the arguments to the wrong positions.
+        ConstructorInfo arrayNodeCtor = typeof(ArrayNode).GetConstructor([
+            typeof(ISchemaContext), typeof(IValueTypeAccess), typeof(object), typeof(IValueAccess), typeof(IPropertyProvider[])
+        ]) ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
+
+        // The collection result is a detached value: no schema context, no value and no parent
+        Expression arrayNodeExp = Expression.New(arrayNodeCtor,
+            Expression.Constant(null, typeof(ISchemaContext)),
+            Expression.Constant(exp.ValueType),
+            Expression.Constant(null, typeof(object)),
+            Expression.Constant(null, typeof(IValueAccess)),
+            Expression.Constant(Array.Empty<IPropertyProvider>(), typeof(IPropertyProvider[])));
         switch (exp)
         {
             case PredicateCollectionOperator predicateExp:
@@ -377,7 +391,7 @@ public class CollectionExpVisitor : IExpVisitor
                     [arrExp, resultExp, start, stop, curr],
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayNode)
-                        ? Expression.New(arrayNodeCtor, Expression.Constant(exp.ValueType), Expression.Constant(null, typeof(IValueAccess)), Expression.Constant(null, typeof(IPropertyProvider)))
+                        ? arrayNodeExp
                         : Expression.New(resultExp.Type)),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
                     Expression.Assign(stop, arrayLen),
@@ -409,7 +423,7 @@ public class CollectionExpVisitor : IExpVisitor
                     [arrExp, resultExp, start, stop],
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayNode)
-                        ? Expression.New(arrayNodeCtor, Expression.Constant(exp.ValueType), Expression.Constant(null, typeof(IValueAccess)), Expression.Constant(null, typeof(IPropertyProvider)))
+                        ? arrayNodeExp
                         : Expression.New(resultExp.Type)),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
                     Expression.Assign(stop,  Expression.Condition(
@@ -439,7 +453,7 @@ public class CollectionExpVisitor : IExpVisitor
                     [arrExp, resultExp, start, stop],
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayNode)
-                        ? Expression.New(arrayNodeCtor, Expression.Constant(exp.ValueType), Expression.Constant(null, typeof(IValueAccess)), Expression.Constant(null, typeof(IPropertyProvider)))
+                        ? arrayNodeExp
                         : Expression.New(resultExp.Type)),
                     Expression.Assign(start, takeCount),
                     Expression.Assign(stop,  arrayLen),
@@ -708,7 +722,7 @@ public class CollectionExpVisitor : IExpVisitor
                     [arrExp, resultExp, start, stop],
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayNode)
-                        ? Expression.New(arrayNodeCtor, Expression.Constant(exp.ValueType), Expression.Constant(null, typeof(IValueAccess)), Expression.Constant(null, typeof(IPropertyProvider)))
+                        ? arrayNodeExp
                         : Expression.New(resultExp.Type)),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
                     Expression.Assign(stop, arrayLen),
@@ -752,7 +766,7 @@ public class CollectionExpVisitor : IExpVisitor
                     [arrExp, resultExp, start, stop],
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayNode)
-                        ? Expression.New(arrayNodeCtor, Expression.Constant(exp.ValueType), Expression.Constant(null, typeof(IValueAccess)), Expression.Constant(null, typeof(IPropertyProvider)))
+                        ? arrayNodeExp
                         : Expression.New(resultExp.Type)),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
                     Expression.Assign(stop, arrayLen),

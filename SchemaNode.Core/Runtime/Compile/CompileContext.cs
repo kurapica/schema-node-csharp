@@ -822,9 +822,21 @@ public class CompileContext(SchemaContext context, FunctionType function)
             // { a, b, c }
             case StructResultExp structExp:
             {
+                // Locate the constructor by its exact parameter types: the signature carries an
+                // optional schema context and a params property provider array.
+                ConstructorInfo structNodeCtor = typeof(StructNode).GetConstructor([
+                    typeof(ISchemaContext), typeof(StructType), typeof(object), typeof(IValueAccess), typeof(IPropertyProvider[])
+                ]) ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
+
+                // The struct result is a detached value: no schema context, no value and no parent
                 var resultVar = Expression.Variable(typeof(StructNode));
                 List<Expression> blockExps = [
-                    Expression.Assign(resultVar, Expression.New(typeof(StructNode).GetConstructors().First(c => c.GetParameters().Length == 3), Expression.Constant(structExp.ValueType), Expression.Constant(null, typeof(IValueAccess)), Expression.Constant(null, typeof(IPropertyProvider))))
+                    Expression.Assign(resultVar, Expression.New(structNodeCtor,
+                        Expression.Constant(null, typeof(ISchemaContext)),
+                        Expression.Convert(Expression.Constant(structExp.ValueType), typeof(StructType)),
+                        Expression.Constant(null, typeof(object)),
+                        Expression.Constant(null, typeof(IValueAccess)),
+                        Expression.Constant(Array.Empty<IPropertyProvider>(), typeof(IPropertyProvider[]))))
                 ];
                 MethodInfo objectAdd = typeof(StructNode).GetMethod(nameof(StructNode.TrySetFieldValue))!;
                 foreach (var fieldExp in structExp.Fields)
