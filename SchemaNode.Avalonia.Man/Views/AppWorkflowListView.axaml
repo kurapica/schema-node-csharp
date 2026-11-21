@@ -26,16 +26,14 @@
     <Grid Grid.Row="2">
       <Grid RowDefinitions="Auto,*">
         <Border Background="#F0F0F0" BorderBrush="#DDDDDD" BorderThickness="1,1,1,0" Padding="6,4">
-          <Grid ColumnDefinitions="240,260,320,80,*">
+          <Grid ColumnDefinitions="240,320,80,*">
             <TextBlock Grid.Column="0" FontWeight="SemiBold"
                        Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.workflow.label.name}" />
             <TextBlock Grid.Column="1" FontWeight="SemiBold"
-                       Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.label.display}" />
+                       Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.workflow.label.workflowtype}" />
             <TextBlock Grid.Column="2" FontWeight="SemiBold"
-                       Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.label.description}" />
-            <TextBlock Grid.Column="3" FontWeight="SemiBold"
                        Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.workflow.label.active}" />
-            <TextBlock Grid.Column="4" FontWeight="SemiBold"
+            <TextBlock Grid.Column="3" FontWeight="SemiBold"
                        Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.type.column.actions}" />
           </Grid>
         </Border>
@@ -44,18 +42,16 @@
           <ListBox ItemsSource="{Binding Workflows}" BorderThickness="0" Background="Transparent">
             <ListBox.ItemTemplate>
               <DataTemplate>
-                <Grid ColumnDefinitions="240,260,320,80,*" Margin="0,2">
+                <Grid ColumnDefinitions="240,320,80,*" Margin="0,2">
                   <TextBlock Grid.Column="0" Text="{Binding Name}" TextTrimming="CharacterEllipsis"
                              VerticalAlignment="Center" />
-                  <TextBlock Grid.Column="1" Text="{Binding DisplayText}" TextTrimming="CharacterEllipsis"
+                  <TextBlock Grid.Column="1" Text="{Binding Type}" TextTrimming="CharacterEllipsis"
                              VerticalAlignment="Center" />
-                  <TextBlock Grid.Column="2" Text="{Binding DescriptionText}" TextTrimming="CharacterEllipsis"
-                             VerticalAlignment="Center" />
-                  <CheckBox Grid.Column="3" IsChecked="{Binding Active, Mode=OneWay}"
+                  <CheckBox Grid.Column="2" IsChecked="{Binding Active, Mode=OneWay}"
                             IsHitTestVisible="False" IsTabStop="False"
                             HorizontalAlignment="Center" />
 
-                  <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                  <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                     <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.type.button.view}"
                             Command="{Binding $parent[ListBox].DataContext.ViewCommand}"
                             CommandParameter="{Binding}" Padding="6,2" />

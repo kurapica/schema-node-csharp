@@ -110,11 +110,8 @@ public class AppTypeTest : Base.AppTestBase
         bool saved = await ctx.SaveAppWorkflowSchemaAsync("wfapp", new AppWorkflowSchema
         {
             Name = "approval",
-            Nodes =
-            [
-                new() { Name = "start", Type = "system.workflow.control.start" },
-                new() { Name = "end", Type = "system.workflow.control.end" }
-            ]
+            Type = "system.workflow.control.start",
+            Active = true,
         });
         Assert.IsTrue(saved);
 

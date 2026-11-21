@@ -28,8 +28,8 @@ namespace SchemaNode.Avalonia.Man.Services;
 /// The remaining vue special views are covered outside this registry: the
 /// node-type popover by the built-in type selector, the function definition
 /// screen by <c>FunctionDefinitionView</c>, the function call list by the plain
-/// array view (add/delete is legitimate there), and the workflow node list by
-/// the canvas of <c>WorkflowConfigView</c>.
+/// array view (add/delete is legitimate there), and the workflow step list by
+/// <c>WorkflowStepsView</c> (summary) plus the canvas of <c>WorkflowConfigView</c>.
 /// </summary>
 public static class ManSchemaViews
 {
@@ -41,6 +41,16 @@ public static class ManSchemaViews
 
     /// <summary>Man template key for the function definition card layout.</summary>
     public const string FunctionDefinitionTemplate = "SchemaFunctionDefinition";
+
+    /// <summary>Man template key for the workflow step summary.</summary>
+    public const string WorkflowStepsTemplate = "SchemaWorkflowSteps";
+
+    /// <summary>
+    /// workflow steps: the companion array Core generates for <c>system.schema.workflow.step</c>
+    /// (primary key name). This is a dedicated array schema, not the generic
+    /// <c>system.list&lt;system.schema.workflow.step&gt;</c> name.
+    /// </summary>
+    public const string WorkflowStepsArray = "system.schema.workflow.steps";
 
     /// <summary>function definition type: FunctionNode with return / args / exps</summary>
     public const string FunctionSchemaType = $"{Constant.NS_SYSTEM_SCHEMA_FUNC}.schema";
@@ -103,6 +113,14 @@ public static class ManSchemaViews
         registry.RegisterType(FunctionSchemaType, FunctionDefinitionTemplate,
             wrapperFactory: node => new NodeWrapper.FunctionDefinitionWrapper(
                 (DataNode)node, registry, null, SchemaViewRole.Field));
+
+        // Workflow steps are a DAG, not tabular data: the generic table exposes every step field
+        // as a column and hides the graph. Project an ordered summary instead and keep editing on
+        // the workflow canvas (WorkflowConfigView).
+        SchemaViewTemplates.Set(WorkflowStepsTemplate,
+            wrapper => new Views.WorkflowStepsView { DataContext = wrapper });
+        registry.RegisterType(WorkflowStepsArray, WorkflowStepsTemplate,
+            wrapperFactory: node => new NodeWrapper.WorkflowStepsWrapper((DataNode)node, registry));
 
         registry.RegisterType(Constant.NS_SYSTEM_IDENTIFIER, "SchemaImmutableTextCell", role: SchemaViewRole.Cell);
 

@@ -1,6 +1,7 @@
 using SchemaNode.Context;
 using SchemaNode.Data;
-using SchemaNode.Enum;
+using SchemaNode.Data.Entity;
+using SchemaNode.Enum.Workflow;
 
 namespace SchemaNode.Workflow;
 
@@ -12,7 +13,7 @@ public class DynamicWorkflowContextPersistence(SchemaContext context): IWorkflow
         try
         {
             await context.BeginTransactionAsync().ConfigureAwait(false);
-            await context.SaveEntityAsync(snapshot).ConfigureAwait(false);
+            await context.SaveEntityAsync((AppWorkflowContextSnapshotEntity)snapshot).ConfigureAwait(false);
 
             if (snapshot.Forks is { Length: > 0 })
                 await SaveForksAsync(snapshot.Forks).ConfigureAwait(false);
@@ -21,8 +22,8 @@ public class DynamicWorkflowContextPersistence(SchemaContext context): IWorkflow
         }
         catch (Exception e)
         {
-            context.LogError(e, "Failed to save workflow context snapshot {SnapshotId} for workflow {BaseWorkflow} in app {App}",
-                snapshot.Id, snapshot.Workflow, snapshot.App);
+            context.LogError(e, "Failed to save workflow context snapshot {SnapshotId} for workflow {Workflow}",
+                snapshot.Id, snapshot.Workflow);
         }
     }
 
@@ -32,20 +33,20 @@ public class DynamicWorkflowContextPersistence(SchemaContext context): IWorkflow
         try
         {
             await context.BeginTransactionAsync().ConfigureAwait(false);
-            await context.DeleteEntityAsync(snapshot).ConfigureAwait(false);
+            await context.DeleteEntityAsync((AppWorkflowContextSnapshotEntity)snapshot).ConfigureAwait(false);
             if (snapshot.Forks is { Length: > 0 })
                 await RemoveForksAsync(snapshot.Forks).ConfigureAwait(false);
             await context.CommitTransactionAsync().ConfigureAwait(false);
         }
         catch (Exception e)
         {
-            context.LogError(e, "Failed to remove workflow context snapshot {SnapshotId} for workflow {BaseWorkflow} in app {App}",
-                snapshot.Id, snapshot.Workflow, snapshot.App);
+            context.LogError(e, "Failed to remove workflow context snapshot {SnapshotId} for workflow {Workflow}",
+                snapshot.Id, snapshot.Workflow);
         }
     }
 
     /// <inheritdoc />
-    public async Task<(IEnumerable<WorkflowContextSnapshot>, int)> ListAsync(string app, string workflow, Guid? rootId = null, WorkflowStatus? status = null,
+    public async Task<(IEnumerable<WorkflowContextSnapshot>, int)> ListAsync(string workflow, Guid? rootId = null, WorkflowStatus? status = null,
         int? skip = null, int? take = null)
     {
         try
@@ -55,25 +56,29 @@ public class DynamicWorkflowContextPersistence(SchemaContext context): IWorkflow
             
             if (status == WorkflowStatus.Running)
             {
-                var list = await context.GetEntitiesAsync<WorkflowContextSnapshot>(s =>
+                var entities = await context.GetEntitiesAsync<AppWorkflowContextSnapshotEntity>(s =>
                     s.Workflow == workflow && s.RootId == root && s.Status == chkStatus).ConfigureAwait(false);
-                foreach (var snapshot in list)
+
+                List<WorkflowContextSnapshot> list = [];
+                foreach (var entity in entities)
                 {
-                    var forks = await ListAsync(app, workflow, snapshot.Id, status).ConfigureAwait(false);
+                    WorkflowContextSnapshot snapshot = (WorkflowContextSnapshot)entity;
+                    var forks = await ListAsync(workflow, snapshot.Id, status).ConfigureAwait(false);
                     snapshot.Forks = forks.Item1.ToArray();
+                    list.Add(snapshot);
                 }
                 return (list, list.Count);
             }
             else
             {
-                return await context.GetEntitiesWithTotalAsync<WorkflowContextSnapshot>(s =>
+                var (entities, total) = await context.GetEntitiesWithTotalAsync<AppWorkflowContextSnapshotEntity>(s =>
                     s.Workflow == workflow && s.RootId == root && s.Status == chkStatus, take ?? 50, skip ?? 0).ConfigureAwait(false);
+                return (entities.Select(e => (WorkflowContextSnapshot)e), total);
             }
         }
         catch (Exception e)
         {
-            context.LogError(e, "Failed to list workflow context snapshots for workflow {BaseWorkflow} in app {App}",
-                workflow, app);
+            context.LogError(e, "Failed to list workflow context snapshots for workflow {Workflow}", workflow);
             throw;
         }
     }

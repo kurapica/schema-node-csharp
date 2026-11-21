@@ -115,6 +115,7 @@ public partial class App : PrismApplication
         containerRegistry.Register<AppFieldListViewModel>();
         containerRegistry.Register<AppFieldDefinitionViewModel>();
         containerRegistry.Register<AppWorkflowListViewModel>();
+        containerRegistry.Register<AppWorkflowDefinitionViewModel>();
         containerRegistry.Register<AppDefinitionViewModel>();
         containerRegistry.Register<AppDemoViewModel>();
         containerRegistry.Register<AppFieldDemoViewModel>();
@@ -129,6 +130,7 @@ public partial class App : PrismApplication
         containerRegistry.RegisterForNavigation<AppFieldListView>();
         containerRegistry.RegisterForNavigation<AppFieldDefinitionView>();
         containerRegistry.RegisterForNavigation<AppWorkflowListView>();
+        containerRegistry.RegisterForNavigation<AppWorkflowDefinitionView>();
         containerRegistry.RegisterForNavigation<AppDefinitionView>();
         containerRegistry.RegisterForNavigation<AppDemoView>();
         containerRegistry.RegisterForNavigation<AppFieldDemoView>();

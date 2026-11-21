@@ -123,7 +123,7 @@ public abstract class Property<T> : IProperty
     /// <summary>
     /// Gets the value
     /// </summary>
-    public virtual TV? GetValue<TV>(bool matchType = false) => HasValue && (!matchType || Value is TV) ? Value.ConvertTo<TV>() : default(TV?);
+    public virtual TV? GetValue<TV>(bool matchType = false) => HasValue && (!matchType || Value!.GetType().IsAssignableTo(typeof(TV))) ? Value.ConvertTo<TV>() : default(TV?);
 
     /// <inheritdoc/>
     public virtual bool Combine(IProperty other, ISchemaRuntime? runtime = null)

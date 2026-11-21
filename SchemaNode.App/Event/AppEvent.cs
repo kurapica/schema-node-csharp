@@ -1,4 +1,5 @@
 using SchemaNode.Attribute;
+using SchemaNode.Context;
 using SchemaNode.Function;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
@@ -30,6 +31,11 @@ public abstract class AppEvent(string app, string? target = null): BaseEvent
     /// The topic
     /// </summary>
     public override string Topic => app.ToLower().Replace(".", "_");
+
+    public override void UpdateContext(ISchemaContext context)
+    {
+        (context as WorkflowContext)?.SetAccess(new Access { App = App, Target = Target });
+    }
 }
 
 /// <summary>

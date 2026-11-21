@@ -8,7 +8,7 @@ using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Workflow;
-using static SchemaNode.Utility.AppConstant;
+using static SchemaNode.Utility.WorkflowConstant;
 using ValueType = SchemaNode.Runtime.ValueType;
 
 namespace SchemaNode.AI.Workflow;
@@ -19,7 +19,7 @@ namespace SchemaNode.AI.Workflow;
 /// transport come from the registered <see cref="IChatClient"/>.
 /// </summary>
 [Meta<SchemaType>("system.workflow.ai.generate")]
-[Meta<OfNodeKind>(NODE_KIND_WORKFLOW)]
+[Meta<OfNodeKind>(NODE_KIND_WORKFLOW_NODE)]
 public sealed class AIWorkflowNode
     : BaseWorkflow, IWorkflowSettings<AIWorkflowSettings>, IWorkflowSession<AIWorkflowSession>, IWorkflowPayload<JsonNode>
 {
@@ -31,7 +31,7 @@ public sealed class AIWorkflowNode
     public AIWorkflowSettings? Settings { get; set; }
 
     /// <inheritdoc />
-    public override Task LoadAsync(SchemaContext context, AppWorkflowNodeSchema schema)
+    public override Task LoadAsync(SchemaContext context, WorkflowStepSchema schema, CancellationToken token = default)
     {
         _target = schema.GetProperty<AITargetProperty>()?.Value?.Trim();
 
@@ -193,7 +193,7 @@ public sealed class AIWorkflowNode
 
                     string? text = RenderPayload(payload);
                     if (!string.IsNullOrWhiteSpace(text))
-                        blocks.Add(FormatBlock(source.Label ?? $"Payload '{access}'", text));
+                        blocks.Add(FormatBlock(source.Label ?? $"PayloadField '{access}'", text));
                     break;
             }
         }

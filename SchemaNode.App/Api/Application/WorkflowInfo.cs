@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using SchemaNode.Context;
 using SchemaNode.Http;
 using SchemaNode.Runtime;
-using SchemaNode.Enum;
+using SchemaNode.Enum.Workflow;
 using SchemaNode.Property.App;
 using SchemaNode.Utility;
 // ReSharper disable UnusedAutoPropertyAccessor.Global

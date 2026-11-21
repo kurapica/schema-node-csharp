@@ -46,9 +46,10 @@ internal class AppWorkflowEntity
     public bool Active { get; set; }
 
     /// <summary>
-    /// The workflow nodes
+    /// The referenced workflow type
     /// </summary>
-    public JsonArray? Nodes { get; set; }
+    [Meta<SchemaType>(typeof(WorkflowType))]
+    public string Type { get; set; } = string.Empty;
 
     /// <summary>
     /// The extension properties of the workflow
@@ -68,9 +69,7 @@ internal class AppWorkflowEntity
             Name = appWorkflowSchema.Name,
             Seqno = appWorkflowSchema.Seqno,
             Active = appWorkflowSchema.Active,
-            Nodes = appWorkflowSchema.Nodes is { Length: > 0 }
-                ? JsonSerializer.SerializeToNode(appWorkflowSchema.Nodes, NodeJsonOptions) as JsonArray
-                : null,
+            Type = appWorkflowSchema.Type,
             Extensions = appWorkflowSchema.Extensions?.DeepClone() as JsonObject
         };
     }
@@ -85,7 +84,7 @@ internal class AppWorkflowEntity
             Name = appWorkflowEntity.Name,
             Seqno = appWorkflowEntity.Seqno,
             Active = appWorkflowEntity.Active,
-            Nodes = appWorkflowEntity.Nodes?.Deserialize<AppWorkflowNodeSchema[]>(NodeJsonOptions) ?? [],
+            Type = appWorkflowEntity.Type,
             Extensions = appWorkflowEntity.Extensions?.DeepClone() as JsonObject
         };
     }

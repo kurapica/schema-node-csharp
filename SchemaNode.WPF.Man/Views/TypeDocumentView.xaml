@@ -35,6 +35,10 @@
             <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedoc.button.copy}"
                     Command="{Binding CopyCommand}" Margin="12,0,0,0"
                     Visibility="{Binding CanCopy, Converter={StaticResource BoolToVisibility}}" />
+            <!-- Workflow types keep their graph on the workflow property; the canvas lives on its own route. -->
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedoc.button.workflow}"
+                    Command="{Binding EditWorkflowCommand}" Margin="12,0,0,0"
+                    Visibility="{Binding IsWorkflowDefinition, Converter={StaticResource BoolToVisibility}}" />
             <!-- Assistant entry: only shown when the backend declared the "ai_chat" feature. -->
             <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.typedoc.chat.open}"
                     Command="{Binding ToggleChatCommand}" Margin="12,0,0,0"

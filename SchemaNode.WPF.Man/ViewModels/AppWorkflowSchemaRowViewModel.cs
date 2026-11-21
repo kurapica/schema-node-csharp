@@ -13,6 +13,7 @@ public sealed class AppWorkflowSchemaRowViewModel
     {
         Schema = schema;
         Name = schema.Name;
+        Type = schema.Type;
         DisplayText = string.IsNullOrWhiteSpace(displayText) ? schema.Name : displayText;
         DescriptionText = descriptionText;
         Active = schema.Active;
@@ -23,6 +24,9 @@ public sealed class AppWorkflowSchemaRowViewModel
 
     public AppWorkflowSchema Schema { get; }
     public string Name { get; }
+
+    /// <summary>Full name of the referenced workflow type; empty when no workflow type is selected.</summary>
+    public string Type { get; }
     public string DisplayText { get; }
     public string DescriptionText { get; }
     public bool Active { get; }

@@ -1,0 +1,20 @@
+using SchemaNode.Attribute;
+using SchemaNode.Context;
+using SchemaNode.Property.Core;
+using static SchemaNode.Utility.WorkflowConstant;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
+
+namespace SchemaNode.Workflow;
+
+[Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW_CONTROL}.goto")]
+[Meta<OfNodeKind>(NODE_KIND_WORKFLOW_NODE)]
+public class GotoWorkflow: BaseWorkflow
+{
+    public async Task ProcessAsync(WorkflowContext context, bool flag, 
+        [Meta<SchemaType>(typeof(NodeName))] string? trueNode, 
+        [Meta<SchemaType>(typeof(NodeName))] string falseNode)
+    {
+        await Task.Yield();
+        context.Goto(this, flag ? trueNode : falseNode);
+    }
+}

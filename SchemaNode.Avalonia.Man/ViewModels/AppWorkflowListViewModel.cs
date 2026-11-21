@@ -53,8 +53,8 @@ public class AppWorkflowListViewModel : BindableBase, INavigationAware, IDestruc
             .ObservesProperty(() => AppFullName)
             .ObservesProperty(() => IsBusy);
         BackCommand = new DelegateCommand(ExecuteBack);
-        ViewCommand = new DelegateCommand<AppWorkflowSchemaRowViewModel>(row => NavigateWorkflow(row, WorkflowConfigViewModel.ModeView));
-        EditCommand = new DelegateCommand<AppWorkflowSchemaRowViewModel>(row => NavigateWorkflow(row, WorkflowConfigViewModel.ModeEdit));
+        ViewCommand = new DelegateCommand<AppWorkflowSchemaRowViewModel>(row => NavigateWorkflow(row, AppWorkflowDefinitionViewModel.ModeView));
+        EditCommand = new DelegateCommand<AppWorkflowSchemaRowViewModel>(row => NavigateWorkflow(row, AppWorkflowDefinitionViewModel.ModeEdit));
         ToggleCommand = new DelegateCommand<AppWorkflowSchemaRowViewModel>(ExecuteToggle);
         DeleteCommand = new DelegateCommand<AppWorkflowSchemaRowViewModel>(ExecuteDelete);
     }
@@ -201,11 +201,11 @@ public class AppWorkflowListViewModel : BindableBase, INavigationAware, IDestruc
         try
         {
             await NavigateAsync(
-                nameof(WorkflowConfigView),
+                nameof(AppWorkflowDefinitionView),
                 new NavigationParameters
                 {
-                    { WorkflowConfigViewModel.AppParameter, AppFullName },
-                    { WorkflowConfigViewModel.ModeParameter, WorkflowConfigViewModel.ModeNew },
+                    { AppWorkflowDefinitionViewModel.AppParameter, AppFullName },
+                    { AppWorkflowDefinitionViewModel.ModeParameter, AppWorkflowDefinitionViewModel.ModeNew },
                 },
                 "avalonia.appworkflowlist.status.navfailed");
         }
@@ -249,12 +249,12 @@ public class AppWorkflowListViewModel : BindableBase, INavigationAware, IDestruc
         try
         {
             await NavigateAsync(
-                nameof(WorkflowConfigView),
+                nameof(AppWorkflowDefinitionView),
                 new NavigationParameters
                 {
-                    { WorkflowConfigViewModel.AppParameter, AppFullName },
-                    { WorkflowConfigViewModel.WorkflowParameter, row.Name },
-                    { WorkflowConfigViewModel.ModeParameter, mode },
+                    { AppWorkflowDefinitionViewModel.AppParameter, AppFullName },
+                    { AppWorkflowDefinitionViewModel.WorkflowParameter, row.Name },
+                    { AppWorkflowDefinitionViewModel.ModeParameter, mode },
                 },
                 "avalonia.appworkflowlist.status.navfailed");
         }

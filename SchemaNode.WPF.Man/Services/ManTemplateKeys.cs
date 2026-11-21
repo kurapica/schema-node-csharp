@@ -12,4 +12,7 @@ public static class ManTemplateKeys
 
     /// <summary>Function definition card layout with expression previews (func.vue).</summary>
     public const string Function = "ManFunction";
+
+    /// <summary>Workflow step summary; the canvas editor lives on its own route.</summary>
+    public const string WorkflowSteps = "ManWorkflowSteps";
 }

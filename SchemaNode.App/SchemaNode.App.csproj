@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SchemaNode.Core\SchemaNode.Core.csproj" />
+    <ProjectReference Include="..\SchemaNode.Workflow\SchemaNode.Workflow.csproj" />
   </ItemGroup>
 
   <ItemGroup>

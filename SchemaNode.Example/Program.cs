@@ -59,10 +59,25 @@ if (useInMemoryStorage)
 }
 else
 {
-    // Mysql application data provider
-    builder.Services
-        .AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!)
-        .AddAppDataProvider<AppDataMySqlProvider>();
+    if (builder.Configuration.GetConnectionString("MySql") is { } mySqlConnStr && !string.IsNullOrWhiteSpace(mySqlConnStr))
+    {
+        // Mysql application data provider
+        builder.Services
+            .AddMySqlDataSource(mySqlConnStr)
+            .AddAppDataProvider<AppDataMySqlProvider>();
+    }
+    else if (builder.Configuration.GetConnectionString("PostgreSql") is { } pgConnStr && !string.IsNullOrWhiteSpace(pgConnStr))
+    {
+        // PostgreSql data provider
+        builder.Services
+            .AddMySqlDataSource(pgConnStr)
+            .AddAppDataProvider<AppDataMySqlProvider>();
+    }
+    else
+    {
+        // Memory application data provider: no database required, data is lost when the process stops.
+        builder.Services.AddAppDataProvider<InMemoryAppDataProvider>();
+    }
 }
 
 builder.Services

@@ -24,6 +24,7 @@ public sealed class ManViewFactory
         [nameof(AppFieldDefinitionView)] = (typeof(AppFieldDefinitionViewModel), () => new AppFieldDefinitionView()),
         [nameof(AppFieldDemoView)] = (typeof(AppFieldDemoViewModel), () => new AppFieldDemoView()),
         [nameof(AppWorkflowListView)] = (typeof(AppWorkflowListViewModel), () => new AppWorkflowListView()),
+        [nameof(AppWorkflowDefinitionView)] = (typeof(AppWorkflowDefinitionViewModel), () => new AppWorkflowDefinitionView()),
         [nameof(FunctionDefinitionView)] = (typeof(FunctionDefinitionViewModel), () => new FunctionDefinitionView()),
         [nameof(WorkflowConfigView)] = (typeof(WorkflowConfigViewModel), () => new WorkflowConfigView()),
     };

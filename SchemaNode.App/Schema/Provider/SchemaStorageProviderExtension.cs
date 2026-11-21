@@ -463,7 +463,6 @@ public static class SchemaStorageProviderExtension
                 await appWorkflowType.ActiveAsync(context).ConfigureAwait(false);
                 if (appWorkflowType.Activated)
                 {
-                    appWorkflowType.Active = true;
                     AppWorkflowSchema schema = appWorkflowType.Schema;
                     schema.Active = true;
                     await context.SaveAppWorkflowSchemaAsync(app, schema, true, token).ConfigureAwait(false);
@@ -483,7 +482,6 @@ public static class SchemaStorageProviderExtension
                 await appWorkflowType.DeactivateAsync().ConfigureAwait(false);
                 if (!appWorkflowType.Activated)
                 {
-                    appWorkflowType.Active = false;
                     AppWorkflowSchema schema = appWorkflowType.Schema;
                     schema.Active = false;
                     await context.SaveAppWorkflowSchemaAsync(app, schema, true, token).ConfigureAwait(false);

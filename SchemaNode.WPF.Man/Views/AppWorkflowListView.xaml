@@ -41,12 +41,9 @@
                         <GridViewColumn Width="240"
                                         Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.label.name}"
                                         DisplayMemberBinding="{Binding Name}" />
-                        <GridViewColumn Width="260"
-                                        Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.column.display}"
-                                        DisplayMemberBinding="{Binding DisplayText}" />
-                        <GridViewColumn Width="320"
-                                        Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.column.display}"
-                                        DisplayMemberBinding="{Binding DescriptionText}" />
+                        <GridViewColumn Width="300"
+                                        Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.label.workflowtype}"
+                                        DisplayMemberBinding="{Binding Type}" />
                         <GridViewColumn Width="80"
                                         Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.workflow.label.active}">
                             <GridViewColumn.CellTemplate>

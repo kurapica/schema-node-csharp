@@ -238,6 +238,6 @@ public class AppRuntimeStageHandler : IRuntimeStageHandler
         AppWorkflowQueue? workflowQueue = runtime.GetRuntimeItem<AppWorkflowQueue>();
         if (workflowQueue == null) return;
         while (workflowQueue.TryDequeue(out AppWorkflowType? workflowType))
-            await workflowType.LoadAsync(schemaContext).ConfigureAwait(false);
+            await workflowType.ActiveAsync(schemaContext).ConfigureAwait(false);
     }
 }

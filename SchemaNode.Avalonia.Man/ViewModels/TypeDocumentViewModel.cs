@@ -82,6 +82,8 @@ public class TypeDocumentViewModel : BindableBase, INavigationAware, IDestructib
             .ObservesProperty(() => CanSave);
         BackCommand = new DelegateCommand(ExecuteBack);
         CopyCommand = new DelegateCommand(ExecuteCopy);
+        EditWorkflowCommand = new DelegateCommand(ExecuteEditWorkflow, () => IsWorkflowDefinition)
+            .ObservesProperty(() => IsWorkflowDefinition);
 
         SendChatCommand = new DelegateCommand(ExecuteSendChat, () => CanSendChat)
             .ObservesProperty(() => ChatInput)
@@ -109,6 +111,18 @@ public class TypeDocumentViewModel : BindableBase, INavigationAware, IDestructib
 
     /// <summary>Whether the copy action is offered: only an existing definition can be copied.</summary>
     public bool CanCopy => (_mode is ModeView or ModeEdit) && _fullName.Length > 0;
+
+    /// <summary>
+    /// Whether the document defines a workflow: the node kind is <c>workflow</c>, which means the
+    /// workflow graph lives on this type's <c>workflow</c> property and is edited by the
+    /// dedicated canvas screen rather than the generic property editor.
+    /// </summary>
+    public bool IsWorkflowDefinition => (_mode is ModeView or ModeEdit) &&
+                                        _fullName.Length > 0 &&
+                                        string.Equals(
+                                            Editor.Node?.GetAccessValue("kind")?.GetValue<string>(),
+                                            AppConstant.NODE_KIND_WORKFLOW,
+                                            StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Header text describing the mode and subject.</summary>
     public string HeaderText => _mode switch
@@ -187,6 +201,7 @@ public class TypeDocumentViewModel : BindableBase, INavigationAware, IDestructib
     public DelegateCommand SaveCommand { get; }
     public DelegateCommand BackCommand { get; }
     public DelegateCommand CopyCommand { get; }
+    public DelegateCommand EditWorkflowCommand { get; }
     public DelegateCommand SendChatCommand { get; }
     public DelegateCommand StopChatCommand { get; }
     public DelegateCommand ClearChatCommand { get; }
@@ -290,6 +305,7 @@ public class TypeDocumentViewModel : BindableBase, INavigationAware, IDestructib
         finally
         {
             IsLoading = false;
+            RaisePropertyChanged(nameof(IsWorkflowDefinition));
         }
     }
 
@@ -369,6 +385,47 @@ public class TypeDocumentViewModel : BindableBase, INavigationAware, IDestructib
     }
 
     private async void ExecuteBack() => await NavigateToListAsync(_namespace);
+
+    /// <summary>
+    /// Opens the workflow definition canvas for this workflow type. The graph is stored on the type's
+    /// <c>workflow</c> property, so the canvas screen addresses the definition by type name.
+    /// </summary>
+    private async void ExecuteEditWorkflow()
+    {
+        if (_isNavigating || !IsWorkflowDefinition) return;
+        _isNavigating = true;
+        try
+        {
+            NavigationParameters parameters = new()
+            {
+                { WorkflowConfigViewModel.DefinitionParameter, _fullName },
+                { WorkflowConfigViewModel.NamespaceParameter, _namespace },
+                {
+                    WorkflowConfigViewModel.ModeParameter,
+                    IsEditable ? WorkflowConfigViewModel.ModeEdit : WorkflowConfigViewModel.ModeView
+                },
+            };
+
+            TaskCompletionSource<INavigationResult> completion = new();
+            _regionManager.RequestNavigate(
+                MainContentRegion,
+                nameof(WorkflowConfigView),
+                result => completion.TrySetResult(result),
+                parameters);
+
+            INavigationResult outcome = await completion.Task;
+            if (!outcome.Success)
+            {
+                Status = LocaleManager.Instance.Format(
+                    "avalonia.typedoc.status.copyfailed",
+                    outcome.Exception?.Message ?? nameof(WorkflowConfigView));
+            }
+        }
+        finally
+        {
+            _isNavigating = false;
+        }
+    }
 
     /// <summary>
     /// Opens the same document route in copy mode. The route loads the stored definition and feeds

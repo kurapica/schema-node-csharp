@@ -162,8 +162,13 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
         int max = props.Count;
         for(int i = 0; i < max; i++)
         {
-            if (props[i].GetValue<PropertyOwner>(true) is not { } s || !schema.Kind.Equals(s.AttachKind?.Split('.', 3, StringSplitOptions.RemoveEmptyEntries).ElementAt(1), StringComparison.OrdinalIgnoreCase)) continue;
-            props.AddRange(s.GetProperties(runtime!.GetSchemaKindPropertyTypes(runtime!.GetSchemaKindByNodeKind(schema.Kind))));
+            if (props[i].GetValue<PropertyOwner>(true) is not { } s || s.AttachKind is not { } attachKind) continue;
+            if (schema.Kind.Equals(attachKind, StringComparison.OrdinalIgnoreCase) || 
+                $"{SCHEMA_KIND_NODE}.{schema.Kind}".Equals(attachKind, StringComparison.OrdinalIgnoreCase) ||
+                attachKind.StartsWith($"{SCHEMA_KIND_NODE}.{schema.Kind}."))
+            {
+                props.AddRange(s.GetProperties(runtime!.GetSchemaKindPropertyTypes(runtime!.GetSchemaKindByNodeKind(schema.Kind))));
+            }
         }
 
         _props = props.Count > 0 ? props.ToArray() : null;

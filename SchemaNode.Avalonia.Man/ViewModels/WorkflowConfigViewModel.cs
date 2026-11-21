@@ -12,6 +12,7 @@ using SchemaNode.Avalonia.Man.Infrastructure;
 using SchemaNode.Avalonia.Man.Navigation;
 using SchemaNode.Api.Client;
 using SchemaNode.Node;
+using SchemaNode.Property.Common;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Avalonia.Man.Services;
@@ -22,55 +23,51 @@ using static SchemaNode.Utility.AppConstant;
 namespace SchemaNode.Avalonia.Man.ViewModels;
 
 /// <summary>
-/// Workflow configuration ViewModel (screen scope).
+/// Workflow definition editor (screen scope).
 ///
-/// The data model comes entirely from the Core / App workflow schema; no custom structures:
-///   - the root node is <c>system.schema.app.workflow.schema</c> (AppWorkflowSchema);
-///   - <c>Nodes[]</c> is an array of <c>system.schema.app.workflow.node</c> (AppWorkflowNodeSchema);
-///   - incoming edges are expressed by the node's <c>Previous</c> (array of predecessor names); outgoing edges are the Previous entries of other nodes pointing to this node;
-///   - saving goes through <see cref="ISchemaApiProvider.SaveAppWorkflowSchemaAsync"/>.
+/// The workflow graph belongs to a workflow type, not to an app: the definition is stored on
+/// the schema node as the <c>workflow</c> property. The data model is:
+///   - the root node is <c>system.schema.workflow.schema</c> (WorkflowSchema);
+///   - <c>Steps[]</c> is an array of <c>system.schema.workflow.step</c> (WorkflowStepSchema);
+///   - incoming edges are expressed by the step's <c>Previous</c> (array of predecessor names); outgoing edges are the Previous entries of other steps pointing to this step;
+///   - saving writes the definition back to the node schema through <see cref="ISchemaApiProvider.SaveSchemaAsync"/>.
 ///
 /// The screen lifecycle matches other screens: navigation activation creates an independent SchemaContext; on leave,
 /// the Wrapper (selected property panel) → DataNode → Context/Scope are destroyed in reverse order.
 ///
-/// Navigation contract: <c>app</c> (required), <c>workflow</c> (optional, selects an existing one) and
-/// <c>mode</c> (view / edit / new). View mode keeps the canvas inspectable but rejects every mutation.
+/// Navigation contract: <c>node</c> (required, the workflow type full name), <c>namespace</c> (owner namespace,
+/// used by the back navigation) and <c>mode</c> (view / edit). View mode keeps the canvas inspectable but rejects every mutation.
 /// </summary>
 public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestructible
 {
-    public const string AppParameter = "app";
-    public const string WorkflowParameter = "workflow";
+    public const string DefinitionParameter = "node";
+    public const string NamespaceParameter = "namespace";
     public const string ModeParameter = "mode";
 
     public const string ModeView = "view";
     public const string ModeEdit = "edit";
-    public const string ModeNew = "new";
 
     private const string MainContentRegion = "MainContentRegion";
+    private const string DefinitionTypeName = $"{NS_SYSTEM_SCHEMA_WORKFLOW}.schema";
 
     private readonly SchemaContextFactory _factory;
     private readonly IRegionManager _regionManager;
     private SchemaScreenSession? _session;
 
-    private string _appName = string.Empty;
+    private string _definitionName = string.Empty;
+    private string _namespace = string.Empty;
     private string _status = string.Empty;
     private double _zoom = 1.0;
     private double _canvasWidth = 600;
     private double _canvasHeight = 400;
     private string _mode = ModeEdit;
-    private string _pendingWorkflowName = string.Empty;
     private bool _isNavigating;
     private bool _isSaving;
-    /// <summary>App name captured when the workflow list loaded; save/delete targets this while <see cref="AppName"/> may be edited.</summary>
-    private string _loadedAppName = string.Empty;
 
-    private readonly ObservableCollection<AppWorkflowSchema> _workflows = new();
-    private AppWorkflowSchema? _selectedWorkflow;
+    private NodeSchema? _definitionSchema;
 
     private IValueAccess? _workflowNode;
     private ArrayNode? _nodesArray;
-    private IValueAccess? _nameField;
-    private IValueAccess? _activeField;
     private IDisposable? _nodesSubscription;
     private CancellationTokenSource? _reloadCts;
     private int _loadVersion;
@@ -88,12 +85,7 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         _factory = factory;
         _regionManager = regionManager;
 
-        LoadAppCommand = new DelegateCommand(ExecuteLoadApp, () => !string.IsNullOrWhiteSpace(AppName))
-            .ObservesProperty(() => AppName);
-        NewWorkflowCommand = new DelegateCommand(ExecuteNewWorkflow);
         SaveCommand = new DelegateCommand(ExecuteSave, () => !_isSaving)
-            .ObservesProperty(() => IsSaving);
-        DeleteWorkflowCommand = new DelegateCommand(ExecuteDeleteWorkflow, () => !_isSaving)
             .ObservesProperty(() => IsSaving);
         AddNodeCommand = new DelegateCommand(ExecuteAddNode);
         DeleteNodeCommand = new DelegateCommand(ExecuteDeleteNode);
@@ -106,80 +98,34 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
 
     #region Properties
 
-    /// <summary>Fully qualified application name</summary>
-    public string AppName
-    {
-        get => _appName;
-        set
-        {
-            if (!SetProperty(ref _appName, value)) return;
-            // The workflows on screen belong to the previously loaded app. Editing the name without
-            // reloading invalidates the target, so save/delete cannot hit a different app.
-            if (!string.IsNullOrWhiteSpace(_loadedAppName) &&
-                !_loadedAppName.Trim().Equals(value?.Trim(), StringComparison.OrdinalIgnoreCase))
-                _loadedAppName = string.Empty;
-        }
-    }
+    /// <summary>Full name of the workflow type whose definition is being edited</summary>
+    public string DefinitionName => _definitionName;
 
-    /// <summary>Current document mode (view / edit / new).</summary>
+    /// <summary>Localized header describing the mode and subject</summary>
+    public string HeaderText => _mode == ModeView
+        ? LocaleManager.Instance.Format("avalonia.workflow.header.definition.view", _definitionName)
+        : LocaleManager.Instance.Format("avalonia.workflow.header.definition", _definitionName);
+
+    /// <summary>Current document mode (view / edit)</summary>
     public string Mode => _mode;
 
-    /// <summary>Whether the canvas accepts mutations; false for view.</summary>
-    public bool IsEditable => _mode is ModeEdit or ModeNew;
+    /// <summary>Whether the canvas accepts mutations; false in view mode</summary>
+    public bool IsEditable => _mode == ModeEdit;
 
-    /// <summary>Workflow list under the current application</summary>
-    public ObservableCollection<AppWorkflowSchema> Workflows => _workflows;
-
-    /// <summary>Whether a save/delete is in flight; selection and commands are frozen meanwhile.</summary>
+    /// <summary>Whether a save is in flight; the canvas is frozen meanwhile</summary>
     public bool IsSaving => _isSaving;
 
-    /// <summary>Whether the workflow list may switch rows (disabled while a save/delete is in flight).</summary>
-    public bool CanSwitchWorkflow => !_isSaving;
+    /// <summary>Whether the save command is available</summary>
+    public bool CanSave => IsEditable && !_isSaving;
 
-    /// <summary>Whether the edit commands (new/save/delete) are available.</summary>
-    public bool CanModifyWorkflow => IsEditable && !_isSaving;
+    /// <summary>
+    /// Whether the canvas has no steps. The empty state replaces the canvas with a single button
+    /// adding the first node; the canvas never inserts a row on its own.
+    /// </summary>
+    public bool ShowEmptyState => IsEditable && Nodes.Count == 0;
 
-    /// <summary>Currently selected workflow (automatically loaded into the canvas when changed)</summary>
-    public AppWorkflowSchema? SelectedWorkflow
-    {
-        get => _selectedWorkflow;
-        set
-        {
-            // Ignore list/canvas selection changes while an async save or delete is targeting the
-            // current workflow, otherwise the result would be written back to the wrong row.
-            if (_isSaving) return;
-            if (!SetProperty(ref _selectedWorkflow, value)) return;
-            _ = LoadWorkflowAsync(value);
-        }
-    }
-
-    /// <summary>Workflow name (reads and writes the Core Name field directly)</summary>
-    public string WorkflowName
-    {
-        get => _nameField?.GetValue<string>() ?? string.Empty;
-        set
-        {
-            if (!IsEditable) return;
-            if (_nameField is null) return;
-            if (_nameField.TrySetValue(value))
-                RaisePropertyChanged();
-            else
-                Status = LocaleManager.Instance.Get("avalonia.workflow.status.nameinvalid");
-        }
-    }
-
-    /// <summary>Workflow active state (reads and writes the Core Active field directly)</summary>
-    public bool WorkflowActive
-    {
-        get => _activeField?.GetValue<bool>() ?? false;
-        set
-        {
-            if (!IsEditable) return;
-            if (_activeField is null) return;
-            if (_activeField.TrySetValue(value))
-                RaisePropertyChanged();
-        }
-    }
+    /// <summary>Workflow definition name. The latest schema no longer stores a name on the workflow payload, so the type name is used.</summary>
+    public string WorkflowName => _definitionName;
 
     /// <summary>Canvas node collection</summary>
     public ObservableCollection<WorkflowNodeViewModel> Nodes { get; } = new();
@@ -187,7 +133,7 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
     /// <summary>Canvas edge collection</summary>
     public ObservableCollection<WorkflowEdgeViewModel> Edges { get; } = new();
 
-    /// <summary>Currently selected node (creates the property panel Wrapper on demand when selected)</summary>
+    /// <summary>Currently selected node</summary>
     public WorkflowNodeViewModel? SelectedNode
     {
         get => _selectedNode;
@@ -265,10 +211,7 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         private set => SetProperty(ref _status, value);
     }
 
-    public ICommand LoadAppCommand { get; }
-    public ICommand NewWorkflowCommand { get; }
     public ICommand SaveCommand { get; }
-    public ICommand DeleteWorkflowCommand { get; }
     public ICommand AddNodeCommand { get; }
     public ICommand DeleteNodeCommand { get; }
     public ICommand DisconnectEdgeCommand { get; }
@@ -289,18 +232,21 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         _session = _factory.CreateSession();
 
         string? mode = navigationContext.Parameters.GetValue<string>(ModeParameter);
-        _mode = mode is ModeView or ModeEdit or ModeNew ? mode : ModeEdit;
-        _pendingWorkflowName = navigationContext.Parameters.GetValue<string>(WorkflowParameter) ?? string.Empty;
+        _mode = mode == ModeView ? ModeView : ModeEdit;
+        _definitionName = navigationContext.Parameters.GetValue<string>(DefinitionParameter) ?? string.Empty;
+        _namespace = navigationContext.Parameters.GetValue<string>(NamespaceParameter) ?? string.Empty;
 
-        AppName = navigationContext.Parameters.GetValue<string>(AppParameter) ?? string.Empty;
         RaisePropertyChanged(nameof(Mode));
         RaisePropertyChanged(nameof(IsEditable));
-        RaisePropertyChanged(nameof(CanModifyWorkflow));
+        RaisePropertyChanged(nameof(CanSave));
+        RaisePropertyChanged(nameof(ShowEmptyState));
+        RaisePropertyChanged(nameof(DefinitionName));
+        RaisePropertyChanged(nameof(HeaderText));
 
-        Status = LocaleManager.Instance.Get("avalonia.workflow.status.ready");
+        Status = LocaleManager.Instance.Get("avalonia.workflow.status.definition.ready");
 
-        if (!string.IsNullOrWhiteSpace(AppName))
-            _ = InitializeFromNavigationAsync();
+        if (!string.IsNullOrWhiteSpace(_definitionName))
+            _ = InitializeAsync();
     }
 
     public void OnNavigatedFrom(NavigationContext navigationContext) => Teardown();
@@ -310,56 +256,79 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
     private void Teardown()
     {
         TeardownWorkflow();
-        _workflows.Clear();
-        _selectedWorkflow = null;
-        RaisePropertyChanged(nameof(SelectedWorkflow));
 
         _session?.Dispose();
         _session = null;
         _mode = ModeEdit;
-        _pendingWorkflowName = string.Empty;
+        _definitionName = string.Empty;
+        _namespace = string.Empty;
         _isNavigating = false;
-        _loadedAppName = string.Empty;
-    }
-
-    private void SetSaving(bool saving)
-    {
-        if (_isSaving == saving) return;
-        _isSaving = saving;
-        RaisePropertyChanged(nameof(IsSaving));
-        RaisePropertyChanged(nameof(CanSwitchWorkflow));
-        RaisePropertyChanged(nameof(CanModifyWorkflow));
+        _definitionSchema = null;
+        Status = string.Empty;
+        RaisePropertyChanged(nameof(DefinitionName));
+        RaisePropertyChanged(nameof(HeaderText));
     }
 
     /// <summary>
-    /// Loads the app carried by the navigation parameter, then selects the requested workflow
-    /// (or creates a new one when mode=new). Runs after the view is bound so status updates are visible.
+    /// Loads the workflow type schema and its <c>workflow</c> into the canvas. Runs after the
+    /// view is bound so status updates are visible.
     /// </summary>
-    private async Task InitializeFromNavigationAsync()
+    private async Task InitializeAsync()
     {
-        await LoadAppAsync();
         if (_session is null) return;
 
-        if (_mode == ModeNew)
+        string name = _definitionName;
+        try
         {
-            ExecuteNewWorkflow();
-            return;
+            NodeSchema[] schemas = await _session.Api.GetSchemaAsync([name]);
+            NodeSchema? definition = schemas.FirstOrDefault(
+                schema => schema.FullName.Equals(name, StringComparison.OrdinalIgnoreCase))
+                ?? schemas.FirstOrDefault();
+            if (definition is null)
+            {
+                Status = LocaleManager.Instance.Format("avalonia.workflow.status.definition.notfound", name);
+                return;
+            }
+
+            _definitionSchema = definition;
+            WorkflowSchema? source = definition.GetProperty<WorkflowProperty>()?.Value;
+            WorkflowSchema workflow = source is null
+                ? new WorkflowSchema { Steps = [] }
+                : Clone(source);
+
+            NodeType? type = await _session.Context.GetNodeTypeAsync(DefinitionTypeName);
+            if (type is null || (type as IValueTypeAccess)?.Create(_session.Context, workflow) is not { } node)
+            {
+                Status = LocaleManager.Instance.Get("avalonia.workflow.status.typenotready");
+                return;
+            }
+
+            _workflowNode = node;
+            if (node is IDisposable disposable)
+                _session.TrackNode(disposable);
+
+            _nodesArray = node.GetAccessValue(nameof(WorkflowSchema.Steps)) as ArrayNode;
+
+            if (_nodesArray is null)
+            {
+                Status = LocaleManager.Instance.Get("avalonia.workflow.status.nonodes");
+            }
+            else
+            {
+                _nodesSubscription = _nodesArray.Subscribe(_ => ScheduleGraphReload());
+            }
+
+            RaisePropertyChanged(nameof(WorkflowName));
+            RebuildGraph(forceStructure: true);
+            Status = LocaleManager.Instance.Format("avalonia.workflow.status.loaded", definition.FullName);
         }
-
-        if (string.IsNullOrWhiteSpace(_pendingWorkflowName)) return;
-
-        AppWorkflowSchema? target = _workflows.FirstOrDefault(
-            workflow => workflow.Name.Equals(_pendingWorkflowName, StringComparison.OrdinalIgnoreCase));
-        if (target is null)
+        catch (Exception ex)
         {
-            Status = LocaleManager.Instance.Format("avalonia.workflow.status.notfound", _pendingWorkflowName);
-            return;
+            Status = LocaleManager.Instance.Format("avalonia.workflow.status.loadfailed", ex.Message);
         }
-
-        SelectedWorkflow = target;
     }
 
-    /// <summary>Navigates back to the workflow list with the app identity preserved.</summary>
+    /// <summary>Navigates back to the type definition list with the namespace preserved.</summary>
     private async void ExecuteBack()
     {
         if (_isNavigating) return;
@@ -369,11 +338,11 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
             TaskCompletionSource<INavigationResult> completion = new();
             _regionManager.RequestNavigate(
                 MainContentRegion,
-                nameof(AppWorkflowListView),
+                nameof(TypeListView),
                 result => completion.TrySetResult(result),
                 new NavigationParameters
                 {
-                    { AppWorkflowListViewModel.AppParameter, AppName },
+                    { TypeDocumentViewModel.NamespaceParameter, _namespace },
                 });
 
             INavigationResult outcome = await completion.Task;
@@ -381,7 +350,7 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
             {
                 Status = LocaleManager.Instance.Format(
                     "avalonia.workflow.status.backfailed",
-                    outcome.Exception?.Message ?? nameof(AppWorkflowListView));
+                    outcome.Exception?.Message ?? nameof(TypeListView));
             }
         }
         finally
@@ -394,107 +363,12 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
 
     #region Load / Save
 
-    private async void ExecuteLoadApp()
+    private void SetSaving(bool saving)
     {
-        if (_session is null)
-        {
-            Status = LocaleManager.Instance.Get("avalonia.workflow.status.nosession");
-            return;
-        }
-        if (string.IsNullOrWhiteSpace(AppName))
-        {
-            Status = LocaleManager.Instance.Get("avalonia.workflow.status.noappname");
-            return;
-        }
-
-        await LoadAppAsync();
-    }
-
-    /// <summary>
-    /// Loads the workflow list of <see cref="AppName"/> and selects the first workflow when nothing
-    /// was requested through navigation.
-    /// </summary>
-    private async Task LoadAppAsync()
-    {
-        if (_session is null) return;
-
-        // Capture the app being loaded: AppName stays editable afterwards, but save/delete must
-        // keep targeting the app whose workflows are actually on screen.
-        string appName = AppName;
-        _loadedAppName = string.Empty;
-
-        try
-        {
-            AppSchema? app = await _session.Api.GetAppSchemaAsync(appName, includeTypes: true);
-
-            TeardownWorkflow();
-            _selectedWorkflow = null;
-            RaisePropertyChanged(nameof(SelectedWorkflow));
-            _workflows.Clear();
-
-            if (app?.Workflows is { Length: > 0 })
-                foreach (AppWorkflowSchema workflow in app.Workflows)
-                    _workflows.Add(workflow);
-
-            _loadedAppName = app is null ? string.Empty : appName;
-            Status = app is null
-                ? LocaleManager.Instance.Format("avalonia.workflow.status.app.notfound", appName)
-                : LocaleManager.Instance.Format("avalonia.workflow.status.app.loaded", _workflows.Count);
-
-            if (_workflows.Count > 0)
-                SelectedWorkflow = _workflows[0];
-        }
-        catch (Exception ex)
-        {
-            Status = LocaleManager.Instance.Format("avalonia.workflow.status.app.loadfailed", ex.Message);
-        }
-    }
-
-    private async Task LoadWorkflowAsync(AppWorkflowSchema? source)
-    {
-        TeardownWorkflow();
-        int version = _loadVersion;
-
-        if (_session is null || source is null) return;
-
-        try
-        {
-            AppWorkflowSchema copy = Clone(source);
-            NodeType? type = await _session.Context.GetNodeTypeAsync($"{NS_SYSTEM_SCHEMA_APP_WORKFLOW}.schema");
-            if (version != _loadVersion || _session is null) return;
-
-            if ((type as IValueTypeAccess)?.Create(_session.Context, copy) is not { } node)
-            {
-                Status = LocaleManager.Instance.Get("avalonia.workflow.status.typenotready");
-                return;
-            }
-
-            _workflowNode = node;
-            if (node is IDisposable disposable)
-                _session.TrackNode(disposable);
-
-            _nodesArray = node.GetAccessValue("nodes") as ArrayNode;
-            _nameField = node.GetAccessValue("name");
-            _activeField = node.GetAccessValue("active");
-
-            if (_nodesArray is null)
-            {
-                Status = LocaleManager.Instance.Get("avalonia.workflow.status.nonodes");
-            }
-            else
-            {
-                _nodesSubscription = _nodesArray.Subscribe(_ => ScheduleGraphReload());
-            }
-
-            RaisePropertyChanged(nameof(WorkflowName));
-            RaisePropertyChanged(nameof(WorkflowActive));
-            RebuildGraph(forceStructure: true);
-            Status = LocaleManager.Instance.Format("avalonia.workflow.status.loaded", copy.Name);
-        }
-        catch (Exception ex)
-        {
-            Status = LocaleManager.Instance.Format("avalonia.workflow.status.loadfailed", ex.Message);
-        }
+        if (_isSaving == saving) return;
+        _isSaving = saving;
+        RaisePropertyChanged(nameof(IsSaving));
+        RaisePropertyChanged(nameof(CanSave));
     }
 
     private async void ExecuteSave()
@@ -504,18 +378,13 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
             Status = LocaleManager.Instance.Get("avalonia.workflow.status.readonly");
             return;
         }
-        if (_session is null || _workflowNode is null)
+        if (_session is null || _workflowNode is null || _definitionSchema is null)
         {
             Status = LocaleManager.Instance.Get("avalonia.workflow.status.loadfirst");
             return;
         }
-        if (string.IsNullOrWhiteSpace(_loadedAppName))
-        {
-            Status = LocaleManager.Instance.Get("avalonia.workflow.status.appfirst");
-            return;
-        }
 
-        // The property panel may have just changed the name; align the canvas projection with the Core fields before validating
+        // The property panel may have just changed a name; align the canvas projection with the Core fields before validating
         foreach (WorkflowNodeViewModel node in Nodes)
             node.Refresh();
 
@@ -526,131 +395,57 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
             return;
         }
 
-        AppWorkflowSchema? schema = _workflowNode.GetValue<AppWorkflowSchema>();
-        if (schema is null)
+        WorkflowSchema? definition = _workflowNode.GetValue<WorkflowSchema>();
+        if (definition is null)
         {
             Status = LocaleManager.Instance.Get("avalonia.workflow.status.nodata");
             return;
         }
 
+        // The definition is named after its workflow type.
+        _definitionSchema.SetProperty<WorkflowProperty, WorkflowSchema>(definition);
+
         SchemaScreenSession session = _session;
-        AppWorkflowSchema? target = _selectedWorkflow;
+        NodeSchema schema = _definitionSchema;
         SetSaving(true);
         try
         {
-            await SaveAsync(session, _loadedAppName, target, schema);
-        }
-        finally
-        {
-            SetSaving(false);
-        }
-    }
-
-    private async Task SaveAsync(SchemaScreenSession session, string appName, AppWorkflowSchema? target, AppWorkflowSchema schema)
-    {
-        try
-        {
-            bool ok = await session.Api.SaveAppWorkflowSchemaAsync(appName, schema);
-            Status = ok
-                ? LocaleManager.Instance.Get("avalonia.workflow.status.saved")
-                : LocaleManager.Instance.Get("avalonia.workflow.status.savefailed.active");
-
-            // Write back to the row captured before the await, not to whatever is selected now.
-            if (ok && target is not null && _workflows.Contains(target))
+            bool ok = await session.Api.SaveSchemaAsync(schema);
+            if (!ok)
             {
-                target.Name = schema.Name;
-                target.Active = schema.Active;
-                target.Nodes = schema.Nodes;
-                RaisePropertyChanged(nameof(SelectedWorkflow));
+                Status = LocaleManager.Instance.Get("avalonia.workflow.status.savefailed.active");
+                return;
             }
+
+            await RefreshOwnerNamespaceAsync(session, schema);
+            Status = LocaleManager.Instance.Get("avalonia.workflow.status.saved");
         }
         catch (Exception ex)
         {
             Status = LocaleManager.Instance.Format("avalonia.workflow.status.savefailed", ex.Message);
         }
-    }
-
-    private void ExecuteNewWorkflow()
-    {
-        if (!IsEditable)
-        {
-            Status = LocaleManager.Instance.Get("avalonia.workflow.status.readonly");
-            return;
-        }
-        if (_session is null)
-        {
-            Status = LocaleManager.Instance.Get("avalonia.workflow.status.nosession");
-            return;
-        }
-        if (string.IsNullOrWhiteSpace(_loadedAppName))
-        {
-            Status = LocaleManager.Instance.Get("avalonia.workflow.status.appfirst");
-            return;
-        }
-
-        string name = NextWorkflowName();
-        var schema = new AppWorkflowSchema
-        {
-            App = _loadedAppName,
-            Name = name,
-            Nodes = [new AppWorkflowNodeSchema { Name = "start" }],
-        };
-
-        _workflows.Add(schema);
-        SelectedWorkflow = schema;
-        Status = LocaleManager.Instance.Format("avalonia.workflow.status.new", name);
-    }
-
-    private async void ExecuteDeleteWorkflow()
-    {
-        if (!IsEditable)
-        {
-            Status = LocaleManager.Instance.Get("avalonia.workflow.status.readonly");
-            return;
-        }
-        if (_session is null || SelectedWorkflow is null)
-        {
-            Status = LocaleManager.Instance.Get("avalonia.workflow.status.selectworkflow");
-            return;
-        }
-        if (string.IsNullOrWhiteSpace(_loadedAppName))
-        {
-            Status = LocaleManager.Instance.Get("avalonia.workflow.status.appfirst");
-            return;
-        }
-
-        // Capture the row and its identity before awaiting: the selection must not be used after
-        // the await, otherwise a switched row/app would delete the wrong workflow.
-        SchemaScreenSession session = _session;
-        AppWorkflowSchema target = SelectedWorkflow;
-        string appName = _loadedAppName;
-        string name = target.Name;
-        bool removed = false;
-        SetSaving(true);
-        try
-        {
-            bool ok = await session.Api.DeleteAppWorkflowSchemaAsync(appName, name);
-            if (!ok)
-            {
-                Status = LocaleManager.Instance.Get("avalonia.workflow.status.deletefailed.active");
-                return;
-            }
-
-            removed = _workflows.Remove(target);
-            Status = LocaleManager.Instance.Format("avalonia.workflow.status.deleted", name);
-        }
-        catch (Exception ex)
-        {
-            Status = LocaleManager.Instance.Format("avalonia.workflow.status.deletefailed", ex.Message);
-        }
         finally
         {
             SetSaving(false);
         }
+    }
 
-        // Selection changes are ignored while saving, so reselect only after the guard is lifted.
-        if (removed && ReferenceEquals(_selectedWorkflow, target))
-            SelectedWorkflow = _workflows.FirstOrDefault();
+    /// <summary>
+    /// Reloads the namespace that owns the saved definition so the runtime picks the new definition up.
+    /// A failure only reports the refresh error; the save itself already succeeded.
+    /// </summary>
+    private async Task RefreshOwnerNamespaceAsync(SchemaScreenSession session, NodeSchema schema)
+    {
+        if (string.IsNullOrWhiteSpace(schema.Namespace)) return;
+
+        try
+        {
+            await session.Context.GetNodeTypeAsync(schema.Namespace, reload: true);
+        }
+        catch (Exception ex)
+        {
+            Status = LocaleManager.Instance.Format("avalonia.workflow.status.loadfailed", ex.Message);
+        }
     }
 
     private void TeardownWorkflow()
@@ -667,8 +462,6 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         ClearGraph();
 
         _nodesArray = null;
-        _nameField = null;
-        _activeField = null;
 
         if (_workflowNode is IDisposable disposable)
         {
@@ -680,7 +473,6 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         _workflowNode = null;
 
         RaisePropertyChanged(nameof(WorkflowName));
-        RaisePropertyChanged(nameof(WorkflowActive));
     }
 
     #endregion
@@ -710,18 +502,11 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
 
         if (cts.IsCancellationRequested) return;
 
-        if (!Dispatcher.UIThread.CheckAccess())
+        await Dispatcher.UIThread.InvokeAsync(() =>
         {
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                if (!cts.IsCancellationRequested)
-                    RebuildGraph(forceStructure: false);
-            });
-        }
-        else
-        {
-            RebuildGraph(forceStructure: false);
-        }
+            if (!cts.IsCancellationRequested)
+                RebuildGraph(forceStructure: false);
+        });
     }
 
     private void RebuildGraph(bool forceStructure)
@@ -778,6 +563,7 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
 
         RebuildEdges();
         UpdateCanvasSize();
+        RaisePropertyChanged(nameof(ShowEmptyState));
     }
 
     private bool IsStructureChanged()
@@ -860,6 +646,7 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         _positions.Clear();
         CanvasWidth = 600;
         CanvasHeight = 400;
+        RaisePropertyChanged(nameof(ShowEmptyState));
     }
 
     #endregion
@@ -925,7 +712,7 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
     }
 
     /// <summary>
-    /// Drags a node: updates the canvas position and keeps edge coordinates in sync (edges repaint automatically via PropertyChanged).
+    /// Drags a node: updates the canvas position and keeps edge coordinates in sync.
     /// </summary>
     public void MoveNode(WorkflowNodeViewModel node, double deltaX, double deltaY)
     {
@@ -952,7 +739,7 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
 
         string name = NextNodeName();
         WorkflowNodeViewModel? parent = SelectedNode;
-        var data = new AppWorkflowNodeSchema { Name = name };
+        var data = new WorkflowStepSchema { Name = name };
 
         // Aligned with addWorkflowNode in schema-node-man: if a node is selected, append as its child node,
         // with the incoming edge expressed via Previous; only when no node is selected add a new entry node.
@@ -1134,14 +921,6 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
         return $"node{index}";
     }
 
-    private string NextWorkflowName()
-    {
-        var names = new HashSet<string>(_workflows.Select(w => w.Name), StringComparer.OrdinalIgnoreCase);
-        int index = 1;
-        while (names.Contains($"workflow{index}")) index++;
-        return $"workflow{index}";
-    }
-
     #endregion
 
     #region Validation / utilities
@@ -1207,20 +986,18 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
     /// <summary>Runtime-only properties that must not be carried into the editing copy.</summary>
     private static readonly string[] RuntimeWorkflowKeys = ["error", "usedBy", "compatibles", "provider"];
 
-    private static AppWorkflowSchema Clone(AppWorkflowSchema source)
+    private static WorkflowSchema Clone(WorkflowSchema source)
     {
         // Round-trip through the schema serializer so appended properties (display/description)
-        // stored in Extensions are deep-copied as well. Runtime-only state is stripped from the
-        // payload first so saving the copy does not erase or re-publish it.
+        // stored in Extensions are deep-copied as well, and the loaded schema stays untouched
+        // until the user saves.
         JsonObject json = JsonSerializer.SerializeToNode(source, WorkflowJsonOptions) as JsonObject
             ?? new JsonObject();
 
         StripRuntimeState(json);
 
-        AppWorkflowSchema copy = JsonSerializer.Deserialize<AppWorkflowSchema>(json, WorkflowJsonOptions)
-            ?? new AppWorkflowSchema();
-        copy.Seqno = source.Seqno; // Seqno is [JsonIgnore] and must survive the clone.
-        return copy;
+        return JsonSerializer.Deserialize<WorkflowSchema>(json, WorkflowJsonOptions)
+               ?? new WorkflowSchema();
     }
 
     /// <summary>
@@ -1231,8 +1008,8 @@ public class WorkflowConfigViewModel : BindableBase, INavigationAware, IDestruct
     private static void StripRuntimeState(JsonObject root)
     {
         RemoveRuntimeKeys(root);
-        if (root["nodes"] is JsonArray nodes)
-            foreach (JsonNode? node in nodes)
+        if (root["steps"] is JsonArray steps)
+            foreach (JsonNode? node in steps)
                 if (node is JsonObject nodeObject)
                     RemoveRuntimeKeys(nodeObject);
     }

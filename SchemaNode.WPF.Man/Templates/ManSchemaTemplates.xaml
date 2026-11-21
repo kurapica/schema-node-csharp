@@ -15,4 +15,10 @@
     <DataTemplate x:Key="ManFunction">
         <views:FunctionSchemaView />
     </DataTemplate>
+
+    <!-- Workflow step summary (counterpart of workflownodesView). The steps are a DAG, so the
+         generic table is replaced by an ordered summary; the canvas lives on WorkflowConfigView. -->
+    <DataTemplate x:Key="ManWorkflowSteps">
+        <views:WorkflowStepsView />
+    </DataTemplate>
 </ResourceDictionary>

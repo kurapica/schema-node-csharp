@@ -1,0 +1,98 @@
+using SchemaNode.Attribute;
+using SchemaNode.Context;
+using SchemaNode.Event;
+using SchemaNode.Function;
+using SchemaNode.Property;
+using SchemaNode.Property.Common;
+using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
+using SchemaNode.Property.Workflow;
+using SchemaNode.Schema;
+using SchemaNode.Utility;
+using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.WorkflowConstant;
+
+// ReSharper disable UnusedAutoPropertyAccessor.Global
+
+namespace SchemaNode.Workflow;
+
+[Meta<Property.Workflow.WorkflowKind>(WORKFLOW_KIND_EVENT)]
+[Meta<OfNodeKind>(NODE_KIND_WORKFLOW_NODE)]
+[Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW}.waitevent")]
+[Meta<Forkable>(true)]
+public class WaitEvent<T> : BaseWorkflow, 
+    IWorkflowPayload<T>, 
+    IWorkflowSession<IDisposable>
+{
+    private Runtime.EventType? _eventType;
+    private CallArg[] _args = [];
+    
+    public override async Task LoadAsync(SchemaContext context, WorkflowStepSchema schema, CancellationToken token = default)
+    {
+        EventDeclare? decare = schema.GetProperty<EventProperty>()?.Value;
+        if (decare == null)
+        {
+            schema.Error ??= WorkflowErrorCodes.WORKFLOW_EVENT_NOT_VALID;
+            return;
+        }
+        _eventType = await context.GetNodeTypeAsync<Runtime.EventType>(decare.Event, token: token).ConfigureAwait(false);
+        if (_eventType == null)
+        {
+            schema.Error ??= WorkflowErrorCodes.WORKFLOW_EVENT_NOT_VALID;
+            return;
+        }
+        _args = decare.Args;
+    }
+    
+    public async Task<IDisposable?> ProcessAsync(WorkflowContext context, IDisposable? session = null)
+    {
+        session?.Dispose();
+        
+        await Task.Yield();
+        if (_eventType == null)
+        {
+            context.Error(this, $"The event is not defined.");
+            return null;
+        }
+        
+        var instance = await _eventType.GetEventInstance(context, 
+            _args.Select<CallArg, object?>(callArg => string.IsNullOrEmpty(callArg.Source)
+                ? callArg.Value?.DeepClone()
+                : context.GetWorkflowPayload(callArg.Source)).ToArray()).ConfigureAwait(false);
+        if (instance == null)
+        {
+            context.Error(this, $"The event {_eventType.Name} can't be instantiated.");
+            return null;
+        }
+        
+        // use topic or not
+        if (!string.IsNullOrWhiteSpace(instance.MatchTopic))
+        {
+            return Fork
+                ? context.SubscribeTopicEvent<BaseEvent>(instance.GetType(), instance.MatchTopic, HandleEvent)
+                : context.SubscribeTopicEventOnce<BaseEvent>(instance.GetType(), instance.MatchTopic, HandleEvent);
+        }
+        
+        return Fork 
+            ? context.SubscribeEvent<BaseEvent>(instance.GetType(), HandleEvent)
+            : context.SubscribeEventOnce<BaseEvent>(instance.GetType(), HandleEvent);
+
+        void HandleEvent(BaseEvent @event) => SetPayload(context, @event.Payload, context => @event.UpdateContext(context));
+    }
+    
+    /// <summary>
+    /// Release the subscription
+    /// </summary>
+    public Task ReleaseSessionAsync(WorkflowContext context, IDisposable? session)
+    {
+        session?.Dispose();
+        return Task.CompletedTask;
+    }
+}
+
+[Meta<ForSchema>(SCHEMA_KIND_NODE_WORKFLOW_STEP)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP}.workflow.event")]
+[Relation<Visible, Relation.Call>("event", $"{NS_SYSTEM_SCHEMA_REFLECT}.workflow.{nameof(SystemReflectWorkflow.iskind)}", $"@{nameof(WorkflowStepSchema.Type)}", WORKFLOW_KIND_EVENT)]
+[Relation<Default, Relation.Call>("event.payload", $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(WorkflowStepSchema.Payload)}")]
+public class EventProperty : Property<EventDeclare>;

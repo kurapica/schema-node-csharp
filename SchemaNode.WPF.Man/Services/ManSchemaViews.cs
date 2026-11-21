@@ -55,6 +55,13 @@ public static class ManSchemaViews
     public const string FunctionSchemaType = "system.schema.func.schema";
 
     /// <summary>
+    /// workflow steps: the companion array Core generates for <c>system.schema.workflow.step</c>
+    /// (primary key name). This is a dedicated array schema, not the generic
+    /// <c>system.list&lt;system.schema.workflow.step&gt;</c> name.
+    /// </summary>
+    public const string WorkflowStepsArray = "system.schema.workflow.steps";
+
+    /// <summary>
     /// Creates the registry shared by the Man screens: the built-in defaults
     /// plus the table registrations above. App-field names use a plain-text
     /// template (hosts provide the DataTemplate under the same resource key):
@@ -93,6 +100,12 @@ public static class ManSchemaViews
 
         // Function definitions use the card layout (return / argument cards / expression cards).
         registry.RegisterType(FunctionSchemaType, ManTemplateKeys.Function, SchemaViewRole.Field);
+
+        // Workflow steps are a DAG, not tabular data: the generic table exposes every step field
+        // as a column and hides the graph. Project an ordered summary instead and keep editing on
+        // the workflow canvas (WorkflowConfigView).
+        registry.RegisterType(WorkflowStepsArray, ManTemplateKeys.WorkflowSteps, SchemaViewRole.Field, wrapperFactory: node =>
+            new WorkflowStepsWrapper((DataNode)node, registry, null, SchemaViewRole.Field));
 
         registry.RegisterType(Constant.NS_SYSTEM_IDENTIFIER, "SchemaImmutableTextCell", role: SchemaViewRole.Cell);
 

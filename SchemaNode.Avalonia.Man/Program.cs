@@ -155,6 +155,7 @@ public sealed class ManApp : Application
         services.AddTransient<AppFieldDefinitionViewModel>();
         services.AddTransient<AppFieldDemoViewModel>();
         services.AddTransient<AppWorkflowListViewModel>();
+        services.AddTransient<AppWorkflowDefinitionViewModel>();
         services.AddTransient<FunctionDefinitionViewModel>();
         services.AddTransient<WorkflowConfigViewModel>();
 

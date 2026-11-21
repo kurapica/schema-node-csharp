@@ -10,7 +10,7 @@ namespace SchemaNode.WPF.Man.ViewModels;
 /// A single node (DAG vertex) on the workflow canvas.
 ///
 /// Holds only UI state (position, selection) and a read-only projection of the Core node fields;
-/// the actual node data is always held by <see cref="Node"/> (the DataNode of AppWorkflowNodeSchema),
+/// the actual node data is always held by <see cref="Node"/> (the DataNode of WorkflowStepSchema),
 /// and property editing reuses SchemaView, which wraps the node when the panel materializes.
 /// </summary>
 public sealed class WorkflowNodeViewModel : BindableBase, IDisposable
@@ -92,7 +92,7 @@ public sealed class WorkflowNodeViewModel : BindableBase, IDisposable
 /// <summary>
 /// A directed edge on the workflow canvas.
 ///
-/// The semantics come from Core's <see cref="SchemaNode.Schema.AppWorkflowNodeSchema.Previous"/>:
+/// The semantics come from Core's <see cref="SchemaNode.Schema.WorkflowStepSchema.Previous"/>:
 /// the edge direction is "predecessor → current node", i.e. Target.Previous contains Source.Name.
 /// Coordinates are derived from both endpoint node positions, and are automatically repainted via PropertyChanged when a node is dragged.
 /// </summary>

@@ -12,7 +12,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\SchemaNode.App\SchemaNode.App.csproj" />
+      <ProjectReference Include="..\SchemaNode.Workflow\SchemaNode.Workflow.csproj" />
     </ItemGroup>
 
 </Project>

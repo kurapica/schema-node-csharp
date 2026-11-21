@@ -185,7 +185,7 @@ public sealed class AppType : IValueTypeAccess, INodeTypeReLoadHandler
     /// </summary>
     internal async Task LoadAsync(SchemaContext context, AppSchema schema, CancellationToken token = default)
     {
-        // Release old usages
+        // Release workflow usages
         Release();
         _relations = null;
 
@@ -238,15 +238,23 @@ public sealed class AppType : IValueTypeAccess, INodeTypeReLoadHandler
         {
             foreach (AppWorkflowSchema w in schema.Workflows)
             {
-                _workflows.Add(oldWorkflows?.FirstOrDefault(o => o.Name.Equals(w.Name, StringComparison.OrdinalIgnoreCase)) is { Activated: true } old
-                    ? old : new AppWorkflowType(this, w));
+                var workflow = oldWorkflows?.FirstOrDefault(o => o.Name.Equals(w.Name, StringComparison.OrdinalIgnoreCase));
+                if (workflow?.Activated != true)
+                {
+                    workflow = new AppWorkflowType(this, w);
+                    await workflow.LoadAsync(context, token).ConfigureAwait(false);
+                }
+                _workflows.Add(workflow);
             }
         }
+
+        // check active
         foreach(var wf in _workflows ?? [])
         {
+            if (!wf.Active || wf.Activated) continue;
             // Runtime already activated, need to load workflow immediately, otherwise it will be loaded in app activation
             if (context.Runtime.Stage == RuntimeStage.Activated)
-                await wf.LoadAsync(context, token).ConfigureAwait(false);
+                await wf.ActiveAsync(context, token).ConfigureAwait(false);
             else
                 (context.Runtime as SchemaRuntime)?.GetOrAddRuntimeItem<AppWorkflowQueue>().Enqueue(wf);
         }

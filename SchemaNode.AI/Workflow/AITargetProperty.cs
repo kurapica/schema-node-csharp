@@ -16,8 +16,8 @@ namespace SchemaNode.AI.Workflow;
 /// The target schema type property of the AI workflow node. Editing it in Man updates the node's
 /// declared payload type through the same default relation used by call/event workflow nodes.
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_APP_WORKFLOW_NODE)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_WORKFLOW_STEP)]
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP}.workflow.ai.target")]
-[Relation<Default, Relation.Call>("aiTarget", $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(AppWorkflowNodeSchema.Payload)}")]
+[Relation<Default, Relation.Call>("aiTarget", $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(WorkflowStepSchema.Payload)}")]
 public sealed class AITargetProperty : Property<string>;

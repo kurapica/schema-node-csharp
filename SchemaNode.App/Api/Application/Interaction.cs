@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Context;
-using SchemaNode.Enum;
+using SchemaNode.Enum.Workflow;
 using SchemaNode.Http;
 using SchemaNode.Node;
 using SchemaNode.Property.App;
@@ -62,11 +62,9 @@ public static class InteractionExtensions
         {
             // If terminate requested, just return
             if (request.Terminate == true) return null;
-            if (!workflowType.Nodes[0].Name.Equals(node.Name, StringComparison.InvariantCultureIgnoreCase))
-                throw new Exception(AppErrorCodes.APP_WORKFLOW_NODE_NOT_FOUND);
             
             // Start a new workflow
-            return workflowType.RootWorkflowContext.Done(node.Name, payload, false, new Access{ App = request.App, Target = request.Target })?.Id;
+            return workflowType.RootWorkflowContext.Done(node.Name, payload, false, context => (context as WorkflowContext)?.SetAccess(new Access{ App = request.App, Target = request.Target }))?.Id;
         }
         
         // Continue an existing workflow

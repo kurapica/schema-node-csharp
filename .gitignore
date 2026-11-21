@@ -58,3 +58,5 @@ SchemaNode.Example/SchemaNode.Example.csproj.user
 /SchemaNode.Avalonia.View/bin
 /SchemaNode.Avalonia.View/obj
 NuGet.config
+/SchemaNode.Workflow/bin
+/SchemaNode.Workflow/obj

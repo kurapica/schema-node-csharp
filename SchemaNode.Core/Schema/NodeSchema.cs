@@ -59,6 +59,7 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
     /// The node kind
     /// </summary>
     [Meta<SchemaType>(typeof(NodeKind))]
+    [Meta<Immutable>(true)]
     public string Kind { get; set; } = null!;
           
     /// <summary>

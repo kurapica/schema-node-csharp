@@ -278,7 +278,7 @@ public static class BatchQueryExtension
                 List<AppWorkflowState> workflows = [];
                 foreach (AppWorkflowType wf in node.GetWorkflows())
                 {
-                    if (wf.Nodes.Length == 0 || wf.RootWorkflowContext?.EntryWorkflow == null ||
+                    if (wf.Steps.Length == 0 || wf.RootWorkflowContext?.EntryWorkflow == null ||
                         !await context.AuthorizeAsync(wf, PolicyScope.FuncExecute, true)) continue;
                     BaseWorkflow firstNode = wf.RootWorkflowContext.EntryWorkflow;
                     
