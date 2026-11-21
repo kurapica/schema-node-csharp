@@ -1,0 +1,35 @@
+<UserControl x:Class="SchemaNode.WPF.Man.Views.AppDemoView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prism="http://prismlibrary.com/"
+             xmlns:loc="clr-namespace:SchemaNode.WPF.View.Localization;assembly=SchemaNode.WPF.View"
+             prism:ViewModelLocator.AutoWireViewModel="True">
+    <DockPanel Margin="8">
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.function.label.fullname}" VerticalAlignment="Center" />
+                <TextBox Text="{Binding FunctionName, UpdateSourceTrigger=PropertyChanged}"
+                         Width="280" Margin="4,0" />
+                <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.call}" Command="{Binding CallCommand}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appdemo.label.args}" VerticalAlignment="Center" />
+                <TextBox Text="{Binding ArgsJson, UpdateSourceTrigger=PropertyChanged}"
+                         Width="360" Margin="4,0" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appdemo.label.app}" VerticalAlignment="Center" />
+                <TextBox Text="{Binding AppName, UpdateSourceTrigger=PropertyChanged}"
+                         Width="180" Margin="4,0" />
+                <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appdemo.label.target}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                <TextBox Text="{Binding Target, UpdateSourceTrigger=PropertyChanged}"
+                         Width="180" Margin="4,0" />
+            </StackPanel>
+        </StackPanel>
+        <GroupBox Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.appdemo.label.result}" HeaderStringFormat="" Padding="6">
+            <TextBox Text="{Binding Result, Mode=OneWay}" IsReadOnly="True"
+                     TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                     AcceptsReturn="True" Height="300" />
+        </GroupBox>
+    </DockPanel>
+</UserControl>

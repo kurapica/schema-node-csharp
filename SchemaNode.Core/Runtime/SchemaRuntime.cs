@@ -309,7 +309,7 @@ public class SchemaRuntime : ISchemaRuntime
     /// <summary>
     /// The lock loading check
     /// </summary>
-    internal ConcurrentDictionary<string, ISchemaContext> LockLoading = [];
+    internal ConcurrentDictionary<string, Guid> LockLoading = [];
     
     /// <summary>
     /// The root namespace

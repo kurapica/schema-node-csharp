@@ -5,6 +5,8 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using SchemaNode.Struct;
 using SchemaNode.Schema.Provider;
+using SchemaNode.Property.Core;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Runtime;
 
@@ -46,23 +48,45 @@ public sealed class EnumType: ValueType
     public LocaleString[]? Cascade => _enumSchema?.Cascade;
 
     /// <inheritdoc/>
-    public override Type? GetCsharpType(bool nullable = false) => base.GetCsharpType() ?? Type switch
+    public override Type? GetCsharpType(bool nullable = false)
     {
-        EnumValueType.String => typeof(string),
-        EnumValueType.Int => typeof(long),
-        EnumValueType.Flags => typeof(long),
-        _ => null
-    };
+        Type? csharpType = base.GetCsharpType();
+        // A record enum is declared as a member-less C# enum: the marker type only carries the
+        // schema metadata, while the node stores the record value (string or number). Reporting
+        // the marker type as the CLR type makes value conversion and generic function binding
+        // target a type that can never hold the actual value, so fall back to the value type.
+        if (csharpType is { IsEnum: true } && csharpType.GetEnumNames().Length == 0)
+            csharpType = null;
+        return csharpType ?? Type switch
+        {
+            EnumValueType.String => typeof(string),
+            EnumValueType.Int => typeof(long),
+            EnumValueType.Flags => typeof(long),
+            _ => null
+        };
+    }
 
     #endregion
     
     #region Method
 
     /// <inheritdoc />
-    public override Task LoadAsync(SchemaContext context)
+    public override Task LoadAsync(SchemaContext context, CancellationToken token = default)
     {
         _enumSchema = GetProperty<EnumProperty>()?.Value;
-        
+
+        // Add entry source for enum type
+        EntrySource enumProp = new EntrySource();
+        enumProp.SetValue<FuncCall>(new FuncCall
+        {
+            Func = $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.getenumaccess)}",
+            Args = [
+                new CallArg { Value = Name },
+                new CallArg { Source = NODE_SELF },
+            ]
+        });
+        AddProperties([enumProp]);
+
         // Status
         if (_enumSchema == null) Error = ErrorCodes.NO_DEFINITION;
         
@@ -116,7 +140,8 @@ public sealed class EnumType: ValueType
     }
 
     /// <inheritdoc />
-    public override IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new EnumNode(this,  parent, propertyProvider);
+    public override IValueAccess Create(ISchemaContext? context, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders) 
+        => new EnumNode(context, this, value, parent, propertyProviders);
 
     /// <inheritdoc />
     public override bool IsIndexable => true;
@@ -128,7 +153,7 @@ public sealed class EnumType: ValueType
     /// <param name="value">The enum value to be queried</param>
     /// <param name="start">The start value of the access path</param>
     /// <returns></returns>
-    public async Task<EntryAccess<string>[]> GetEnumEntryAccessAsync(SchemaContext context, string? value, string? start = null)
+    public async Task<EntryAccess<string>[]> GetEnumEntryAccessAsync(SchemaContext context, string? value, string? start = null, CancellationToken token = default)
     {
         if (string.IsNullOrWhiteSpace(start)) start = null;
         if (string.IsNullOrWhiteSpace(value)) value = null;
@@ -142,7 +167,7 @@ public sealed class EnumType: ValueType
         if (Provider != null && Provider.IsAssignableTo(typeof(IEnumEntryProvider)))
         {
             EntryAccess<string>[] accessList = await (context.GetRequiredService(Provider) as IEnumEntryProvider)!
-                .GetEnumEntryAccessAsync(Name, value, !root.IsRoot ? root.Value : null);
+                .GetEnumEntryAccessAsync(Name, value, !root.IsRoot ? root.Value : null, token).ConfigureAwait(false);
             if (accessList.Length > 0)
             {
                 lock (_lock) root.SaveAccessList(accessList);

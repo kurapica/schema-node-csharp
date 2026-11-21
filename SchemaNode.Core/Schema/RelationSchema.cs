@@ -34,6 +34,7 @@ public class RelationSchema : PropertyOwner
     /// The target value type
     /// </summary>
     [Meta<DisplayOnly>(true)]
+    [Meta<InVisible>(true)]
     [Meta<AccessValueTypeResolver>(nameof(Target))]
     public string? TargetType { get; set; }
 
@@ -41,6 +42,7 @@ public class RelationSchema : PropertyOwner
     /// The target kind
     /// </summary>
     [Meta<DisplayOnly>(true)]
+    [Meta<InVisible>(true)]
     [Relation<Default, Call>(nameof(TargetKind), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getschemakind)}", $"@{nameof(TargetType)}")]
     public string? TargetKind { get; set; }
 
@@ -49,6 +51,7 @@ public class RelationSchema : PropertyOwner
     /// </summary>
     [Meta<DisplayOnly>(true)]
     [Meta<KindResolver>(true)]
+    [Meta<InVisible>(true)]
     public string? OwnerKind { get; set; }
 
     /// <summary>
@@ -62,6 +65,7 @@ public class RelationSchema : PropertyOwner
     /// The property value type
     /// </summary>
     [Meta<DisplayOnly>(true)]
+    [Meta<InVisible>(true)]
     [Relation<Default, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_PROPERTY}.{nameof(Function.Reflect.Property.getkindpropvaluetype)}", $"@{nameof(Property)}", $"@{nameof(TargetType)}", $"@{nameof(TargetKind)}", $"@{nameof(OwnerKind)}")]
     public string? ValueType { get; set; }
 
@@ -89,7 +93,6 @@ public class RelationSchema : PropertyOwner
 /// </summary>
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_CORE}.relations")]
-//[Relation<EntrySource, Relation.Call>($"{nameof(Relations)}.{nameof(RelationSchema.Target)}", NS_SYSTEM_SCHEMA_REFLECT_GET_ACCESS_ENTRIES, NODE_SELF, $"@{nameof(Relations)}.{nameof(RelationSchema.Target)}")]
 public class Relations : Property<RelationSchema[]>
 {
     public override void SetValue<TValue>(TValue value)
@@ -124,10 +127,26 @@ public interface IRelationProcess
     /// <summary>
     /// Loading the relation schema and prepare for processing
     /// </summary>
-    Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner, params string?[] kinds);
-    
+    Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner, string?[] kinds, CancellationToken token = default);
+
+    /// <summary>
+    /// Whether the relation process has any depends
+    /// </summary>
+    bool hasDepends { get; }
+
+    /// <summary>
+    /// Attach the relation to taret
+    /// </summary>
+    void Attach(IRelation relation, IValueAccess owner, IValueAccess target);
+
+    /// <summary>
+    /// Detach the relation from target
+    /// </summary>
+
+    void Detach(IRelation relation, IValueAccess owner, IValueAccess target);
+
     /// <summary>
     /// Process the relation and return the new property value
     /// </summary>
-    Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner, IValueAccess? target = null);
+    Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner, IValueAccess target);
 }

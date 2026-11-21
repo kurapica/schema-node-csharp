@@ -12,6 +12,7 @@ using SchemaNode.Property.Property;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
+using SchemaNode.Property;
 
 namespace SchemaNode.Utility;
 
@@ -654,11 +655,26 @@ internal static class Extension
                 // Enum convert
                 if (targetType.IsEnum)
                 {
-                    result = value is string s
-                        ? System.Enum.Parse(targetType, s, ignoreCase: true)
-                        : value.GetType().IsPrimitive
-                            ? System.Enum.ToObject(targetType, value)
-                            : null;
+                    try
+                    {
+                        result = value is string s
+                            ? System.Enum.Parse(targetType, s, ignoreCase: true)
+                            : value.GetType().IsPrimitive
+                                ? System.Enum.ToObject(targetType, value)
+                                : null;
+                    }
+                    catch
+                    {
+                        result = null;
+                    }
+
+                    // try check record
+                    if (result == null && value is string k && !string.IsNullOrWhiteSpace(k))
+                    {
+                        var record = targetType.GetMetaProperty<Record>()?.Value;
+                        if (record != null && record.IsRecordValue(k))
+                            result = k;
+                    }
                     return true;
                 }
 

@@ -1,0 +1,33 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="SchemaNode.Avalonia.View.Views.BoolView"
+             x:CompileBindings="False"
+             MinHeight="24"
+             ToolTip.Tip="{Binding ErrorTip}">
+  <StackPanel>
+    <!-- Required bool: only true/false exist, so a plain two-state check box is enough. -->
+    <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+              IsEnabled="{Binding IsEditable}"
+              MinHeight="24"
+              IsVisible="{Binding IsRequired}" />
+
+    <!-- Optional bool / bool?: the unset state is an explicit option and writes a real null. -->
+    <ComboBox ItemsSource="{Binding Options}"
+              SelectedIndex="{Binding SelectedIndex, Mode=TwoWay}"
+              IsEnabled="{Binding IsEditable}"
+              MinHeight="24"
+              IsVisible="{Binding IsOptional}">
+      <ComboBox.ItemTemplate>
+        <DataTemplate>
+          <TextBlock Text="{Binding Label}" />
+        </DataTemplate>
+      </ComboBox.ItemTemplate>
+    </ComboBox>
+
+    <TextBlock Margin="0,2,0,0"
+               Foreground="#FFC62828"
+               TextWrapping="Wrap"
+               Text="{Binding Error}"
+               IsVisible="{Binding ShowError}" />
+  </StackPanel>
+</UserControl>

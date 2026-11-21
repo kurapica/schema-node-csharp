@@ -14,7 +14,7 @@ public interface IRelationProvider
 
 public static class RelationProviderExtension
 {
-    public static async Task ValidateWithRelationsAsync(this IRelationProvider provider, SchemaContext context, IValueAccess node)
+    public static async Task ValidateWithRelationsAsync(this IRelationProvider provider, SchemaContext context, IValueAccess node, CancellationToken token = default)
     {
         // Validate by relations
         foreach (RelationType process in provider.GetRelations().Where(r => r.Property?.GetCsharpType()?.IsAssignableTo(typeof(IConstraintProperty)) == true))
@@ -49,8 +49,20 @@ public static class RelationProviderExtension
                 {
                     foreach (var currNode in currNodes)
                     {
-                        if (await process.ProcessAsync(context, node, currNode) is not IConstraintProperty prop) continue;
-                        bool? result = await prop.ValidateAsync(context, currNode);
+                        IConstraintProperty? prop;
+                        try
+                        {
+                            prop = await process.CallAsync(context, node, currNode).ConfigureAwait(false) as IConstraintProperty;
+                        }
+                        catch
+                        {
+                            // A relation that cannot be evaluated on partial data (e.g. an empty
+                            // argument source) produces no constraint, mirroring DebounceProcess.
+                            continue;
+                        }
+
+                        if (prop == null) continue;
+                        bool? result = await prop.ValidateAsync(context, currNode, token).ConfigureAwait(false);
                         if (result.HasValue) currNode.RecordConstraint(prop, result.Value);
                     }
                     break;

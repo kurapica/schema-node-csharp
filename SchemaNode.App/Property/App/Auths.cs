@@ -1,15 +1,19 @@
-using System.Collections.Concurrent;
-using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
+using SchemaNode.Function;
+using SchemaNode.Node;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Property;
+using SchemaNode.Property.Struct;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
-using static SchemaNode.Utility.Constant;
+using System.Collections.Concurrent;
+using System.Drawing;
+using System.Text.Json.Serialization;
 using static SchemaNode.Utility.AppConstant;
+using static SchemaNode.Utility.Constant;
 using AppType = SchemaNode.Runtime.AppType;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
 using NodeType = SchemaNode.Runtime.NodeType;
@@ -29,12 +33,12 @@ public class Auths : Property<PolicyItem[]>, ILoadableProperty, IErrorProvider, 
 {
     public string? Error { get; set; }
     
-    public async Task LoadAsync(SchemaContext context, Runtime.ValueType? ownerType = null)
+    public async Task LoadAsync(SchemaContext context, Runtime.ValueType? ownerType = null, CancellationToken token = default)
     {
         if (Value == null) return;
         foreach (PolicyItem item in Value)
         {
-            item.Function = await context.GetNodeTypeAsync<FunctionType>(item.Evaluator);
+            item.Function = await context.GetNodeTypeAsync<FunctionType>(item.Evaluator, token: token).ConfigureAwait(false);
             if (item.Function is { Args.Length: 0 } && item.Function.Return.IsAssignableTo(context.System.Bool)) continue;
             Error ??= AppErrorCodes.APP_POLICY_EVALUATOR_NOT_VALID;
         }
@@ -108,6 +112,52 @@ public enum PolicyScope
 }
 
 /// <summary>
+/// The black list resolver for the policy scope, it restricts the data scopes when the policy is not declared on an app or app field.
+/// </summary>
+[Meta<ForSchema>(SCHEMA_KIND_NODE_ENUM)]
+[Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
+[Meta<PropertyValueType>(NS_SYSTEM_BOOL)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.policy.scopeblacklist")]
+[Meta<Static>(true)]
+[Meta<InVisible>(true)]
+[Meta<Alias>("policyScopeResolver")]
+public class PolicyScopeResolver : Property<bool>
+{
+    /// <inheritdoc/>
+    public override void Effect(IValueAccess target)
+    {
+        // defer the effect, so the parent chain is available after the node is attached
+        _ = Task.Run(async () =>
+        {
+            await Task.Yield();
+            IValueAccess? curr = target;
+            while (curr is DataNode node)
+            {
+                string? kind = node.Type.GetProperty<Attach>()?.GetValue<string>();
+                if (string.IsNullOrWhiteSpace(kind))
+                {
+                    curr = node.Parent;
+                    continue;
+                }
+
+                if (!kind.Equals(SCHEMA_KIND_APP, StringComparison.OrdinalIgnoreCase) &&
+                    !kind.Equals(SCHEMA_KIND_APP_FIELD, StringComparison.OrdinalIgnoreCase))
+                {
+                    target.SetPropertyValue<BlackList, object[]>(
+                    [
+                        nameof(PolicyScope.DataCreate).ToCamelCase(),
+                        nameof(PolicyScope.DataRead).ToCamelCase(),
+                        nameof(PolicyScope.DataUpdate).ToCamelCase(),
+                        nameof(PolicyScope.DataDelete).ToCamelCase(),
+                    ], target, null);
+                }
+                break;
+            }
+        });
+    }
+}
+
+/// <summary>
 /// The policy item schema
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.policy.item")]
@@ -116,6 +166,7 @@ public sealed class PolicyItem
     /// <summary>
     /// The policy scope
     /// </summary>
+    [Meta<PolicyScopeResolver>(true)]
     public required PolicyScope Scope { get; set; }
 
     /// <summary>
@@ -152,7 +203,7 @@ public static class PolicyExtensions
     {
         // Try parent auth policy items first
         NamespaceType? parent = !string.IsNullOrWhiteSpace(schema.Namespace) 
-            ? context.GetNodeTypeAsync<NamespaceType>(schema.Namespace).GetAwaiter().GetResult() 
+            ? context.GetNodeTypeAsync<NamespaceType>(schema.Namespace).ConfigureAwait(false).GetAwaiter().GetResult() 
             : schema.Name.Equals(NS_SYSTEM, StringComparison.OrdinalIgnoreCase)
                 ? null 
                 : context.System.Self;
@@ -197,7 +248,7 @@ public static class PolicyExtensions
     {
         AppType? parent = appType.Name.Equals(NS_SYSTEM, StringComparison.OrdinalIgnoreCase) 
                               ? null 
-                              : appType.Container ?? context.GetAppTypeAsync(NS_SYSTEM).GetAwaiter().GetResult();
+                              : appType.Container ?? context.GetAppTypeAsync(NS_SYSTEM).ConfigureAwait(false).GetAwaiter().GetResult();
         if (parent != null)
         {
             foreach (var item in parent.GetAuthPolicies(context, scope))
@@ -240,12 +291,44 @@ public static class PolicyExtensions
             yield return i;
     }
 
+    
+    private record EvaluatorInfo(bool global, string? app, string? field);
+
     extension(SchemaContext context)
     {
+        private async Task<EvaluatorInfo> GetEvaluatorInfo(FunctionType func, CancellationToken token = default)
+        {
+            if (func.TryGetRuntimeFuncCache(typeof(EvaluatorInfo), out EvaluatorInfo? info)) return info!;
+            
+            // Check special function access
+            foreach(var exp in func.Exps)
+            {
+                switch (exp.FuncNode?.BaseName)
+                {
+                    case $"{NS_SYSTEM_DATA_APP}.{nameof(SystemAppData.getfield)}":
+                    case $"{NS_SYSTEM_DATA_APP}.{nameof(SystemAppData.get)}":
+                    {
+                        var app = exp.Args?.ElementAt(0)?.Value?.ToValue<string>();
+                        var field = exp.Args?.ElementAt(1)?.Value?.ToValue<string>();
+                        if (!string.IsNullOrWhiteSpace(app) && !string.IsNullOrWhiteSpace(field))
+                        {
+                            var appType = await context.GetAppTypeAsync(app, token: token);
+                            if (appType is null || appType.ScopeType == SchemaNode.Enum.AppScopeType.SystemLevel) break;
+                            info = new EvaluatorInfo(false, app, field);
+                            return func.SetRuntimeFuncCache(typeof(EvaluatorInfo), info)!;
+                        }
+                        break;
+                    }
+                }
+            }
+            info = new EvaluatorInfo(true, null, null);
+            return func.SetRuntimeFuncCache(typeof(EvaluatorInfo), info)!;
+        }
+
         /// <summary>
         /// authorize the schema with the policy scope
         /// </summary>
-        private async Task<bool> AuthorizeAsync(IEnumerable<PolicyItem> items, bool silent = false)
+        private async Task<bool> AuthorizeAsync(IEnumerable<PolicyItem> items, bool silent = false, CancellationToken token = default)
         {
             // if no policy, authorized
             bool authorized = true;
@@ -256,21 +339,38 @@ public static class PolicyExtensions
             // check policies in order
             foreach (PolicyItem item in items)
             {
+                authorized = false;
                 try
                 {
+                    FunctionType? func = await context.GetNodeTypeAsync<FunctionType>(item.Evaluator, token: token);
+                    if (func is null) continue;
+
+                    EvaluatorInfo info = await context.GetEvaluatorInfo(func, token);
+                    string key = string.Empty;
+                    if (info.global)
+                        key = item.Evaluator;
+                    else if (context.GetContextItem<Access>() is { } access && info.app!.Equals(access.App, StringComparison.OrdinalIgnoreCase))
+                        key = $"{item.Evaluator}:{access.App}:{info.field}:{access.Target}";
+                    else
+                        break;
+
                     // The result should be the same for the same evaluator in one context
-                    if (!cache.Result.TryGetValue(item.Evaluator, out authorized))
+                    if (!cache.Result.TryGetValue(key, out authorized))
                     {
-                        bool? result = await context.CallFunctionAsync<bool>(item.Evaluator, []);
+                        bool? result = await func.CallAsync<bool>(context, [], token: token).ConfigureAwait(false);
                         if (result.HasValue)
                         {
                             authorized = result.Value;
-                            cache.Result[item.Evaluator] = authorized;
+                            cache.Result[key] = authorized;
                         }
                     }
                 
                     if (authorized)
                         break;
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
                 }
                 catch(Exception ex)
                 {
@@ -286,22 +386,38 @@ public static class PolicyExtensions
         /// <summary>
         /// Authorize with the evaluator function name
         /// </summary>
-        public async Task<bool> AuthorizeAsync(string evaluator, bool silent = false)
+        public async Task<bool> AuthorizeAsync(string evaluator, bool silent = false, CancellationToken token = default)
         {
             // cache the evaluation result in context
             PolicyEvaluatorResult cache = context.GetOrAddContextItem<PolicyEvaluatorResult>();
 
+            FunctionType? func = await context.GetNodeTypeAsync<FunctionType>(evaluator, token: token);
+            if (func is null) return false;
+
+            EvaluatorInfo info = await context.GetEvaluatorInfo(func, token);
+            string key = string.Empty;
+            if (info.global)
+                key = evaluator;
+            else if (context.GetContextItem<Access>() is { } access && info.app!.Equals(access.App, StringComparison.OrdinalIgnoreCase))
+                key = $"{evaluator}:{access.App}:{info.field}:{access.Target}";
+            else
+                return false;
+
             // The result should be the same for the same evaluator in one context
-            if (!cache.Result.TryGetValue(evaluator, out var authorized))
+            if (!cache.Result.TryGetValue(key, out var authorized))
             {
                 try
                 {
-                    bool? result = await context.CallFunctionAsync<bool>(evaluator, []);
+                    bool? result = await func.CallAsync<bool>(context, [], token: token).ConfigureAwait(false);
                     if (result.HasValue)
                     {
                         authorized = result.Value;
-                        cache.Result[evaluator] = authorized;
+                        cache.Result[key] = authorized;
                     }
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {
@@ -317,36 +433,37 @@ public static class PolicyExtensions
         /// <summary>
         /// Authorize with the evaluator function
         /// </summary>
-        public Task<bool> AuthorizeAsync(FunctionType evaluator, bool silent = false) => context.AuthorizeAsync(evaluator.Name, silent);
+        public Task<bool> AuthorizeAsync(FunctionType evaluator, bool silent = false, CancellationToken token = default) 
+            => context.AuthorizeAsync(evaluator.Name, silent, token);
 
         /// <summary>
         /// Authorize the node schema with the policy scope
         /// </summary>
-        public Task<bool> AuthorizeAsync(NodeSchema schema, PolicyScope scope, bool silent = false)
-            => context.AuthorizeAsync(schema.GetAuthPolicies(context, scope), silent);
+        public Task<bool> AuthorizeAsync(NodeSchema schema, PolicyScope scope, bool silent = false, CancellationToken token = default)
+            => context.AuthorizeAsync(schema.GetAuthPolicies(context, scope), silent, token);
 
         /// <summary>
         /// Authorize the schema type with the policy scope
         /// </summary>
-        public Task<bool> AuthorizeAsync(NodeType type, PolicyScope scope, bool silent = false)
-            => context.AuthorizeAsync(type.GetAuthPolicies(context, scope), silent);
+        public Task<bool> AuthorizeAsync(NodeType type, PolicyScope scope, bool silent = false, CancellationToken token = default)
+            => context.AuthorizeAsync(type.GetAuthPolicies(context, scope), silent, token);
 
         /// <summary>
         /// Authorize the app type with the policy scope
         /// </summary>
-        public Task<bool> AuthorizeAsync(AppType app, PolicyScope scope, bool silent = false)
-            => context.AuthorizeAsync(app.GetAuthPolicies(context, scope), silent);
+        public Task<bool> AuthorizeAsync(AppType app, PolicyScope scope, bool silent = false, CancellationToken token = default)
+            => context.AuthorizeAsync(app.GetAuthPolicies(context, scope), silent, token);
 
         /// <summary>
         /// Authorize the app field with the policy scope
         /// </summary>
-        public Task<bool> AuthorizeAsync(AppFieldType appField, PolicyScope scope, bool silent = false)
-            => context.AuthorizeAsync(appField.GetAuthPolicies(context, scope), silent);
+        public Task<bool> AuthorizeAsync(AppFieldType appField, PolicyScope scope, bool silent = false, CancellationToken token = default)
+            => context.AuthorizeAsync(appField.GetAuthPolicies(context, scope), silent, token);
 
         /// <summary>
         /// Authorize the app workflow with the policy scope
         /// </summary>
-        public Task<bool> AuthorizeAsync(AppWorkflowType appWorkflow, PolicyScope scope, bool silent = false)
-            => context.AuthorizeAsync(appWorkflow.GetAuthPolicies(context, scope), silent);
+        public Task<bool> AuthorizeAsync(AppWorkflowType appWorkflow, PolicyScope scope, bool silent = false, CancellationToken token = default)
+            => context.AuthorizeAsync(appWorkflow.GetAuthPolicies(context, scope), silent, token);
     }
 }

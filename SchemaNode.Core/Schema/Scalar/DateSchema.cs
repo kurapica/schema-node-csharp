@@ -24,7 +24,7 @@ namespace SchemaNode.Schema;
 [Meta<NodeType>(typeof(Runtime.DateType))]
 [Meta<SchemaUsage>(typeof(DateUsage))]
 [Meta<Append>(typeof(Default),  typeof(BlackList), typeof(WhiteList), typeof(Error), typeof(Valid))]
-[Meta<DateValue>]
+[Meta<DateValue>(true)]
 public sealed class DateKind;
 
 /// <summary>
@@ -61,6 +61,7 @@ public sealed class DateUsage;
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_DATE}.{NODE_KIND_DATE}")]
+[Meta<NoInherit>(true)]
 [Relation<Visible, Call>(NODE_KIND_DATE, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", NODE_KIND_DATE)]
 public sealed class DateProperty : Property<DateSchema>
 {

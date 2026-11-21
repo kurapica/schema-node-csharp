@@ -1,0 +1,16 @@
+{
+  "avalonia.page.first": "首页",
+  "avalonia.page.previous": "上一页",
+  "avalonia.page.next": "下一页",
+  "avalonia.page.last": "末页",
+  "avalonia.page.query": "查询",
+  "avalonia.page.reset": "重置",
+  "avalonia.page.loading": "加载中…",
+  "avalonia.page.info": "第 {0} / {1} 页 · 共 {2} 条",
+  "avalonia.page.noData": "无数据",
+  "avalonia.page.trackingUnavailable": "宿主未提供主键跟踪，删除/恢复不可用。",
+  "avalonia.page.filterUnsupported": "宿主不支持函数过滤，请改用普通过滤条件。",
+  "avalonia.page.loadFailed": "分页数据加载失败：{0}",
+  "avalonia.page.addUnsupported": "分页表不支持直接新增行：宿主保存接口只提供更新与删除，请通过宿主的数据维护入口新增。",
+  "avalonia.button.resume": "恢复"
+}

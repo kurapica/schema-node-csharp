@@ -1,4 +1,4 @@
-﻿using SchemaNode.Attribute;
+﻿﻿using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
@@ -6,13 +6,14 @@ using SchemaNode.Property.Core;
 using SchemaNode.Property.Property;
 using SchemaNode.Runtime;
 using SchemaNode.Service;
-using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SchemaNode.Function;
+using SchemaNode.Node;
 using SchemaNode.Property.String;
 using SchemaNode.Property.Struct;
 using static SchemaNode.Utility.Constant;
+using SchemaNode.Utility;
 using NodeKind = SchemaNode.Property.Record.NodeKind;
 using NodeType = SchemaNode.Property.Core.NodeType;
 using Object = SchemaNode.Scalar.Object;
@@ -36,6 +37,7 @@ public sealed class FunctionKind;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.schema")]
 [Meta<Attach>(SCHEMA_KIND_NODE_FUNCTION)]
+[Meta<DataNodeType>(typeof(FunctionNode))]
 [Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getaccessentries)}", $"@{nameof(Args)}", $"@{nameof(Exps)}.{ARRAY_PREVIOUS}", false, NODE_SELF)]
 [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getaccessvaluetype)}", $"@{nameof(Args)}", $"@{nameof(Exps)}.{ARRAY_PREVIOUS}", NODE_SELF)]
 [Meta<KindProvider>(SCHEMA_KIND_NODE_FUNC_ARG)]
@@ -52,6 +54,7 @@ public sealed class FunctionSchema: PropertyOwner
     /// <summary>
     /// The function arguments
     /// </summary>
+    [Meta<DataNodeType>(typeof(FuncArgsNode))]
     public FuncArg[]? Args { get; set; } = [];
 
     /// <summary>
@@ -67,6 +70,7 @@ public sealed class FunctionSchema: PropertyOwner
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_FUNC}.{NODE_KIND_FUNCTION}")]
+[Meta<NoInherit>(true)]
 [Relation<Visible, Call>(NODE_KIND_FUNCTION, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", NODE_KIND_FUNCTION)]
 public sealed class FunctionProperty : Property<FunctionSchema>
 {
@@ -138,6 +142,7 @@ public sealed class FuncArgKind;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.arg")]
 [Meta<TypeProvider>(nameof(Type))]
+[Meta<DataNodeType>(typeof(FuncArgNode))]
 public sealed class FuncArg : PropertyOwner
 {
     /// <summary>
@@ -185,6 +190,7 @@ public sealed class FuncExp {
 /// </summary>
 [Meta<SchemaType>(NS_SYSTEM_SCHEMA_FUNC_CALL)]
 [Meta<Generics>($"T|{NS_SYSTEM_SCHEMA_FUNC}.type")]
+[Meta<DataNodeType>(typeof(FuncCallNode))]
 public class FuncCall
 {
     /// <summary>
@@ -223,6 +229,7 @@ public class FuncCall
     /// The argument list
     /// </summary>
     [Relation<Visible, Call>(nameof(Args), $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Func)}")]
+    [Meta<DataNodeType>(typeof(FuncCallArgsNode))]
     public CallArg[] Args { get; set; } = [];
 }
 
@@ -230,7 +237,8 @@ public class FuncCall
 /// The function call arguments
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.{nameof(CallArg)}")]
-[Relation<AccessEntryConsumer, Assign>(nameof(Source), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isassignableto)}", false, $"@{nameof(Type)}")]
+[Meta<DataNodeType>(typeof(FuncCallArgNode))]
+[Relation<AccessEntryConsumer, Assign>(nameof(Source), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isassignableto)}", NODE_SELF, false, $"@{nameof(Type)}")]
 public class CallArg: IEquatable<CallArg>
 {
     /// <summary>
@@ -238,6 +246,7 @@ public class CallArg: IEquatable<CallArg>
     /// </summary>
     [Meta<SchemaType>(typeof(ValueType))]
     [Meta<ReadOnly>(true)]
+    [Meta<InVisible>(true)]
     public string? Type { get; set; }
     
     /// <summary>
@@ -251,7 +260,7 @@ public class CallArg: IEquatable<CallArg>
     /// </summary>
     [Meta<SchemaType>(typeof(ValueType))]
     [Meta<DisplayOnly>(true)]
-    //[Meta<InVisible>(true)]
+    [Meta<InVisible>(true)]
     [Meta<AccessValueTypeResolver>(nameof(Source))]
     public string? SourceType { get; set; }
     

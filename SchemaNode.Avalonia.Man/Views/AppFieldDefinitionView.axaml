@@ -1,0 +1,34 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:view="using:SchemaNode.Avalonia.View"
+             xmlns:loc="using:SchemaNode.Avalonia.View.Localization"
+             xmlns:inf="using:SchemaNode.Avalonia.Man.Infrastructure"
+             x:Class="SchemaNode.Avalonia.Man.Views.AppFieldDefinitionView"
+             x:CompileBindings="False">
+  <Grid Margin="8" RowDefinitions="Auto,*,Auto">
+    <WrapPanel Grid.Row="0" Margin="0,0,0,8">
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.appfielddef.button.back}"
+              Command="{Binding BackCommand}" Margin="0,0,12,0" />
+      <TextBlock Text="{Binding HeaderText}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0" />
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.save}"
+              Command="{Binding SaveCommand}" />
+    </WrapPanel>
+
+    <!-- Field property area: Attach-driven system.schema.app.field.schema; no hand-written field list. -->
+    <Border Grid.Row="1" BorderBrush="#DDDDDD" BorderThickness="1"
+            IsEnabled="{Binding IsEditable}">
+      <Grid RowDefinitions="Auto,*">
+        <TextBlock Grid.Row="0" FontWeight="SemiBold" Margin="6,4,6,4"
+                   Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.appfielddef.group.properties}" />
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Auto">
+          <view:SchemaView Node="{Binding FieldNode}" Registry="{Binding Registry}" />
+        </ScrollViewer>
+      </Grid>
+    </Border>
+
+    <TextBlock Grid.Row="2" Text="{Binding Status}" Foreground="DarkSlateGray" Margin="0,8,0,0"
+               TextWrapping="Wrap"
+               IsVisible="{Binding Status, Converter={x:Static inf:Converters.VisibleIfText}}" />
+  </Grid>
+</UserControl>

@@ -1,0 +1,40 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:view="using:SchemaNode.Avalonia.View"
+             xmlns:loc="using:SchemaNode.Avalonia.View.Localization"
+             xmlns:inf="using:SchemaNode.Avalonia.Man.Infrastructure"
+             x:Class="SchemaNode.Avalonia.Man.Views.AppFieldDemoView"
+             x:CompileBindings="False">
+  <DockPanel Margin="8">
+    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8" Spacing="2">
+      <StackPanel Orientation="Horizontal" Spacing="4">
+        <TextBlock VerticalAlignment="Center"
+                   Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.appfield.label.app}" />
+        <TextBox Width="220" Margin="0,0,12,0"
+                 Text="{Binding AppName, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBlock VerticalAlignment="Center"
+                   Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.appfield.label.field}" />
+        <TextBox Width="150" Margin="0,0,12,0"
+                 Text="{Binding FieldName, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBlock VerticalAlignment="Center"
+                   Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.appfield.label.pagesize}" />
+        <TextBox Width="48" Margin="0,0,12,0"
+                 Text="{Binding PageSize, UpdateSourceTrigger=LostFocus}" />
+        <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.load}"
+                Command="{Binding LoadCommand}" Padding="12,2" />
+        <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.appfield.button.seed}"
+                Command="{Binding SeedCommand}" Padding="12,2" />
+      </StackPanel>
+
+      <TextBlock Text="{Binding PresentationText}" FontWeight="SemiBold" Margin="0,2,0,0" />
+      <TextBlock Text="{Binding HintText}" Foreground="Gray" TextWrapping="Wrap" Margin="0,2,0,0" />
+      <TextBlock Text="{Binding Status}" Foreground="Gray" TextWrapping="Wrap" Margin="0,4,0,0"
+                 IsVisible="{Binding Status, Converter={x:Static inf:Converters.VisibleIfText}}" />
+    </StackPanel>
+
+    <!-- The registry decides the surface: a pageable field resolves to the page table, others to the plain table. -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+      <view:SchemaView Node="{Binding PreviewNode}" Registry="{Binding Registry}" />
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

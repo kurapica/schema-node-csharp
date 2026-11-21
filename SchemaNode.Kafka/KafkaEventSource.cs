@@ -60,7 +60,7 @@ public sealed class KafkaEventSource : IEventSource
                     if (map.Item2 != null)
                     {
                         var payload = FromJson(Encoding.UTF8.GetString(result.Message.Value), map.Item2);
-                        evt.Payload = context.GetSchemaNodeAsync(payload).GetAwaiter().GetResult();
+                        evt.Payload = context.GetSchemaNodeAsync(payload).ConfigureAwait(false).GetAwaiter().GetResult();
                     }
                     context.RaiseEvent(evt);
                 }

@@ -176,7 +176,8 @@ public class AppQueryTest : Base.AppTestBase
     {
         string target = Guid.NewGuid().ToString();
 
-        var result = await Context.GetEntityAsync<Book>(target, Guid.NewGuid());
+        Guid missing = Guid.NewGuid();
+        var result = await Context.GetEntityAsync<Book>(target, b => b.Id == missing);
         Assert.IsNull(result);
     }
 
@@ -196,7 +197,7 @@ public class AppQueryTest : Base.AppTestBase
         await Context.SaveEntitiesAsync(target, [new Book { Id = id, Title = "Updated", Author = "A", Year = 2020, Price = 150 }]);
         await Context.CommitTransactionAsync();
 
-        var book = await Context.GetEntityAsync<Book>(target, id);
+        var book = await Context.GetEntityAsync<Book>(target, b => b.Id == id);
         Assert.IsNotNull(book);
         Assert.AreEqual("Updated", book.Title);
         Assert.AreEqual(150, book.Price);

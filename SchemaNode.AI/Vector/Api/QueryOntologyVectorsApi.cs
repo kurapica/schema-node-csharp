@@ -23,7 +23,7 @@ public class QueryOntologyVectorsApi
         int topK = request.TopK > 0 ? request.TopK : 5;
 
         IReadOnlyList<OntologyVectorMatch> matches =
-            await vectorService.SearchAsync(request.Query, topK, request.Category, SchemaContext.GetLocale(), cancellationToken);
+            await vectorService.SearchAsync(request.Query, topK, request.Category, SchemaContext.Locale, cancellationToken);
 
         return new QueryOntologyVectorsResponse
         {

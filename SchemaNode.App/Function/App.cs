@@ -36,13 +36,13 @@ public static class SystemReflectApp
         path ??= root;
         
         var app = !string.IsNullOrWhiteSpace(container) ? $"{container}.{name}".Trim('.') : name;
-        var appType = !string.IsNullOrWhiteSpace(app) ? await context.GetAppTypeAsync(app) : null;
+        var appType = !string.IsNullOrWhiteSpace(app) ? await context.GetAppTypeAsync(app).ConfigureAwait(false) : null;
         if (appType == null) return [];
         
         List<Entry<string>> first = [];
         foreach (var f in appType.GetFields().Where(f => !string.IsNullOrWhiteSpace(f.Name) && !string.IsNullOrWhiteSpace(f.Type)))
         {
-            Runtime.ValueType? fieldType = await context.GetNodeTypeAsync<Runtime.ValueType>(f.Type);
+            Runtime.ValueType? fieldType = await context.GetNodeTypeAsync<Runtime.ValueType>(f.Type).ConfigureAwait(false);
             if (fieldType == null) continue;
             var entry = new Entry<string> { Value = f.Name, HasChildren = fieldType.HasAccessEntries };
             entry.SetProperty<Display, LocaleString>(f.GetProperty<Display>()?.Value ?? fieldType.GetProperty<Display>()?.Value ?? f.Name);
@@ -55,7 +55,7 @@ public static class SystemReflectApp
             .FirstOrDefault(c => path.Equals(c.Value, StringComparison.OrdinalIgnoreCase) ||
                                  path.StartsWith($"{c.Value}.", StringComparison.OrdinalIgnoreCase)) : null;
         IValueTypeAccess? valueType = curr != null 
-            ? await context.GetNodeTypeAsync<Runtime.ValueType>(appType.GetFields().First(f => f.Name.Equals(curr.Value, StringComparison.OrdinalIgnoreCase)).Type) 
+            ? await context.GetNodeTypeAsync<Runtime.ValueType>(appType.GetFields().First(f => f.Name.Equals(curr.Value, StringComparison.OrdinalIgnoreCase)).Type).ConfigureAwait(false) 
             : null;
         
         while (valueType != null)
@@ -103,10 +103,10 @@ public static class SystemReflectApp
         string[] paths = path.Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
         if (paths.Length == 0) return null;
         var app = !string.IsNullOrWhiteSpace(container) ? $"{container}.{name}".Trim('.') : name;
-        var appType = !string.IsNullOrWhiteSpace(app) ? await context.GetAppTypeAsync(app) : null;
+        var appType = !string.IsNullOrWhiteSpace(app) ? await context.GetAppTypeAsync(app).ConfigureAwait(false) : null;
         var field = appType?.GetField(paths[0]);
         if (field == null || string.IsNullOrWhiteSpace(field.Type)) return null;
-        Runtime.ValueType? valueType = await context.GetNodeTypeAsync<Runtime.ValueType>(field.Type);
+        Runtime.ValueType? valueType = await context.GetNodeTypeAsync<Runtime.ValueType>(field.Type).ConfigureAwait(false);
         return paths.Length > 1 ? valueType?.GetAccessValueType(paths[1])?.Name : valueType?.Name;
     }
     
@@ -120,7 +120,7 @@ public static class SystemReflectApp
         if (!string.IsNullOrWhiteSpace(root) && !string.IsNullOrWhiteSpace(name) && !name.Equals(root, StringComparison.OrdinalIgnoreCase) && !name.StartsWith($"{root}.", StringComparison.OrdinalIgnoreCase))
             return []; // not access-able
         
-        var app = await context.GetAppTypeAsync(string.IsNullOrWhiteSpace(name) ? (root ?? "") : name);
+        var app = await context.GetAppTypeAsync(string.IsNullOrWhiteSpace(name) ? (root ?? "") : name).ConfigureAwait(false);
         if (app == null) return [];
 
         List<EntryAccess<string>> result = [];
@@ -164,7 +164,7 @@ public static class SystemReflectApp
     public static async Task<List<EntryAccess<string>[]>> getappfields(SchemaContext context,
         [Meta<SchemaType>(typeof(AppType))] string app)
     {
-        var appType = await context.GetAppTypeAsync(app);
+        var appType = await context.GetAppTypeAsync(app).ConfigureAwait(false);
         if (appType == null) return [];
         var access = new EntryAccess<string>
         {
@@ -192,7 +192,7 @@ public static class SystemReflectApp
         [Meta<SchemaType>(typeof(AppType))] string app,
         [Meta<SchemaType>(typeof(Identifier))] string field)
     {
-        var appType = !string.IsNullOrWhiteSpace(app) ? await context.GetAppTypeAsync(app) : null;
+        var appType = !string.IsNullOrWhiteSpace(app) ? await context.GetAppTypeAsync(app).ConfigureAwait(false) : null;
         var fieldType = appType?.GetField(field);
         if (fieldType == null) return [];
         var valueType = fieldType.ValueType;
@@ -215,7 +215,7 @@ public static class SystemReflectApp
         [Meta<SchemaType>(typeof(AppType))] string app,
         [Meta<SchemaType>(typeof(AppType))] string foreignApp)
     {
-        var appType = await context.GetAppTypeAsync(app);
+        var appType = await context.GetAppTypeAsync(app).ConfigureAwait(false);
         if (appType == null) return [];
         var access = new EntryAccess<string>
         {
@@ -245,7 +245,7 @@ public static class SystemReflectApp
     public static async Task<bool> hasfields(SchemaContext context,
         [Meta<SchemaType>(typeof(AppType))] string app)
     {
-        var appType = await context.GetAppTypeAsync(app);
+        var appType = await context.GetAppTypeAsync(app).ConfigureAwait(false);
         return appType?.HasAccessEntries ?? false;
     }
 
@@ -264,7 +264,7 @@ public static class SystemReflectApp
             return []; // not access-able
         path ??= root;
 
-        var appType = !string.IsNullOrWhiteSpace(app) ? await context.GetAppTypeAsync(app) : null;
+        var appType = !string.IsNullOrWhiteSpace(app) ? await context.GetAppTypeAsync(app).ConfigureAwait(false) : null;
         if (appType == null) return [];
 
         var appField = appType.GetField(field);
@@ -274,7 +274,7 @@ public static class SystemReflectApp
         if (elementType && type is ArrayType arr) type = arr.Element;
         if (type == null) return [];
 
-        return await Reflect.Type.getaccessentries(context, type.Name, path, root);
+        return await Reflect.Type.getaccessentries(context, type.Name, path, root).ConfigureAwait(false);
     }
 
 
@@ -287,7 +287,7 @@ public static class SystemReflectApp
         bool elementType = false,
         string? path = null)
     {
-        var appType = !string.IsNullOrWhiteSpace(app) ? await context.GetAppTypeAsync(app) : null;
+        var appType = !string.IsNullOrWhiteSpace(app) ? await context.GetAppTypeAsync(app).ConfigureAwait(false) : null;
         var fieldType = appType?.GetField(field);
         if (fieldType == null) return null;
         var valueType = elementType && fieldType.ValueType is ArrayType arr ? arr.Element : fieldType.ValueType;
@@ -300,7 +300,7 @@ public static class SystemReflectApp
     public static async Task<EntryAccess<string>[]> getcombinefields(SchemaContext context,
         [Meta<SchemaType>(typeof(Schema.ValueType))] string type)
     {
-        var valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        var valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type).ConfigureAwait(false) : null;
         if (valueType == null) return [];
         var primary = (valueType as ArrayType)?.Primary;
         valueType = (valueType as ArrayType)?.Element ?? valueType;
@@ -330,7 +330,7 @@ public static class SystemReflectApp
     public static async Task<DataCombineType[]> getcombinetype(SchemaContext context,
         [Meta<SchemaType>(typeof(Schema.ValueType))] string type)
     {
-        var valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        var valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type).ConfigureAwait(false) : null;
         valueType = (valueType as ArrayType)?.Element ?? valueType;
         if (valueType is EnumType or ScalarType)
         {
@@ -354,7 +354,7 @@ public static class SystemReflectApp
         [Meta<SchemaType>(typeof(AppType))] string app,
         AppScopeType policy)
     {
-        var appType = !string.IsNullOrWhiteSpace(app) ? await context.GetAppTypeAsync(app) : null;
+        var appType = !string.IsNullOrWhiteSpace(app) ? await context.GetAppTypeAsync(app).ConfigureAwait(false) : null;
         var scope = appType?.GetProperty<ScopePolicy>()?.Value;
         return scope?.Type  == policy;
     }

@@ -1,0 +1,15 @@
+<UserControl x:Class="SchemaNode.WPF.View.SchemaView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             HorizontalContentAlignment="Stretch"
+             VerticalContentAlignment="Top">
+    <Grid x:Name="Root">
+        <!-- The inspector trigger and its column are created in code behind only when the
+             inheritable Debug property is on, so an unturned-on subtree has no debug element and
+             no debug layout at all. -->
+
+        <ContentPresenter x:Name="Presenter"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Top" />
+    </Grid>
+</UserControl>

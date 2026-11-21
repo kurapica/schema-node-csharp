@@ -34,4 +34,12 @@ public static class PropertyExtensions
         => Records.TryGetValue(propertyType, out var properties) 
             ? properties.Values.OrderBy(p => p.Order) 
             : Enumerable.Empty<IOrderProperty>();
+
+    /// <summary>
+    /// Whether the given value is a valid record value
+    /// </summary>
+    public static bool IsRecordValue(this Type propertyType, string value)
+        => Records.TryGetValue(propertyType, out var properties)
+            ? properties.Values.Any(v => value.Equals(v.GetValue<string>(), StringComparison.OrdinalIgnoreCase))
+            : false;
 }

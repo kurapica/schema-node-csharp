@@ -21,9 +21,9 @@ public class TypeProviderAccessPath: IValueAccessPathHandler
     public LocaleString Display => nameof(TYPE_PROVIDER);
 
     /// <inheritdoc/>
-    public async Task LoadAsync(ISchemaContext context)
+    public async Task LoadAsync(ISchemaContext context, CancellationToken token = default)
         => _valueType = context is SchemaContext ctx 
-                ? await ctx.GetNodeTypeAsync<ValueType>($"{NS_SYSTEM_SCHEMA_NODE}.valuetype")
+                ? await ctx.GetNodeTypeAsync<ValueType>($"{NS_SYSTEM_SCHEMA_NODE}.valuetype", token: token).ConfigureAwait(false)
                 : null;
 
     /// <inheritdoc/>
@@ -36,7 +36,7 @@ public class TypeProviderAccessPath: IValueAccessPathHandler
         TypeProvider? typeProvider = null;
         while (access != null)
         {
-            typeProvider = access.PropertyProvider?.GetProperty<TypeProvider>();
+            typeProvider = access.GetProperty<TypeProvider>();
             if (typeProvider is { HasValue: true }) break;
             access = access.Parent;
         }

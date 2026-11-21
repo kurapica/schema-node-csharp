@@ -248,7 +248,8 @@ public class AppDataTest : Base.AppTestBase
         ]);
         await Context.CommitTransactionAsync();
 
-        var meet = await Context.GetEntityAsync<Meeting>(target, meetingId);
+        Guid meetingKey = Guid.Parse(meetingId);
+        var meet = await Context.GetEntityAsync<Meeting>(target, m => m.Id == meetingKey);
         Assert.IsNotNull(meet);
         Assert.AreEqual("Room A", meet.PlaceName);
         Assert.AreEqual(15, meet.Count); // 9 + 2 + 4 = 15
@@ -293,7 +294,7 @@ public class AppDataTest : Base.AppTestBase
         await Context.CommitTransactionAsync();
 
         // Verify it's there
-        var place = await Context.GetEntityAsync<Place>(target, placeId);
+        var place = await Context.GetEntityAsync<Place>(target, p => p.Id == placeId);
         Assert.IsNotNull(place);
 
         // Delete
@@ -302,7 +303,7 @@ public class AppDataTest : Base.AppTestBase
         await Context.CommitTransactionAsync();
 
         // Verify it's gone
-        var deleted = await Context.GetEntityAsync<Place>(target, placeId);
+        var deleted = await Context.GetEntityAsync<Place>(target, p => p.Id == placeId);
         Assert.IsNull(deleted);
     }
 

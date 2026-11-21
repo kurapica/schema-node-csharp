@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+﻿﻿using System.Collections.Concurrent;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Property;
@@ -48,13 +48,25 @@ public class Entry<T>: PropertyOwner where T: notnull
     /// The value map, only used in the root
     /// </summary>
     private ConcurrentDictionary<T, Entry<T>>? _valueMaps;
-    
+
+    /// <summary>
+    /// The white list mask of the entry, only used in the root
+    /// </summary>
+    private T[]? _whiteList;
+
     /// <summary>
     /// The entry is root
     /// </summary>
     [JsonIgnore]
     [SchemaIgnore]
     public bool IsRoot => _parent == null;
+
+    /// <summary>
+    /// Whether the entry is disabled
+    /// </summary>
+    [JsonIgnore]
+    [SchemaIgnore]
+    public bool Disabled => GetProperty<Disable>()?.Value == true;
 
     /// <summary>
     /// The entry is fully loaded
@@ -89,24 +101,73 @@ public class Entry<T>: PropertyOwner where T: notnull
         // build entry access list
         List<EntryAccess<T>> accesses = [];
         bool inBranch = false;
+        Entry<T>? preEntry = null;
         while (entry != null)
         {
-            accesses.Add(new EntryAccess<T>
+            Entry<T>? rentry = entry._parent != null ? entry.Clone() : null;
+            Entry<T>[]? children = entry.Children is { Length: > 0 }
+                ? (_whiteList is { Length: > 0 } && entry.Children.Any(c => _whiteList.Contains(c.Value))
+                    ? entry.Children.Where(c => _whiteList.Contains(c.Value)).Select(c => c.Clone()).ToArray()
+                    : entry.Children.Select(c => c.Clone()).ToArray())
+                : null;
+
+            if (preEntry != null && preEntry.HasChildren != true)
             {
-                Entry = entry._parent != null ? entry.Clone() : null,
-                Children = entry.Children?.Select(c => c.Clone()).ToArray()
+                Entry<T>? e = children?.FirstOrDefault(c => c.Value.Equals(preEntry.Value));
+                if (e != null) e.HasChildren = false;
+            }
+
+            if (children is not { Length: > 0 } && rentry is { HasChildren: true }) rentry.HasChildren = false;
+            accesses.Insert(0, new EntryAccess<T>
+            {
+                Entry = rentry,
+                Children = children
             });
             if (entry == this)
             {
                 inBranch = true;
                 break;
             }
+            preEntry = rentry;
             entry = entry._parent;
         }
         if (!inBranch) return null;
 
-        accesses.Reverse();
         return accesses.ToArray();
+    }
+
+    /// <summary>
+    /// Use the white list as mask for the access list
+    /// </summary>
+    public void UseWhiteList(T[] whiteList) => _whiteList = whiteList;
+
+    /// <summary>
+    /// Drop the children entries
+    /// </summary>
+    public void DropChildren()
+    {
+        if (Children is { Length: > 0 }) Array.ForEach(Children, c => c.UnRegister());
+        Children = null;
+        HasChildren = false;
+    }
+
+    /// <summary>
+    /// Drop the entry from the parent
+    /// </summary>
+    public void Drop()
+    {
+        if (_parent != null && _parent.Children is { Length: > 0 })
+        {
+            _parent.Children = _parent.Children.Where(c => c != this).ToArray();
+            if (!_parent.Children.Any())
+            {
+                if (_parent.Disabled)
+                    _parent.Drop();
+                else
+                    _parent.DropChildren();
+            }
+        }
+        UnRegister();
     }
     
     /// <summary>

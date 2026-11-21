@@ -53,9 +53,11 @@ Save it for later use.
 
 ## 3. Create the Workflow
 
-Click the `Workflow` page of the `project` application, then choose to create a new workflow:
+Create a new workflow type:
 
 ![workflow](./pic/03_workflow_07.png)
+
+The workflow prototype is provided in SchemaNode.Workflow, not the Core, since there are many ways to design and implement the workflow.
 
 
 ### 3.1 Waiting for Data Updates
@@ -110,7 +112,11 @@ Continue adding a child node, calling the log record generation function:
 
 ## 4. Activate the Workflow
 
-On the workflow management page, click the `Activate` button to activate the workflow. If there are no errors, it becomes a `Deactivate` button.
+On the workflow management page, add the created workflow.
+
+![add](./pic/03_workflow_17.png)
+
+Then click the `Activate` button to activate the workflow. If there are no errors, it becomes a `Deactivate` button.
 
 ![activate](./pic/03_workflow_15.png)
 

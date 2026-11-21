@@ -1,21 +1,18 @@
-using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Context;
-using SchemaNode.Enum;
 using SchemaNode.Property;
-using SchemaNode.Schema;
-using SchemaNode.Utility;
-using SchemaNode.Workflow;
-using System.Reflection;
 using SchemaNode.Property.App;
 using SchemaNode.Property.Core;
+using SchemaNode.Schema;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.AppConstant;
 
 namespace SchemaNode.Runtime;
 
 /// <summary>
-/// The in-memory application workflow schema representation
+/// The in-memory application workflow schema representation.
+/// It only references the workflow type definition and delegates the execution to <see cref="WorkflowType"/>.
 /// </summary>
-public sealed class AppWorkflowType: IDisposable
+public sealed class AppWorkflowType
 {
     #region Constructors
 
@@ -23,8 +20,7 @@ public sealed class AppWorkflowType: IDisposable
     {
         Application = app;
         _appWorkflowSchema = schema;
-        Nodes = schema.Nodes ?? []; // the runtime node graph source, lost during node parsing refactor
-        Active = schema.Active; // restore the persisted active flag, so the workflow can be re-activated (and restore its context) after restart
+        Active = schema.Active;
     }
 
     #endregion
@@ -34,6 +30,10 @@ public sealed class AppWorkflowType: IDisposable
     private readonly AppWorkflowSchema _appWorkflowSchema;
     private IProperty[]? _props;
     private NodeType[]? _refTypes;
+    private WorkflowType? _workflow;
+
+    // There should be only one work flow to active, normally forkable workflow
+    private WorkflowContext? _rootWorkflow;
     
     #endregion
     
@@ -58,17 +58,17 @@ public sealed class AppWorkflowType: IDisposable
     /// The workflow name
     /// </summary>
     public string Name => _appWorkflowSchema.Name;
-    
+
+    /// <summary>
+    /// The referenced workflow type
+    /// </summary>
+    public string Type => _appWorkflowSchema.Type;
+        
     /// <summary>
     /// Active the workflow
     /// </summary>
     public bool Active { get; internal set; }
-    
-    /// <summary>
-    /// The workflow nodes
-    /// </summary>
-    public AppWorkflowNodeSchema[] Nodes { get; internal set; } = [];
-    
+        
     /// <summary>
     /// The app workflow schema
     /// </summary>
@@ -78,8 +78,6 @@ public sealed class AppWorkflowType: IDisposable
     
     #region States
 
-    private int _activated;
-
     /// <summary>
     /// The application field error
     /// </summary>
@@ -88,12 +86,12 @@ public sealed class AppWorkflowType: IDisposable
     /// <summary>
     /// Whether the workflow is activated
     /// </summary>
-    public bool Activated => _activated > 0;
+    public bool Activated => _rootWorkflow != null && _rootWorkflow.GetWorkflowStatus() != Enum.Workflow.WorkflowStatus.Terminated;
 
     /// <summary>
     /// Gets the root workflow context
     /// </summary>
-    public WorkflowContext? RootWorkflowContext => _workflowContext;
+    public WorkflowContext? RootWorkflowContext => _rootWorkflow;
     
     #endregion
 
@@ -102,28 +100,36 @@ public sealed class AppWorkflowType: IDisposable
     /// <summary>
     /// Load the workflow schema
     /// </summary>
-    public async Task LoadAsync(SchemaContext context)
+    public async Task LoadAsync(SchemaContext context, CancellationToken token = default)
     {
+        Error = null;
         _props = _appWorkflowSchema.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_APP_WORKFLOW)).ToArray();
-        (_refTypes, Error) = await _appWorkflowSchema.LoadPropertiesAsync(context, _props);
+        (_refTypes, Error) = await _appWorkflowSchema.LoadPropertiesAsync(context, _props, token: token).ConfigureAwait(false);
 
-        // Resolve payload types for all nodes
-        foreach (var node in Nodes)
-        {
-            var (_subRefTypes, err) = await node.LoadPropertiesAsync(context, node.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_APP_WORKFLOW_NODE)).ToArray());
-            Error ??= err;
-            if (_subRefTypes is { Length: > 0 })
-                _refTypes = _refTypes == null ? _subRefTypes : _refTypes.Concat(_subRefTypes).ToArray();
+        _workflow = !string.IsNullOrWhiteSpace(Type) ? await context.GetNodeTypeAsync<WorkflowType>(Type, token: token).ConfigureAwait(false) : null;
 
-            if (string.IsNullOrWhiteSpace(node.Payload)) continue;
-            node.PayloadValueType = await context.GetNodeTypeAsync<ValueType>(node.Payload);
-            if (node.PayloadValueType == null)
-                Error ??= AppErrorCodes.WORKFLOW_NODE_VALUE_TYPE_NOT_VALID;
-        }
+        if (_workflow is null)
+            Error ??= AppErrorCodes.APP_WORKFLOW_TYPE_NOT_VALID;
+    }
 
-        // Init the entry workflow context
-        if (Nodes.Length <= 1 || !Active) return;
-        await ActiveAsync(context);
+    /// <summary>
+    /// Active the workflow
+    /// </summary>
+    public async Task ActiveAsync(SchemaContext context, CancellationToken token = default)
+    {
+        if (_workflow == null || Activated) return;
+        Active = true;
+        _rootWorkflow = await _workflow.ProcessWorkflowAsync(context);
+    }
+
+    /// <summary>
+    /// Deactivate the workflow
+    /// </summary>
+    public async Task DeactivateAsync()
+    {
+        if (!Activated) return;
+        await _rootWorkflow!.TerminateAsync().ConfigureAwait(false);
+        Active = false;
     }
 
     /// <summary>
@@ -131,11 +137,10 @@ public sealed class AppWorkflowType: IDisposable
     /// </summary>
     public IEnumerable<NodeType> GetReferenceTypes()
     {
-        foreach (var node in Nodes)
-        {
-            if (node.PayloadValueType != null)
-                yield return node.PayloadValueType;
-        }
+        if (_workflow != null)
+            foreach (var node in _workflow.GetReferenceTypes())
+                yield return node;
+
         if (_refTypes != null)
             foreach (var node in _refTypes)
                 yield return node;
@@ -145,7 +150,7 @@ public sealed class AppWorkflowType: IDisposable
     /// Get the application workflow schema
     /// </summary>
     /// <returns></returns>
-    public async Task<AppWorkflowSchema> GetSchemaAsync(SchemaContext context, bool noAuth = false)
+    public async Task<AppWorkflowSchema> GetSchemaAsync(SchemaContext context, bool noAuth = false, CancellationToken token = default)
     {
         AppWorkflowSchema schema = new AppWorkflowSchema
         {
@@ -153,29 +158,7 @@ public sealed class AppWorkflowType: IDisposable
             Name = _appWorkflowSchema.Name,
             Seqno = _appWorkflowSchema.Seqno,
             Active = _appWorkflowSchema.Active,
-            Nodes = _appWorkflowSchema.Nodes.Select(n =>
-            {
-                AppWorkflowNodeSchema s = new AppWorkflowNodeSchema
-                {
-                    Name = n.Name,
-                    Type = n.Type,
-                    Payload = n.Payload,
-                    Args = n.Args?.Select(n => new CallArg
-                    {
-                        Source = n.Source,
-                        Value = n.Value,
-                    }).ToArray(),
-                    Previous = n.Previous,
-                    State = n.State,
-                    Fork = n.Fork,
-                    ForkKey = n.ForkKey,
-                    UnCancelable = n.UnCancelable,
-                    CancelPre = n.CancelPre,
-                    SavePayload = n.SavePayload,
-                };
-                s.CombineProperties(n);
-                return s;
-            }).ToArray()
+            Type = _appWorkflowSchema.Type,
         };
         schema.CombineProperties(_appWorkflowSchema);
 
@@ -183,10 +166,10 @@ public sealed class AppWorkflowType: IDisposable
         if (!noAuth)
         {
             bool isSystem = Application.GetProperty<SystemDefined>()?.Value == true;
-            schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true));
-            schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true));
-            schema.SetProperty<SchemaUpdate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true));
-            schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true));
+            schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true, token).ConfigureAwait(false));
+            schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true, token).ConfigureAwait(false));
+            schema.SetProperty<SchemaUpdate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true, token).ConfigureAwait(false));
+            schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true, token).ConfigureAwait(false));
         }
         
         return schema;
@@ -206,146 +189,6 @@ public sealed class AppWorkflowType: IDisposable
     /// Gets the property by property name
     /// </summary>
     public IProperty? GetProperty(string propertyName) => _props?.FirstOrDefault(p => p.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase));
-
-    /// <summary>
-    /// Active the workflow
-    /// </summary>
-    public async Task ActiveAsync(SchemaContext context)
-    {
-        // Active only once
-        if (Interlocked.CompareExchange(ref _activated, 1, 0) != 0) return;
-        
-        // init the workflow nodes
-        List<BaseWorkflow> topNodes = [];
-        Dictionary<string, BaseWorkflow> workflows = [];
-
-        try
-        {
-
-            foreach (var node in Nodes)
-            {
-                var workflowType = await context.GetNodeTypeAsync(node.Type) as WorkflowType;
-                Type csharpType = workflowType?.GetCsharpType() ?? throw new InvalidOperationException($"BaseWorkflow type {node.Type} not found");
-
-                // All constructors parameters goto state, init directly
-                BaseWorkflow wNode = (BaseWorkflow)Activator.CreateInstance(csharpType)!;
-                wNode.Application = Application;
-                wNode.Name = node.Name;
-                wNode.Fork = node.Fork ?? false;
-                wNode.ForkKey = node.ForkKey?.ToArray();
-                wNode.UnCancelable = node.UnCancelable ?? false;
-                wNode.CancelPre = node.CancelPre ?? false;
-                wNode.SavePayload = node.SavePayload ?? false;
-
-                // payload type
-                if (node.PayloadValueType != null)
-                    wNode.PayloadType = node.PayloadValueType;
-
-                // state
-                if (workflowType.State != null && node.State != null && !node.State.IsEmpty())
-                {
-                    var stateType = workflowType.State?.GetCsharpType();
-                    if (stateType != null)
-                        csharpType.GetProperty(nameof(WorkflowType.State), BindingFlags.Public | BindingFlags.Instance)
-                            ?.SetValue(wNode, stateType.TryConvert(node.State, out var result) ? result : null);
-                }
-
-                // details
-                await wNode.LoadAsync(context, node);
-                Error ??= node.Error;
-
-                // args
-                if (workflowType.Args is { Length: > 0 })
-                {
-                    wNode.Args = new CallArg[workflowType.Args.Length];
-                    if (node.Args == null || node.Args.Length != workflowType.Args.Length)
-                        throw new InvalidOperationException($"BaseWorkflow node {node.Name} arguments count mismatch, expected {workflowType.Args.Length} but got {node.Args?.Length ?? 0}");
-                    for (int i = 0; i < workflowType.Args.Length; i++)
-                    {
-                        var argDef = workflowType.Args[i];
-                        var argNode = node.Args[i];
-                        wNode.Args[i] = new CallArg
-                        {
-                            Source = argNode.Source,
-                            Value = argNode.Value,
-                            ValueType = await context.GetNodeTypeAsync<ValueType>(argDef.Type),
-                        };
-                    }
-                }
-
-                workflows.Add(wNode.Name, wNode);
-
-                // Relations
-                if (node.Previous is { Length: > 0 })
-                {
-                    wNode.Previous = new BaseWorkflow[node.Previous.Length];
-                    for (int j = 0; j < node.Previous.Length; j++)
-                    {
-                        var prevNode = workflows[node.Previous[j]]
-                                       ?? throw new InvalidOperationException($"Previous workflow node {node.Previous[j]} not found for node {node.Name}");
-                        wNode.Previous[j] = prevNode;
-                        prevNode.Next ??= [];
-                        prevNode.Next = prevNode.Next.Append(wNode).ToArray();
-                    }
-                }
-                else
-                {
-                    topNodes.Add(wNode);
-                }
-            }
-
-            // should have only one entry node
-            if (topNodes.Count != 1)
-                throw new InvalidOperationException($"BaseWorkflow schema {Name} should have exactly one entry node, but found {topNodes.Count}");
-
-            _workflowContext?.Dispose();
-            _workflowContext = ActivatorUtilities.CreateInstance<WorkflowContext>(context.Services);
-            _workflowContext.CopySchemaContextItem(context); // copy context items
-
-            // restore
-            BaseWorkflow first = topNodes.First();
-            IWorkflowContextPersistence? persistence = context.GetService<IWorkflowContextPersistence>();
-            if (persistence != null)
-            {
-                var result = await persistence.ListAsync(App, Name, null, WorkflowStatus.Running);
-                if (result.Item2 > 0)
-                {
-                    // only should have one running context
-                    var snapshot = result.Item1.OrderBy(s => s.Id).First();
-                    _workflowContext.Initialize(this, first, null, snapshot);
-                    return;
-                }
-            }
-            _workflowContext.Initialize(this, first);
-        }
-        catch(Exception ex)
-        {
-            Interlocked.CompareExchange(ref _activated, 0, 1);
-            context.LogError(ex, "The active workflow failed");
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// Deactivate the workflow
-    /// </summary>
-    public async Task DeactivateAsync()
-    {
-        if (Interlocked.CompareExchange(ref _activated, 0, 1) != 1)
-            return;
-
-        await Task.Yield();
-
-        if (_workflowContext != null)
-        {
-            await _workflowContext.TerminateAsync();
-            _workflowContext = null;
-        }
-    }
-    
-    public void Dispose() => _workflowContext?.Dispose();
-
-    private WorkflowContext? _workflowContext;
 
     #endregion
 }

@@ -1,0 +1,15 @@
+<prism:PrismApplication x:Class="SchemaNode.WPF.Man.App"
+                        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                        xmlns:prism="http://prismlibrary.com/">
+    <Application.Resources>
+        <ResourceDictionary>
+            <!-- App-layer view templates: the registry resolves a bound page source to this key. -->
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/SchemaNode.WPF.AppView;component/Templates/PageTableTemplates.xaml" />
+                <!-- Man-only special views (function call arguments, function definition cards). -->
+                <ResourceDictionary Source="/SchemaNode.WPF.Man;component/Templates/ManSchemaTemplates.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</prism:PrismApplication>

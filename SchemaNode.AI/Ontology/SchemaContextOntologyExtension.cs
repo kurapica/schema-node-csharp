@@ -621,7 +621,7 @@ public static class SchemaContextOntologyExtension
                 Name   = seg,
                 Iri    = iri,
                 Labels = ToLabels(enumType.GetProperty<Display>()?.Value),
-                Values = enumType.GetEnumEntryAccessAsync(context, null).GetAwaiter().GetResult().First().Children!
+                Values = enumType.GetEnumEntryAccessAsync(context, null).ConfigureAwait(false).GetAwaiter().GetResult().First().Children!
                     .Where(v => !string.IsNullOrEmpty(v.Value))
                     .Select(v => new OntologyEnumValue
                     {

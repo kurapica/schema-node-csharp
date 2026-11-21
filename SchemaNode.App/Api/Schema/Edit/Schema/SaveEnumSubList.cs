@@ -19,7 +19,7 @@ public class SaveEnumEntriesApi : SchemaApi<SaveEnumSubListRequest, SaveEnumSubL
 
         return new SaveEnumSubListResponse
         {
-            Result = await SchemaContext.SaveEnumEntriesAsync(request.Name, request.Value, request.Values, request.Append ?? false)
+            Result = await SchemaContext.SaveEnumEntriesAsync(request.Name, request.Value, request.Values, request.Append ?? false).ConfigureAwait(false)
         };
     }
 }

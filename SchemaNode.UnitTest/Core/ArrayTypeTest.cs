@@ -1,9 +1,28 @@
+using SchemaNode.Attribute;
 using SchemaNode.Node;
+using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
+using static SchemaNode.Function.SystemStr;
 using static SchemaNode.Utility.Constant;
 using ValueType = SchemaNode.Runtime.ValueType;
 
 namespace SchemaNode.UnitTest.Core;
+
+/// <summary>Element type for the required struct array case.</summary>
+[Meta<SchemaType>("test.reqarrayentry")]
+public class RequiredArrayEntry
+{
+    public int Min { get; set; }
+}
+
+/// <summary>Struct with a nested struct and a non-nullable array field, so <c>Require</c> is attached to both.</summary>
+[Meta<SchemaType>("test.reqarray")]
+public class RequiredArrayCase
+{
+    public RequiredArrayEntry Inner { get; set; } = new();
+
+    public RequiredArrayEntry[] Lines { get; set; } = [];
+}
 
 [TestClass]
 public class ArrayTypeTest : Base.CoreTestBase
@@ -31,7 +50,7 @@ public class ArrayTypeTest : Base.CoreTestBase
     {
         var arrayType = await Context.GetNodeTypeAsync<ArrayType>(NS_SYSTEM_ARRAY);
         Assert.IsNotNull(arrayType);
-        var node = arrayType.Create() as ArrayNode;
+        var node = arrayType.Create(Context) as ArrayNode;
         Assert.IsNotNull(node);
         Assert.AreEqual(NODE_KIND_ARRAY, node.Type.Kind);
     }
@@ -43,7 +62,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         Assert.IsNotNull(objType);
         var arrayType = await Context.GetArrayNodeTypeAsync(objType);
         Assert.IsNotNull(arrayType);
-        var node = arrayType.Create() as ArrayNode;
+        var node = arrayType.Create(Context) as ArrayNode;
         Assert.IsNotNull(node);
         node.Add(42L);
         node.Add("hello");
@@ -57,7 +76,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         Assert.IsNotNull(objType);
         var arrayType = await Context.GetArrayNodeTypeAsync(objType);
         Assert.IsNotNull(arrayType);
-        var node = arrayType.Create() as ArrayNode;
+        var node = arrayType.Create(Context) as ArrayNode;
         Assert.IsNotNull(node);
         node.Add(10);
         node.Add(20);
@@ -75,7 +94,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         Assert.IsNotNull(objType);
         var arrayType = await Context.GetArrayNodeTypeAsync(objType);
         Assert.IsNotNull(arrayType);
-        var node = arrayType.Create() as ArrayNode;
+        var node = arrayType.Create(Context) as ArrayNode;
         Assert.IsNotNull(node);
 
         node!.AddRange(new object[] { 1, 2, 3, 4, 5 });
@@ -89,7 +108,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         Assert.IsNotNull(objType);
         var arrayType = await Context.GetArrayNodeTypeAsync(objType);
         Assert.IsNotNull(arrayType);
-        var node = arrayType.Create() as ArrayNode;
+        var node = arrayType.Create(Context) as ArrayNode;
         Assert.IsNotNull(node);
 
         node!.Add(42L);
@@ -105,7 +124,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         Assert.IsNotNull(objType);
         var arrayType = await Context.GetArrayNodeTypeAsync(objType);
         Assert.IsNotNull(arrayType);
-        var node = arrayType.Create() as ArrayNode;
+        var node = arrayType.Create(Context) as ArrayNode;
         Assert.IsNotNull(node);
 
         node!.Add(10L);
@@ -123,7 +142,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         var arrayType = await Context.GetNodeTypeAsync<ArrayType>(NS_SYSTEM_ARRAY);
         Assert.IsNotNull(arrayType);
 
-        var node = arrayType.Create() as ArrayNode;
+        var node = arrayType.Create(Context) as ArrayNode;
         Assert.IsNotNull(node);
         Assert.IsTrue(node!.IsEmpty);
     }
@@ -135,7 +154,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         Assert.IsNotNull(objType);
         var arrayType = await Context.GetArrayNodeTypeAsync(objType);
         Assert.IsNotNull(arrayType);
-        var node = arrayType.Create() as ArrayNode;
+        var node = arrayType.Create(Context) as ArrayNode;
         Assert.IsNotNull(node);
 
         node!.Add("first");
@@ -152,6 +171,55 @@ public class ArrayTypeTest : Base.CoreTestBase
         Assert.AreEqual("third", items[2]);
     }
 
+    /// <summary>
+    /// A required array field that receives its elements through <see cref="ArrayNode.Add"/>
+    /// (instead of a whole-value write) must stop being reported as empty.
+    /// </summary>
+    [TestMethod]
+    public async Task ArrayNode_Add_RevalidatesRequiredField()
+    {
+        Context.FullMode = true;
+
+        var type = await Context.GetNodeTypeAsync<ValueType>("test.reqarray");
+        Assert.IsNotNull(type);
+        var node = type.Create(Context) as StructNode;
+        Assert.IsNotNull(node);
+
+        var lines = node!.GetAccessValue("lines") as ArrayNode;
+        Assert.IsNotNull(lines);
+        Assert.IsTrue(lines!.IsEmpty, "the array starts empty");
+
+        // Giving the nested struct a value makes the parent struct non-empty, so its StructValue
+        // constraint validates the fields and records the required violation on the empty array.
+        // This reproduces the state the editor opens with.
+        node.GetAccessValue("inner")!.GetAccessValue("min")!.TrySetValue(5);
+        await node.ValidateAsync(default);
+        Assert.IsFalse(lines.IsValid, "a required empty array violates the constraint");
+
+        var elementType = await Context.GetNodeTypeAsync<ValueType>("test.reqarrayentry");
+        Assert.IsNotNull(elementType);
+        IValueAccess? row = elementType.Create(Context, new RequiredArrayEntry { Min = 7 });
+        Assert.IsNotNull(row);
+
+        lines.Add(row);
+
+        Assert.IsFalse(lines.IsEmpty, "the array now holds an element");
+        await WaitUntilAsync(() => lines.IsValid);
+        Assert.IsTrue(lines.IsValid, "the required constraint must observe the added element");
+        Assert.IsTrue(node.IsValid, "the parent struct must be valid as well");
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        // Data changes are validated on the thread pool.
+        for (int i = 0; i < 200; i++)
+        {
+            if (condition()) return;
+            await Task.Delay(10);
+        }
+        Assert.Fail("validation result was not applied in time");
+    }
+
     [TestMethod]
     public async Task ArrayNode_ElementType()
     {
@@ -160,7 +228,7 @@ public class ArrayTypeTest : Base.CoreTestBase
         var arrayType = await Context.GetArrayNodeTypeAsync(objType);
         Assert.IsNotNull(arrayType);
 
-        var node = arrayType.Create() as ArrayNode;
+        var node = arrayType.Create(Context) as ArrayNode;
         Assert.IsNotNull(node);
         Assert.IsNotNull(node!.ElementType);
     }

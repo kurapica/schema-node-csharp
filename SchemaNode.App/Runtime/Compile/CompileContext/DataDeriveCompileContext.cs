@@ -36,7 +36,7 @@ public class DataDeriveCompileContext(SchemaContext context, FunctionType functi
         if (Function.TryGetRuntimeFuncCache<DataDeriveCompileContext, FunctionTypeSchema>(out FunctionTypeSchema? schema))
             return schema!;
         
-        schema = await base.VisitFunctionType();
+        schema = await base.VisitFunctionType().ConfigureAwait(false);
         
         // No third app field involved
         AppFieldType? to = _appType?.GetFields().FirstOrDefault(f => f.ValueType is ArrayType arrayType && arrayType.Element == Function.Return);
@@ -154,7 +154,7 @@ public class DataDeriveCompileContext(SchemaContext context, FunctionType functi
                             funcCallExp.Args[2] is ConstantExp { Value.IsEmpty: false } dataFieldExp
                            )
                         {
-                            _appType ??= await Context.GetAppTypeAsync(appExp.Value.GetValue<string>()!);
+                            _appType ??= await Context.GetAppTypeAsync(appExp.Value.GetValue<string>()!).ConfigureAwait(false);
                             if (_appType == null || _appType.Name != appExp.Value.GetValue<string>()) break;
                             var thirdField = _appType.GetField(fieldExp.Value.GetValue<string>() ?? string.Empty);
                             if (thirdField?.ValueType is not ArrayType { Element: StructType arrayStruct, Primary: { Count: > 0 } } arrayType) break;
@@ -225,7 +225,7 @@ public class DataDeriveCompileContext(SchemaContext context, FunctionType functi
                             funcCallExp.Args[1] is ConstantExp { Value.IsEmpty: false }  fieldExp
                            )
                         {
-                            _appType ??= await Context.GetAppTypeAsync(appExp.Value.GetValue<string>()!);
+                            _appType ??= await Context.GetAppTypeAsync(appExp.Value.GetValue<string>()!).ConfigureAwait(false);
                             if (_appType == null || _appType.Name != appExp.Value.GetValue<string>()) break;
                             var thirdField = _appType.GetField(fieldExp.Value.GetValue<string>() ?? string.Empty);
                             if (thirdField?.ValueType is not ArrayType { Element: StructType arrayStruct, Primary: { Count: > 0 } } arrayType) break;
@@ -292,7 +292,7 @@ public class DataDeriveCompileContext(SchemaContext context, FunctionType functi
                 break;
         }
 
-        return await base.VisitSchemaExpAsync(exp);
+        return await base.VisitSchemaExpAsync(exp).ConfigureAwait(false);
     }
 
     private bool NotCondVisit(FieldAccessExp fieldAccessExp)

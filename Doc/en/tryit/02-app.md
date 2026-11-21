@@ -23,7 +23,7 @@ The following example demonstrates access permission management, row-level data 
 
     The key point here is the database configuration. The project ships with MySql, PostgreSQL, and an in-memory simplified data source for testing only.
 
-    If you have no special requirements, keep the defaults and use the test data source. If you want to see the database table structures automatically generated and maintained by App, you can comment out `.AddAppDataProvider<InMemoryAppDataProvider>()`, then enable the code for the corresponding database and modify the connection strings in `appsettings.json`.
+    You can use `UseInMemoryStorage` enable the test data source, or set connect string in it, if none set, the example will use memeory storage.
 
 ---
 
@@ -176,7 +176,7 @@ The following example demonstrates access permission management, row-level data 
     Filtering by organizer is a fairly simple function: the current user id equals the data's orgnizer:
 
     ```js
-    (attendee) => attendee.orgnizer = system.data.getcontext('user.id')
+    (attendee) => attendee.orgnizer == system.data.getcontext('user.id')
     ```
 
     This row filter condition serves as validation when uploading data, and as a filter condition when querying. It is merged with other query conditions and passed as the final query execution tree to the data layer to complete the query.
@@ -223,49 +223,53 @@ The following example demonstrates access permission management, row-level data 
 
 ### Workflow Example
 
-A workflow defines a business process triggered by events, timers, manual invocations, or other triggers. The Activity app includes a sample workflow, which is currently inactive. Click **Edit** to explore its configuration.
-
-![Active](./pic/02_workflow_01.png)
-
-A workflow consists of multiple nodes organized as a directed acyclic graph (DAG). When an upstream node completes, its downstream nodes can be triggered for execution.
-
-The workflow shown here consists of the following nodes:
-
-- `start`: Waits for an application data creation event and captures the event payload for subsequent processing.
-- `totrack`: Transforms the newly created data record into a tracking record.
-- `savetrack`: Saves the tracking record to the database. This node invokes a function designated exclusively for workflow use, which cannot be called externally.
+The semantic functions defined by Core express intent, but many real-world processes are scheduling-based, such as waiting for events or approval interactions. These designs are implemented with workflows. You can view the workflow `Track Attendees` under `Activity` in type management.
 
 ![Nodes](./pic/02_workflow_02.png)
 
-Open the `start` node to inspect its configuration.
+A workflow consists of multiple nodes that form a directed acyclic graph (DAG). When an upstream node completes, its downstream nodes are triggered for execution.
+
+The diagram contains the following nodes:
+
+- `start`: Waits for the application data creation event and keeps the triggered data for subsequent nodes.
+- `totrack`: Converts the newly created data record into a tracking record.
+- `savetrack`: Saves the tracking record to the database. This node invokes a function designated exclusively for workflow use, which cannot be called externally.
+
+Open the `start` node to inspect its configuration:
 
 ![Start](./pic/02_workflow_03.png)
 
-This node uses the **Wait for Event** type, which is generic and requires a payload data type to be specified for the event. You do not need to explore the details of this generic type at this stage.
+This node uses the `Wait for Event` type, which is generic and requires the event payload data type to be specified. You do not need to explore this in depth for now. The selected event is `Application Data Created`, which corresponds to a new data record being created.
 
-The selected event is an **Application Data Created** event, which is triggered when a new data record is created.
+The key configuration of this node is **Fork**: when triggered, it creates a child workflow context for subsequent processing. Because a wait-for-event node can be triggered multiple times and every trigger is an independent event, the processing must be forked. Once the child processing completes, the child workflow context is destroyed.
 
-The key configuration is **Fork**. When the event is triggered, a child workflow context is created for subsequent processing. Since a wait-for-event node can be triggered multiple times, each event must be processed in an independent context. Once the child workflow completes, its context is destroyed.
-
-The next two nodes are both **Function Call** nodes and are relatively straightforward.
+The next two nodes are both `Function Call` nodes and are relatively straightforward.
 
 ![Totrack](./pic/02_workflow_04.png)
 
-The key configuration here is **Previous Nodes**. A node can depend on multiple upstream nodes. The current node is triggered only after all its dependencies have completed. For example, a delay node can be inserted to ensure that all upstream tasks finish before downstream processing begins.
+The key configuration of this node is **Previous Nodes**. A node can depend on multiple upstream nodes and is triggered only after all of them complete. For example, a delay node can be inserted to ensure that all upstream tasks finish before downstream processing starts.
 
-The function calls in subsequent nodes can use data produced by preceding nodes as arguments.
+The subsequent function calls use data produced by preceding nodes as arguments.
 
-In addition to **Wait for Event** and **Function Call**, workflows support control nodes such as delay, conditional branching, and forced termination. Workflows can also be triggered manually. These features are not covered in detail here.
+In addition to `Wait for Event` and `Function Call`, workflows provide control nodes such as delay, conditional branching, and forced termination. Manual workflow triggering is also supported. These features are not covered in detail here.
 
-Once activated, this workflow is triggered when a participant is registered and writes a corresponding record to the database. The resulting execution log is shown below.
+![Control](./pic/02_workflow_05.png)
+
+### Enabling Workflows in an App
+
+Workflows are broadly of two kinds: resident workflows that contain mechanisms such as fork and wait-for-event, and scheduling-only workflows that only execute. The latter can be executed directly, while the former is easier to manage when attached to another system.
+
+Open the workflow list of the Activity app and activate it.
+
+![Active](./pic/02_workflow_01.png)
+
+Once this workflow is started, it is triggered when a participant is registered and writes a log record. See the figure below:
 
 ![Log](./pic/02_workflow_06.png)
 
 ### Declaring Workflow Node Types
 
-Workflow nodes are also semantic types. Unlike ordinary semantic types, however, they are closely coupled with execution and cannot be declared entirely on the frontend.
-
-The following example declares a conditional branching node:
+Workflow nodes are also semantic types. Unlike ordinary semantic types, however, they are closely coupled with execution and cannot be declared entirely on the frontend. The following declares a conditional branching node type:
 
 ```csharp
 [Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW_CONTROL}.goto")]
@@ -282,11 +286,7 @@ public class GotoWorkflow: BaseWorkflow
 }
 ```
 
-All workflow node types are based on the `node.workflow` prototype.
-
-This node evaluates `flag` to select either the true branch or the false branch, directing subsequent workflow execution accordingly.
-
-Third-party libraries can also define their own workflow node types to extend the workflow system. This extensibility is a core capability for implementing complex business processes.
+All workflow node types use `node.workflow` as their prototype. This node type selects different branch nodes based on `flag` to continue subsequent processing. Third-party libraries can also define their own workflow node types to extend the workflow system; this is a core capability for implementing complex business processes.
 
 Workflow nodes also support the `Args`, `Settings`, and `Session` configurations, corresponding to workflow execution arguments, global configuration, and session configuration, respectively. These features are documented in detail in the SchemaNode App documentation.
 

@@ -1,9 +1,11 @@
+using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Immutable;
 using SchemaNode.Property.Array;
+using SchemaNode.Property.Core;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using Type = System.Type;
@@ -40,7 +42,7 @@ public sealed class ArrayType: ValueType, IRelationProvider, INodeTypeReLoadHand
     #region Implementation
 
     /// <inheritdoc />
-    public override async Task LoadAsync(SchemaContext context)
+    public override async Task LoadAsync(SchemaContext context, CancellationToken token = default)
     {
         ArraySchema? array = GetProperty<ArrayProperty>()?.Value;
         if (array == null)
@@ -50,7 +52,7 @@ public sealed class ArrayType: ValueType, IRelationProvider, INodeTypeReLoadHand
         }
         
         // load properties
-        Element = !string.IsNullOrWhiteSpace(array.Element) ? await context.GetNodeTypeAsync<ValueType>(array.Element, Generics, GenericParams) : null;
+        Element = !string.IsNullOrWhiteSpace(array.Element) ? await context.GetNodeTypeAsync<ValueType>(array.Element, Generics, GenericParams, token: token).ConfigureAwait(false) : null;
         Primary = GetProperty<Primary>()?.Value?.ToImmutableList();
 
         if (Element == null)
@@ -71,14 +73,14 @@ public sealed class ArrayType: ValueType, IRelationProvider, INodeTypeReLoadHand
                 
                 // Gets the property type
                 var kind = (context.Runtime as SchemaRuntime)?.GetSchemaKindByNodeKind(currentType.Kind);
-                PropertyType? prop = await context.GetPropertyType(relation.Property, kind, SCHEMA_KIND_NODE_STRUCT_FIELD);
+                PropertyType? prop = await context.GetPropertyType(relation.Property, token, kind, SCHEMA_KIND_NODE_STRUCT_FIELD).ConfigureAwait(false);
                 if (prop == null) continue;
                 
                 // Only work for constraint properties
                 Type? propType = prop.GetCsharpType();
                 if (propType == null) continue;
                 
-                RelationType relationType = await relation.LoadAsync(context, this, kind, SCHEMA_KIND_NODE_STRUCT_FIELD);
+                RelationType relationType = await relation.LoadAsync(context, this, [kind, SCHEMA_KIND_NODE_STRUCT_FIELD], token).ConfigureAwait(false);
                 Error ??= relationType.Error;
                 
                 _relations ??= [];
@@ -148,7 +150,19 @@ public sealed class ArrayType: ValueType, IRelationProvider, INodeTypeReLoadHand
     }
 
     /// <inheritdoc />
-    public override IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new ArrayNode(this, parent, propertyProvider);
+    public override IValueAccess Create(ISchemaContext? context, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders)
+    {
+        System.Type? nodeType = (context as SchemaContext)?.FullMode == true
+            ? Schema?.Type?.GetMetaProperty<DataNodeType>()?.Value
+            : null;
+
+        if (nodeType is not null)
+            return DataNode.CreateNode(context, this, nodeType, value, parent, propertyProviders);
+
+        return Element is EnumType
+            ? new EnumArrayNode(context, this, value, parent, propertyProviders)
+            : new ArrayNode(context, this, value, parent, propertyProviders);
+    }
 
     /// <inheritdoc />
     public override IEnumerable<RelationType> GetRelations() => _relations ?? [];

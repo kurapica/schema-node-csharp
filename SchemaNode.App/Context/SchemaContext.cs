@@ -14,20 +14,21 @@ using SchemaNode.Struct;
 namespace SchemaNode.Context;
 
 public static class AppSchemaContextExtension
-{
+{    const int LOCK_WAITING_DELAY = 5000;
+
     extension(SchemaContext context)
     {
         /// <summary>
         /// Gets the application node
         /// </summary>
-        public async Task<RuntimeAppType?> GetAppTypeAsync(string fullName, bool reload = false)
+        public async Task<RuntimeAppType?> GetAppTypeAsync(string fullName, bool reload = false, CancellationToken token = default)
         {
             AppSchemaRuntime runtime = context.Runtime as AppSchemaRuntime ??
                                        throw new Exception("The schema run time is not an AppSchemaRuntime.");
             SpanReader spans = fullName;
-            RuntimeAppType? app = await LoadAppTypeAsync(runtime.RootAppType, spans);
+            RuntimeAppType? app = await LoadAppTypeAsync(runtime.RootAppType, spans).ConfigureAwait(false);
             while (app != null && spans.NextPath())
-                app = await LoadAppTypeAsync(app, spans);
+                app = await LoadAppTypeAsync(app, spans).ConfigureAwait(false);
             return app;
 
             async Task<RuntimeAppType?> LoadAppTypeAsync(RuntimeAppType root, SpanReader span)
@@ -41,7 +42,7 @@ public static class AppSchemaContextExtension
 
                 // loading
                 string nextVal = next.IsEmpty ? "" : next.ToString();
-                AppSchema? schema = await LoadAppSchemaAsync(root != result ? root : null, nextVal);
+                AppSchema? schema = await LoadAppSchemaAsync(root != result ? root : null, nextVal).ConfigureAwait(false);
                 if (schema == null) return null;
 
                 result ??= new RuntimeAppType { Container = root };
@@ -58,7 +59,7 @@ public static class AppSchemaContextExtension
                 // Load the schema
                 context.LogDebug("[Runtime]App Type {schemaName} loading", schema.FullName);
                 result.Loaded = true;
-                await result.LoadAsync(context, schema);
+                await result.LoadAsync(context, schema, token).ConfigureAwait(false);
 
                 // Namespace
                 if (apps is { Length: > 0 })
@@ -84,7 +85,9 @@ public static class AppSchemaContextExtension
                 {
                     try
                     {
-                        AppSchema? loadSchema = await provider.GetAppSchemaAsync(schemaName);
+                        using CancellationTokenSource cts = new(LOCK_WAITING_DELAY);
+                        using CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, token);
+                        AppSchema? loadSchema = await provider.GetAppSchemaAsync(schemaName, linkedCts.Token).ConfigureAwait(false);
                         if (loadSchema == null) continue;
                         loadSchema = SetSchemaState(loadSchema, SchemaLoadState.Service, provider)!;
 
@@ -126,19 +129,19 @@ public static class AppSchemaContextExtension
         /// <summary>
         /// Gets the node schema with auth properties
         /// </summary>
-        public async Task<NodeSchema?> GetNodeSchemaAsync(NodeType type, bool noAuth = false)
+        public async Task<NodeSchema?> GetNodeSchemaAsync(NodeType type, bool noAuth = false, CancellationToken token = default)
         {
             NodeSchema schema = type.GetNodeSchema(context.Runtime)!;
-            bool canRead = await context.AuthorizeAsync(type, PolicyScope.SchemaRead, true);
+            bool canRead = await context.AuthorizeAsync(type, PolicyScope.SchemaRead, true, token).ConfigureAwait(false);
             if (!canRead) return null;
             if (noAuth) return schema;
 
             // auth
             bool isSystem = type.GetProperty<SystemDefined>()?.Value == true;
             schema.SetProperty<SchemaRead, bool>(canRead);
-            schema.SetProperty<SchemaCreate, bool>(await context.AuthorizeAsync(type, PolicyScope.SchemaCreate, true));
-            schema.SetProperty<SchemaUpdate, bool>((!isSystem || type.Kind == NODE_KIND_NAMESPACE) && await context.AuthorizeAsync(type, PolicyScope.SchemaUpdate, true));
-            schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(type, PolicyScope.SchemaDelete, true));
+            schema.SetProperty<SchemaCreate, bool>(await context.AuthorizeAsync(type, PolicyScope.SchemaCreate, true, token).ConfigureAwait(false));
+            schema.SetProperty<SchemaUpdate, bool>((!isSystem || type.Kind == NODE_KIND_NAMESPACE) && await context.AuthorizeAsync(type, PolicyScope.SchemaUpdate, true, token).ConfigureAwait(false));
+            schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(type, PolicyScope.SchemaDelete, true, token).ConfigureAwait(false));
             return schema;
         }
 
@@ -163,7 +166,7 @@ public static class AppSchemaContextExtension
             };
             if (!types.Add(nodeType.Name) || nodeType is GenericType) return root;
 
-            NodeSchema? schema = await context.GetNodeSchemaAsync(nodeType, noAuth);
+            NodeSchema? schema = await context.GetNodeSchemaAsync(nodeType, noAuth, cancellationToken ?? default).ConfigureAwait(false);
             if (schema == null) return root;
             
             // install full namespace path
@@ -185,7 +188,7 @@ public static class AppSchemaContextExtension
                     if (sub == null)
                     {
                         cancellationToken?.ThrowIfCancellationRequested();
-                        sub = await context.GetNodeSchemaAsync(n, noAuth);
+                        sub = await context.GetNodeSchemaAsync(n, noAuth, cancellationToken ?? default).ConfigureAwait(false);
                         if (sub == null) return root; // no read permission
                         parent.Schemas = parent.Schemas == null ? [sub] : parent.Schemas.Append(sub).ToArray();
                     }
@@ -211,7 +214,7 @@ public static class AppSchemaContextExtension
                 if (enumSchema != null && enumSchema.Values is { Length: > 0 })
                 {
                     foreach (var valueEntry in enumSchema.Values)
-                        await context.BuildEnumChildren(enumType, valueEntry);
+                        await context.BuildEnumChildren(enumType, valueEntry).ConfigureAwait(false);
                     schema.SetProperty<EnumProperty, EnumSchema>(enumSchema);
                 }
             }
@@ -223,7 +226,7 @@ public static class AppSchemaContextExtension
                 {
                     if (n.GetProperty<SystemDefined>()?.Value == true) continue;
                     cancellationToken?.ThrowIfCancellationRequested();
-                    await context.GetNodeSchemasAsync(n, root, types, fullRefs, includeUsedBy, noAuth, fullEnum, cancellationToken);
+                    await context.GetNodeSchemasAsync(n, root, types, fullRefs, includeUsedBy, noAuth, fullEnum, cancellationToken).ConfigureAwait(false);
                 }
             }
 
@@ -248,7 +251,7 @@ public static class AppSchemaContextExtension
             foreach (NodeType t in app.GetReferenceTypes())
             {
                 cancellationToken?.ThrowIfCancellationRequested();
-                await context.GetNodeSchemasAsync(t, root, types, fullRefs, includeUsedBy, noAuth, fullEnum, cancellationToken);
+                await context.GetNodeSchemasAsync(t, root, types, fullRefs, includeUsedBy, noAuth, fullEnum, cancellationToken).ConfigureAwait(false);
             }
 
             return root.Schemas!;
@@ -257,12 +260,12 @@ public static class AppSchemaContextExtension
         private async Task BuildEnumChildren(Runtime.EnumType enumType, Entry<string> valueEntry)
         {
             if (valueEntry.HasChildren != true) return;
-            var access = await enumType.GetEnumEntryAccessAsync(context, valueEntry.Value);
+            var access = await enumType.GetEnumEntryAccessAsync(context, valueEntry.Value).ConfigureAwait(false);
             valueEntry.Children = access.LastOrDefault()?.Children;
             if (valueEntry.Children is { Length: > 0 })
             {
                 foreach (var child in valueEntry.Children)
-                    await context.BuildEnumChildren(enumType, child);
+                    await context.BuildEnumChildren(enumType, child).ConfigureAwait(false);
             }
         }
     }

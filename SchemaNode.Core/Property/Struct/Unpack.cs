@@ -10,7 +10,7 @@ namespace SchemaNode.Property.Struct;
 /// <summary>
 /// Declare the field with object type used as unpack field
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_NODE_STRUCT_FIELD)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE_STRUCT_FIELD, SCHEMA_KIND_NODE_PROPERTY)]
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_STRUCT}.{nameof(Unpack)}")]
 [Relation<Visible, Relation.Call>(nameof(Unpack), NS_SYSTEM_SCHEMA_REFLECT_IS_NODE_KIND, $"@{nameof(StructFieldSchema.Type)}", false, NODE_KIND_OBJECT, NODE_KIND_STRUCT)]

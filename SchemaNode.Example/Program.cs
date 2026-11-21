@@ -1,5 +1,7 @@
 using Microsoft.OpenApi;
 using MySqlConnector;
+using SchemaNode.AI;
+using SchemaNode.AI.Chat;
 using SchemaNode.Data;
 using SchemaNode.Example.Components;
 using SchemaNode.Http;
@@ -8,6 +10,10 @@ using SchemaNode.Schema.Provider;
 using SchemaNode.Service;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// For local AI testing the development profile uses the in-memory data provider, so the sample
+// runs without MySQL. Set "UseInMemoryStorage": false (and start MySQL) to use the SQL provider.
+bool useInMemoryStorage = builder.Configuration.GetValue("UseInMemoryStorage", false);
 
 builder.Services
     // Cors
@@ -44,21 +50,43 @@ builder.Services
 
     // schema
     .WithSchemaApiProtocol<DefaultSchemaApiProtocol>()
-    .AddSchemaStorageProvider<DynamicAppEntryStorageProvider>() // save schema as application data
+    .AddSchemaStorageProvider<DynamicAppEntryStorageProvider>(); // save schema as application data
 
-    // Mysql
-    .AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!)
-    .AddAppDataProvider<AppDataMySqlProvider>() // Mysql application data provider
+if (useInMemoryStorage)
+{
+    // Memory application data provider: no database required, data is lost when the process stops.
+    builder.Services.AddAppDataProvider<InMemoryAppDataProvider>();
+}
+else
+{
+    if (builder.Configuration.GetConnectionString("MySql") is { } mySqlConnStr && !string.IsNullOrWhiteSpace(mySqlConnStr))
+    {
+        // Mysql application data provider
+        builder.Services
+            .AddMySqlDataSource(mySqlConnStr)
+            .AddAppDataProvider<AppDataMySqlProvider>();
+    }
+    else if (builder.Configuration.GetConnectionString("PostgreSql") is { } pgConnStr && !string.IsNullOrWhiteSpace(pgConnStr))
+    {
+        // PostgreSql data provider
+        builder.Services
+            .AddMySqlDataSource(pgConnStr)
+            .AddAppDataProvider<AppDataMySqlProvider>();
+    }
+    else
+    {
+        // Memory application data provider: no database required, data is lost when the process stops.
+        builder.Services.AddAppDataProvider<InMemoryAppDataProvider>();
+    }
+}
 
-    // PostgreSQL
-    //.AddNpgsqlDataSource(builder.Configuration.GetConnectionString("PostgreSql")!)
-    //.AddAppDataProvider<AppDataPostgreSqlProvider>() // PostgreSQL application data provider
-
-    // For test only
-    //.AddAppDataProvider<InMemoryAppDataProvider>() // Memory application data provider - for test
-
+builder.Services
     // Mcp
     //.AddSchemaMcp()
+
+    // AI schema assistant (chat endpoint + streaming endpoint)
+    // The provider is configured in appsettings.json under "SchemaChat".
+    //.AddSchemaChat(opts => builder.Configuration.GetSection(SchemaChatOptions.SectionName).Bind(opts))
 
     .AddAppSchemaAssembly<Program>()
     .PrepareSchemaRuntime();
@@ -70,7 +98,9 @@ app.UseMiddleware<UserInfoMiddleware>();
 
 app
     .UseSchemaApis(enableAppDataApi: true, enableSchemaManage: true);
-    //.MapSchemaMcp();
+
+// AI schema assistant streaming endpoint: POST /schema/chat-schema-stream
+// app.MapSchemaChat();
 
 // Swagger
 if (app.Environment.IsDevelopment())

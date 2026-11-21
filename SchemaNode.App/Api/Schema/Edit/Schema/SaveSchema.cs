@@ -21,7 +21,7 @@ public class SaveSchemaApi : SchemaApi<SaveSchemaRequest, SaveSchemaResponse>
         
         return new SaveSchemaResponse
         {
-            Result = await SchemaContext.SaveSchemaAsync(request.Schema)
+            Result = await SchemaContext.SaveSchemaAsync(request.Schema).ConfigureAwait(false)
         };
     }
 }

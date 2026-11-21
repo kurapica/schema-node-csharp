@@ -1,0 +1,108 @@
+<UserControl x:Class="SchemaNode.WPF.Man.Views.AppListView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:prism="http://prismlibrary.com/"
+             xmlns:view="clr-namespace:SchemaNode.WPF.View;assembly=SchemaNode.WPF.View"
+             xmlns:loc="clr-namespace:SchemaNode.WPF.View.Localization;assembly=SchemaNode.WPF.View"
+             prism:ViewModelLocator.AutoWireViewModel="True">
+    <UserControl.Resources>
+        <view:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+    </UserControl.Resources>
+
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- App namespace selector: a SchemaView over system.schema.app.type, so child apps come
+             from the Core entry source (the same cascade appSchema.vue uses). -->
+        <Border Grid.Row="0" Background="#F5F5F5" Padding="8" Margin="0,0,0,8">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.applist.label.namespace}"
+                           VerticalAlignment="Center" Margin="0,0,8,0" />
+                <view:SchemaView Node="{Binding AppTypeWrapper}" VerticalAlignment="Center" />
+                <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.applist.button.up}"
+                        Command="{Binding UpCommand}" Margin="8,0,0,0" VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.new}"
+                    Command="{Binding NewCommand}" Margin="0,0,8,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.refresh}"
+                    Command="{Binding RefreshCommand}" />
+            <TextBlock Text="{Binding Status}" Foreground="DarkSlateGray" VerticalAlignment="Center"
+                       Margin="12,0,0,0" TextTrimming="CharacterEllipsis" MaxWidth="640" />
+        </StackPanel>
+
+        <Grid Grid.Row="2">
+            <ListView ItemsSource="{Binding Apps}" BorderBrush="#DDDDDD" BorderThickness="1">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Width="260"
+                                        Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.column.name}"
+                                        DisplayMemberBinding="{Binding Name}" />
+                        <GridViewColumn Width="360"
+                                        Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.column.display}"
+                                        DisplayMemberBinding="{Binding DisplayText}" />
+                        <GridViewColumn Width="420"
+                                        Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.column.actions}">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <!-- View / edit open the app definition screen; mode travels as a navigation parameter. -->
+                                        <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.button.view}"
+                                                Command="{Binding DataContext.ViewCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                                CommandParameter="{Binding}"
+                                                Visibility="{Binding CanView, Converter={StaticResource BoolToVisibility}}"
+                                                Margin="0,0,4,0" Padding="6,2" />
+                                        <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.button.edit}"
+                                                Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                                CommandParameter="{Binding}"
+                                                Visibility="{Binding CanEdit, Converter={StaticResource BoolToVisibility}}"
+                                                Margin="0,0,4,0" Padding="6,2" />
+                                        <!-- Child-app drill: only when the app has no Fields (appSchema.vue). -->
+                                        <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.type.button.enter}"
+                                                Command="{Binding DataContext.EnterCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                                CommandParameter="{Binding}"
+                                                Visibility="{Binding CanDrill, Converter={StaticResource BoolToVisibility}}"
+                                                Margin="0,0,4,0" Padding="6,2" />
+                                        <!-- Field list: only when the app has no child apps. -->
+                                        <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.applist.button.fields}"
+                                                Command="{Binding DataContext.FieldsCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                                CommandParameter="{Binding}"
+                                                Visibility="{Binding CanShowFields, Converter={StaticResource BoolToVisibility}}"
+                                                Margin="0,0,4,0" Padding="6,2" Background="#1976D2" Foreground="White" />
+                                        <!-- Workflow list: only when the app has Fields. -->
+                                        <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.applist.button.workflow}"
+                                                Command="{Binding DataContext.WorkflowCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                                CommandParameter="{Binding}"
+                                                Visibility="{Binding CanShowWorkflow, Converter={StaticResource BoolToVisibility}}"
+                                                Margin="0,0,4,0" Padding="6,2" Background="#E67E22" Foreground="White" />
+                                        <!-- Delete: only for leaf apps without fields or workflows. -->
+                                        <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.delete}"
+                                                Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                                CommandParameter="{Binding}"
+                                                Visibility="{Binding CanDelete, Converter={StaticResource BoolToVisibility}}"
+                                                Padding="6,2" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                    </GridView>
+                </ListView.View>
+            </ListView>
+
+            <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.applist.status.empty}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="Gray"
+                       IsHitTestVisible="False"
+                       Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}" />
+        </Grid>
+
+        <TextBlock Grid.Row="3" Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.applist.hint}"
+                   Foreground="Gray" Margin="0,8,0,0" TextWrapping="Wrap" />
+    </Grid>
+</UserControl>

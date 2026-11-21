@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="SchemaNode.Avalonia.View.Views.LocaleStringView"
+             x:CompileBindings="False"
+             MinHeight="24"
+             ToolTip.Tip="{Binding ErrorTip}">
+  <Grid RowDefinitions="Auto,Auto">
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+      <!-- Only the default key stays on the form; translations live behind the entry button. -->
+      <TextBox Grid.Column="0"
+               Text="{Binding Key, Mode=TwoWay}"
+               PlaceholderText="{DynamicResource avalonia.locale.key}"
+               IsEnabled="{Binding IsEditable}"
+               MinHeight="24" />
+
+      <Button Grid.Column="1"
+              Margin="4,0,0,0"
+              MinHeight="24"
+              Padding="8,0"
+              Click="OnShowTranslations"
+              ToolTip.Tip="{Binding Summary}">
+        <TextBlock Text="{Binding Summary}"
+                   MaxWidth="220"
+                   TextTrimming="CharacterEllipsis" />
+      </Button>
+    </Grid>
+
+    <TextBlock Grid.Row="1"
+               Margin="0,2,0,0"
+               Foreground="#FFC62828"
+               TextWrapping="Wrap"
+               Text="{Binding Error}"
+               IsVisible="{Binding ShowError}" />
+  </Grid>
+</UserControl>

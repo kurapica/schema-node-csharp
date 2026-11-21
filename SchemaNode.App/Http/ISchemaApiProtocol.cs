@@ -74,7 +74,7 @@ public interface ISchemaApiProtocol
             if (ctx.Request.ContentType != null && ctx.Request.ContentType.Contains("application/json", StringComparison.OrdinalIgnoreCase))
             {
                 ctx.Request.Body.Position = 0;
-                requestBody = await new StreamReader(ctx.Request.Body).ReadToEndAsync();
+                requestBody = await new StreamReader(ctx.Request.Body).ReadToEndAsync().ConfigureAwait(false);
             }
             else if (ctx.Request.ContentType != null && ctx.Request.ContentType.Contains("multipart/form-data", StringComparison.OrdinalIgnoreCase))
             {
@@ -119,7 +119,7 @@ public interface ISchemaApiProtocol
             
             // locale
             if (!string.IsNullOrWhiteSpace(request.Locale))
-                context.SetLocale(request.Locale);
+                context.Locale = request.Locale;
             
             // date format
             if (request.DateFormat.HasValue && request.DateFormat != DateFormatMode.Iso8601)
@@ -153,7 +153,7 @@ public interface ISchemaApiProtocol
             TApi api = provider.GetRequiredService<TApi>();
             request.Context = ctx;
             request.Files = files;
-            response = await api._ExecuteAsync(request, logger);
+            response = await api._ExecuteAsync(request, logger).ConfigureAwait(false);
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -173,7 +173,7 @@ public interface ISchemaApiProtocol
         // Generate response.
         response!.ExecuteTime = watch.ElapsedMilliseconds;
         response.TimeZone = context.GetTimeZone().Id;
-        response.Locale = context.GetLocale();
+        response.Locale = context.Locale;
         logger.LogDebug("{name} API is executed, cost {time}.", typeof(TApi).Name, watch.ElapsedMilliseconds);
         
         // Stream

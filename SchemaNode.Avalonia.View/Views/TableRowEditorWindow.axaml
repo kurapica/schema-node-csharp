@@ -1,0 +1,40 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:SchemaNode.Avalonia.View.Localization"
+        xmlns:views="using:SchemaNode.Avalonia.View.Views"
+        xmlns:view="using:SchemaNode.Avalonia.View"
+        x:Class="SchemaNode.Avalonia.View.Views.TableRowEditorWindow"
+        x:CompileBindings="False"
+        MinWidth="360"
+        MinHeight="240"
+        CanResize="True">
+  <DockPanel>
+    <StackPanel DockPanel.Dock="Bottom"
+                Margin="8">
+      <TextBlock x:Name="ValidationError"
+                 Foreground="#B71C1C"
+                 TextWrapping="Wrap"
+                 Margin="0,0,0,6"
+                 IsVisible="False" />
+      <StackPanel Orientation="Horizontal"
+                  HorizontalAlignment="Right">
+        <Button MinWidth="72"
+                MinHeight="26"
+                IsDefault="True"
+                Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.ok}"
+                Click="OnConfirm" />
+        <Button MinWidth="72"
+                MinHeight="26"
+                Margin="8,0,0,0"
+                IsCancel="True"
+                Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.cancel}"
+                Click="OnCancel" />
+      </StackPanel>
+    </StackPanel>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+      <view:SchemaView x:Name="Editor" Margin="8" />
+    </ScrollViewer>
+  </DockPanel>
+</Window>

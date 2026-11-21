@@ -1,0 +1,101 @@
+<Window x:Class="SchemaNode.WPF.View.Views.LocaleTranslationsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:SchemaNode.WPF.View"
+        xmlns:loc="clr-namespace:SchemaNode.WPF.View.Localization"
+        x:Name="TranslationsWindow"
+        Title="Translations"
+        Width="520"
+        Height="420"
+        MinWidth="360"
+        MinHeight="240"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Column captions; the rows below stay aligned with them. -->
+        <Grid Grid.Row="0" Margin="0,0,0,6">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="140" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Foreground="#FF6B7280"
+                       Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.locale.language}" />
+            <TextBlock Grid.Column="1"
+                       Margin="8,0,0,0"
+                       Foreground="#FF6B7280"
+                       Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.locale.translation}" />
+        </Grid>
+
+        <!-- Content scrolls inside the (resizable) window instead of stretching the dialog. -->
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl x:Name="RowList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="140" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- A language is a closed choice over the configured locales. Nothing is
+                                 preselected, so a new row stays empty until the user picks a language. -->
+                            <ComboBox ItemsSource="{Binding AvailableLanguages, RelativeSource={RelativeSource AncestorType=Window}}"
+                                      SelectedItem="{Binding Lang, Mode=TwoWay}"
+                                      MinHeight="24"
+                                      MaxDropDownHeight="240"
+                                      IsEnabled="{Binding IsEditable, RelativeSource={RelativeSource AncestorType=Window}}" />
+
+                            <TextBox Grid.Column="1"
+                                     Margin="8,0,0,0"
+                                     MinHeight="24"
+                                     Text="{Binding Tran, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                     IsReadOnly="{Binding IsEditable, RelativeSource={RelativeSource AncestorType=Window}, Converter={x:Static local:Converters.Not}}" />
+
+                            <Button Grid.Column="2"
+                                    Margin="8,0,0,0"
+                                    Padding="8,0"
+                                    MinHeight="24"
+                                    Click="OnDelete"
+                                    Tag="{Binding}"
+                                    Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.delete}"
+                                    Visibility="{Binding IsEditable, RelativeSource={RelativeSource AncestorType=Window}, Converter={x:Static local:Converters.BoolToVisibility}}" />
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <DockPanel Grid.Row="2" Margin="0,12,0,0" LastChildFill="False">
+            <Button DockPanel.Dock="Left"
+                    Padding="10,3"
+                    MinHeight="26"
+                    Click="OnAdd"
+                    Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.add}"
+                    Visibility="{Binding IsEditable, RelativeSource={RelativeSource AncestorType=Window}, Converter={x:Static local:Converters.BoolToVisibility}}" />
+
+            <Button DockPanel.Dock="Right"
+                    Padding="10,3"
+                    MinHeight="26"
+                    Margin="8,0,0,0"
+                    IsCancel="True"
+                    Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.cancel}" />
+
+            <Button DockPanel.Dock="Right"
+                    Padding="10,3"
+                    MinHeight="26"
+                    IsDefault="True"
+                    Click="OnConfirm"
+                    Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.ok}" />
+        </DockPanel>
+    </Grid>
+</Window>

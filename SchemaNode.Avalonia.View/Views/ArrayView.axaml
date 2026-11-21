@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:SchemaNode.Avalonia.View"
+             xmlns:loc="using:SchemaNode.Avalonia.View.Localization"
+             x:Class="SchemaNode.Avalonia.View.Views.ArrayView"
+             x:CompileBindings="False">
+  <DockPanel>
+    <StackPanel DockPanel.Dock="Top"
+                Orientation="Horizontal"
+                Margin="0,0,0,4">
+      <Button Padding="8,2"
+              MinHeight="24"
+              Command="{Binding AddCommand}"
+              Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.addrow}" />
+      <Button Padding="8,2"
+              MinHeight="24"
+              Margin="6,0,0,0"
+              Command="{Binding RemoveLastCommand}"
+              Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.remove}" />
+    </StackPanel>
+
+    <ScrollViewer MaxHeight="360"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+      <ItemsControl ItemsSource="{Binding Children}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <VirtualizingStackPanel />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Grid Margin="0,1"
+                  IsVisible="{Binding IsVisible}"
+                  ColumnDefinitions="*,Auto">
+              <local:SchemaView Grid.Column="0"
+                                HorizontalAlignment="Stretch"
+                                Node="{Binding}" />
+
+              <Button Grid.Column="1"
+                      Width="26"
+                      Height="24"
+                      Margin="6,0,0,0"
+                      VerticalAlignment="Top"
+                      Command="{Binding RemoveCommand}"
+                      Content="&#8722;" />
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

@@ -1,0 +1,72 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:view="using:SchemaNode.Avalonia.View"
+             xmlns:loc="using:SchemaNode.Avalonia.View.Localization"
+             xmlns:inf="using:SchemaNode.Avalonia.Man.Infrastructure"
+             x:Class="SchemaNode.Avalonia.Man.Views.AppDefinitionView"
+             x:CompileBindings="False">
+  <Grid Margin="8" RowDefinitions="Auto,Auto,2*,Auto,3*">
+    <!-- Top: back + mode header + app full name + new / load / save / delete -->
+    <WrapPanel Grid.Row="0" Margin="0,0,0,4">
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.appdef.button.back}"
+              Command="{Binding BackCommand}" Margin="0,0,12,0" />
+      <TextBlock Text="{Binding HeaderText}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0" />
+      <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.appdef.label.name}" VerticalAlignment="Center" />
+      <TextBox Width="240" Margin="4,0"
+               IsEnabled="{Binding IsEditable}"
+               Text="{Binding AppName, UpdateSourceTrigger=PropertyChanged}" />
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.load}"
+              Command="{Binding LoadCommand}" Margin="4,0" />
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.new}"
+              Command="{Binding NewCommand}" Margin="4,0" />
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.save}"
+              Command="{Binding SaveCommand}" Margin="4,0" />
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.button.delete}"
+              Command="{Binding DeleteCommand}" />
+    </WrapPanel>
+
+    <TextBlock Grid.Row="1" Text="{Binding Status}" Foreground="Gray"
+               TextWrapping="Wrap" Margin="0,0,0,6"
+               IsVisible="{Binding Status, Converter={x:Static inf:Converters.VisibleIfText}}" />
+
+    <!-- App property area: the field set comes from the real AppSchema structure; the view does not
+         hard-code the property list. -->
+    <Border Grid.Row="2" BorderBrush="#DDDDDD" BorderThickness="1" Margin="0,0,0,4"
+            IsEnabled="{Binding IsEditable}">
+      <Grid RowDefinitions="Auto,*">
+        <TextBlock Grid.Row="0" FontWeight="SemiBold" Margin="6,4,6,4"
+                   Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.appdef.group.properties}" />
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Auto">
+          <view:SchemaView Node="{Binding AppNode}" Registry="{Binding Registry}" />
+        </ScrollViewer>
+      </Grid>
+    </Border>
+
+    <!-- App Fields toolbar: the field name is an immutable primary key, entered on creation. -->
+    <WrapPanel Grid.Row="3" Margin="0,0,0,4" IsEnabled="{Binding IsEditable}">
+      <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.appdef.label.fieldname}" VerticalAlignment="Center" />
+      <TextBox Width="140" Margin="4,0"
+               Text="{Binding NewFieldName, UpdateSourceTrigger=PropertyChanged}" />
+      <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.appdef.label.fieldtype}" VerticalAlignment="Center" />
+      <TextBox Width="200" Margin="4,0"
+               Text="{Binding NewFieldType, UpdateSourceTrigger=PropertyChanged}" />
+      <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.appdef.button.addfield}"
+              Command="{Binding AddFieldCommand}" Margin="4,0" />
+    </WrapPanel>
+
+    <!-- App Fields area: the fields array renders through the registered table. Removal goes
+         through the view model command (Core's DelRows does not dispose removed elements). -->
+    <Border Grid.Row="4" BorderBrush="#DDDDDD" BorderThickness="1"
+            IsEnabled="{Binding IsEditable}">
+      <Grid RowDefinitions="Auto,*">
+        <TextBlock Grid.Row="0" FontWeight="SemiBold" Margin="6,4,6,4"
+                   Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.appdef.group.fields}" />
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Auto">
+          <view:SchemaView Node="{Binding FieldsNode}" Registry="{Binding Registry}" />
+        </ScrollViewer>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

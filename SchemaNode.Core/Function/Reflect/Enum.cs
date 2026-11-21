@@ -40,7 +40,7 @@ public static class Enum
     /// </summary>
     public static async Task<bool> isenumvaluetype(SchemaContext context, [Meta<SchemaType>(typeof(Schema.EnumType))] string type, EnumValueType valuetype)
     {
-        var enumType = await context.getEnumType(type);
+        var enumType = await context.getEnumType(type).ConfigureAwait(false);
         return enumType?.Type == valuetype;
     }
 
@@ -66,7 +66,7 @@ public static class Enum
     /// </summary>
     public static async Task<bool> hascascade(SchemaContext context, [Meta<SchemaType>(typeof(AnyType))] string type, bool onlyEnum = false)
     {
-        var nodeType = await context.GetNodeTypeAsync(type);
+        var nodeType = await context.GetNodeTypeAsync(type).ConfigureAwait(false);
         if (nodeType is Runtime.ArrayType a) nodeType = a.Element;
         if (onlyEnum) return nodeType is EnumType { Cascade.Length: > 0 };
         return nodeType is EnumType { Cascade.Length: > 0 } || nodeType?.GetProperty<EntrySource>() is { HasValue: true };
@@ -77,7 +77,7 @@ public static class Enum
     /// </summary>
     public static async Task<EntryAccess<int>[]> getcascades(SchemaContext context, [Meta<SchemaType>(typeof(Schema.EnumType))] string type)
     {
-        var enumType = await context.getEnumType(type);
+        var enumType = await context.getEnumType(type).ConfigureAwait(false);
         return [ new EntryAccess<int> {
             Children = enumType?.Cascade?.Select((c, i) =>
             {
@@ -97,7 +97,7 @@ public static class Enum
     /// </summary>
     public static async Task<int> getcascade(SchemaContext context, [Meta<SchemaType>(typeof(Schema.EnumType))] string type, int cascade = 0, int offset = 0)
     {
-        var enumType = await context.getEnumType(type);
+        var enumType = await context.getEnumType(type).ConfigureAwait(false);
         return (cascade > 0 ? cascade : (enumType?.Cascade?.Length ?? 0)) + offset;
     }
 
@@ -108,9 +108,9 @@ public static class Enum
     public static async Task<EntryAccess<string>[]> getenumaccess(SchemaContext context, [Meta<SchemaType>(typeof(Schema.EnumType))] string @enum, string? value, string? root)
     {
         // Check with value access
-        EnumType? enumType = await context.getEnumType(@enum);
+        EnumType? enumType = await context.getEnumType(@enum).ConfigureAwait(false);
         if (enumType == null) return [];
-        return await enumType.GetEnumEntryAccessAsync(context, value, root);
+        return await enumType.GetEnumEntryAccessAsync(context, value, root).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -124,9 +124,9 @@ public static class Enum
         if (value.Equals(root)) return true;
 
         // Check with value access
-        EnumType? enumType = await context.getEnumType(@enum);
+        EnumType? enumType = await context.getEnumType(@enum).ConfigureAwait(false);
         if (enumType == null) return false;
-        var access = await enumType.GetEnumEntryAccessAsync(context, value, root);
+        var access = await enumType.GetEnumEntryAccessAsync(context, value, root).ConfigureAwait(false);
         return access is { Length: > 0 };
     }
 
@@ -141,9 +141,9 @@ public static class Enum
         if (roots.Any(r => r.Equals(value))) return true;
 
         // Check with value access
-        EnumType? enumType = await context.getEnumType(@enum);
+        EnumType? enumType = await context.getEnumType(@enum).ConfigureAwait(false);
         if (enumType == null) return false;
-        var access = await enumType.GetEnumEntryAccessAsync(context, value);
+        var access = await enumType.GetEnumEntryAccessAsync(context, value).ConfigureAwait(false);
         return access.Any(a => a.Entry?.Value is not null && rootSet.Contains(a.Entry.Value));
     }
 
@@ -155,9 +155,9 @@ public static class Enum
         value = value.Trim();
         if (string.IsNullOrWhiteSpace(value)) return string.Empty;
         // Check with value access
-        EnumType? enumType = await context.getEnumType(@enum);
+        EnumType? enumType = await context.getEnumType(@enum).ConfigureAwait(false);
         if (enumType == null) return string.Empty;
-        var access = await enumType.GetEnumEntryAccessAsync(context, value);
+        var access = await enumType.GetEnumEntryAccessAsync(context, value).ConfigureAwait(false);
         return depth < 0 
             ? access.Length > 1-depth ? access[access.Length + depth - 1].Entry?.Value : null
             : access.Length > depth ? access[depth].Entry?.Value : null;
@@ -171,9 +171,9 @@ public static class Enum
         value = value.Trim();
         if (string.IsNullOrWhiteSpace(value)) return -1;
         // Check with value access
-        EnumType? enumType = await context.getEnumType(@enum);
+        EnumType? enumType = await context.getEnumType(@enum).ConfigureAwait(false);
         if (enumType == null) return -1;
-        var access = await enumType.GetEnumEntryAccessAsync(context, value);
+        var access = await enumType.GetEnumEntryAccessAsync(context, value).ConfigureAwait(false);
         return access.Length - 1;
     }
 
@@ -184,12 +184,12 @@ public static class Enum
     {
         values = values.Select(v => v.Trim()).Where(v => !string.IsNullOrWhiteSpace(v)).ToArray();
         if (values.Length == 0) return string.Empty;
-        EnumType? enumType = await context.getEnumType(@enum);
+        EnumType? enumType = await context.getEnumType(@enum).ConfigureAwait(false);
         if (enumType == null) return string.Empty;
-        var access = await enumType.GetEnumEntryAccessAsync(context, values[0]);
+        var access = await enumType.GetEnumEntryAccessAsync(context, values[0]).ConfigureAwait(false);
         for (int i = 1; i < values.Length; i++)
         {
-            var next = await enumType.GetEnumEntryAccessAsync(context, values[i]);
+            var next = await enumType.GetEnumEntryAccessAsync(context, values[i]).ConfigureAwait(false);
             if (next.Length == 0) { access = []; break; }
             for (int j = 1; j < access.Length && j < next.Length; j++)
             {
@@ -207,7 +207,7 @@ public static class Enum
 
     static async Task<EnumType?> getEnumType(this SchemaContext context, string @enum)
     {
-        var type = await context.GetNodeTypeAsync<ValueType>(@enum);
+        var type = await context.GetNodeTypeAsync<ValueType>(@enum).ConfigureAwait(false);
         if (type is Runtime.ArrayType a) type = a.Element;
         return type as EnumType;
     }

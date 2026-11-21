@@ -27,8 +27,8 @@ public class PushAppDataApi : SchemaApi<PushAppDataRequest, PushAppDataResponse>
     {
         Logger.LogDebug("[Api]PushAppData [Request]{app} - {target}", request.App, request.Target);
         
-        using var criticalRegion = await GetLockAsync("PushAppData:{0}{1}", request.App, request.Target ?? Guid.Empty.ToString());
-        (bool result, JsonNode? error) = await SchemaContext.PushAppDataAsync(request.App, request.Target, request.Datas);
+        using var criticalRegion = await GetLockAsync("PushAppData:{0}{1}", request.App, request.Target ?? Guid.Empty.ToString()).ConfigureAwait(false);
+        (bool result, JsonNode? error) = await SchemaContext.PushAppDataAsync(request.App, request.Target, request.Datas, cancellationToken).ConfigureAwait(false);
         
         return new PushAppDataResponse
         {
@@ -47,12 +47,12 @@ public static class PushDataExtenstion
     /// Push app data
     /// </summary>
     public static async Task<(bool Result, JsonNode? Error)> PushAppDataAsync(this SchemaContext context, string app, string? target,
-        Dictionary<string, AppDataFieldPushQuery>? data)
+        Dictionary<string, AppDataFieldPushQuery>? data, CancellationToken token = default)
     {
         if (string.IsNullOrWhiteSpace(app)) return (false, AppErrorCodes.APP_NOT_FOUND);
         if (data == null || data.Count == 0) return (false, AppErrorCodes.APP_PUSH_DATA_REQUIRED);
 
-        AppType? appNode = await context.GetAppTypeAsync(app);
+        AppType? appNode = await context.GetAppTypeAsync(app, token: token).ConfigureAwait(false);
         if (appNode == null) return (false, AppErrorCodes.APP_NOT_FOUND);
 
         // target is required for non-system-level apps
@@ -71,9 +71,9 @@ public static class PushDataExtenstion
                 if (appField == null) continue;
             
                 // authorize
-                await context.AuthorizeAsync(appField, PolicyScope.DataUpdate);
-                bool canAdd = await context.AuthorizeAsync(appField, PolicyScope.DataCreate, true);
-                bool canDel = await context.AuthorizeAsync(appField, PolicyScope.DataDelete, true);
+                await context.AuthorizeAsync(appField, PolicyScope.DataUpdate, token: token).ConfigureAwait(false);
+                bool canAdd = await context.AuthorizeAsync(appField, PolicyScope.DataCreate, true, token).ConfigureAwait(false);
+                bool canDel = await context.AuthorizeAsync(appField, PolicyScope.DataDelete, true, token).ConfigureAwait(false);
 
                 // no permission to delete data
                 if (!canDel && push.Deletes is { Count: > 0 })
@@ -92,7 +92,7 @@ public static class PushDataExtenstion
                         try
                         {
                             // Authorize evaluator
-                            bool authorized = await context.AuthorizeAsync(policy.Evaluator, true);
+                            bool authorized = await context.AuthorizeAsync(policy.Evaluator, true, token).ConfigureAwait(false);
                             if (!authorized) continue;
                             if (policy.FilterFunc == null) break;
 
@@ -108,25 +108,38 @@ public static class PushDataExtenstion
                             rowChecker = policy.FilterFunc;
                             break;
                         }
+                        catch (OperationCanceledException)
+                        {
+                            // Cancellation is neither an allow nor a deny, propagate it as-is
+                            throw;
+                        }
+                        catch (UnauthorizedAccessException)
+                        {
+                            throw;
+                        }
                         catch (Exception e)
                         {
+                            // A configured row policy that can't be evaluated must reject the write,
+                            // never fall back to "no row checking" (fail-open)
                             context.LogError(e, $"PushAppDataAsync row access check error for func ${policy.Evaluator}");
-                            rowChecker = null;
+                            throw new UnauthorizedAccessException($"Row access policy evaluation failed for {policy.Evaluator}.", e);
                         }
                     }
 
+                    // rowChecker == null only when no row policy is configured (or none applies),
+                    // which is the legitimate "no row filtering" case
                     if (rowChecker != null)
                     {
                         // check data row access permission
                         if (push.Data is JsonArray arr)
                             foreach (JsonNode? item in arr)
-                                await ValidateRow(context, rowChecker, item);
+                                await ValidateRow(context, rowChecker, item, token).ConfigureAwait(false);
                         else
-                            await ValidateRow(context, rowChecker, push.Data);
+                            await ValidateRow(context, rowChecker, push.Data, token).ConfigureAwait(false);
 
                         if (push.Deletes is { Count: > 0 })
                             foreach (JsonNode? item in push.Deletes)
-                                await ValidateRow(context, rowChecker, item);
+                                await ValidateRow(context, rowChecker, item, token).ConfigureAwait(false);
                     }
                 }
 
@@ -134,53 +147,53 @@ public static class PushDataExtenstion
                 if (!hasData)
                 {
                     hasData = true;
-                    await context.BeginTransactionAsync();
+                    await context.BeginTransactionAsync().ConfigureAwait(false);
                 }
 
                 if (push.ClearAll == true)
                 {
-                    await context.ClearFieldDataAsync(appField);
+                    await context.ClearFieldDataAsync(appField).ConfigureAwait(false);
                     continue;
                 }
 
                 // validate and save data
                 if (push.Data != null)
                 {
-                    var result = await appField.ValidateDataAsync(context, push.Data);
+                    var result = await appField.ValidateDataAsync(context, push.Data).ConfigureAwait(false);
                     if (result is not { IsValid: true })
                     {
-                        if (hasData) await context.RollbackTransactionAsync();
+                        if (hasData) await context.RollbackTransactionAsync().ConfigureAwait(false);
                         return (false, result?.Violated);
                     }
-                    await context.SaveFieldDataAsync(appField, result, canAdd: canAdd);
+                    await context.SaveFieldDataAsync(appField, result, canAdd: canAdd, token: token).ConfigureAwait(false);
                 }
 
                 if (push.Deletes is { Count: > 0 })
                 {
-                    var result = await appField.ValidateDataAsync(context, push.Deletes, true);
+                    var result = await appField.ValidateDataAsync(context, push.Deletes, true).ConfigureAwait(false);
                     if (result is not { IsValid: true })
                     {
-                        if (hasData) await context.RollbackTransactionAsync();
+                        if (hasData) await context.RollbackTransactionAsync().ConfigureAwait(false);
                         return (false, result?.Violated);
                     }
-                    await context.DeleteFieldListDataAsync(appField, result);
+                    await context.DeleteFieldListDataAsync(appField, result, token: token).ConfigureAwait(false);
                 }
             }
 
             if (hasData)
-                await context.CommitTransactionAsync();
+                await context.CommitTransactionAsync().ConfigureAwait(false);
         }
         catch(Exception)
         {
             if (hasData) 
-                await context.RollbackTransactionAsync();
+                await context.RollbackTransactionAsync().ConfigureAwait(false);
             throw;
         }
 
         return (true, null);
     }
 
-    static async Task ValidateRow(SchemaContext context, FunctionType rowChecker, JsonNode? item)
+    static async Task ValidateRow(SchemaContext context, FunctionType rowChecker, JsonNode? item, CancellationToken token = default)
     {
         if (item is not JsonObject) throw new UnauthorizedAccessException();
         try
@@ -189,7 +202,7 @@ public static class PushDataExtenstion
             {
                 [0] = item.DeepClone()
             };
-            var res = await context.CallFunctionAsync(rowChecker, args, NS_SYSTEM_BOOL);
+            var res = await context.CallFunctionAsync(rowChecker, args, NS_SYSTEM_BOOL, token: token).ConfigureAwait(false);
             if (res is not JsonValue boolVal || !boolVal.TryGetValue(out bool allowed) || !allowed)
                 throw new UnauthorizedAccessException();
         }

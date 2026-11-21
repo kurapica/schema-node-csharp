@@ -59,6 +59,7 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
     /// The node kind
     /// </summary>
     [Meta<SchemaType>(typeof(NodeKind))]
+    [Meta<Immutable>(true)]
     public string Kind { get; set; } = null!;
           
     /// <summary>
@@ -183,7 +184,7 @@ internal static class NodeSchemaExtensions
     /// Loading properties for node schemas
     /// </summary>
     internal static async Task<(Runtime.NodeType[] RefTypes, string? Error)>
-        LoadPropertiesAsync(this PropertyOwner schema, SchemaContext context, IEnumerable<IProperty> properties, Runtime.ValueType? ownerType = null)
+        LoadPropertiesAsync(this PropertyOwner schema, SchemaContext context, IEnumerable<IProperty> properties, Runtime.ValueType? ownerType = null, CancellationToken token = default)
     {
         List<Runtime.NodeType> refTypes = [];
         string? error = null;
@@ -192,7 +193,7 @@ internal static class NodeSchemaExtensions
         {
             if (prop is ILoadableProperty loadableProp)
             {
-                await loadableProp.LoadAsync(context, ownerType);
+                await loadableProp.LoadAsync(context, ownerType, token).ConfigureAwait(false);
                 if (prop is IErrorProvider err)
                     error ??= err.Error;
             }
@@ -201,7 +202,7 @@ internal static class NodeSchemaExtensions
             {
                 foreach (string name in refProp.GetRefTypes())
                 {
-                    var node = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync(name) : null;
+                    var node = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync(name, token: token).ConfigureAwait(false) : null;
                     if (node != null)
                     {
                         refTypes.Add(node);

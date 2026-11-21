@@ -89,9 +89,7 @@ public class AppSchemaRuntime : SchemaRuntime
         app.Fields ??= [];
         var index = Array.FindIndex(app.Fields, f => f.Name.Equals(schema.Name, StringComparison.OrdinalIgnoreCase));
         if (index >= 0)
-        {
             app.Fields[index] = schema;
-        }
         else
             app.Fields = app.Fields is { Length: > 0 } ? app.Fields.Concat([schema]).ToArray() : [schema];
 
@@ -101,7 +99,7 @@ public class AppSchemaRuntime : SchemaRuntime
             _typeAppFields[matchType] = (schema.App, schema.Name);
         }
     }
-    
+        
     /// <summary>
     /// Save the system applications
     /// </summary>

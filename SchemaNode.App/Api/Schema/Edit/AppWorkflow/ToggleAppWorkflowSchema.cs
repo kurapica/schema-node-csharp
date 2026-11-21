@@ -22,7 +22,7 @@ public class ToggleAppWorkflowSchemaApi : SchemaApi<ToggleAppWorkflowSchemaReque
 
         return new ToggleAppWorkflowSchemaResponse
         {
-            Result = await SchemaContext.ToggleAppWorkflowSchemaAsync(request.App, request.Workflow, request.Active)
+            Result = await SchemaContext.ToggleAppWorkflowSchemaAsync(request.App, request.Workflow, request.Active).ConfigureAwait(false)
         };
     }
 }

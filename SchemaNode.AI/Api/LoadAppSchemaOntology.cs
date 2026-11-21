@@ -43,10 +43,10 @@ public class LoadAppSchemaOntologyApi : SchemaApi<LoadAppSchemaOntologyRequest, 
         if (!string.IsNullOrWhiteSpace(request.App))
         {
             // ── App path (existing logic, unchanged) ─────────────────────
-            AppType? node = await SchemaContext.GetAppTypeAsync(request.App);
+            AppType? node = await SchemaContext.GetAppTypeAsync(request.App, token: cancellationToken);
             if (node == null) return new LoadAppSchemaOntologyResponse();
 
-            await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead);
+            await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead, token: cancellationToken);
 
             graph = await SchemaContext.BuildAppOntologyAsync(
                 request.App,
@@ -71,7 +71,7 @@ public class LoadAppSchemaOntologyApi : SchemaApi<LoadAppSchemaOntologyRequest, 
             return new LoadAppSchemaOntologyResponse();
         }
 
-        string content = OntologyTextTemplates.Render(graph, format, SchemaContext.GetLocale());
+        string content = OntologyTextTemplates.Render(graph, format, SchemaContext.Locale);
 
         // JSON-LD is already JSON — return it inline so callers can parse it directly.
         // All other formats are plain-text and are returned as a file download.

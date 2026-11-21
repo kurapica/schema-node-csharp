@@ -1,0 +1,60 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:view="using:SchemaNode.Avalonia.View"
+             x:Class="SchemaNode.Avalonia.Man.Views.FuncCallArgsView"
+             x:CompileBindings="False">
+  <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                VerticalScrollBarVisibility="Auto">
+    <StackPanel>
+      <!-- Header and body share the same fixed column widths, so a horizontally scrolled
+           argument row stays aligned with its header. -->
+      <StackPanel Orientation="Horizontal">
+        <TextBlock Width="{Binding NameWidth}" Padding="6,4" FontWeight="SemiBold"
+                   Background="#F5F5F5" Text="{Binding NameHeader}" />
+        <ItemsControl ItemsSource="{Binding Columns}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Horizontal" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Width="{Binding Width}" Padding="6,4" FontWeight="SemiBold"
+                         Background="#F5F5F5" Text="{Binding Header}" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+
+      <ItemsControl ItemsSource="{Binding Rows}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Width="{Binding NameWidth}" Padding="6,4" VerticalAlignment="Center"
+                         TextWrapping="Wrap" Text="{Binding Label}" />
+              <ItemsControl ItemsSource="{Binding Cells}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border Width="{Binding Width}" Padding="2"
+                            BorderBrush="#EEEEEE" BorderThickness="0,1,1,0">
+                      <view:SchemaView Node="{Binding Wrapper}" Role="Cell"
+                                       IsEnabled="{Binding IsEnabled}" />
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <TextBlock Margin="6,4" Foreground="Gray"
+                 Text="{Binding EmptyText}" IsVisible="{Binding IsEmpty}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

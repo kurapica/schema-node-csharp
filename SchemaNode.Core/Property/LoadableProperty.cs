@@ -10,5 +10,5 @@ public interface ILoadableProperty
     /// <summary>
     /// Process loading task
     /// </summary>
-    Task LoadAsync(SchemaContext context, Runtime.ValueType? ownerType = null);
+    Task LoadAsync(SchemaContext context, Runtime.ValueType? ownerType = null, CancellationToken token = default);
 }

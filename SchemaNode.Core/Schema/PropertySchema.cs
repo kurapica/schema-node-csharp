@@ -27,6 +27,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP}.schema")]
 [Meta<Attach>(SCHEMA_KIND_NODE_PROPERTY)]
 [Meta<Append>(typeof(Relations))]
+[Meta<TypeProvider>(nameof(Type))]
 public class PropertySchema: PropertyOwner
 {
     /// <summary>
@@ -56,6 +57,7 @@ public class PropertySchema: PropertyOwner
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_PROPERTY}.{NODE_KIND_PROPERTY}")]
 [Meta<ReadOnly>(true)]
+[Meta<NoInherit>(true)]
 [Relation<Visible, Relation.Call>(NODE_KIND_PROPERTY, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", NODE_KIND_PROPERTY)]
 public sealed class PropertyProperty : Property<PropertySchema>
 {

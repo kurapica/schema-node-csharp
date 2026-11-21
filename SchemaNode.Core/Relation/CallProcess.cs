@@ -45,7 +45,7 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
     public FunctionType? FuncType { get; private set; }
 
     /// <inheritdoc/>
-    public async Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner, params string?[] kinds)
+    public async Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner, string?[] kinds, CancellationToken token = default)
     {
         FuncCall? call = schema.GetProperty<Call>()?.GetValue<FuncCall>();
         if (call == null)
@@ -59,7 +59,7 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
         Args = call.Args;
         
         // load & check
-        FuncType = !string.IsNullOrWhiteSpace(Func) ? await context.GetNodeTypeAsync<FunctionType>(Func): null;
+        FuncType = !string.IsNullOrWhiteSpace(Func) ? await context.GetNodeTypeAsync<FunctionType>(Func, token: token).ConfigureAwait(false): null;
         Error = FuncType == null ? ErrorCodes.RELATION_FUNC_NOT_EXIST : null;
         
         // check args
@@ -71,7 +71,29 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
     }
     
     /// <inheritdoc/>
-    public async Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner, IValueAccess? target = null)
+    public bool hasDepends => Args.Any(a => !string.IsNullOrWhiteSpace(a.Source));
+
+    /// <inheritdoc/>
+    public void Attach(IRelation relation, IValueAccess owner, IValueAccess target)
+    {
+        if (FuncType == null) return;
+        foreach (CallArg arg in Args)
+        {
+            if (string.IsNullOrWhiteSpace(arg.Source)) continue;
+
+            IValueAccess? node = owner.GetAccessValue(arg.Source, target);
+            if (node == null) continue;
+
+            target.RecordSubscription(node.Subscribe(_ => DebounceProcess(relation, owner, target)), relation);
+        }
+    }
+
+    /// <inheritdoc/>
+    public void Detach(IRelation relation, IValueAccess owner, IValueAccess target)
+        => target.ClearSubscription(relation);
+
+    /// <inheritdoc/>
+    public async Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner, IValueAccess target)
     {
         if (FuncType == null) return null;
         object?[] args = new object?[Args.Length];
@@ -84,12 +106,31 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
             }
             else
             {
-                args[i] = owner.GetAccessValue(a.Source, target ?? owner);
+                args[i] = owner.GetAccessValue(a.Source, target);
                 if (args[i] is DataNode node)
-                    await node.LoadDefaultAsync(context);
+                    await node.LoadDefaultAsync(context).ConfigureAwait(false);
             }
         }
-        return await FuncType.CallAsync<object?>(context, args, mode: Mode);
+        return await FuncType.CallAsync<object?>(context, args, mode: Mode).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Debounce the relation process
+    /// </summary>
+    private static void DebounceProcess(IRelation relation, IValueAccess owner, IValueAccess target)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(10).ConfigureAwait(false);
+                await relation.ProcessAsync(owner, target).ConfigureAwait(false);
+            }
+            catch
+            {
+                // ignore the errors, the relation will be processed next time
+            }
+        });
     }
 
     /// <inheritdoc/>

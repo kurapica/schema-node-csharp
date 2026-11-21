@@ -12,51 +12,60 @@ public static class AppConstant
     public const string SCHEMA_KIND_APP = "app";
     public const string SCHEMA_KIND_APP_FIELD = "app.field";
     public const string SCHEMA_KIND_APP_WORKFLOW = "app.workflow";
-    public const string SCHEMA_KIND_APP_WORKFLOW_NODE = "app.workflow.node";
-    
-    public const string SCHEMA_KIND_NODE_EVENT = "node.event";
-    public const string SCHEMA_KIND_NODE_WORKFLOW = "node.workflow";
-    public const string NODE_KIND_EVENT = "event";
-    public const string NODE_KIND_WORKFLOW = "workflow";
+    public const string SCHEMA_KIND_APP_WORKFLOW_STEP = "app.workflow.step";
 
-    public const int SCHEMA_KIND_ORDER_EVENT = 20;
-    public const int SCHEMA_KIND_ORDER_WORKFLOW = 21;
     public const int SCHEMA_KIND_ORDER_APP = 30;
     public const int SCHEMA_KIND_ORDER_APP_FIELD = 31;
     public const int SCHEMA_KIND_ORDER_APP_WORKFLOW = 32;
-    public const int SCHEMA_KIND_ORDER_APP_WORKFLOW_NODE = 33;
+    public const int SCHEMA_KIND_ORDER_APP_WORKFLOW_STEP = 33;
 
     public const string NS_SYSTEM_DATA_APP = $"{NS_SYSTEM_DATA}.app";
-    public const string NS_SYSTEM_EVENT = "system.event";
-    public const string NS_SYSTEM_WORKFLOW = "system.workflow";
-    public const string NS_SYSTEM_WORKFLOW_CRON = $"{NS_SYSTEM_WORKFLOW}.cron";
-    public const string NS_SYSTEM_WORKFLOW_NODE = $"{NS_SYSTEM_WORKFLOW}.node";
-    public const string NS_SYSTEM_WORKFLOW_CONTROL = $"{NS_SYSTEM_WORKFLOW}.control";
-    public const string NS_SYSTEM_WORKFLOW_INTERACTION = $"{NS_SYSTEM_WORKFLOW}.interaction";
-    public const string NS_SYSTEM_WORKFLOW_EVENT = $"{NS_SYSTEM_WORKFLOW}.event";
 
     public const string NS_SYSTEM_SCHEMA_APP = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_APP}";
     public const string NS_SYSTEM_SCHEMA_APP_FIELD = $"{NS_SYSTEM_SCHEMA_APP}.field";
     public const string NS_SYSTEM_SCHEMA_APP_WORKFLOW = $"{NS_SYSTEM_SCHEMA_APP}.workflow";
-    public const string NS_SYSTEM_SCHEMA_EVENT = $"{NS_SYSTEM_SCHEMA}.event";
-    public const string NS_SYSTEM_SCHEMA_WORKFLOW = $"{NS_SYSTEM_SCHEMA}.workflow";
     public const string NS_SYSTEM_SCHEMA_REFLECT_APP = $"{NS_SYSTEM_SCHEMA_REFLECT}.app";
-    public const string NS_SYSTEM_SCHEMA_REFLECT_WORKFLOW = $"{NS_SYSTEM_SCHEMA_REFLECT}.workflow";
-    public const string NS_SYSTEM_SCHEMA_REFLECT_EVENT = $"{NS_SYSTEM_SCHEMA_REFLECT}.event";
 
     public const string NS_SYSTEM_SCHEMA_PROPERTY_APP = $"{NS_SYSTEM_SCHEMA_PROP}.app";
 
-    // workflow kind
-    public const string WORKFLOW_KIND_WORKFLOW = "workflow";
-    public const string WORKFLOW_KIND_CALL = "call";
-    public const string WORKFLOW_KIND_EVENT = "event";
-    public const string WORKFLOW_KIND_INTERACTION = "interaction";
-    
-    // Topic
-    public const char TOPIC_SEP = '/';
-    public const string TOPIC_WILDCARD_SINGLE = "+";
-    public const string TOPIC_WILDCARD_MULTI = "*";
-    public const string TOPIC_WILDCARD_ALL = "#";
+    #region Workflow module compatibility
+
+    public const string SCHEMA_KIND_NODE_WORKFLOW_STEP = WorkflowConstant.SCHEMA_KIND_NODE_WORKFLOW_STEP;
+    public const string SCHEMA_KIND_NODE_EVENT = WorkflowConstant.SCHEMA_KIND_NODE_EVENT;
+    public const string SCHEMA_KIND_NODE_WORKFLOW = WorkflowConstant.SCHEMA_KIND_NODE_WORKFLOW;
+    public const string SCHEMA_KIND_NODE_WORKFLOW_NODE = WorkflowConstant.SCHEMA_KIND_NODE_WORKFLOW_NODE;
+    public const string NODE_KIND_EVENT = WorkflowConstant.NODE_KIND_EVENT;
+    public const string NODE_KIND_WORKFLOW = WorkflowConstant.NODE_KIND_WORKFLOW;
+
+    public const int SCHEMA_KIND_ORDER_EVENT = WorkflowConstant.SCHEMA_KIND_ORDER_EVENT;
+    public const int SCHEMA_KIND_ORDER_WORKFLOW = WorkflowConstant.SCHEMA_KIND_ORDER_WORKFLOW;
+    public const int SCHEMA_KIND_ORDER_WORKFLOW_NODE = WorkflowConstant.SCHEMA_KIND_ORDER_WORKFLOW_NODE;
+    public const int SCHEMA_KIND_ORDER_WORKFLOW_STEP = WorkflowConstant.SCHEMA_KIND_ORDER_WORKFLOW_STEP;
+
+    public const string NS_SYSTEM_EVENT = WorkflowConstant.NS_SYSTEM_EVENT;
+    public const string NS_SYSTEM_WORKFLOW = WorkflowConstant.NS_SYSTEM_WORKFLOW;
+    public const string NS_SYSTEM_WORKFLOW_CRON = WorkflowConstant.NS_SYSTEM_WORKFLOW_CRON;
+    public const string NS_SYSTEM_WORKFLOW_NODE = WorkflowConstant.NS_SYSTEM_WORKFLOW_NODE;
+    public const string NS_SYSTEM_WORKFLOW_CONTROL = WorkflowConstant.NS_SYSTEM_WORKFLOW_CONTROL;
+    public const string NS_SYSTEM_WORKFLOW_INTERACTION = WorkflowConstant.NS_SYSTEM_WORKFLOW_INTERACTION;
+    public const string NS_SYSTEM_WORKFLOW_EVENT = WorkflowConstant.NS_SYSTEM_WORKFLOW_EVENT;
+
+    public const string NS_SYSTEM_SCHEMA_EVENT = WorkflowConstant.NS_SYSTEM_SCHEMA_EVENT;
+    public const string NS_SYSTEM_SCHEMA_WORKFLOW = WorkflowConstant.NS_SYSTEM_SCHEMA_WORKFLOW;
+    public const string NS_SYSTEM_SCHEMA_REFLECT_WORKFLOW = WorkflowConstant.NS_SYSTEM_SCHEMA_REFLECT_WORKFLOW;
+    public const string NS_SYSTEM_SCHEMA_REFLECT_EVENT = WorkflowConstant.NS_SYSTEM_SCHEMA_REFLECT_EVENT;
+
+    public const string WORKFLOW_KIND_WORKFLOW = WorkflowConstant.WORKFLOW_KIND_WORKFLOW;
+    public const string WORKFLOW_KIND_CALL = WorkflowConstant.WORKFLOW_KIND_CALL;
+    public const string WORKFLOW_KIND_EVENT = WorkflowConstant.WORKFLOW_KIND_EVENT;
+    public const string WORKFLOW_KIND_INTERACTION = WorkflowConstant.WORKFLOW_KIND_INTERACTION;
+
+    public const char TOPIC_SEP = WorkflowConstant.TOPIC_SEP;
+    public const string TOPIC_WILDCARD_SINGLE = WorkflowConstant.TOPIC_WILDCARD_SINGLE;
+    public const string TOPIC_WILDCARD_MULTI = WorkflowConstant.TOPIC_WILDCARD_MULTI;
+    public const string TOPIC_WILDCARD_ALL = WorkflowConstant.TOPIC_WILDCARD_ALL;
+
+    #endregion
 
     /// <summary>
     /// DYNAMIC TABLE TARG FIELD

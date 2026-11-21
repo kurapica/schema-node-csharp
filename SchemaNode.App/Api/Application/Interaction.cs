@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Context;
-using SchemaNode.Enum;
+using SchemaNode.Enum.Workflow;
 using SchemaNode.Http;
 using SchemaNode.Node;
 using SchemaNode.Property.App;
@@ -25,7 +25,7 @@ public class InteractionApi : SchemaApi<InteractionRequest, InteractionResponse>
         Logger.LogDebug("[Api]Interaction [Request]{request}", request);
 
         // Done
-        return new InteractionResponse { WorkflowId = await SchemaContext.InteractionAsync(request) };
+        return new InteractionResponse { WorkflowId = await SchemaContext.InteractionAsync(request, token: cancellationToken).ConfigureAwait(false) };
     }
 }
 
@@ -34,10 +34,10 @@ public static class InteractionExtensions
     /// <summary>
     /// Process the interaction request
     /// </summary>
-    public static async Task<Guid?> InteractionAsync(this SchemaContext context, InteractionRequest request, bool innerCall = false)
+    public static async Task<Guid?> InteractionAsync(this SchemaContext context, InteractionRequest request, bool innerCall = false, CancellationToken token = default)
     {
         // Indicate the workflow node
-        AppType app = await context.GetAppTypeAsync(request.App) ?? throw new Exception(AppErrorCodes.APP_NOT_FOUND);
+        AppType app = await context.GetAppTypeAsync(request.App, token: token).ConfigureAwait(false) ?? throw new Exception(AppErrorCodes.APP_NOT_FOUND);
         AppWorkflowType workflowType = app.GetWorkflow(request.Workflow) ?? throw new Exception(AppErrorCodes.APP_WORKFLOW_NOT_FOUND);
         if (workflowType.RootWorkflowContext == null) throw new Exception(AppErrorCodes.APP_WORKFLOW_NOT_START);
         
@@ -46,7 +46,7 @@ public static class InteractionExtensions
         
         // authorize
         if (!innerCall)
-            await context.AuthorizeAsync(workflowType, PolicyScope.FuncExecute);
+            await context.AuthorizeAsync(workflowType, PolicyScope.FuncExecute, token: token).ConfigureAwait(false);
         
         // Find the contains node
         BaseWorkflow node = (string.IsNullOrEmpty(request.Node) 
@@ -55,18 +55,16 @@ public static class InteractionExtensions
             ?? throw new Exception(AppErrorCodes.APP_WORKFLOW_NODE_NOT_FOUND);
 
         // build the payload
-        var payload = node.PayloadType?.From(request.Data) ?? throw new Exception(AppErrorCodes.WORKFLOW_NODE_PAYLOAD_NOT_VALID);
+        var payload = node.PayloadType?.Create(context, request.Data) ?? throw new Exception(AppErrorCodes.WORKFLOW_NODE_PAYLOAD_NOT_VALID);
         
         // Start a new workflow
         if (request.WorkflowId == null)
         {
             // If terminate requested, just return
             if (request.Terminate == true) return null;
-            if (!workflowType.Nodes[0].Name.Equals(node.Name, StringComparison.InvariantCultureIgnoreCase))
-                throw new Exception(AppErrorCodes.APP_WORKFLOW_NODE_NOT_FOUND);
             
             // Start a new workflow
-            return workflowType.RootWorkflowContext.Done(node.Name, payload, false, new Access{ App = request.App, Target = request.Target })?.Id;
+            return workflowType.RootWorkflowContext.Done(node.Name, payload, false, context => (context as WorkflowContext)?.SetAccess(new Access{ App = request.App, Target = request.Target }))?.Id;
         }
         
         // Continue an existing workflow
@@ -76,7 +74,7 @@ public static class InteractionExtensions
         // Check if still working
         if (request.Terminate == true)
         {
-            await workContext.TerminateAsync();
+            await workContext.TerminateAsync().ConfigureAwait(false);
         }
         else
         {

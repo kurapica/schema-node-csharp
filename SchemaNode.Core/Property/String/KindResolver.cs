@@ -2,6 +2,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Property;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.String;
@@ -15,4 +16,28 @@ namespace SchemaNode.Property.String;
 [Meta<Static>(true)]
 [Meta<ReadOnly>(true)]
 [Meta<InVisible>(true)]
-public class KindResolver: Property<bool>;
+public class KindResolver: Property<bool>
+{
+    /// <inheritdoc/>
+    public override void Effect(IValueAccess target)
+    {
+        if (Value != true) return;
+
+        // defer the effect, so the parent chain is available after the node is attached
+        _ = Task.Run(async () =>
+        {
+            await Task.Yield();
+            IValueAccess? provider = target;
+            while (provider is not null)
+            {
+                string? kind = provider.GetProperty<KindProvider>()?.GetValue<string>();
+                if (!string.IsNullOrWhiteSpace(kind))
+                {
+                    target.SetPropertyValue<Default, object>(kind, provider, null);
+                    break;
+                }
+                provider = provider.Parent;
+            }
+        });
+    }
+}

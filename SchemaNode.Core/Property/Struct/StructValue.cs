@@ -20,10 +20,15 @@ public class StructValue: Property<bool>, IConstraintProperty
 {
     public override bool HasValue => true;
 
-    public async Task<bool?> ValidateStructAsync(SchemaContext context, StructNode node)
+    public async Task<bool?> ValidateStructAsync(SchemaContext context, StructNode node, CancellationToken token = default)
     {
+        // An absent (empty) struct carries no inner constraints and no relation evaluation;
+        // whether the struct itself is required is decided by the constraints attached to
+        // the field that holds it, which are validated by the parent struct.
+        if (node.IsEmpty) return null;
+
         StructType type = (node.Type as StructType)!;
-        
+
         // Validate by fields
         foreach (var field in type.GetFields().Where(f => f.Type != null && f.DisplayOnly != true))
         {
@@ -32,13 +37,13 @@ public class StructValue: Property<bool>, IConstraintProperty
             // validate the fields
             foreach (IConstraintProperty constraint in field.Constraints)
             {
-                bool? result = await constraint.ValidateAsync(context, dataNode);
+                bool? result = await constraint.ValidateAsync(context, dataNode, token).ConfigureAwait(false);
                 if (result.HasValue) dataNode.RecordConstraint(constraint, result.Value);
             }
         }
 
         // validate by relations
-        await type.ValidateWithRelationsAsync(context, node);
+        await type.ValidateWithRelationsAsync(context, node, token).ConfigureAwait(false);
         return null;
     }
 }

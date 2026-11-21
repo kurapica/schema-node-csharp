@@ -37,7 +37,8 @@ public class ProtocolApi : SchemaApi<ProtocolRequest, ProtocolResponse>
             Request = protocolMeta.Request?.ToJsonNode(),
             Response = protocolMeta.Response?.ToJsonNode(),
             SchemaFormat = protocolMeta.SchemaFormat,
-            KindProperties = kindProperties
+            KindProperties = kindProperties,
+            EnableFeatures = Http.Service.GetEnableFeatures()
         };
     }
 }
@@ -78,4 +79,9 @@ public class ProtocolResponse : SchemaApiResponse
     /// The properties of each registered kind
     /// </summary>
     public Dictionary<string, string[]>? KindProperties { get; init; }
+
+    /// <summary>
+    /// The enabled features
+    /// </summary>
+    public string[]? EnableFeatures { get; init; }
 }

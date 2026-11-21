@@ -18,7 +18,7 @@ public class SwapAppFieldSchemaApi : SchemaApi<SwapAppFieldSchemaRequest, SwapAp
 
         return new SwapAppFieldSchemaResponse
         {
-            Result = await SchemaContext.SwapAppFieldSchemaAsync(request.App, request.Field, request.Other)
+            Result = await SchemaContext.SwapAppFieldSchemaAsync(request.App, request.Field, request.Other).ConfigureAwait(false)
         };
     }
 }

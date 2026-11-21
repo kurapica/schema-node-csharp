@@ -68,6 +68,11 @@ public interface IProperty
     Type Type { get; }
 
     /// <summary>
+    /// The source of the property
+    /// </summary>
+    IValueAccess? Source { get; set; }
+
+    /// <summary>
     /// CombineProperties the property with another property of the same type, if the current property has no value, it will take the value from the other property.
     /// If return true means the other property is combined into the current property.
     /// If return false and the property is stackable, the other property can be used together with the current property.
@@ -78,6 +83,21 @@ public interface IProperty
     /// Whether the properties are equal, used for stackable property, if the properties are equal, the other property will be ignored.
     /// </summary>
     bool Equals(IProperty other);
+
+    /// <summary>
+    /// Apply the property effect to the target
+    /// </summary>
+    void Effect(IValueAccess target);
+
+    /// <summary>
+    /// Clear the property effect rom the target
+    /// </summary>
+    void Clear(IValueAccess target);
+
+    /// <summary>
+    /// Whether to apply the relation to the property immediately.
+    /// </summary>
+    bool InitWithRelation(IRelation relation, IValueAccess owner, IValueAccess target);
 }
 
 /// <summary>
@@ -85,6 +105,11 @@ public interface IProperty
 /// </summary>
 public abstract class Property<T> : IProperty
 {
+    /// <summary>
+    /// The property source
+    /// </summary>
+    public IValueAccess? Source { get; set; }
+
     /// <summary>
     /// The property value
     /// </summary>
@@ -98,7 +123,7 @@ public abstract class Property<T> : IProperty
     /// <summary>
     /// Gets the value
     /// </summary>
-    public virtual TV? GetValue<TV>(bool matchType = false) => HasValue && (!matchType || Value is TV) ? Value.ConvertTo<TV>() : default(TV?);
+    public virtual TV? GetValue<TV>(bool matchType = false) => HasValue && (!matchType || Value!.GetType().IsAssignableTo(typeof(TV))) ? Value.ConvertTo<TV>() : default(TV?);
 
     /// <inheritdoc/>
     public virtual bool Combine(IProperty other, ISchemaRuntime? runtime = null)
@@ -116,7 +141,20 @@ public abstract class Property<T> : IProperty
         if (HasValue != other.HasValue) return false;
         return !HasValue || Equals(other.GetValue<object>(), GetValue<object>());
     }
-    
+
+    /// <inheritdoc/>
+    public virtual void Effect(IValueAccess target)
+    {
+    }
+
+    /// <inheritdoc/>
+    public virtual void Clear(IValueAccess target)
+    {
+    }
+
+    /// <inheritdoc/>
+    public virtual bool InitWithRelation(IRelation relation, IValueAccess owner, IValueAccess target) => true;
+
     /// <summary>
     /// Check the value is not empty
     /// </summary>

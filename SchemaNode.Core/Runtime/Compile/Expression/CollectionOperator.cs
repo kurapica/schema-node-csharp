@@ -1,7 +1,9 @@
-﻿using SchemaNode.Node;
+﻿using SchemaNode.Context;
+using SchemaNode.Node;
 using SchemaNode.Utility;
 using System.Collections;
 using System.Linq.Expressions;
+using System.Reflection;
 using SchemaNode.Enum;
 using SchemaNode.Function;
 using static SchemaNode.Utility.Constant;
@@ -188,13 +190,13 @@ public class CollectionExpVisitor : IExpVisitor
                             CollectionItemExp => pre.Item,
                             FieldAccessExp { Owner: CollectionItemExp } fldAcc => new FieldAccessExp(pre.Item, fldAcc.FieldName, fldAcc.ValueType),
                             _ => a
-                        }).ToArray(), pre.Predicate.ValueType)), pre.Predicate.ValueType),
+                        }).ToArray(), pre.Predicate.ValueType)).ConfigureAwait(false), pre.Predicate.ValueType),
                     funcExp.ValueType);
             
             // Default filter
             case ApplyMode.Filter:
                 return new PredicateCollectionOperator(source, item,
-                    await context.VisitSchemaExpAsync(new FuncCallExp(funcExp.Function, funcExp.Args, context.System.Bool)), 
+                    await context.VisitSchemaExpAsync(new FuncCallExp(funcExp.Function, funcExp.Args, context.System.Bool)).ConfigureAwait(false), 
                     funcExp.ValueType); 
             
             // Reduce the collection source
@@ -210,7 +212,7 @@ public class CollectionExpVisitor : IExpVisitor
                         funcExp.Function,
                         newArgs,
                         funcExp.ValueType
-                    )),
+                    )).ConfigureAwait(false),
                     funcExp.ValueType
                 );
             }
@@ -251,7 +253,7 @@ public class CollectionExpVisitor : IExpVisitor
                         funcExp.Function,
                         funcExp.Args,
                         (funcExp.ValueType as ArrayType)!.Element!
-                    )),
+                    )).ConfigureAwait(false),
                     funcExp.ValueType
                 );
             
@@ -262,7 +264,7 @@ public class CollectionExpVisitor : IExpVisitor
                         funcExp.Function,
                         funcExp.Args,
                         context.System.Bool
-                    )) as LogicExp
+                    )).ConfigureAwait(false) as LogicExp
                 );
             
             case ApplyMode.Last:
@@ -272,7 +274,7 @@ public class CollectionExpVisitor : IExpVisitor
                         funcExp.Function,
                         funcExp.Args,
                         context.System.Bool
-                    )) as LogicExp
+                    )).ConfigureAwait(false) as LogicExp
                 );
             case ApplyMode.Count:
                 return new CountCollectionResult(source, funcExp.ValueType, item,
@@ -281,7 +283,7 @@ public class CollectionExpVisitor : IExpVisitor
                         funcExp.Function,
                         funcExp.Args,
                         context.System.Bool
-                    )) as LogicExp
+                    )).ConfigureAwait(false) as LogicExp
                 );
             case ApplyMode.All:
                 return new AllCollectionResult(source, funcExp.ValueType, item,
@@ -290,7 +292,7 @@ public class CollectionExpVisitor : IExpVisitor
                         funcExp.Function,
                         funcExp.Args,
                         context.System.Bool
-                    )) as LogicExp
+                    )).ConfigureAwait(false) as LogicExp
                 );
             case ApplyMode.Any:
                 return new AnyCollectionResult(source, funcExp.ValueType, item,
@@ -299,7 +301,7 @@ public class CollectionExpVisitor : IExpVisitor
                         funcExp.Function,
                         funcExp.Args,
                         context.System.Bool
-                    )) as LogicExp
+                    )).ConfigureAwait(false) as LogicExp
                 );
             default:
                 throw new ArgumentOutOfRangeException();
@@ -312,7 +314,7 @@ public class CollectionExpVisitor : IExpVisitor
         if (exp is not CollectionOperator && exp is not CollectionResult)
         {
             // For collection root, compile the collection directly
-            return exp is CollectionRootExp rootExp ? await context.CompileSchemaExpAsync(rootExp.Collection) : null;
+            return exp is CollectionRootExp rootExp ? await context.CompileSchemaExpAsync(rootExp.Collection).ConfigureAwait(false) : null;
         }
 
         // Use function call for some collection operators
@@ -321,19 +323,19 @@ public class CollectionExpVisitor : IExpVisitor
             // source.orderBy(field, desc)
             case OrderByCollectionOperator orderBy:
                 return await context.CompileSchemaExpAsync(new FuncCallExp(
-                    (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.orderby)}"))!,
+                    (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.orderby)}").ConfigureAwait(false))!,
                     [
                         orderBy.Root,
-                        new ConstantExp(context.System.String.From(orderBy.OrderField)),
-                        new ConstantExp(context.System.Bool.From(orderBy.Descending))
+                        new ConstantExp(context.System.String.Create(context.Context, orderBy.OrderField)),
+                        new ConstantExp(context.System.Bool.Create(context.Context, orderBy.Descending))
                     ],
-                    exp.ValueType));
+                    exp.ValueType)).ConfigureAwait(false);
             
             }
         
         // Others will be compiled here
         Expression sourceExp = await context.CompileSchemaExpAsync((exp as CollectionOperator)?.Root ?? (exp as CollectionResult)?.Root
-            ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS));
+            ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS)).ConfigureAwait(false);
         
         // Prepare loop variables
         ParameterExpression start = Expression.Variable(typeof(int), "_start");
@@ -359,8 +361,20 @@ public class CollectionExpVisitor : IExpVisitor
 
         Type expReturnType = exp.ValueType.GetCsharpType() ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
 
-        // Handle different collection expression types
-        var arrayNodeCtor = typeof(ArrayNode).GetConstructors().First(c => c.GetParameters().Length == 3);
+        // Locate the constructor by its exact parameter types: the signature carries an optional
+        // schema context and a params property provider array, so an arity based lookup cannot
+        // match it and would also bind the arguments to the wrong positions.
+        ConstructorInfo arrayNodeCtor = typeof(ArrayNode).GetConstructor([
+            typeof(ISchemaContext), typeof(IValueTypeAccess), typeof(object), typeof(IValueAccess), typeof(IPropertyProvider[])
+        ]) ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
+
+        // The collection result is a detached value: no schema context, no value and no parent
+        Expression arrayNodeExp = Expression.New(arrayNodeCtor,
+            Expression.Constant(null, typeof(ISchemaContext)),
+            Expression.Constant(exp.ValueType),
+            Expression.Constant(null, typeof(object)),
+            Expression.Constant(null, typeof(IValueAccess)),
+            Expression.Constant(Array.Empty<IPropertyProvider>(), typeof(IPropertyProvider[])));
         switch (exp)
         {
             case PredicateCollectionOperator predicateExp:
@@ -369,7 +383,7 @@ public class CollectionExpVisitor : IExpVisitor
                 Expression temp = iterator;
                 ParameterExpression curr = Expression.Parameter(temp.Type, "_curr");
                 context.SetCompiledExpression(predicateExp.Item, curr); // replace iterator
-                Expression callMethod = await context.CompileSchemaExpAsync(predicateExp.Predicate);
+                Expression callMethod = await context.CompileSchemaExpAsync(predicateExp.Predicate).ConfigureAwait(false);
 
                 // Generate result expression
                 ParameterExpression resultExp = Expression.Variable(expReturnType.IsArrayType() ? expReturnType : typeof(ArrayNode));
@@ -377,7 +391,7 @@ public class CollectionExpVisitor : IExpVisitor
                     [arrExp, resultExp, start, stop, curr],
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayNode)
-                        ? Expression.New(arrayNodeCtor, Expression.Constant(exp.ValueType), Expression.Constant(null, typeof(IValueAccess)), Expression.Constant(null, typeof(IPropertyProvider)))
+                        ? arrayNodeExp
                         : Expression.New(resultExp.Type)),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
                     Expression.Assign(stop, arrayLen),
@@ -403,13 +417,13 @@ public class CollectionExpVisitor : IExpVisitor
             {
                 // Generate result expression
                 ParameterExpression resultExp = Expression.Variable(expReturnType.IsArrayType() ? expReturnType : typeof(ArrayNode));
-                Expression takeCount = await context.CompileSchemaExpAsync(takeExp.Take);
+                Expression takeCount = await context.CompileSchemaExpAsync(takeExp.Take).ConfigureAwait(false);
 
                 return Expression.Block(
                     [arrExp, resultExp, start, stop],
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayNode)
-                        ? Expression.New(arrayNodeCtor, Expression.Constant(exp.ValueType), Expression.Constant(null, typeof(IValueAccess)), Expression.Constant(null, typeof(IPropertyProvider)))
+                        ? arrayNodeExp
                         : Expression.New(resultExp.Type)),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
                     Expression.Assign(stop,  Expression.Condition(
@@ -433,13 +447,13 @@ public class CollectionExpVisitor : IExpVisitor
             {
                 // Generate result expression
                 ParameterExpression resultExp = Expression.Variable(expReturnType.IsArrayType() ? expReturnType : typeof(ArrayNode));
-                Expression takeCount = await context.CompileSchemaExpAsync(skipExp.Skip);
+                Expression takeCount = await context.CompileSchemaExpAsync(skipExp.Skip).ConfigureAwait(false);
 
                 return Expression.Block(
                     [arrExp, resultExp, start, stop],
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayNode)
-                        ? Expression.New(arrayNodeCtor, Expression.Constant(exp.ValueType), Expression.Constant(null, typeof(IValueAccess)), Expression.Constant(null, typeof(IPropertyProvider)))
+                        ? arrayNodeExp
                         : Expression.New(resultExp.Type)),
                     Expression.Assign(start, takeCount),
                     Expression.Assign(stop,  arrayLen),
@@ -461,7 +475,7 @@ public class CollectionExpVisitor : IExpVisitor
 
                 context.SetCompiledExpression(countExp.Item, iterator);
                 ParameterExpression resultExp = Expression.Variable(typeof(int));
-                Expression callMethod = await context.CompileSchemaExpAsync(countExp.Predicate!);
+                Expression callMethod = await context.CompileSchemaExpAsync(countExp.Predicate!).ConfigureAwait(false);
 
                 return Expression.Block(
                     [arrExp, resultExp, start, stop],
@@ -488,7 +502,7 @@ public class CollectionExpVisitor : IExpVisitor
 
                 context.SetCompiledExpression(anyExp.Item, iterator);
                 ParameterExpression resultExp = Expression.Variable(typeof(bool));
-                Expression callMethod = await context.CompileSchemaExpAsync(anyExp.Predicate!);
+                Expression callMethod = await context.CompileSchemaExpAsync(anyExp.Predicate!).ConfigureAwait(false);
 
                 // Compile
                 return Expression.Block(
@@ -520,7 +534,7 @@ public class CollectionExpVisitor : IExpVisitor
 
                 context.SetCompiledExpression(allExp.Item, iterator);
                 ParameterExpression resultExp = Expression.Variable(typeof(bool));
-                Expression callMethod = await context.CompileSchemaExpAsync(allExp.Predicate!);
+                Expression callMethod = await context.CompileSchemaExpAsync(allExp.Predicate!).ConfigureAwait(false);
 
                 // Compile
                 return Expression.Block(
@@ -571,7 +585,7 @@ public class CollectionExpVisitor : IExpVisitor
                 // Replace the call args
                 Expression temp = iterator;
                 context.SetCompiledExpression(firstExp.Item, resultExp);
-                Expression callMethod = await context.CompileSchemaExpAsync(firstExp.Predicate!);
+                Expression callMethod = await context.CompileSchemaExpAsync(firstExp.Predicate!).ConfigureAwait(false);
 
                 // New init parameter
                 ParameterExpression init = Expression.Parameter(resultExp.Type, "_init");
@@ -626,7 +640,7 @@ public class CollectionExpVisitor : IExpVisitor
                 // Replace the call args
                 Expression temp = iterator;
                 context.SetCompiledExpression(lastExp.Item, resultExp);
-                Expression callMethod = await context.CompileSchemaExpAsync(lastExp.Predicate!);
+                Expression callMethod = await context.CompileSchemaExpAsync(lastExp.Predicate!).ConfigureAwait(false);
 
                 // New init parameter
                 ParameterExpression init = Expression.Parameter(resultExp.Type, "_init");
@@ -665,7 +679,7 @@ public class CollectionExpVisitor : IExpVisitor
 
                 // Replace the sum exp
                 context.SetCompiledExpression(reduceExp.Sum, resultExp);
-                Expression callMethod = await context.CompileSchemaExpAsync(reduceExp.Expression);
+                Expression callMethod = await context.CompileSchemaExpAsync(reduceExp.Expression).ConfigureAwait(false);
 
                 // Compile
                 return Expression.Block(
@@ -675,7 +689,7 @@ public class CollectionExpVisitor : IExpVisitor
                     Expression.Assign(stop, arrayLen),
                     Expression.Assign(resultExp, reduceExp.Sum.Init is NullExp
                             ? Expression.Default(expReturnType)
-                            : await context.CompileSchemaExpAsync(reduceExp.Sum.Init)),
+                            : await context.CompileSchemaExpAsync(reduceExp.Sum.Init).ConfigureAwait(false)),
                     Expression.Loop(
                         Expression.IfThenElse(
                             Expression.LessThan(start, stop),
@@ -699,7 +713,7 @@ public class CollectionExpVisitor : IExpVisitor
 
                 // Compile getfield(item, fieldName) for each element
                 var fieldType = (fieldsExp.ValueType as ArrayType)!.Element!;
-                Expression callMethod = await context.CompileSchemaExpAsync(new FieldAccessExp(syntheticItem, fieldsExp.Field, fieldType));
+                Expression callMethod = await context.CompileSchemaExpAsync(new FieldAccessExp(syntheticItem, fieldsExp.Field, fieldType)).ConfigureAwait(false);
 
                 // Generate result expression
                 ParameterExpression resultExp = Expression.Variable(expReturnType.IsArrayType() ? expReturnType : typeof(ArrayNode));
@@ -708,7 +722,7 @@ public class CollectionExpVisitor : IExpVisitor
                     [arrExp, resultExp, start, stop],
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayNode)
-                        ? Expression.New(arrayNodeCtor, Expression.Constant(exp.ValueType), Expression.Constant(null, typeof(IValueAccess)), Expression.Constant(null, typeof(IPropertyProvider)))
+                        ? arrayNodeExp
                         : Expression.New(resultExp.Type)),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
                     Expression.Assign(stop, arrayLen),
@@ -742,7 +756,7 @@ public class CollectionExpVisitor : IExpVisitor
             {
                 // Compile loop
                 context.SetCompiledExpression(mapExp.Item, iterator);
-                Expression callMethod = await context.CompileSchemaExpAsync(mapExp.Expression);
+                Expression callMethod = await context.CompileSchemaExpAsync(mapExp.Expression).ConfigureAwait(false);
 
                 // Generate result expression
                 ParameterExpression resultExp =
@@ -752,7 +766,7 @@ public class CollectionExpVisitor : IExpVisitor
                     [arrExp, resultExp, start, stop],
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayNode)
-                        ? Expression.New(arrayNodeCtor, Expression.Constant(exp.ValueType), Expression.Constant(null, typeof(IValueAccess)), Expression.Constant(null, typeof(IPropertyProvider)))
+                        ? arrayNodeExp
                         : Expression.New(resultExp.Type)),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
                     Expression.Assign(stop, arrayLen),

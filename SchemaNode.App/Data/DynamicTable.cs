@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+﻿﻿using System.Collections.Immutable;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
@@ -380,7 +380,7 @@ public class DynamicTableSchema
                     {
                         Name = DYNAMIC_TABLE_VALUE_FIELD,
                         Type = DynamicTableFieldType.Json,
-                        ValueType = node
+                        ValueType = arrayNode // store the whole array as json
                     });
                 }
                 break;
@@ -622,12 +622,12 @@ public class DynamicTableSchema
     /// <summary>
     /// Gets the field data pack from the reader
     /// </summary>
-    public IValueAccess GetFieldPack(DbDataReader reader, int offset = 0, bool queryOnly = false)
+    public IValueAccess GetFieldPack(ISchemaContext context, DbDataReader reader, int offset = 0, bool queryOnly = false)
     {
-        StructNode result = new StructNode((StructType)(ValueType is ArrayType arr ? arr.Element : ValueType)!);
+        StructNode result = new StructNode(context, (StructType)(ValueType is ArrayType arr ? arr.Element : ValueType)!);
         foreach (DynamicTableField field in queryOnly ? QueryFields : NonScopeFields)
         {
-            IValueAccess? val = field.FromReader(reader, offset++);
+            IValueAccess? val = field.FromReader(context, reader, offset++);
 
             if (field.Target)
             {
@@ -644,7 +644,7 @@ public class DynamicTableSchema
             if (val == null)
             {
                 if (field is { IsJoinField: true, ValueType: DecimalType or IntType})
-                    val = field.ValueType.From(0);
+                    val = field.ValueType.Create(context, 0);
                 else
                     continue;
             }
@@ -657,7 +657,7 @@ public class DynamicTableSchema
                 var main = result.GetAccessValue(field.Complex.Main);
                 if (main == null)
                 {
-                    main = new StructNode((StructType)((StructType)ValueType).GetField(field.Complex.Main)!.Type!);
+                    main = new StructNode(context, (StructType)((StructType)ValueType).GetField(field.Complex.Main)!.Type!);
                     result[field.Complex.Main] = main;
                 }
                 (main as StructNode)![field.Complex.Field] = val;
@@ -670,7 +670,7 @@ public class DynamicTableSchema
     /// <summary>
     /// Gets the field data pack from the reader by field name
     /// </summary>
-    public IValueAccess? GetFieldPack(DbDataReader reader, string fieldName, bool queryOnly = false)
+    public IValueAccess? GetFieldPack(ISchemaContext context, DbDataReader reader, string fieldName, bool queryOnly = false)
     {
         int offset = 0;
         StructNode? complexResult = null;
@@ -678,12 +678,12 @@ public class DynamicTableSchema
         {
             if (field.Complex == null && field.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
             {
-                return field.FromReader(reader, offset);
+                return field.FromReader(context, reader, offset);
             }
             else if (field.Complex != null && field.Complex.Field.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
             {
-                complexResult ??= new StructNode((StructType)((StructType)ValueType).GetField(field.Complex.Main)!.Type!);
-                var val = field.FromReader(reader, offset);
+                complexResult ??= new StructNode(context, (StructType)((StructType)ValueType).GetField(field.Complex.Main)!.Type!);
+                var val = field.FromReader(context, reader, offset);
                 if (val != null)
                     complexResult[field.Complex.Field] = val;
             }
@@ -717,13 +717,13 @@ public class DynamicTableSchema
     /// <summary>
     /// Generate display only fields
     /// </summary>
-    public Task GenerateDisplayOnlyFields(SchemaContext context, IValueAccess? pack)
+    public Task GenerateDisplayOnlyFields(SchemaContext context, IValueAccess? pack, CancellationToken token = default)
     {
         // Generate the display only fields
         return ValueType switch
         {
-            StructType @struct => GenerateDisplayOnlyFields(context, @struct, pack),
-            ArrayType { Element: StructType structEle } => GenerateDisplayOnlyFields(context, structEle, pack),
+            StructType @struct => GenerateDisplayOnlyFields(context, @struct, pack, false, token),
+            ArrayType { Element: StructType structEle } => GenerateDisplayOnlyFields(context, structEle, pack, false, token),
             _ => Task.CompletedTask
         };
     }
@@ -735,7 +735,7 @@ public class DynamicTableSchema
     internal static bool IsReferenceFunc(string func) => $"{NS_SYSTEM_DATA_APP}.{nameof(SystemAppData.getfield)}".Equals(func.Split('<', 2).First(), StringComparison.OrdinalIgnoreCase);
 
     // Generate the display only fields
-    private static async Task GenerateDisplayOnlyFields(SchemaContext context, StructType type, IValueAccess? node, bool joinHandled = false)
+    private static async Task GenerateDisplayOnlyFields(SchemaContext context, StructType type, IValueAccess? node, bool joinHandled = false, CancellationToken token = default)
     {
         switch (node)
         {
@@ -757,7 +757,7 @@ public class DynamicTableSchema
                         // app
                         string? app = call.Args.FirstOrDefault()?.Value?.ToValue<string>();
                         if (string.IsNullOrWhiteSpace(app)) continue; // no app
-                        AppType? appType = await context.GetAppTypeAsync(app);
+                        AppType? appType = await context.GetAppTypeAsync(app, token: token).ConfigureAwait(false);
                         if (appType == null) continue; // app not exist
 
                         // app field
@@ -831,7 +831,8 @@ public class DynamicTableSchema
                         if (filter == null) continue; // no valid data to query
 
                         // query the dynamic data
-                        (IValueAccess? value, _) = await context.GetAppFieldDataAsync(appField, AppSchemaDataResult.List, filter);
+                        (IValueAccess? value, _) = await context.GetAppFieldDataAsync(appField, AppSchemaDataResult.List, filter, token: token).ConfigureAwait(false);
+                        if (token.IsCancellationRequested) break;
 
                         // set the display only field value
                         switch (primary.Count)
@@ -902,7 +903,7 @@ public class DynamicTableSchema
                 
                 // generate for each row
                 foreach (IValueAccess row in array)
-                    await GenerateDisplayOnlyFields(context, type, row, true);
+                    await GenerateDisplayOnlyFields(context, type, row, true, token).ConfigureAwait(false);
                 break;
             }
             case StructNode pack:
@@ -927,7 +928,7 @@ public class DynamicTableSchema
                         // call function to get value
                         try
                         {
-                            if (await relation.ProcessAsync(context, pack, fld) is Default { HasValue: true } result)
+                            if (await relation.CallAsync(context, pack, fld).ConfigureAwait(false) is Default { HasValue: true } result)
                                 fld.TrySetValue(result.Value);
                         }
                         catch
@@ -938,10 +939,10 @@ public class DynamicTableSchema
                     else switch (field.Type)
                     {
                         case StructType @struct:
-                            await GenerateDisplayOnlyFields(context, @struct, fld);
+                            await GenerateDisplayOnlyFields(context, @struct, fld, false, token).ConfigureAwait(false);
                             break;
                         case ArrayType { Element: StructType arrayStruct }:
-                            await GenerateDisplayOnlyFields(context, arrayStruct, fld);
+                            await GenerateDisplayOnlyFields(context, arrayStruct, fld, false, token).ConfigureAwait(false);
                             break;
                         // Fill empty field with default value
                         default:

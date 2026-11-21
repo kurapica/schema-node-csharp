@@ -20,14 +20,14 @@ public class ValidateApi : SchemaApi<ValidateRequest, ValidateResponse>
         Logger.LogDebug("[Api]CallFunction [Request]{request}", request);
 
         // get function node
-        NodeType? node = await SchemaContext.GetNodeTypeAsync(request.Name);
+        NodeType? node = await SchemaContext.GetNodeTypeAsync(request.Name).ConfigureAwait(false);
         if (node is not Runtime.ValueType type ) return new ValidateResponse { IsValid = false, Error = JsonValue.Create("NOT_VALID_TYPE") };
 
         // set target
         if (!string.IsNullOrWhiteSpace(request.App) || !string.IsNullOrWhiteSpace(request.Target))
             SchemaContext.SetAccess(request.App, request.Target);
 
-        var res = await type.ValidateValueAsync(SchemaContext, request.Data);
+        var res = await type.ValidateValueAsync(SchemaContext, request.Data).ConfigureAwait(false);
 
         // call function
         return new ValidateResponse

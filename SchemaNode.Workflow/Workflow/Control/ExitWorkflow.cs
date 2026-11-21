@@ -1,0 +1,24 @@
+using SchemaNode.Attribute;
+using SchemaNode.Context;
+using SchemaNode.Property.Core;
+using static SchemaNode.Utility.WorkflowConstant;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
+
+namespace SchemaNode.Workflow;
+
+[Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW_CONTROL}.exit")]
+[Meta<OfNodeKind>(NODE_KIND_WORKFLOW_NODE)]
+public class ExitWorkflow: BaseWorkflow
+{
+    public async Task ProcessAsync(WorkflowContext context, bool cond)
+    {
+        if (cond)
+        {
+            await context.TerminateAsync().ConfigureAwait(false);
+        }
+        else
+        {
+            context.Done(this);
+        }
+    }
+}

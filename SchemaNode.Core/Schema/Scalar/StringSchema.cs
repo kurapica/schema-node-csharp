@@ -25,7 +25,7 @@ namespace SchemaNode.Schema;
 [Meta<NodeType>(typeof(Runtime.StringType))]
 [Meta<SchemaUsage>(typeof(StringUsage))]
 [Meta<Append>(typeof(EntrySource), typeof(AsSuggest), typeof(Default), typeof(BlackList), typeof(WhiteList), typeof(Root), typeof(LeafOnly), typeof(Unit), typeof(Error), typeof(Valid), typeof(CascadeDepth))]
-[Meta<StringValue>]
+[Meta<StringValue>(true)]
 public sealed class StringKind;
 
 /// <summary>
@@ -70,6 +70,7 @@ public sealed class StringUsage;
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfNodeKind>(NODE_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_STRING}.{NODE_KIND_STRING}")]
+[Meta<NoInherit>(true)]
 [Relation<Visible, Call>(NODE_KIND_STRING, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", NODE_KIND_STRING)]
 public sealed class StringProperty : Property<StringSchema>
 {

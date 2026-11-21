@@ -1,0 +1,70 @@
+<UserControl x:Class="SchemaNode.WPF.Man.Views.SchemaEditorView"
+             x:Name="Root"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:view="clr-namespace:SchemaNode.WPF.View;assembly=SchemaNode.WPF.View"
+             xmlns:loc="clr-namespace:SchemaNode.WPF.View.Localization;assembly=SchemaNode.WPF.View"
+             xmlns:inf="clr-namespace:SchemaNode.WPF.View;assembly=SchemaNode.WPF.View">
+    <UserControl.Resources>
+        <view:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+
+        <!-- Table cell for immutable value-type fields (enum entry value, app field name):
+             the Field template renders a disabled TextBox, which still looks editable, so cells
+             use plain text instead. Editing a primary key means delete + add. -->
+        <DataTemplate x:Key="SchemaImmutableTextCell">
+            <TextBlock Text="{Binding Value}" VerticalAlignment="Center" />
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <DockPanel Margin="8">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8"
+                    Visibility="{Binding HideNameBar, ElementName=Root, Converter={x:Static inf:Converters.InverseBoolToVisibility}}">
+            <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.label.type}" VerticalAlignment="Center" />
+            <TextBox Text="{Binding TypeName, UpdateSourceTrigger=PropertyChanged}"
+                     Width="260" Margin="4,0" />
+            <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.load}" Command="{Binding LoadCommand}" />
+        </StackPanel>
+
+        <!-- Enum cascade child entries: shown only when the definition node's Attach set has an enum field mounted.
+             Parent entries are maintained by the enum.values array; here you edit the child entries under a given parent. -->
+        <GroupBox DockPanel.Dock="Bottom" Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.enum.cascade.title}" Margin="0,8,0,0" Padding="4"
+                  IsEnabled="{Binding IsEditable, ElementName=Root}"
+                  Visibility="{Binding ShowEnumEditor, Converter={StaticResource BoolToVisibility}}">
+            <DockPanel DataContext="{Binding EnumEditor}">
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+                    <TextBlock Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.enum.cascade.parent}" VerticalAlignment="Center" />
+                    <ComboBox Width="180" Margin="4,0"
+                              ItemsSource="{Binding ParentValues}"
+                              SelectedItem="{Binding SelectedParent, Mode=TwoWay}" />
+                    <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.enum.cascade.load}" Command="{Binding LoadCommand}" Margin="4,0" />
+                    <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.add}" Command="{Binding AddCommand}" Margin="4,0" />
+                    <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.button.delete}" Command="{Binding RemoveCommand}" Margin="4,0" />
+                    <Button Content="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.enum.cascade.save}" Command="{Binding SaveCommand}" />
+                </StackPanel>
+                <TextBlock DockPanel.Dock="Bottom" Text="{Binding Status}" Margin="0,4,0,0" Foreground="Gray" />
+                <DataGrid ItemsSource="{Binding Children}"
+                          SelectedItem="{Binding SelectedChild, Mode=TwoWay}"
+                          AutoGenerateColumns="False" CanUserAddRows="False"
+                          Height="160">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.enum.cascade.value}" Width="160"
+                                            Binding="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        <DataGridTextColumn Header="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=wpf.enum.cascade.display}" Width="*"
+                                            Binding="{Binding Display, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+        </GroupBox>
+
+        <!-- A failed load must never leave an empty pane: the wrapper build error is shown here. -->
+        <Border DockPanel.Dock="Top" Background="#FDECEA" Padding="8,4" Margin="0,0,0,8"
+                Visibility="{Binding Error, Converter={x:Static inf:Converters.VisibleIfText}}">
+            <TextBlock Text="{Binding Error}" Foreground="#B71C1C" TextWrapping="Wrap" />
+        </Border>
+
+        <!-- Property area: driven entirely by the merged Attach result of StructType (declared fields + multi-kind attach fields) -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+            <view:SchemaView Node="{Binding Node}" Registry="{Binding Registry}" IsEnabled="{Binding IsEditable, ElementName=Root}" />
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

@@ -11,6 +11,9 @@ internal static class AppErrorCodes
     [Meta<ErrorCode>(APP_FIELD_NOT_FOUND)]
     public const string APP_FIELD_NOT_FOUND = "app_field_not_found";
     
+    [Meta<ErrorCode>(APP_WORKFLOW_TYPE_NOT_VALID)]
+    public const string APP_WORKFLOW_TYPE_NOT_VALID = "app_workflow_type_not_valid";
+
     [Meta<ErrorCode>(APP_WORKFLOW_NOT_FOUND)]
     public const string APP_WORKFLOW_NOT_FOUND = "app_workflow_not_found";
     
@@ -71,32 +74,27 @@ internal static class AppErrorCodes
     [Meta<ErrorCode>(FUNC_IS_NOT_PUSH_FUNC)]
     public const string FUNC_IS_NOT_PUSH_FUNC = "func_is_not_push_func";
     
-    [Meta<ErrorCode>(EVENT_PAYLOAD_NOT_VALID)]
-    public const string EVENT_PAYLOAD_NOT_VALID = "event_payload_not_valid";
-    
-    [Meta<ErrorCode>(EVENT_PAYLOAD_EVALUATOR_NOT_VALID)]
-    public const string EVENT_PAYLOAD_EVALUATOR_NOT_VALID = "event_payload_evaluator_not_valid";
-    
-    [Meta<ErrorCode>(WORKFLOW_PAYLOAD_NOT_VALID)]
-    public const string WORKFLOW_PAYLOAD_NOT_VALID = "workflow_payment_not_valid";
-    
-    [Meta<ErrorCode>(WORKFLOW_STATE_NOT_VALID)]
-    public const string WORKFLOW_STATE_NOT_VALID = "workflow_state_not_valid";
-    
-    [Meta<ErrorCode>(WORKFLOW_SESSION_NOT_VALID)]
-    public const string WORKFLOW_SESSION_NOT_VALID = "workflow_session_not_valid";
-    
-    [Meta<ErrorCode>(WORKFLOW_CALL_FUNC_NOT_VALID)]
-    public const string WORKFLOW_CALL_FUNC_NOT_VALID = "workflow_call_func_not_valid";
-    
-    [Meta<ErrorCode>(WORKFLOW_NODE_VALUE_TYPE_NOT_VALID)]
-    public const string WORKFLOW_NODE_VALUE_TYPE_NOT_VALID = "workflow_node_type_value_type_not_valid";
-    
-    [Meta<ErrorCode>(WORKFLOW_NODE_PAYLOAD_NOT_VALID)]
-    public const string WORKFLOW_NODE_PAYLOAD_NOT_VALID = "workflow_node_payload_not_valid";
-    
-    [Meta<ErrorCode>(WORKFLOW_EVENT_NOT_VALID)]
-    public const string WORKFLOW_EVENT_NOT_VALID = "workflow_event_not_valid";
+    #region Workflow module compatibility
+
+    public const string EVENT_PAYLOAD_NOT_VALID = WorkflowErrorCodes.EVENT_PAYLOAD_NOT_VALID;
+
+    public const string EVENT_PAYLOAD_EVALUATOR_NOT_VALID = WorkflowErrorCodes.EVENT_PAYLOAD_EVALUATOR_NOT_VALID;
+
+    public const string WORKFLOW_PAYLOAD_NOT_VALID = WorkflowErrorCodes.WORKFLOW_PAYLOAD_NOT_VALID;
+
+    public const string WORKFLOW_STATE_NOT_VALID = WorkflowErrorCodes.WORKFLOW_STATE_NOT_VALID;
+
+    public const string WORKFLOW_SESSION_NOT_VALID = WorkflowErrorCodes.WORKFLOW_SESSION_NOT_VALID;
+
+    public const string WORKFLOW_CALL_FUNC_NOT_VALID = WorkflowErrorCodes.WORKFLOW_CALL_FUNC_NOT_VALID;
+
+    public const string WORKFLOW_NODE_VALUE_TYPE_NOT_VALID = WorkflowErrorCodes.WORKFLOW_NODE_VALUE_TYPE_NOT_VALID;
+
+    public const string WORKFLOW_NODE_PAYLOAD_NOT_VALID = WorkflowErrorCodes.WORKFLOW_NODE_PAYLOAD_NOT_VALID;
+
+    public const string WORKFLOW_EVENT_NOT_VALID = WorkflowErrorCodes.WORKFLOW_EVENT_NOT_VALID;
+
+    #endregion
     
     [Meta<ErrorCode>(APP_PUSH_DATA_REQUIRED)]
     public const string APP_PUSH_DATA_REQUIRED = "app_push_data_required";

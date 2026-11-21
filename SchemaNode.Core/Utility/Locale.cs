@@ -9,15 +9,16 @@ namespace SchemaNode.Utility;
 /// Provides system-level locale translations loaded from built-in locale JSON files
 /// embedded in the schema assemblies, optionally overridden by files in the output directory.
 /// </summary>
-internal static class Locale
+public static class Locale
 {
     // useful global string
     public const string LIST_PREFIX = "{LIST.PREFIX}";
     public const string LIST_SUFFIX = "{LIST.SUFFIX}";
 
-    // locale code → (schema key → translated text)
-    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> _locales
-        = new Dictionary<string, IReadOnlyDictionary<string, string>>();
+    // locale code → (schema key → translated text); replaced atomically (copy-on-write) so
+    // concurrent schema loads never observe a half-merged dictionary
+    private static IReadOnlyDictionary<string, Dictionary<string, string>> _locales =
+        new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
 
     /// <summary>
     /// Whether any locale data has been loaded
@@ -31,9 +32,9 @@ internal static class Locale
     /// are merged on top, so directory files override the embedded built-ins.
     /// Embedded resources must follow the naming convention <c>schema_*_&lt;locale&gt;.json</c>
     /// (e.g. <c>schema_core_enUS.json</c>); directory files may also use a bare <c>&lt;locale&gt;.json</c> name.
-    /// Safe to call multiple times; each call replaces the previously loaded data.
+    /// Safe to call multiple times; each call merges the newly read sources over the current set.
     /// </summary>
-    internal static void TryLoad(IEnumerable<Assembly>? assemblies = null, string? directory = null)
+    public static void TryLoad(IEnumerable<Assembly>? assemblies = null, string? directory = null)
     {
         // locale code → (schema key → translated text). Later merges overwrite earlier ones,
         // so directory files take precedence over embedded built-ins.
@@ -82,10 +83,28 @@ internal static class Locale
             }
         }
 
-        _locales = loaded.ToDictionary(
-            kv => kv.Key,
-            kv => (IReadOnlyDictionary<string, string>)kv.Value,
-            StringComparer.Ordinal);
+        // Merge over the current set instead of replacing it: view assemblies merge their own
+        // texts on first use, and a later load must not drop them. The new map is published in
+        // one assignment so readers keep working on a complete snapshot.
+        Dictionary<string, Dictionary<string, string>> next = Clone(_locales);
+        foreach (KeyValuePair<string, Dictionary<string, string>> pair in loaded)
+        {
+            if (!next.TryGetValue(pair.Key, out Dictionary<string, string>? target))
+                next[pair.Key] = target = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (KeyValuePair<string, string> entry in pair.Value)
+                target[entry.Key] = entry.Value;
+        }
+        _locales = next;
+    }
+
+    /// <summary>Deep-copies the locale map for copy-on-write updates.</summary>
+    private static Dictionary<string, Dictionary<string, string>> Clone(
+        IReadOnlyDictionary<string, Dictionary<string, string>> source)
+    {
+        var copy = new Dictionary<string, Dictionary<string, string>>(source.Count, StringComparer.Ordinal);
+        foreach (KeyValuePair<string, Dictionary<string, string>> pair in source)
+            copy[pair.Key] = new Dictionary<string, string>(pair.Value, StringComparer.Ordinal);
+        return copy;
     }
 
     /// <summary>
@@ -142,13 +161,46 @@ internal static class Locale
     }
 
     /// <summary>
+    /// Merges the built-in locale files embedded in <paramref name="assembly"/> into the current
+    /// dictionaries without overwriting anything: keys already provided by Core, the host or the
+    /// locale directory keep precedence, the assembly only fills what is missing. Used by view
+    /// assemblies, which are not schema assemblies and are never scanned by <see cref="TryLoad"/>.
+    /// </summary>
+    public static void MergeAssembly(Assembly assembly)
+    {
+        Dictionary<string, Dictionary<string, string>> next = Clone(_locales);
+        foreach (string name in assembly.GetManifestResourceNames())
+        {
+            string? locale = GetEmbeddedLocale(name);
+            if (locale is null) continue;
+            try
+            {
+                using Stream? stream = assembly.GetManifestResourceStream(name);
+                if (stream is null) continue;
+                using var reader = new StreamReader(stream, System.Text.Encoding.UTF8);
+                Dictionary<string, string>? dict = JsonSerializer.Deserialize<Dictionary<string, string>>(reader.ReadToEnd());
+                if (dict is null || dict.Count == 0) continue;
+                if (!next.TryGetValue(locale, out Dictionary<string, string>? target))
+                    next[locale] = target = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (KeyValuePair<string, string> pair in dict)
+                    if (!target.ContainsKey(pair.Key)) target[pair.Key] = pair.Value;
+            }
+            catch
+            {
+                // ignore unreadable or malformed embedded resources
+            }
+        }
+        _locales = next;
+    }
+
+    /// <summary>
     /// Returns the translated string for <paramref name="key"/> in the given <paramref name="locale"/>,
     /// or <see langword="null"/> when the key or locale is not found.
     /// </summary>
     public static string? GetString(string key, string? locale)
     {
         if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(locale)) return null;
-        if (_locales.TryGetValue(locale, out IReadOnlyDictionary<string, string>? dict)
+        if (_locales.TryGetValue(locale, out Dictionary<string, string>? dict)
             && dict.TryGetValue(key, out string? value))
             return value;
         return null;
@@ -165,7 +217,7 @@ internal static class Locale
     /// <see cref="LocaleString.Key"/>) as the lookup key.
     /// The original <see cref="LocaleString.Key"/> is never modified.
     /// </summary>
-    internal static void Translate(LocaleString? localeString, string? lookupKey = null)
+    public static void Translate(LocaleString? localeString, string? lookupKey = null)
     {
         if (localeString == null || _locales.Count == 0) return;
 

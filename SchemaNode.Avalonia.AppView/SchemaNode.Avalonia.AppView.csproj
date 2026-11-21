@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>SchemaNode.Avalonia.AppView</RootNamespace>
+    <AssemblyName>SchemaNode.Avalonia.AppView</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- App layer view components extend the generic Avalonia view machinery instead of forking it. -->
+    <ProjectReference Include="..\SchemaNode.Avalonia.View\SchemaNode.Avalonia.View.csproj" />
+    <ProjectReference Include="..\SchemaNode.App\SchemaNode.App.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Page chrome texts owned by this library (avalonia.page.*); merged into the shared
+         LocaleManager when the page table is first used. -->
+    <EmbeddedResource Include="locale\*.json" />
+  </ItemGroup>
+
+</Project>

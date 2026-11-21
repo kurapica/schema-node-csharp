@@ -39,13 +39,13 @@ public sealed class RabbitEventSource(IConnection connection) : IEventSource
             .ToDictionary(x => x.Queue, x => (x.Type, x.PayloadType, x.Binding));
 
         _factory = context.GetRequiredService<IServiceScopeFactory>();
-        _channel = await _connection.CreateChannelAsync(cancellationToken: token);
+        _channel = await _connection.CreateChannelAsync(cancellationToken: token).ConfigureAwait(false);
         
         await _channel.BasicQosAsync(
             prefetchSize: 0,
             prefetchCount: 10,
             global: false,
-            cancellationToken: token);
+            cancellationToken: token).ConfigureAwait(false);
         
         foreach (var queue in _events.Keys)
         {
@@ -54,7 +54,7 @@ public sealed class RabbitEventSource(IConnection connection) : IEventSource
                 durable: true,
                 exclusive: false,
                 autoDelete: false,
-                arguments: null, cancellationToken: token);
+                arguments: null, cancellationToken: token).ConfigureAwait(false);
 
             var binding = _events[queue].Item3;
             foreach (var bind in binding)
@@ -64,26 +64,26 @@ public sealed class RabbitEventSource(IConnection connection) : IEventSource
                     type: bind.ExchangeType,
                     durable: true,
                     autoDelete: false,
-                    arguments: null, cancellationToken: token);
+                    arguments: null, cancellationToken: token).ConfigureAwait(false);
 
                 await _channel.QueueBindAsync(
                     queue: queue,
                     exchange: bind.Exchange,
                     routingKey: bind.RoutingKey,
-                    arguments: null, cancellationToken: token);
+                    arguments: null, cancellationToken: token).ConfigureAwait(false);
             }
 
             var consumer = new AsyncEventingBasicConsumer(_channel);
             consumer.ReceivedAsync += async (_, ea) =>
             {
                 HandleMessage(queue, ea.Body.ToArray());
-                await _channel.BasicAckAsync(ea.DeliveryTag, false, token);
+                await _channel.BasicAckAsync(ea.DeliveryTag, false, token).ConfigureAwait(false);
             };
 
             await _channel.BasicConsumeAsync(
                 queue: queue,
                 autoAck: false,
-                consumer: consumer, cancellationToken: token);
+                consumer: consumer, cancellationToken: token).ConfigureAwait(false);
         }
     }
 
@@ -103,7 +103,7 @@ public sealed class RabbitEventSource(IConnection connection) : IEventSource
             if (map.Item2 != null)
             {
                 payload = FromJson(Encoding.UTF8.GetString(body), map.Item2);
-                evt.Payload = context.GetSchemaNodeAsync(payload).GetAwaiter().GetResult();
+                evt.Payload = context.GetSchemaNodeAsync(payload).ConfigureAwait(false).GetAwaiter().GetResult();
             }
             context.RaiseEvent(evt);
         }
@@ -117,8 +117,8 @@ public sealed class RabbitEventSource(IConnection connection) : IEventSource
     {
         try
         {
-            await _channel.CloseAsync(cancellationToken: token);
-            await _connection.CloseAsync(cancellationToken: token);
+            await _channel.CloseAsync(cancellationToken: token).ConfigureAwait(false);
+            await _connection.CloseAsync(cancellationToken: token).ConfigureAwait(false);
         }
         catch
         {

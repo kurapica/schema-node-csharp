@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.AI.Mcp;
+using SchemaNode.Schema;
 
 namespace SchemaNode.AI;
 
@@ -16,7 +17,11 @@ public static class SchemaNodeMcpInjection
     /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
     public static IServiceCollection AddSchemaMcp(this IServiceCollection services)
     {
-        services.AddMcpServer().WithToolsFromAssembly(typeof(SchemaTools).Assembly).WithHttpTransport();
+        // Reuse the schema API serializer so node schema extension properties (display, struct,
+        // enum, func, ...) are serialized as valid JSON in tool results.
+        services.AddMcpServer()
+            .WithToolsFromAssembly(typeof(SchemaTools).Assembly, SchemaNodeJsonExtension.GetSerializerOptions())
+            .WithHttpTransport();
         return services;
     }
 

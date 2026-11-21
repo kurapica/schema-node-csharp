@@ -123,7 +123,7 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
     /// <summary>
     /// Load the schema data
     /// </summary>
-    public virtual Task LoadAsync(SchemaContext context) => Task.CompletedTask;
+    public virtual Task LoadAsync(SchemaContext context, CancellationToken token = default) => Task.CompletedTask;
 
     /// <summary>
     /// Unload the type
@@ -142,10 +142,10 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
     /// <summary>
     /// Load the type with the schema, including properties, constraints and ref types
     /// </summary>
-    internal virtual async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, IReadOnlyList<NodeType>? genericParams = null)
+    internal virtual async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, IReadOnlyList<NodeType>? genericParams = null, CancellationToken token = default)
     {
         // load basic info
-        Namespace = !string.IsNullOrWhiteSpace(schema.Namespace) ? await context.GetNodeTypeAsync<NamespaceType>(schema.Namespace) : null;
+        Namespace = !string.IsNullOrWhiteSpace(schema.Namespace) ? await context.GetNodeTypeAsync<NamespaceType>(schema.Namespace, token: token).ConfigureAwait(false) : null;
         Schema = schema;
         GenericParams = genericParams is { Count: > 0 } ? genericParams : null;
 
@@ -162,19 +162,24 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
         int max = props.Count;
         for(int i = 0; i < max; i++)
         {
-            if (props[i].GetValue<PropertyOwner>(true) is not { } s || !schema.Kind.Equals(s.AttachKind?.Split('.', 3, StringSplitOptions.RemoveEmptyEntries).ElementAt(1), StringComparison.OrdinalIgnoreCase)) continue;
-            props.AddRange(s.GetProperties(runtime!.GetSchemaKindPropertyTypes(runtime!.GetSchemaKindByNodeKind(schema.Kind))));
+            if (props[i].GetValue<PropertyOwner>(true) is not { } s || s.AttachKind is not { } attachKind) continue;
+            if (schema.Kind.Equals(attachKind, StringComparison.OrdinalIgnoreCase) || 
+                $"{SCHEMA_KIND_NODE}.{schema.Kind}".Equals(attachKind, StringComparison.OrdinalIgnoreCase) ||
+                attachKind.StartsWith($"{SCHEMA_KIND_NODE}.{schema.Kind}."))
+            {
+                props.AddRange(s.GetProperties(runtime!.GetSchemaKindPropertyTypes(runtime!.GetSchemaKindByNodeKind(schema.Kind))));
+            }
         }
 
         _props = props.Count > 0 ? props.ToArray() : null;
         Generics = GetProperty<Generics>()?.Value;
 
-        await LoadAsync(context);
+        await LoadAsync(context, token).ConfigureAwait(false);
         Loaded = true;
 
-        context.DeferLoadTask(async () =>
+        context.DeferLoadTask(async deferToken =>
         {
-            (_refTypes, string? error) = await schema.LoadPropertiesAsync(context, props, this as ValueType);
+            (_refTypes, string? error) = await schema.LoadPropertiesAsync(context, props, this as ValueType, deferToken).ConfigureAwait(false);
             Error ??= error;
 
             // Loading schema properties after loading, to avoid cycle ref
@@ -189,7 +194,7 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
 
             // notify reload
             NotifyReload([]);
-        });
+        }, token);
     }
 
     private void UnloadType()
@@ -201,6 +206,16 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
             foreach (NodeType node in GetReferenceTypes())
                 node.RemoveUsedBy(this);
         Unload();
+    }
+
+    /// <summary>
+    /// Add more properties for type
+    /// </summary>
+    protected void AddProperties(IEnumerable<IProperty> properties)
+    {
+        if (properties is null) return;
+        _props ??= [];
+        _props = _props.Concat(properties).ToArray();
     }
 
     /// <summary>
@@ -447,7 +462,7 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// <summary>
     /// Generate data node from object and validate the value
     /// </summary>
-    public async Task<IValueAccess?> ValidateValueAsync(ISchemaContext context, object? value)
+    public async Task<IValueAccess?> ValidateValueAsync(ISchemaContext context, object? value, CancellationToken token = default)
     {
         if (context is not SchemaContext ctx) return null;
         
@@ -463,7 +478,7 @@ public abstract class ValueType : NodeType, IValueTypeAccess
         // skip validation if node can't set value
         if (result == null)
         {
-            result = Create();
+            result = Create(ctx);
             if (value != null && !result.TrySetValue(value))
                 return null;
         }
@@ -474,7 +489,7 @@ public abstract class ValueType : NodeType, IValueTypeAccess
         // constraints
         foreach (IConstraintProperty constraint in Constraints.Where(c => c.HasValue))
         {
-            bool? valid = await constraint.ValidateAsync(ctx, result);
+            bool? valid = await constraint.ValidateAsync(ctx, result, token).ConfigureAwait(false);
             if (valid.HasValue) result.RecordConstraint(constraint, valid.Value);
         }
         
@@ -488,18 +503,8 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// <summary>
     /// Generate the data node from the node type
     /// </summary>
-    public abstract IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null);
-
-    /// <summary>
-    /// Generate the data node with given value
-    /// </summary>
-    public IValueAccess From(object? value, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
-    {
-        var node = Create(parent, propertyProvider);
-        node.TrySetValue(value);
-        return node;
-    }
-    
+    public abstract IValueAccess Create(ISchemaContext? context, object? value = null, IValueAccess? parent = null, params IPropertyProvider[] propertyProviders);
+        
     #endregion
 
     #region Virtual

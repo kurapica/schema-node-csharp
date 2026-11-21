@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using SchemaNode.AI.Ontology;
 using SchemaNode.Service;
 using System.Reflection;
 

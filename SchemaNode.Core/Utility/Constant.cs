@@ -60,6 +60,7 @@ public static class Constant
     public const string SCHEMA_KIND_NODE_STRUCT_DEFINE = "node.struct.define";
     public const string SCHEMA_KIND_NODE_STRUCT_USAGE = "node.struct.usage";
     public const string SCHEMA_KIND_NODE_STRUCT_FIELD = "node.struct.field";
+    public const string SCHEMA_KIND_NODE_STRUCT_FIELD_USAGE = "node.struct.field.usage";
     public const string SCHEMA_KIND_NODE_ARRAY = "node.array";
     public const string SCHEMA_KIND_NODE_ARRAY_DEFINE = "node.array.define";
     public const string SCHEMA_KIND_NODE_ARRAY_USAGE = "node.array.usage";

@@ -1,0 +1,25 @@
+<UserControl x:Class="SchemaNode.WPF.View.Views.RangeDateView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:SchemaNode.WPF.View">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- system.rangeyear / rangemonth / rangedate / rangefulldate are structs with start/end.
+             The type view lays the two leaves side by side instead of stacking them as a form. -->
+        <local:SchemaView Grid.Column="0"
+                          HorizontalAlignment="Stretch"
+                          Node="{Binding Children[0]}" />
+        <TextBlock Grid.Column="1"
+                   Margin="4,0"
+                   VerticalAlignment="Center"
+                   Text="~" />
+        <local:SchemaView Grid.Column="2"
+                          HorizontalAlignment="Stretch"
+                          Node="{Binding Children[1]}" />
+    </Grid>
+</UserControl>

@@ -72,7 +72,7 @@ public class LocalCriticalRegionProvider : ICriticalRegionProvider
 
         if (timeout != null)
         {
-            if (!await entry.Semaphore.WaitAsync(timeout.Value))
+            if (!await entry.Semaphore.WaitAsync(timeout.Value).ConfigureAwait(false))
             {
                 Interlocked.Exchange(ref entry.LastReleaseTicks, Environment.TickCount64);
                 throw new TimeoutException();
@@ -80,7 +80,7 @@ public class LocalCriticalRegionProvider : ICriticalRegionProvider
         }
         else
         {
-            await entry.Semaphore.WaitAsync();
+            await entry.Semaphore.WaitAsync().ConfigureAwait(false);
         }
 
         TryPurge();

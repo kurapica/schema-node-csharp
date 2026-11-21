@@ -10,7 +10,7 @@ public static class AppDataTableExtension
     /// <summary>
     /// Prepare the dynamic table for the field
     /// </summary>
-   internal static async Task<DynamicTableSchema> PrepareFieldDataAsync(this SchemaContext context, AppFieldType field)
+   internal static async Task<DynamicTableSchema> PrepareFieldDataAsync(this SchemaContext context, AppFieldType field, CancellationToken token = default)
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable) return field.GetDynamicTableSchema(context);
@@ -20,7 +20,7 @@ public static class AppDataTableExtension
         if (schema != null) return schema;
 
         IAppDataProvider dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException("The app data provider is not available");
-        using ICriticalRegion locker = await context.GetLockAsync($"SCHEMA_CONTEXT_DYN_TABLE_CREATION:{field.DynamicTableName}");
+        using ICriticalRegion locker = await context.GetLockAsync($"SCHEMA_CONTEXT_DYN_TABLE_CREATION:{field.DynamicTableName}").ConfigureAwait(false);
         try
         {
             schema = field.GetItem<DynamicTableSchema>();
@@ -31,19 +31,19 @@ public static class AppDataTableExtension
             // Makes sure the source field is prepared
             if (field.IsForeignView)
             {
-                AppFieldType foreignField = (await context.GetAppTypeAsync(field.View!.App))?.GetField(field.View.Field) ?? throw new InvalidOperationException($"Foreign view field {field.View.App}.{field.View.Field} not exist");
-                await context.PrepareFieldDataAsync(foreignField);
+                AppFieldType foreignField = (await context.GetAppTypeAsync(field.View!.App, token: token).ConfigureAwait(false))?.GetField(field.View.Field) ?? throw new InvalidOperationException($"Foreign view field {field.View.App}.{field.View.Field} not exist");
+                await context.PrepareFieldDataAsync(foreignField, token).ConfigureAwait(false);
             }
             else
             {
                 // Prepare the dynamic table and join fields
-                await dataProvider.EnsureDynamicTableAsync(schema);
+                await dataProvider.EnsureDynamicTableAsync(schema, token).ConfigureAwait(false);
                 if (schema.Joins is { Length: > 0 })
                 {
                     foreach (DynamicTableJoin join in schema.Joins)
                     {
                         AppFieldType joinField = field.Application.GetField(join.Field) ?? throw new InvalidOperationException($"Join field {join.Field} not exist");
-                        await context.PrepareFieldDataAsync(joinField);
+                        await context.PrepareFieldDataAsync(joinField, token).ConfigureAwait(false);
                     }
                 }
             }

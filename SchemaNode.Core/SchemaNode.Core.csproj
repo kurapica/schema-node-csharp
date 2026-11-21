@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<Version>1.0.1</Version>
+		<Version>1.0.2</Version>
 		<Authors>kurapica125@outlook.com</Authors>
 		<Description>Executable Structured Semantic Language</Description>
 		<RepositoryType>git</RepositoryType>
@@ -19,15 +19,21 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.9" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.9" />
-    <PackageReference Include="TimeZoneConverter" Version="7.2.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.14" />
+    <PackageReference Include="System.Reactive" Version="7.0.0" />
+    <PackageReference Include="TimeZoneConverter" Version="8.0.0" />
   </ItemGroup>
   
   <ItemGroup>
     <InternalsVisibleTo Include="SchemaNode.App" />
+    <InternalsVisibleTo Include="SchemaNode.Workflow" />
     <InternalsVisibleTo Include="SchemaNode.UnitTest" />
+    <!-- Man layers clear NodeSchema.LoadState/Type when seeding a copied definition; both keep
+         their own copy of the flow instead of sharing an App-layer helper. -->
+    <InternalsVisibleTo Include="SchemaNode.WPF.Man" />
+    <InternalsVisibleTo Include="SchemaNode.Avalonia.Man" />
   </ItemGroup>
 
   <ItemGroup>

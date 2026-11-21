@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>SchemaNode.WPF.View</RootNamespace>
+    <AssemblyName>SchemaNode.WPF.View</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Depends on SchemaNode.Core only; no App-layer reference keeps the rendering layer pure. -->
+    <ProjectReference Include="..\SchemaNode.Core\SchemaNode.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Locale texts owned by the view layer (wpf.*); LocaleManager merges them into Core's
+         global dictionary on first use, so hosts (Man/Test) no longer carry these keys. -->
+    <EmbeddedResource Include="locale\*.json" />
+  </ItemGroup>
+
+</Project>

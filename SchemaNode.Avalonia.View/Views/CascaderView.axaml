@@ -1,0 +1,145 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="SchemaNode.Avalonia.View.Views.CascaderView"
+             xmlns:local="using:SchemaNode.Avalonia.View"
+             xmlns:loc="using:SchemaNode.Avalonia.View.Localization"
+             x:CompileBindings="False"
+             MinHeight="24">
+  <UserControl.Styles>
+    <!-- Flat row buttons: the entry row is split into a label area (commit) and, for parents, an
+         arrow area (expand only). -->
+    <Style Selector="Button.cascaderRow">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Focusable" Value="False" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <!-- The expander gets a fixed, comfortably large hit area so it never depends on the text
+         width of the glyph. -->
+    <Style Selector="Button.cascaderExpand">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Focusable" Value="False" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="MinWidth" Value="26" />
+      <Setter Property="MinHeight" Value="22" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid ColumnDefinitions="*,Auto">
+    <!-- Closed state: one field showing the full selected path; the popup holds one column per level. -->
+    <Button Grid.Column="0"
+            x:Name="Field"
+            HorizontalAlignment="Stretch"
+            HorizontalContentAlignment="Left"
+            MinHeight="24"
+            Padding="6,2"
+            IsEnabled="{Binding IsEditable}"
+            Content="{Binding CascadeSummary}"
+            Click="OnFieldClick"
+            PointerPressed="OnFieldPointerPressed"
+            KeyDown="OnFieldKeyDown">
+      <Button.ContentTemplate>
+        <DataTemplate>
+          <TextBlock Text="{Binding}"
+                     TextTrimming="CharacterEllipsis" />
+        </DataTemplate>
+      </Button.ContentTemplate>
+    </Button>
+
+    <Button Grid.Column="1"
+            Width="24"
+            MinHeight="24"
+            Padding="0"
+            Margin="2,0,0,0"
+            Content="&#10005;"
+            IsVisible="{Binding CanClear}"
+            IsEnabled="{Binding IsEditable}"
+            Click="OnClearClick" />
+
+    <Popup x:Name="PopupPanel"
+           Placement="BottomEdgeAlignedLeft"
+           PlacementTarget="{Binding ElementName=Field}"
+           IsLightDismissEnabled="True"
+           IsOpen="False">
+      <Border Background="White"
+              BorderBrush="#FFB0B0B0"
+              BorderThickness="1"
+              MinWidth="180"
+              MaxHeight="300">
+        <Grid>
+          <!-- The level columns, shown as soon as a snapshot with candidates is applied. -->
+          <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                        VerticalScrollBarVisibility="Disabled"
+                        IsVisible="{Binding ShowCascadeLoading, Converter={x:Static local:Converters.Not}}">
+            <ItemsControl ItemsSource="{Binding Levels}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <!-- The selection is owned by the wrapper (it also reloads the level tree from the
+                     node value), so the list only displays it and row clicks are handled by the
+                     two buttons below. -->
+                <ListBox Width="180"
+                         BorderThickness="0"
+                         Padding="0"
+                         MaxHeight="300"
+                         ItemsSource="{Binding Entries}"
+                         SelectedItem="{Binding Selected, Mode=OneWay}">
+                  <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    </Style>
+                  </ListBox.Styles>
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <Grid ColumnDefinitions="*,Auto" Margin="0,1">
+                        <!-- Label area: selects the entry itself. A disabled entry cannot be committed. -->
+                        <Button Grid.Column="0"
+                                Classes="cascaderRow"
+                                Tag="{Binding $parent[ListBox].DataContext}"
+                                Click="OnItemSelectClick">
+                          <TextBlock Margin="4,2"
+                                     Text="{Binding Display}"
+                                     TextTrimming="CharacterEllipsis"
+                                     ToolTip.Tip="{Binding Display}" />
+                        </Button>
+
+                        <!-- Arrow area: expands the next level only and never commits. -->
+                        <Button Grid.Column="1"
+                                Classes="cascaderExpand"
+                                Content="&#8250;"
+                                IsVisible="{Binding HasChildren}"
+                                Tag="{Binding $parent[ListBox].DataContext}"
+                                Click="OnItemExpandClick" />
+                      </Grid>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          </ScrollViewer>
+
+          <!-- Placeholder for the window between opening and the first applied snapshot: the popup
+               is visible and explains why the columns are not there yet. -->
+          <TextBlock Margin="12,8"
+                     Foreground="Gray"
+                     Text="{Binding Source={x:Static loc:LocaleManager.Instance}, Path=Version, Converter={x:Static loc:LocalizedTextConverter.Instance}, ConverterParameter=avalonia.page.loading}"
+                     IsVisible="{Binding ShowCascadeLoading}" />
+        </Grid>
+      </Border>
+    </Popup>
+  </Grid>
+</UserControl>

@@ -1,0 +1,136 @@
+<UserControl x:Class="SchemaNode.WPF.View.Views.InputView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:SchemaNode.WPF.View"
+             xmlns:views="clr-namespace:SchemaNode.WPF.View.Views"
+             xmlns:loc="clr-namespace:SchemaNode.WPF.View.Localization"
+             MinHeight="24"
+             ToolTip="{Binding Error}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Plain text: no entries at all. A failed (or still uncommitted) input keeps its
+             text and marks the editor, instead of being replaced by the node value. -->
+        <TextBox Grid.Row="0"
+                 Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                 IsEnabled="{Binding IsEditable}"
+                 IsReadOnly="{Binding IsEditable, Converter={x:Static local:Converters.Not}}"
+                 Visibility="{Binding IsPlainText, Converter={x:Static local:Converters.BoolToVisibility}}"
+                 MinHeight="24">
+            <TextBox.Style>
+                <Style TargetType="TextBox">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding ShowError}" Value="True">
+                            <Setter Property="BorderBrush" Value="#FFC62828" />
+                            <Setter Property="BorderThickness" Value="1" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBox.Style>
+        </TextBox>
+
+        <!-- Single level entry source: compact closed drop-down, virtualized popup. Optional
+             selectors get an explicit clear button so a chosen value can return to "unselected". -->
+        <Grid Grid.Row="0"
+              Visibility="{Binding IsDropDown, Converter={x:Static local:Converters.BoolToVisibility}}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ComboBox Grid.Column="0"
+                      ItemsSource="{Binding Entries}"
+                      SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
+                      DisplayMemberPath="Display"
+                      IsEditable="{Binding AsSuggest}"
+                      IsEnabled="{Binding IsEditable}"
+                      MaxDropDownHeight="240"
+                      MinHeight="24">
+                <ComboBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <VirtualizingStackPanel />
+                    </ItemsPanelTemplate>
+                </ComboBox.ItemsPanel>
+            </ComboBox>
+            <Button Grid.Column="1"
+                    Width="22"
+                    MinHeight="24"
+                    Margin="2,0,0,0"
+                    Padding="0"
+                    Content="&#215;"
+                    IsEnabled="{Binding IsEditable}"
+                    Visibility="{Binding CanClear, Converter={x:Static local:Converters.BoolToVisibility}}"
+                    Click="OnClearClick" />
+        </Grid>
+
+        <!-- Cascaded entry source: one closed path field, side-by-side columns in a popup -->
+        <views:CascaderView Grid.Row="0"
+                            Visibility="{Binding IsCascading, Converter={x:Static local:Converters.BoolToVisibility}}" />
+
+        <!-- Multi value: compact summary button with a virtualized checkbox popup -->
+        <Grid Grid.Row="0"
+              Visibility="{Binding IsMulti, Converter={x:Static local:Converters.BoolToVisibility}}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ToggleButton Grid.Column="0"
+                              x:Name="MultiToggle"
+                              HorizontalContentAlignment="Left"
+                              IsChecked="{Binding IsPopupOpen, Mode=TwoWay}"
+                              IsEnabled="{Binding IsEditable}"
+                              MinHeight="24"
+                              Content="{Binding MultiSummary}" />
+                <Button Grid.Column="1"
+                        Width="22"
+                        MinHeight="24"
+                        Margin="2,0,0,0"
+                        Padding="0"
+                        Content="&#215;"
+                        IsEnabled="{Binding IsEditable}"
+                        Visibility="{Binding CanClear, Converter={x:Static local:Converters.BoolToVisibility}}"
+                        Click="OnClearClick" />
+            </Grid>
+            <Popup IsOpen="{Binding IsPopupOpen, Mode=TwoWay}"
+                   Placement="Bottom"
+                   PlacementTarget="{Binding ElementName=MultiToggle}"
+                   StaysOpen="False"
+                   AllowsTransparency="True">
+                <Border Background="White"
+                        BorderBrush="#FFB0B0B0"
+                        BorderThickness="1"
+                        MaxHeight="260"
+                        MinWidth="{Binding ActualWidth, ElementName=MultiToggle}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" CanContentScroll="True">
+                        <ItemsControl ItemsSource="{Binding MultiEntries}"
+                                      VirtualizingPanel.IsVirtualizing="True"
+                                      VirtualizingPanel.VirtualizationMode="Recycling">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <VirtualizingStackPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox Margin="8,3"
+                                              Content="{Binding Display}"
+                                              IsChecked="{Binding IsSelected, Mode=TwoWay}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Border>
+            </Popup>
+        </Grid>
+
+        <TextBlock Grid.Row="1"
+                   Margin="0,2,0,0"
+                   Foreground="#FFC62828"
+                   TextWrapping="Wrap"
+                   Text="{Binding Error}"
+                   Visibility="{Binding ShowError, Converter={x:Static local:Converters.BoolToVisibility}}" />
+    </Grid>
+</UserControl>

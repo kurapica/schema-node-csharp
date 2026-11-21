@@ -1,3 +1,4 @@
+using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
@@ -13,51 +14,51 @@ public interface IAppDataProvider
     /// <summary>
     /// Add or update the data table with the dynamic table schema
     /// </summary>
-    Task<bool> EnsureDynamicTableAsync(DynamicTableSchema schema);
+    Task<bool> EnsureDynamicTableAsync(DynamicTableSchema schema, CancellationToken token = default);
     
     /// <summary>
     /// Query dynamic table data with the filter and paging
     /// </summary>
     Task<(IValueAccess? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, 
         AppSchemaDataResult type, AppSchemaDataFilter? filter = null, int skip = 0, int take = 0, 
-        bool desc = false, AppSchemaDataOrder[]? orderBy = null, string? dataField = null, bool forUpdate = false);
+        bool desc = false, AppSchemaDataOrder[]? orderBy = null, string? dataField = null, bool forUpdate = false, CancellationToken token = default);
     
     /// <summary>
     /// Save the dynamic table data
     /// </summary>
     Task<(bool result, IValueAccess? update, IValueAccess? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, 
-        IValueAccess? data = null, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null);
+        IValueAccess? data = null, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null, CancellationToken token = default);
 
     /// <summary>
     /// Delete the dynamic table data with the filter
     /// </summary>
-    Task<(bool result, IValueAccess? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, AppSchemaDataFilter? filter);
+    Task<(bool result, IValueAccess? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, AppSchemaDataFilter? filter, CancellationToken token = default);
     
     /// <summary>
     /// Clear all dynamic table data
     /// </summary>
-    Task<(bool result, IValueAccess? origin)> ClearDynamicTableDataAsync(DynamicTableSchema schema);
+    Task<(bool result, IValueAccess? origin)> ClearDynamicTableDataAsync(DynamicTableSchema schema, CancellationToken token = default);
     
     /// <summary>
     /// Drop the dynamic table
     /// </summary>
-    Task DropDynamicTableAsync(DynamicTableSchema schema);
+    Task DropDynamicTableAsync(DynamicTableSchema schema, CancellationToken token = default);
     
     /// <summary>
     /// Begin a transaction
     /// </summary>
-    Task BeginTransactionAsync();
+    Task BeginTransactionAsync(CancellationToken token = default);
     
     /// <summary>
     /// Commit the current transaction
     /// </summary>
     /// <returns></returns>
-    Task CommitTransactionAsync();
+    Task CommitTransactionAsync(CancellationToken token = default);
     
     /// <summary>
     /// Roll back the current transaction
     /// </summary>
-    Task RollbackTransactionAsync();
+    Task RollbackTransactionAsync(CancellationToken token = default);
 }
 
 /// <summary>
@@ -68,7 +69,7 @@ public static class AppDataProviderExtension
     /// <summary>
     /// Gets the data with the given nodes
     /// </summary>
-    public static async Task<IValueAccess?> QueryOriginNodesAsync(this IAppDataProvider dataProvider, DynamicTableSchema schema, IEnumerable<StructNode> nodes, bool forUpdate = false)
+    public static async Task<IValueAccess?> QueryOriginNodesAsync(this IAppDataProvider dataProvider, ISchemaContext context, DynamicTableSchema schema, IEnumerable<StructNode> nodes, bool forUpdate = false, CancellationToken token = default)
     {
         if (schema.Single) return null; // not supported for single record tables
         
@@ -81,7 +82,7 @@ public static class AppDataProviderExtension
         {
             // 1. Collect keys and prepare IN lists
             HashSet<string> keys = [];
-            Dictionary<string, ArrayNode> keyData = arrType.Primary!.ToDictionary(k => k, k => new ArrayNode(structType.GetField(k)!.Type!));
+            Dictionary<string, ArrayNode> keyData = arrType.Primary!.ToDictionary(k => k, k => new ArrayNode(context, structType.GetField(k)!.Type!));
 
             foreach (StructNode node in queryNodes)
             {
@@ -104,13 +105,13 @@ public static class AppDataProviderExtension
             }
 
             // 3. Query
-            (IValueAccess? res, _) = await dataProvider.QueryDynamicTableAsync(schema,AppSchemaDataResult.List, filter, forUpdate: forUpdate);
+            (IValueAccess? res, _) = await dataProvider.QueryDynamicTableAsync(schema,AppSchemaDataResult.List, filter, forUpdate: forUpdate, token: token).ConfigureAwait(false);
 
             // 4. Filter results by combined PKs
             if (res is ArrayNode resultArray)
             {
                 // Filter in memory
-                var filtered = new ArrayNode(structType);
+                var filtered = new ArrayNode(context, structType);
                 foreach (StructNode node in resultArray.OfType<StructNode>())
                 {
                     string? key = arrType.GetPrimaryKey(node);
@@ -136,7 +137,7 @@ public static class AppDataProviderExtension
                     filter = filter == null ? caseFilter : filter.OrElse(caseFilter);
             }
             
-            (IValueAccess? res, _) = await dataProvider.QueryDynamicTableAsync(schema,AppSchemaDataResult.List, filter, forUpdate: forUpdate);
+            (IValueAccess? res, _) = await dataProvider.QueryDynamicTableAsync(schema,AppSchemaDataResult.List, filter, forUpdate: forUpdate, token: token).ConfigureAwait(false);
             return res;
         }
     }
@@ -144,10 +145,10 @@ public static class AppDataProviderExtension
     /// <summary>
     /// Delete the dynamic table data with the filter
     /// </summary>
-    public static async Task<(bool result, IValueAccess? origin)> DeleteSchemaNodeAsync(this IAppDataProvider dataProvider, DynamicTableSchema schema, IValueAccess node)
+    public static async Task<(bool result, IValueAccess? origin)> DeleteSchemaNodeAsync(this IAppDataProvider dataProvider, ISchemaContext context, DynamicTableSchema schema, IValueAccess node, CancellationToken token = default)
     {
         if (schema.Single)
-            return await dataProvider.ClearDynamicTableDataAsync(schema);
+            return await dataProvider.ClearDynamicTableDataAsync(schema, token).ConfigureAwait(false);
 
         var arrayType = schema.AppField.ValueType as ArrayType ?? throw new InvalidOperationException("Invalid array schema");
         
@@ -157,14 +158,14 @@ public static class AppDataProviderExtension
             {
                 var filter = structNode.GetQueryFilter(arrayType);
                 if (filter == null) return (false, null);
-                return await dataProvider.DeleteDynamicTableDataAsync(schema, filter);
+                return await dataProvider.DeleteDynamicTableDataAsync(schema, filter, token).ConfigureAwait(false);
             }
             case ArrayNode arrNode when arrNode.ElementType != arrayType.Element:
                 throw new InvalidOperationException("Invalid element type in array node for deletion");
             case ArrayNode arrNode:
             {
                 var count = 0;
-                var origin = new ArrayNode(arrNode.ElementType as StructType ?? throw new InvalidOperationException("Invalid element type"));
+                var origin = new ArrayNode(context, arrNode.ElementType as StructType ?? throw new InvalidOperationException("Invalid element type"));
                 for (int i = 0; i < arrNode.Count; i += MAX_COMBINE_CASE_COUNT)
                 {
                     StructNode[] batch = arrNode.Skip(i).Take(MAX_COMBINE_CASE_COUNT).OfType<StructNode>().ToArray();
@@ -178,7 +179,8 @@ public static class AppDataProviderExtension
 
                     if (filter != null)
                     {
-                        var (result, deleted) = await dataProvider.DeleteDynamicTableDataAsync(schema, filter);
+                        var (result, deleted) = await dataProvider.DeleteDynamicTableDataAsync(schema, filter, token).ConfigureAwait(false);
+                        if (token.IsCancellationRequested) break;
                         if (result && deleted is ArrayNode deletedArray)
                         {
                             count += deletedArray.Count;

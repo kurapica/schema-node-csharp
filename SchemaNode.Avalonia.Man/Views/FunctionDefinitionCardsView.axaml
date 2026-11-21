@@ -1,0 +1,114 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:view="using:SchemaNode.Avalonia.View"
+             x:Class="SchemaNode.Avalonia.Man.Views.FunctionDefinitionCardsView"
+             x:CompileBindings="False">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Spacing="8">
+      <!-- Remaining fields keep the generic rendering -->
+      <ItemsControl ItemsSource="{Binding Others}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <view:SchemaView Node="{Binding}" Margin="0,2" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <!-- Return value -->
+      <Border BorderBrush="{DynamicResource ThemeBorderMidBrush}"
+              BorderThickness="1"
+              CornerRadius="4"
+              Padding="8">
+        <StackPanel Spacing="4">
+          <TextBlock Text="{DynamicResource avalonia.function.card.return}" FontWeight="SemiBold" />
+          <view:SchemaView Node="{Binding ReturnWrapper}" />
+        </StackPanel>
+      </Border>
+
+      <!-- Arguments -->
+      <Border BorderBrush="{DynamicResource ThemeBorderMidBrush}"
+              BorderThickness="1"
+              CornerRadius="4"
+              Padding="8">
+        <StackPanel Spacing="6">
+          <TextBlock Text="{DynamicResource avalonia.function.card.args}" FontWeight="SemiBold" />
+          <ItemsControl ItemsSource="{Binding ArgCards}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border BorderBrush="{DynamicResource ThemeBorderLowBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="6"
+                        Margin="0,2">
+                  <Grid ColumnDefinitions="*,12,*">
+                    <StackPanel Grid.Column="0" Spacing="4">
+                      <TextBlock Text="{Binding ArgName}" FontWeight="SemiBold" />
+                      <view:SchemaView Node="{Binding ArgWrapper}" />
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Button Content="{DynamicResource avalonia.button.new}"
+                                Command="{Binding AddCommand}" />
+                        <Button Content="{DynamicResource avalonia.button.delete}"
+                                Command="{Binding RemoveCommand}" />
+                      </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="4">
+                      <TextBlock Text="{DynamicResource avalonia.function.card.input}"
+                                 FontWeight="SemiBold" />
+                      <view:SchemaView Node="{Binding Input}" IsVisible="{Binding HasInput}" />
+                      <TextBlock Text="{Binding InputError}"
+                                 Foreground="#FFC62828"
+                                 TextWrapping="Wrap"
+                                 IsVisible="{Binding !HasInput}" />
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <!-- Expressions -->
+      <Border BorderBrush="{DynamicResource ThemeBorderMidBrush}"
+              BorderThickness="1"
+              CornerRadius="4"
+              Padding="8">
+        <StackPanel Spacing="6">
+          <TextBlock Text="{DynamicResource avalonia.function.card.exps}" FontWeight="SemiBold" />
+          <ItemsControl ItemsSource="{Binding ExpCards}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border BorderBrush="{DynamicResource ThemeBorderLowBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="6"
+                        Margin="0,2">
+                  <Grid ColumnDefinitions="*,12,*">
+                    <StackPanel Grid.Column="0" Spacing="4">
+                      <TextBlock Text="{Binding ExpName}" FontWeight="SemiBold" />
+                      <view:SchemaView Node="{Binding ExpWrapper}" />
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Button Content="{DynamicResource avalonia.button.new}"
+                                Command="{Binding AddCommand}" />
+                        <Button Content="{DynamicResource avalonia.button.delete}"
+                                Command="{Binding RemoveCommand}" />
+                      </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="4">
+                      <TextBlock Text="{DynamicResource avalonia.function.card.result}"
+                                 FontWeight="SemiBold" />
+                      <TextBox Text="{Binding Result}" IsReadOnly="True"
+                               AcceptsReturn="True"
+                               TextWrapping="Wrap"
+                               MinHeight="48" />
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
